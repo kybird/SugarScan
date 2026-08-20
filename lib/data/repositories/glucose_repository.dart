@@ -176,13 +176,20 @@ class GlucoseRepository {
       _recentQuery(limit).map(_toDomain).watch();
 
   /// 기간으로 조회한다. 통계와 리포트가 쓴다.
-  Future<List<GlucoseReading>> between(DateTime from, DateTime to) {
-    final query = _db.select(_db.glucoseReadingRows)
+  Future<List<GlucoseReading>> between(DateTime from, DateTime to) =>
+      _betweenQuery(from, to).map(_toDomain).get();
+
+  /// 기간 조회를 스트림으로. 통계 화면이 저장·수정·삭제에 스스로 반응한다.
+  Stream<List<GlucoseReading>> watchBetween(DateTime from, DateTime to) =>
+      _betweenQuery(from, to).map(_toDomain).watch();
+
+  SimpleSelectStatement<$GlucoseReadingRowsTable, GlucoseReadingRow>
+      _betweenQuery(DateTime from, DateTime to) {
+    return _db.select(_db.glucoseReadingRows)
       ..where((t) => t.deletedAt.isNull())
       ..where((t) => t.measuredAtUtc.isBiggerOrEqualValue(from.toUtc()))
       ..where((t) => t.measuredAtUtc.isSmallerOrEqualValue(to.toUtc()))
       ..orderBy([(t) => OrderingTerm.desc(t.measuredAtUtc)]);
-    return query.map(_toDomain).get();
   }
 
   /// 아직 서버로 보내지 못한 변경 수.

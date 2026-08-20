@@ -58,7 +58,6 @@
   "settingsUnitChanged": "표시 단위를 {unit}로 바꿨습니다",
   "settingsUnitNote": "이 설정은 보여 주는 방식만 바꿉니다. 이미 저장된 기록은 입력 당시의 단위를 그대로 간직합니다.",
   "medicalDisclaimer": "SugarScan은 의학적 진단을 제공하지 않습니다. 치료 결정 시 반드시 전문 의료진과 상담하세요.",
-  "comingSoon": "{phase}에 구현 예정",
   "authSignInTitle": "기록을 안전하게 보관합니다",
   "authSignInBody": "로그인하면 기록이 백업되고 다른 기기에서도 이어서 볼 수 있습니다.",
   "authSignInGoogle": "Google로 계속하기",
@@ -82,5 +81,17 @@
   "editEquivalent": "{value} {unit} 에 해당",
   "noteLabel": "메모 (선택)",
   "readingUpdated": "기록을 수정했습니다",
-  "readingRestored": "기록을 되살렸습니다"
+  "readingRestored": "기록을 되살렸습니다",
+  "statsWindowDays": "{days}일",
+  "statsEmpty": "이 기간에 기록이 없습니다",
+  "statsReadingCount": "{count}건",
+  "statsMean": "평균",
+  "statsInRange": "목표 범위 안",
+  "statsInRangeNote": "시간이 아니라 건수 기준입니다. 채혈 측정은 시점 표본이라 CGM 의 TIR 과 다릅니다.",
+  "statsTargetRange": "목표 범위 {low}–{high} {unit}",
+  "statsByTag": "태그별 평균",
+  "statsTrend": "기간 내 기록",
+  "statsLow": "최저",
+  "statsHigh": "최고",
+  "statsSd": "편차"
 }

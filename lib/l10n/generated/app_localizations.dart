@@ -446,12 +446,6 @@ abstract class AppLocalizations {
   /// **'SugarScan does not provide a medical diagnosis. Always consult a healthcare professional before making treatment decisions.'**
   String get medicalDisclaimer;
 
-  /// Placeholder for screens not built yet.
-  ///
-  /// In en, this message translates to:
-  /// **'Coming in {phase}'**
-  String comingSoon(String phase);
-
   /// No description provided for @authSignInTitle.
   ///
   /// In en, this message translates to:
@@ -595,6 +589,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reading restored'**
   String get readingRestored;
+
+  /// No description provided for @statsWindowDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{days} days'**
+  String statsWindowDays(int days);
+
+  /// No description provided for @statsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No readings in this period'**
+  String get statsEmpty;
+
+  /// No description provided for @statsReadingCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} readings'**
+  String statsReadingCount(int count);
+
+  /// No description provided for @statsMean.
+  ///
+  /// In en, this message translates to:
+  /// **'Average'**
+  String get statsMean;
+
+  /// Share of readings inside the user-set target range. Purely descriptive: never phrase this as normal, safe, or good.
+  ///
+  /// In en, this message translates to:
+  /// **'Within target range'**
+  String get statsInRange;
+
+  /// No description provided for @statsInRangeNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Counts readings, not time. A finger-prick meter samples moments, so this is not the same as a CGM time-in-range.'**
+  String get statsInRangeNote;
+
+  /// No description provided for @statsTargetRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Target range {low}–{high} {unit}'**
+  String statsTargetRange(String low, String high, String unit);
+
+  /// No description provided for @statsByTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Average by tag'**
+  String get statsByTag;
+
+  /// No description provided for @statsTrend.
+  ///
+  /// In en, this message translates to:
+  /// **'Readings over time'**
+  String get statsTrend;
+
+  /// No description provided for @statsLow.
+  ///
+  /// In en, this message translates to:
+  /// **'Low'**
+  String get statsLow;
+
+  /// No description provided for @statsHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'High'**
+  String get statsHigh;
+
+  /// No description provided for @statsSd.
+  ///
+  /// In en, this message translates to:
+  /// **'SD'**
+  String get statsSd;
 }
 
 class _AppLocalizationsDelegate

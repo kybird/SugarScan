@@ -198,11 +198,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'SugarScan does not provide a medical diagnosis. Always consult a healthcare professional before making treatment decisions.';
 
   @override
-  String comingSoon(String phase) {
-    return 'Coming in $phase';
-  }
-
-  @override
   String get authSignInTitle => 'Keep your readings safe';
 
   @override
@@ -283,4 +278,47 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get readingRestored => 'Reading restored';
+
+  @override
+  String statsWindowDays(int days) {
+    return '$days days';
+  }
+
+  @override
+  String get statsEmpty => 'No readings in this period';
+
+  @override
+  String statsReadingCount(int count) {
+    return '$count readings';
+  }
+
+  @override
+  String get statsMean => 'Average';
+
+  @override
+  String get statsInRange => 'Within target range';
+
+  @override
+  String get statsInRangeNote =>
+      'Counts readings, not time. A finger-prick meter samples moments, so this is not the same as a CGM time-in-range.';
+
+  @override
+  String statsTargetRange(String low, String high, String unit) {
+    return 'Target range $low–$high $unit';
+  }
+
+  @override
+  String get statsByTag => 'Average by tag';
+
+  @override
+  String get statsTrend => 'Readings over time';
+
+  @override
+  String get statsLow => 'Low';
+
+  @override
+  String get statsHigh => 'High';
+
+  @override
+  String get statsSd => 'SD';
 }

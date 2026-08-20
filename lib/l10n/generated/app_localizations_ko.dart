@@ -192,11 +192,6 @@ class AppLocalizationsKo extends AppLocalizations {
       'SugarScan은 의학적 진단을 제공하지 않습니다. 치료 결정 시 반드시 전문 의료진과 상담하세요.';
 
   @override
-  String comingSoon(String phase) {
-    return '$phase에 구현 예정';
-  }
-
-  @override
   String get authSignInTitle => '기록을 안전하게 보관합니다';
 
   @override
@@ -275,4 +270,47 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get readingRestored => '기록을 되살렸습니다';
+
+  @override
+  String statsWindowDays(int days) {
+    return '$days일';
+  }
+
+  @override
+  String get statsEmpty => '이 기간에 기록이 없습니다';
+
+  @override
+  String statsReadingCount(int count) {
+    return '$count건';
+  }
+
+  @override
+  String get statsMean => '평균';
+
+  @override
+  String get statsInRange => '목표 범위 안';
+
+  @override
+  String get statsInRangeNote =>
+      '시간이 아니라 건수 기준입니다. 채혈 측정은 시점 표본이라 CGM 의 TIR 과 다릅니다.';
+
+  @override
+  String statsTargetRange(String low, String high, String unit) {
+    return '목표 범위 $low–$high $unit';
+  }
+
+  @override
+  String get statsByTag => '태그별 평균';
+
+  @override
+  String get statsTrend => '기간 내 기록';
+
+  @override
+  String get statsLow => '최저';
+
+  @override
+  String get statsHigh => '최고';
+
+  @override
+  String get statsSd => '편차';
 }

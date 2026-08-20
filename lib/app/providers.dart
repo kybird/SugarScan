@@ -18,6 +18,7 @@ import '../data/repositories/settings_repository.dart';
 import '../data/system_timezone.dart';
 import '../domain/models/glucose_reading.dart';
 import '../domain/models/glucose_unit.dart';
+import '../domain/services/glucose_statistics.dart';
 
 /// 앱 전역 의존성.
 ///
@@ -300,4 +301,50 @@ final retrySyncProvider = Provider<Future<void> Function()>((ref) {
         .retryBlocked(maxAttempts: engine.maxAttempts);
     await ref.read(syncSchedulerProvider).now();
   };
+});
+
+// ── 통계 ────────────────────────────────────────────────────────────────
+
+/// 통계 화면이 보는 기간(일). 기본 14일.
+///
+/// eA1c 창(14일)과 맞춰 두었다. 두 숫자가 같은 화면에 나란히 서는데 서로 다른
+/// 기간을 보고 있으면 사용자가 둘을 대조하다 혼란스러워진다.
+class StatsWindow extends Notifier<int> {
+  static const List<int> options = [7, 14, 30];
+
+  @override
+  int build() => 14;
+
+  void select(int days) => state = days;
+}
+
+final statsWindowProvider =
+    NotifierProvider<StatsWindow, int>(StatsWindow.new);
+
+/// 선택한 기간의 기록. 저장·수정·삭제에 스스로 반응한다.
+final statsReadingsProvider = StreamProvider<List<GlucoseReading>>((ref) {
+  final days = ref.watch(statsWindowProvider);
+  final now = DateTime.now();
+  return ref.watch(glucoseRepositoryProvider).watchBetween(
+        now.subtract(Duration(days: days)),
+        now,
+      );
+});
+
+/// 사용자가 정한 목표 범위.
+///
+/// 임상 지침이 아니라 관찰용 범위다. 아직 설정 화면이 없어 기본값을 쓴다.
+final targetRangeProvider = Provider<TargetRange>((ref) {
+  return const TargetRange();
+});
+
+/// 기간 요약. 기록이 없으면 null — "0건"과 "평균 0"은 다른 이야기다.
+final statsSummaryProvider = Provider<GlucoseSummary?>((ref) {
+  final readings = ref.watch(statsReadingsProvider).value;
+  if (readings == null) return null;
+
+  return const GlucoseStatistics().summarize(
+    readings,
+    target: ref.watch(targetRangeProvider),
+  );
 });

@@ -100,15 +100,6 @@
   "@medicalDisclaimer": {
     "description": "Required notice. Must stay visible on onboarding, reports and settings."
   },
-  "comingSoon": "Coming in {phase}",
-  "@comingSoon": {
-    "description": "Placeholder for screens not built yet.",
-    "placeholders": {
-      "phase": {
-        "type": "String"
-      }
-    }
-  },
   "authSignInTitle": "Keep your readings safe",
   "authSignInBody": "Sign in so your readings are backed up and available on your other devices.",
   "authSignInGoogle": "Continue with Google",
@@ -170,5 +161,47 @@
   },
   "noteLabel": "Note (optional)",
   "readingUpdated": "Reading updated",
-  "readingRestored": "Reading restored"
+  "readingRestored": "Reading restored",
+  "statsWindowDays": "{days} days",
+  "@statsWindowDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "statsEmpty": "No readings in this period",
+  "statsReadingCount": "{count} readings",
+  "@statsReadingCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statsMean": "Average",
+  "statsInRange": "Within target range",
+  "@statsInRange": {
+    "description": "Share of readings inside the user-set target range. Purely descriptive: never phrase this as normal, safe, or good."
+  },
+  "statsInRangeNote": "Counts readings, not time. A finger-prick meter samples moments, so this is not the same as a CGM time-in-range.",
+  "statsTargetRange": "Target range {low}–{high} {unit}",
+  "@statsTargetRange": {
+    "placeholders": {
+      "low": {
+        "type": "String"
+      },
+      "high": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "statsByTag": "Average by tag",
+  "statsTrend": "Readings over time",
+  "statsLow": "Low",
+  "statsHigh": "High",
+  "statsSd": "SD"
 }

@@ -5,7 +5,7 @@ import '../features/dashboard/dashboard_screen.dart';
 import '../features/history/history_screen.dart';
 import '../features/scan/scan_screen.dart';
 import '../features/settings/settings_screen.dart';
-import '../features/shared/placeholder_screen.dart';
+import '../features/stats/stats_screen.dart';
 import '../l10n/generated/app_localizations.dart';
 
 enum AppRoute {
@@ -47,11 +47,7 @@ GoRouter createRouter() {
             GoRoute(
               path: AppRoute.stats.path,
               name: AppRoute.stats.name,
-              builder: (context, state) => PlaceholderScreen(
-                title: AppLocalizations.of(context).navStats,
-                phase: 'W12',
-                icon: Icons.insights,
-              ),
+              builder: (context, state) => const StatsScreen(),
             ),
           ]),
           StatefulShellBranch(routes: [
