@@ -745,6 +745,10 @@ Bluetooth SIG Glucose Service `0x1808` / Measurement `0x2A18` / RACP `0x2A52`. M
 flutter create --org com.sugarscan --project-name sugarscan --platforms=android,ios .
 ```
 
+> 패키지명은 이후 `com.kybirdlabs.sugarscan` 으로 바꿨다(W9-a 구글 로그인 설정 중).
+> 스토어 식별자는 한 번 등록되면 영구 고정이라, OAuth 클라이언트를 만들기 직전이
+> 마지막 변경 기회였다. 위 명령은 실행 당시의 기록이다.
+
 1. 위 명령으로 현재 디렉터리에 프로젝트 생성
 2. `pubspec.yaml`에 §4 의존성 반영 후 `flutter pub get` — 버전 충돌 즉시 확인
 3. `analysis_options.yaml`에 `flutter_lints` + `prefer_relative_imports` 등 규칙 강화

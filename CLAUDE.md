@@ -20,7 +20,7 @@ flutter gen-l10n                             # ARB → lib/l10n/generated/
 
 **커밋 기준**: `flutter analyze` 무경고 + `flutter test` 전체 통과.
 
-**Windows 함정**: 테스트가 타임아웃으로 죽으면 `flutter_tester.exe` 가 살아남아
+**Windows 함정 1**: 테스트가 타임아웃으로 죽으면 `flutter_tester.exe` 가 살아남아
 `build/native_assets/windows/sqlite3.dll` 을 잡고 있어 다음 빌드가 막힌다.
 
 ```bash
@@ -28,6 +28,24 @@ flutter gen-l10n                             # ARB → lib/l10n/generated/
 Get-Process -Name flutter_tester -EA SilentlyContinue | Stop-Process -Force
 Remove-Item -Recurse -Force build\native_assets
 ```
+
+**Windows 함정 2**: pub 캐시(`C:`)와 프로젝트(`D:`)가 다른 드라이브라 Kotlin 증분
+컴파일이 드라이브를 넘는 상대 경로를 계산하지 못하고 `Could not close incremental
+caches` 로 죽는다(flutter/flutter#173456). `android/gradle.properties` 의
+`kotlin.incremental=false` 가 이걸 막고 있다 — **지우지 말 것.**
+
+**안드로이드 빌드 설정은 손대기 전에 이유를 볼 것.** 전부 특정 플러그인이 강제한
+값이라 되돌리면 빌드가 깨진다:
+- `compileSdk = 37` — `flutter_secure_storage`, `permission_handler_android`.
+  API 37 은 SDK 저장소에 `android-37.0` 이라는 부(minor) 버전 이름으로만 존재하고,
+  해석하려면 **AGP 9.1.1 이상**이 필요하다(그래서 AGP 9.1.1 + Gradle 9.3.1).
+  AGP 9.0.x 는 `android-37` 을 찾다가 실패한다.
+- `minSdk = 26` — `health`. Android 8.0 미만을 버리는 **제품 결정**이다.
+- core library desugaring — `flutter_local_notifications`.
+- 루트 `build.gradle.kts` 의 JVM 타깃 17 통일 — AGP 9 는 한 모듈에서 Java 와
+  Kotlin 타깃이 다르면 빌드를 멈추는데 일부 플러그인이 Java 만 11 로 못박는다.
+  `evaluationDependsOn(":app")` **보다 앞**에 있어야 한다 — 뒤에 두면 이미 평가가
+  끝나 `afterEvaluate` 를 걸 수 없다.
 
 ## 아키텍처
 

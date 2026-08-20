@@ -66,7 +66,7 @@ flutter run --dart-define-from-file=supabase.local.json
 
 Android 등록에 쓸 값:
 
-- 패키지명 `com.sugarscan.sugarscan`
+- 패키지명 `com.kybirdlabs.sugarscan`
 - 디버그 SHA-1 은 아래로 확인한다. 릴리스 빌드는 릴리스 키스토어의 SHA-1 도
   따로 등록해야 한다.
 
