@@ -58,3 +58,9 @@ assets_dev/
 *.jks
 android/key.properties
 ios/Runner/GoogleService-Info.plist
+
+# Supabase 접속 정보 (--dart-define-from-file 로 넘기는 로컬 파일)
+*.local.json
+
+# Supabase CLI 링크 상태 (프로젝트 ref 등)
+supabase/.temp/

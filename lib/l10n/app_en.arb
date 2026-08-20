@@ -1,90 +1,82 @@
 {
   "@@locale": "en",
-
   "appTitle": "sugarScan",
   "@appTitle": {
     "description": "Application name. Not translated."
   },
-
   "navHome": "Home",
   "navHistory": "History",
   "navStats": "Stats",
   "navSettings": "Settings",
-
   "scanCta": "Scan meter",
   "@scanCta": {
     "description": "Primary action that opens the camera scanner."
   },
-
   "scanTitle": "Scan your meter",
   "scanGuideHint": "Fit the meter display inside the frame",
-
   "manualEntryCta": "Enter manually",
-
   "unitLabel": "Unit",
   "unitMgdl": "mg/dL",
   "unitMmoll": "mmol/L",
-
   "ea1cLabel": "Estimated A1c",
   "ea1cEstimateBadge": "Estimate",
   "ea1cInsufficientData": "Need {readings} readings across {days} days to estimate",
   "@ea1cInsufficientData": {
     "placeholders": {
-      "readings": { "type": "int" },
-      "days": { "type": "int" }
+      "readings": {
+        "type": "int"
+      },
+      "days": {
+        "type": "int"
+      }
     }
   },
-
   "tagFasting": "Fasting",
   "tagPreMeal": "Before meal",
   "tagPostMeal": "After meal",
   "tagPostExercise": "After exercise",
   "tagBedtime": "Bedtime",
   "tagRandom": "Unspecified",
-
   "scanReading": "Reading…",
   "scanConfirmTitle": "Confirm reading",
   "scanTagQuestion": "When was this measured?",
   "actionSave": "Save",
   "actionCancel": "Cancel",
   "actionRetry": "Scan again",
-
   "meterShowsHigh": "The meter shows HI — above its measurable range.",
   "meterShowsLow": "The meter shows LO — below its measurable range.",
   "@meterShowsLow": {
     "description": "Descriptive only. Never advise the user what to do about it."
   },
-
   "scanUnavailable": "Scanning is not available on this device. You can enter the value manually.",
   "cameraPermissionRequired": "Camera access is needed to scan your meter.",
-
   "readingSaved": "Saved {value} {unit}",
   "@readingSaved": {
     "placeholders": {
-      "value": { "type": "String" },
-      "unit": { "type": "String" }
+      "value": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
+      }
     }
   },
-
   "manualEntryTitle": "Enter reading",
   "valueLabel": "Blood glucose",
   "invalidValueEmpty": "Enter a value",
   "invalidValueFormat": "Enter a number",
   "invalidValueDecimals": "This unit does not use decimals",
   "invalidValueRange": "That is outside what a meter can show",
-
   "historyEmpty": "No readings yet. Scan your meter or enter a value.",
   "actionDelete": "Delete",
   "actionUndo": "Undo",
   "readingDeleted": "Reading deleted",
   "recentReadings": "Recent",
-
   "sourceOcr": "Scanned",
   "sourceManual": "Manual",
   "sourceBle": "Bluetooth",
   "sourceHealthSync": "Health app",
   "sourceImport": "Imported",
-
   "onboardingUnitTitle": "Which unit does your meter use?",
   "onboardingUnitBody": "Look at your meter's display. Pick the unit it shows.",
   "onboardingUnitWarning": "This matters: the same number means very different things in each unit. A reading of 40 is very low in mg/dL, and very high in mmol/L.",
@@ -94,24 +86,45 @@
   "unitExampleMgdl": "Readings look like 138",
   "unitExampleMmoll": "Readings look like 7.6",
   "actionContinue": "Continue",
-
   "settingsUnitSection": "Display unit",
   "settingsUnitChanged": "Display unit changed to {unit}",
   "@settingsUnitChanged": {
-    "placeholders": { "unit": { "type": "String" } }
+    "placeholders": {
+      "unit": {
+        "type": "String"
+      }
+    }
   },
   "settingsUnitNote": "Changing this only affects how readings are shown. Saved readings keep the unit they were entered in.",
-
   "medicalDisclaimer": "sugarScan does not provide a medical diagnosis. Always consult a healthcare professional before making treatment decisions.",
   "@medicalDisclaimer": {
     "description": "Required notice. Must stay visible on onboarding, reports and settings."
   },
-
   "comingSoon": "Coming in {phase}",
   "@comingSoon": {
     "description": "Placeholder for screens not built yet.",
     "placeholders": {
-      "phase": { "type": "String" }
+      "phase": {
+        "type": "String"
+      }
     }
-  }
+  },
+  "authSignInTitle": "Keep your readings safe",
+  "authSignInBody": "Sign in so your readings are backed up and available on your other devices.",
+  "authSignInGoogle": "Continue with Google",
+  "authSignInFailed": "Couldn't sign in. Please try again.",
+  "authSignInUnavailable": "Sign-in is not available in this build.",
+  "@authSignInUnavailable": {
+    "description": "Shown when the Google client ID or Supabase URL was not injected at build time."
+  },
+  "authSignOut": "Sign out",
+  "authSignedInAs": "Signed in as {email}",
+  "@authSignedInAs": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "authAccountSection": "Account"
 }

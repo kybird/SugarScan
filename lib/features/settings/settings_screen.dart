@@ -54,6 +54,8 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
           const Divider(),
+          const _AccountSection(),
+          const Divider(),
           Padding(
             padding: const EdgeInsets.all(16),
             child: Text(
@@ -80,6 +82,42 @@ class SettingsScreen extends ConsumerWidget {
 
     messenger.showSnackBar(
       SnackBar(content: Text(l10n.settingsUnitChanged(unit.symbol))),
+    );
+  }
+}
+
+/// 계정. 로그인한 상태에서만 보인다.
+///
+/// 서버 미설정 빌드나 로그인하지 않은(세션 만료 후 로컬 모드) 상태에서는
+/// 통째로 감춘다. 누를 수 없는 항목을 보여줄 이유가 없다.
+class _AccountSection extends ConsumerWidget {
+  const _AccountSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final signedIn = ref.watch(signedInProvider).value ?? false;
+    if (!signedIn) return const SizedBox.shrink();
+
+    final email = ref.watch(authRepositoryProvider).currentEmail;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Text(
+            l10n.authAccountSection,
+            style: theme.textTheme.titleSmall,
+          ),
+        ),
+        ListTile(
+          title: Text(l10n.authSignOut),
+          subtitle: email == null ? null : Text(l10n.authSignedInAs(email)),
+          onTap: () => ref.read(signOutProvider)(),
+        ),
+      ],
     );
   }
 }

@@ -201,4 +201,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String comingSoon(String phase) {
     return 'Coming in $phase';
   }
+
+  @override
+  String get authSignInTitle => 'Keep your readings safe';
+
+  @override
+  String get authSignInBody =>
+      'Sign in so your readings are backed up and available on your other devices.';
+
+  @override
+  String get authSignInGoogle => 'Continue with Google';
+
+  @override
+  String get authSignInFailed => 'Couldn\'t sign in. Please try again.';
+
+  @override
+  String get authSignInUnavailable => 'Sign-in is not available in this build.';
+
+  @override
+  String get authSignOut => 'Sign out';
+
+  @override
+  String authSignedInAs(String email) {
+    return 'Signed in as $email';
+  }
+
+  @override
+  String get authAccountSection => 'Account';
 }

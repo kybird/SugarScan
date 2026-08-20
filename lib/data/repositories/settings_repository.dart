@@ -27,6 +27,14 @@ class SettingsRepository {
   static const String _unitKey = 'display_unit';
   static const String _unitConfirmedKey = 'display_unit_confirmed';
 
+  /// 이 기기에서 한 번이라도 로그인에 성공했는지.
+  ///
+  /// 세션 유무와는 다른 질문이다. 세션은 리프레시 토큰이 만료·폐기되면 사라지는데,
+  /// 그때 로그인 화면으로 다시 막아 버리면 **비행기 안에서 측정한 사람이 기록을
+  /// 남길 방법이 없어진다.** 한 번 로그인한 기기는 세션이 끊겨도 로컬 모드로
+  /// 계속 쓰게 하고, 동기화만 세션이 돌아올 때까지 미룬다.
+  static const String _signedInBeforeKey = 'auth_signed_in_before';
+
   final AppDatabase _db;
 
   /// 저장된 단위 설정. 아직 고른 적이 없으면 null.
@@ -63,6 +71,17 @@ class SettingsRepository {
     await _write(_unitKey, unit.wireName);
     await _write(_unitConfirmedKey, 'true');
   }
+
+  /// 이 기기에서 로그인에 성공한 적이 있는지.
+  Stream<bool> watchSignedInBefore() {
+    final query = _db.select(_db.appSettingRows)
+      ..where((t) => t.key.equals(_signedInBeforeKey));
+    return query
+        .watch()
+        .map((rows) => rows.isNotEmpty && rows.first.value == 'true');
+  }
+
+  Future<void> markSignedIn() => _write(_signedInBeforeKey, 'true');
 
   Future<String?> _read(String key) async {
     final row = await (_db.select(_db.appSettingRows)

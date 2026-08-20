@@ -1,81 +1,70 @@
 {
   "@@locale": "ko",
-
   "appTitle": "sugarScan",
-
   "navHome": "홈",
   "navHistory": "기록",
   "navStats": "통계",
   "navSettings": "설정",
-
   "scanCta": "혈당기 스캔",
-
   "scanTitle": "혈당기를 비춰 주세요",
   "scanGuideHint": "혈당기 화면을 가이드 안에 맞춰 주세요",
-
   "manualEntryCta": "직접 입력",
-
   "unitLabel": "표시 단위",
   "unitMgdl": "mg/dL",
   "unitMmoll": "mmol/L",
-
   "ea1cLabel": "추정 당화혈색소",
   "ea1cEstimateBadge": "추정치",
   "ea1cInsufficientData": "{days}일에 걸쳐 {readings}회 이상 측정하면 추정할 수 있어요",
-
   "tagFasting": "공복",
   "tagPreMeal": "식전",
   "tagPostMeal": "식후",
   "tagPostExercise": "운동 후",
   "tagBedtime": "취침 전",
   "tagRandom": "미지정",
-
   "scanReading": "읽는 중…",
   "scanConfirmTitle": "이 값이 맞나요?",
   "scanTagQuestion": "언제 측정했나요?",
   "actionSave": "저장",
   "actionCancel": "취소",
   "actionRetry": "다시 스캔",
-
   "meterShowsHigh": "혈당계가 HI를 표시했습니다 — 측정 가능 범위를 넘었습니다.",
   "meterShowsLow": "혈당계가 LO를 표시했습니다 — 측정 가능 범위 아래입니다.",
-
   "scanUnavailable": "이 기기에서는 스캔을 사용할 수 없습니다. 직접 입력할 수 있어요.",
   "cameraPermissionRequired": "혈당계를 스캔하려면 카메라 권한이 필요합니다.",
-
   "readingSaved": "{value} {unit} 저장했습니다",
-
   "manualEntryTitle": "혈당 입력",
   "valueLabel": "혈당",
   "invalidValueEmpty": "값을 입력하세요",
   "invalidValueFormat": "숫자를 입력하세요",
   "invalidValueDecimals": "이 단위는 소수점을 쓰지 않습니다",
   "invalidValueRange": "혈당계가 표시할 수 있는 범위를 벗어납니다",
-
   "historyEmpty": "아직 기록이 없습니다. 혈당계를 스캔하거나 직접 입력해 보세요.",
   "actionDelete": "삭제",
   "actionUndo": "실행 취소",
   "readingDeleted": "기록을 삭제했습니다",
   "recentReadings": "최근 기록",
-
   "sourceOcr": "스캔",
   "sourceManual": "직접 입력",
   "sourceBle": "블루투스",
   "sourceHealthSync": "건강 앱",
   "sourceImport": "가져오기",
-
   "onboardingUnitTitle": "혈당계가 어떤 단위를 쓰나요?",
   "onboardingUnitBody": "혈당계 화면을 보고 표시되는 단위를 골라 주세요.",
   "onboardingUnitWarning": "중요합니다. 같은 숫자라도 단위에 따라 뜻이 완전히 달라집니다. 40은 mg/dL에서는 매우 낮고, mmol/L에서는 매우 높습니다.",
   "unitExampleMgdl": "이런 식으로 표시됩니다: 138",
   "unitExampleMmoll": "이런 식으로 표시됩니다: 7.6",
   "actionContinue": "계속",
-
   "settingsUnitSection": "표시 단위",
   "settingsUnitChanged": "표시 단위를 {unit}로 바꿨습니다",
   "settingsUnitNote": "이 설정은 보여 주는 방식만 바꿉니다. 이미 저장된 기록은 입력 당시의 단위를 그대로 간직합니다.",
-
   "medicalDisclaimer": "sugarScan은 의학적 진단을 제공하지 않습니다. 치료 결정 시 반드시 전문 의료진과 상담하세요.",
-
-  "comingSoon": "{phase}에 구현 예정"
+  "comingSoon": "{phase}에 구현 예정",
+  "authSignInTitle": "기록을 안전하게 보관합니다",
+  "authSignInBody": "로그인하면 기록이 백업되고 다른 기기에서도 이어서 볼 수 있습니다.",
+  "authSignInGoogle": "Google로 계속하기",
+  "authSignInFailed": "로그인하지 못했습니다. 다시 시도해 주세요.",
+  "authSignInUnavailable": "이 빌드에서는 로그인을 쓸 수 없습니다.",
+  "authSignOut": "로그아웃",
+  "authSignedInAs": "{email} 로 로그인됨",
+  "authAccountSection": "계정"
 }

@@ -195,4 +195,30 @@ class AppLocalizationsKo extends AppLocalizations {
   String comingSoon(String phase) {
     return '$phase에 구현 예정';
   }
+
+  @override
+  String get authSignInTitle => '기록을 안전하게 보관합니다';
+
+  @override
+  String get authSignInBody => '로그인하면 기록이 백업되고 다른 기기에서도 이어서 볼 수 있습니다.';
+
+  @override
+  String get authSignInGoogle => 'Google로 계속하기';
+
+  @override
+  String get authSignInFailed => '로그인하지 못했습니다. 다시 시도해 주세요.';
+
+  @override
+  String get authSignInUnavailable => '이 빌드에서는 로그인을 쓸 수 없습니다.';
+
+  @override
+  String get authSignOut => '로그아웃';
+
+  @override
+  String authSignedInAs(String email) {
+    return '$email 로 로그인됨';
+  }
+
+  @override
+  String get authAccountSection => '계정';
 }

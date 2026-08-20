@@ -451,6 +451,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Coming in {phase}'**
   String comingSoon(String phase);
+
+  /// No description provided for @authSignInTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep your readings safe'**
+  String get authSignInTitle;
+
+  /// No description provided for @authSignInBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in so your readings are backed up and available on your other devices.'**
+  String get authSignInBody;
+
+  /// No description provided for @authSignInGoogle.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with Google'**
+  String get authSignInGoogle;
+
+  /// No description provided for @authSignInFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t sign in. Please try again.'**
+  String get authSignInFailed;
+
+  /// Shown when the Google client ID or Supabase URL was not injected at build time.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign-in is not available in this build.'**
+  String get authSignInUnavailable;
+
+  /// No description provided for @authSignOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out'**
+  String get authSignOut;
+
+  /// No description provided for @authSignedInAs.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed in as {email}'**
+  String authSignedInAs(String email);
+
+  /// No description provided for @authAccountSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get authAccountSection;
 }
 
 class _AppLocalizationsDelegate
