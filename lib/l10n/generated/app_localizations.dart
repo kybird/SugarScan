@@ -1,0 +1,338 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:intl/intl.dart' as intl;
+
+import 'app_localizations_en.dart';
+import 'app_localizations_ko.dart';
+
+// ignore_for_file: type=lint
+
+/// Callers can lookup localized strings with an instance of AppLocalizations
+/// returned by `AppLocalizations.of(context)`.
+///
+/// Applications need to include `AppLocalizations.delegate()` in their app's
+/// `localizationDelegates` list, and the locales they support in the app's
+/// `supportedLocales` list. For example:
+///
+/// ```dart
+/// import 'generated/app_localizations.dart';
+///
+/// return MaterialApp(
+///   localizationsDelegates: AppLocalizations.localizationsDelegates,
+///   supportedLocales: AppLocalizations.supportedLocales,
+///   home: MyApplicationHome(),
+/// );
+/// ```
+///
+/// ## Update pubspec.yaml
+///
+/// Please make sure to update your pubspec.yaml to include the following
+/// packages:
+///
+/// ```yaml
+/// dependencies:
+///   # Internationalization support.
+///   flutter_localizations:
+///     sdk: flutter
+///   intl: any # Use the pinned version from flutter_localizations
+///
+///   # Rest of dependencies
+/// ```
+///
+/// ## iOS Applications
+///
+/// iOS applications define key application metadata, including supported
+/// locales, in an Info.plist file that is built into the application bundle.
+/// To configure the locales supported by your app, you’ll need to edit this
+/// file.
+///
+/// First, open your project’s ios/Runner.xcworkspace Xcode workspace file.
+/// Then, in the Project Navigator, open the Info.plist file under the Runner
+/// project’s Runner folder.
+///
+/// Next, select the Information Property List item, select Add Item from the
+/// Editor menu, then select Localizations from the pop-up menu.
+///
+/// Select and expand the newly-created Localizations item then, for each
+/// locale your application supports, add a new item and select the locale
+/// you wish to add from the pop-up menu in the Value field. This list should
+/// be consistent with the languages listed in the AppLocalizations.supportedLocales
+/// property.
+abstract class AppLocalizations {
+  AppLocalizations(String locale)
+    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+
+  final String localeName;
+
+  static AppLocalizations of(BuildContext context) {
+    return Localizations.of<AppLocalizations>(context, AppLocalizations)!;
+  }
+
+  static const LocalizationsDelegate<AppLocalizations> delegate =
+      _AppLocalizationsDelegate();
+
+  /// A list of this localizations delegate along with the default localizations
+  /// delegates.
+  ///
+  /// Returns a list of localizations delegates containing this delegate along with
+  /// GlobalMaterialLocalizations.delegate, GlobalCupertinoLocalizations.delegate,
+  /// and GlobalWidgetsLocalizations.delegate.
+  ///
+  /// Additional delegates can be added by appending to this list in
+  /// MaterialApp. This list does not have to be used at all if a custom list
+  /// of delegates is preferred or required.
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
+      <LocalizationsDelegate<dynamic>>[
+        delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ];
+
+  /// A list of this localizations delegate's supported locales.
+  static const List<Locale> supportedLocales = <Locale>[
+    Locale('en'),
+    Locale('ko'),
+  ];
+
+  /// Application name. Not translated.
+  ///
+  /// In en, this message translates to:
+  /// **'sugarScan'**
+  String get appTitle;
+
+  /// No description provided for @navHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get navHome;
+
+  /// No description provided for @navHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'History'**
+  String get navHistory;
+
+  /// No description provided for @navStats.
+  ///
+  /// In en, this message translates to:
+  /// **'Stats'**
+  String get navStats;
+
+  /// No description provided for @navSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get navSettings;
+
+  /// Primary action that opens the camera scanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan meter'**
+  String get scanCta;
+
+  /// No description provided for @scanTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan your meter'**
+  String get scanTitle;
+
+  /// No description provided for @scanGuideHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Fit the meter display inside the frame'**
+  String get scanGuideHint;
+
+  /// No description provided for @manualEntryCta.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter manually'**
+  String get manualEntryCta;
+
+  /// No description provided for @unitLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Unit'**
+  String get unitLabel;
+
+  /// No description provided for @unitMgdl.
+  ///
+  /// In en, this message translates to:
+  /// **'mg/dL'**
+  String get unitMgdl;
+
+  /// No description provided for @unitMmoll.
+  ///
+  /// In en, this message translates to:
+  /// **'mmol/L'**
+  String get unitMmoll;
+
+  /// No description provided for @ea1cLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated A1c'**
+  String get ea1cLabel;
+
+  /// No description provided for @ea1cEstimateBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimate'**
+  String get ea1cEstimateBadge;
+
+  /// No description provided for @ea1cInsufficientData.
+  ///
+  /// In en, this message translates to:
+  /// **'Need {readings} readings across {days} days to estimate'**
+  String ea1cInsufficientData(int readings, int days);
+
+  /// No description provided for @tagFasting.
+  ///
+  /// In en, this message translates to:
+  /// **'Fasting'**
+  String get tagFasting;
+
+  /// No description provided for @tagPreMeal.
+  ///
+  /// In en, this message translates to:
+  /// **'Before meal'**
+  String get tagPreMeal;
+
+  /// No description provided for @tagPostMeal.
+  ///
+  /// In en, this message translates to:
+  /// **'After meal'**
+  String get tagPostMeal;
+
+  /// No description provided for @tagPostExercise.
+  ///
+  /// In en, this message translates to:
+  /// **'After exercise'**
+  String get tagPostExercise;
+
+  /// No description provided for @tagBedtime.
+  ///
+  /// In en, this message translates to:
+  /// **'Bedtime'**
+  String get tagBedtime;
+
+  /// No description provided for @tagRandom.
+  ///
+  /// In en, this message translates to:
+  /// **'Unspecified'**
+  String get tagRandom;
+
+  /// No description provided for @scanReading.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading…'**
+  String get scanReading;
+
+  /// No description provided for @scanConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm reading'**
+  String get scanConfirmTitle;
+
+  /// No description provided for @scanTagQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'When was this measured?'**
+  String get scanTagQuestion;
+
+  /// No description provided for @actionSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get actionSave;
+
+  /// No description provided for @actionCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get actionCancel;
+
+  /// No description provided for @actionRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan again'**
+  String get actionRetry;
+
+  /// No description provided for @meterShowsHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'The meter shows HI — above its measurable range.'**
+  String get meterShowsHigh;
+
+  /// Descriptive only. Never advise the user what to do about it.
+  ///
+  /// In en, this message translates to:
+  /// **'The meter shows LO — below its measurable range.'**
+  String get meterShowsLow;
+
+  /// No description provided for @scanUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanning is not available on this device. You can enter the value manually.'**
+  String get scanUnavailable;
+
+  /// No description provided for @cameraPermissionRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera access is needed to scan your meter.'**
+  String get cameraPermissionRequired;
+
+  /// No description provided for @readingSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {value} {unit}'**
+  String readingSaved(String value, String unit);
+
+  /// Required notice. Must stay visible on onboarding, reports and settings.
+  ///
+  /// In en, this message translates to:
+  /// **'sugarScan does not provide a medical diagnosis. Always consult a healthcare professional before making treatment decisions.'**
+  String get medicalDisclaimer;
+
+  /// Placeholder for screens not built yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Coming in {phase}'**
+  String comingSoon(String phase);
+}
+
+class _AppLocalizationsDelegate
+    extends LocalizationsDelegate<AppLocalizations> {
+  const _AppLocalizationsDelegate();
+
+  @override
+  Future<AppLocalizations> load(Locale locale) {
+    return SynchronousFuture<AppLocalizations>(lookupAppLocalizations(locale));
+  }
+
+  @override
+  bool isSupported(Locale locale) =>
+      <String>['en', 'ko'].contains(locale.languageCode);
+
+  @override
+  bool shouldReload(_AppLocalizationsDelegate old) => false;
+}
+
+AppLocalizations lookupAppLocalizations(Locale locale) {
+  // Lookup logic when only language code is specified.
+  switch (locale.languageCode) {
+    case 'en':
+      return AppLocalizationsEn();
+    case 'ko':
+      return AppLocalizationsKo();
+  }
+
+  throw FlutterError(
+    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+    'an issue with the localizations generation tool. Please file an issue '
+    'on GitHub with a reproducible sample app and the gen-l10n configuration '
+    'that was used.',
+  );
+}

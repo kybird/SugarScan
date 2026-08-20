@@ -1,0 +1,79 @@
+# 서드파티 라이선스 검토
+
+> 최초 작성 2026-08-20 · 담당: 개발자 본인
+> **상태: 초안 — 아래 "확인 필요" 항목은 실제 저장소의 LICENSE 파일을 직접 열어 확인한 뒤 갱신할 것.**
+
+앱에 실제로 반입되는 자산(모델 가중치·폰트·학습 코드)의 상업적 사용 가능 여부와
+고지 의무를 여기에 모은다. 정확도만 보고 모델을 골랐다가 출시 직전에 라이선스로
+막히는 것이 이 프로젝트에서 가장 값비싼 실수가 된다.
+
+---
+
+## 1. OCR 모델 / 학습 코드
+
+| 자산 | 출처 | 라이선스 | 앱에 반입되는가 | 상태 |
+|---|---|---|---|---|
+| EasyOCR | JaidedAI/EasyOCR | Apache-2.0 | 코드는 아니오, **가중치는 예**(ONNX 변환본) | 확인 필요 |
+| CRAFT (text detector) | clovaai/CRAFT-pytorch | MIT (연구용 조항 확인 요) | **미반입** (가이드 박스로 대체) | 확인 필요 |
+| deep-text-recognition-benchmark | clovaai | Apache-2.0 | 아니오 (학습 도구) | 확인 필요 |
+| ONNX Runtime | microsoft/onnxruntime | MIT | 예 (flutter_onnxruntime 경유) | 확인 필요 |
+| **7seg_classifier.tflite** | [Kazuhito00/7segment-display-reader](https://github.com/Kazuhito00/7segment-display-reader) | **Apache-2.0** (GitHub API 확인 완료) | **예** — `assets/models/` 에 번들 | 고지 의무 반영 필요 |
+| TensorFlow Lite | tflite_flutter 경유 | Apache-2.0 | 예 | 확인 필요 |
+
+**참고만 하고 코드를 쓰지 않은 것** (반입 자산 아님)
+
+| 프로젝트 | 라이선스 | 처리 |
+|---|---|---|
+| [SSOCR](https://github.com/jiweibo/SSOCR) | GPL-3.0 | **코드 미사용.** GPL 전염성 때문에 상용 앱에 넣을 수 없어 알고리즘 아이디어만 참고하고 `SegmentRuleEngine` 을 자체 구현했다 |
+| [SegoDec](https://github.com/scottmudge/SegoDec) | 확인 필요 | 코드 미사용. CLAHE/대비 개선 접근만 참고 |
+| [seven-segment-ocr](https://github.com/suyashkumar/seven-segment-ocr) | 확인 필요 | 코드 미사용 |
+| [OICWS/lcd-digit-recognition](https://github.com/OICWS/lcd-digit-recognition) | **AGPL-3.0** | **채택하지 않음.** YOLOv8 기반이며 AGPL 은 상용 배포에 부적합 |
+
+> 자체 구현이라는 사실 자체가 라이선스 방어선이다. 나중에 성능이 아쉬워 참고
+> 저장소의 코드를 조각이라도 붙여 넣으면 그 순간 라이선스가 따라 들어온다.
+
+**확인 포인트**
+- EasyOCR 사전학습 가중치는 코드와 라이선스가 다를 수 있다. 가중치 배포 조건을
+  별도로 확인한다.
+- CRAFT 는 현재 계획상 **앱에 넣지 않는다**(§2.5 Detector 생략). 학습 파이프라인
+  에서만 쓴다면 반입 자산이 아니므로 조건이 완화된다.
+- fine-tune 결과물의 저작권 귀속: 원 가중치의 라이선스가 파생 가중치에도
+  따라붙는지 확인한다.
+
+---
+
+## 2. 폰트
+
+| 자산 | 용도 | 라이선스 | 앱에 반입되는가 |
+|---|---|---|---|
+| DSEG (7-세그먼트) | **합성 학습 데이터 생성 전용** | SIL OFL 1.1 | 아니오 |
+| Noto Sans KR / JP / SC | PDF 리포트 CJK 렌더링 | SIL OFL 1.1 | 예 |
+
+SIL OFL 은 상업적 사용·임베딩을 허용하지만 **폰트 자체를 판매할 수 없고**
+파생 폰트에 예약 이름을 쓸 수 없다. PDF 임베딩은 허용 범위 안이다.
+
+> 리포트에 CJK 폰트를 임베딩하지 않으면 한국어·일본어 리포트에서 글자가 깨진다.
+> 반면 3개 폰트를 모두 번들하면 앱 크기가 크게 늘어난다 → 필요한 폰트만 지연
+> 로드하는 구조로 간다.
+
+---
+
+## 3. Flutter 패키지
+
+`flutter pub deps` 기준 직접 의존 패키지는 대부분 BSD-3-Clause / MIT / Apache-2.0
+이다. 출시 전 아래를 수행한다.
+
+1. `flutter pub deps --style=compact` 로 전체 의존성 목록 확보
+2. 앱 내 "오픈소스 라이선스" 화면 연결 (`showLicensePage`) — Flutter 가 패키지
+   LICENSE 를 자동 수집하므로 별도 고지 문서를 만들 필요는 없다
+3. GPL/AGPL 계열이 섞였는지 확인 (현재 목록에는 없음)
+
+---
+
+## 4. 미해결 항목
+
+- [ ] EasyOCR 사전학습 가중치의 배포 조건 확인
+- [ ] fine-tune 파생 가중치의 라이선스 귀속 확인
+- [ ] 실촬 학습 데이터에 타인의 혈당계·개인정보가 찍히지 않도록 하는 수집 지침 문서화
+- [ ] 출시 빌드에 `showLicensePage` 연결
+- [ ] **Apache-2.0 고지**: `7seg_classifier.tflite` 는 앱에 직접 번들되므로 라이선스 사본과 저작자 고지를 앱 내 라이선스 화면에 포함해야 한다. 모델을 fine-tune 해 교체하면 "변경 사항 고지"도 함께 필요하다.

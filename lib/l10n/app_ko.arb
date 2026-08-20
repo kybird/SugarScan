@@ -1,0 +1,51 @@
+{
+  "@@locale": "ko",
+
+  "appTitle": "sugarScan",
+
+  "navHome": "홈",
+  "navHistory": "기록",
+  "navStats": "통계",
+  "navSettings": "설정",
+
+  "scanCta": "혈당기 스캔",
+
+  "scanTitle": "혈당기를 비춰 주세요",
+  "scanGuideHint": "혈당기 화면을 가이드 안에 맞춰 주세요",
+
+  "manualEntryCta": "직접 입력",
+
+  "unitLabel": "표시 단위",
+  "unitMgdl": "mg/dL",
+  "unitMmoll": "mmol/L",
+
+  "ea1cLabel": "추정 당화혈색소",
+  "ea1cEstimateBadge": "추정치",
+  "ea1cInsufficientData": "{days}일에 걸쳐 {readings}회 이상 측정하면 추정할 수 있어요",
+
+  "tagFasting": "공복",
+  "tagPreMeal": "식전",
+  "tagPostMeal": "식후",
+  "tagPostExercise": "운동 후",
+  "tagBedtime": "취침 전",
+  "tagRandom": "미지정",
+
+  "scanReading": "읽는 중…",
+  "scanConfirmTitle": "이 값이 맞나요?",
+  "scanTagQuestion": "언제 측정했나요?",
+  "actionSave": "저장",
+  "actionCancel": "취소",
+  "actionRetry": "다시 스캔",
+
+  "meterShowsHigh": "혈당계가 HI를 표시했습니다 — 측정 가능 범위를 넘었습니다.",
+  "meterShowsLow": "혈당계가 LO를 표시했습니다 — 측정 가능 범위 아래입니다.",
+
+  "scanUnavailable": "이 기기에서는 스캔을 사용할 수 없습니다. 직접 입력할 수 있어요.",
+  "cameraPermissionRequired": "혈당계를 스캔하려면 카메라 권한이 필요합니다.",
+
+  "readingSaved": "{value} {unit} 저장했습니다",
+
+  "medicalDisclaimer": "sugarScan은 의학적 진단을 제공하지 않습니다. 치료 결정 시 반드시 전문 의료진과 상담하세요.",
+
+  "comingSoon": "{phase}에 구현 예정"
+}
