@@ -45,6 +45,25 @@
 
   "readingSaved": "{value} {unit} 저장했습니다",
 
+  "manualEntryTitle": "혈당 입력",
+  "valueLabel": "혈당",
+  "invalidValueEmpty": "값을 입력하세요",
+  "invalidValueFormat": "숫자를 입력하세요",
+  "invalidValueDecimals": "이 단위는 소수점을 쓰지 않습니다",
+  "invalidValueRange": "혈당계가 표시할 수 있는 범위를 벗어납니다",
+
+  "historyEmpty": "아직 기록이 없습니다. 혈당계를 스캔하거나 직접 입력해 보세요.",
+  "actionDelete": "삭제",
+  "actionUndo": "실행 취소",
+  "readingDeleted": "기록을 삭제했습니다",
+  "recentReadings": "최근 기록",
+
+  "sourceOcr": "스캔",
+  "sourceManual": "직접 입력",
+  "sourceBle": "블루투스",
+  "sourceHealthSync": "건강 앱",
+  "sourceImport": "가져오기",
+
   "medicalDisclaimer": "sugarScan은 의학적 진단을 제공하지 않습니다. 치료 결정 시 반드시 전문 의료진과 상담하세요.",
 
   "comingSoon": "{phase}에 구현 예정"

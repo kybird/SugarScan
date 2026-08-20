@@ -113,6 +113,55 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get manualEntryTitle => 'Enter reading';
+
+  @override
+  String get valueLabel => 'Blood glucose';
+
+  @override
+  String get invalidValueEmpty => 'Enter a value';
+
+  @override
+  String get invalidValueFormat => 'Enter a number';
+
+  @override
+  String get invalidValueDecimals => 'This unit does not use decimals';
+
+  @override
+  String get invalidValueRange => 'That is outside what a meter can show';
+
+  @override
+  String get historyEmpty =>
+      'No readings yet. Scan your meter or enter a value.';
+
+  @override
+  String get actionDelete => 'Delete';
+
+  @override
+  String get actionUndo => 'Undo';
+
+  @override
+  String get readingDeleted => 'Reading deleted';
+
+  @override
+  String get recentReadings => 'Recent';
+
+  @override
+  String get sourceOcr => 'Scanned';
+
+  @override
+  String get sourceManual => 'Manual';
+
+  @override
+  String get sourceBle => 'Bluetooth';
+
+  @override
+  String get sourceHealthSync => 'Health app';
+
+  @override
+  String get sourceImport => 'Imported';
+
+  @override
   String get medicalDisclaimer =>
       'sugarScan does not provide a medical diagnosis. Always consult a healthcare professional before making treatment decisions.';
 

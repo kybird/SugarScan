@@ -28,6 +28,7 @@ class GlucoseReading {
     this.photoPath,
     this.note,
     this.deletedAt,
+    this.adjustedByUser = false,
   });
 
   /// 클라이언트가 생성하는 uuid v4.
@@ -60,6 +61,13 @@ class GlucoseReading {
   final String? photoPath;
 
   final String? note;
+
+  /// 사용자가 인식값을 손으로 고쳤는지.
+  ///
+  /// 이 비율이 높은 기종은 엔진이 틀리고 있는 곳이다. 골든셋을 어디부터
+  /// 늘려야 하는지 알려주는 가장 값싼 지표라 함께 남긴다.
+  final bool adjustedByUser;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -99,6 +107,7 @@ class GlucoseReading {
     String? ocrRawText,
     String? photoPath,
     String? note,
+    bool adjustedByUser = false,
   }) {
     return GlucoseReading(
       id: id,
@@ -115,6 +124,7 @@ class GlucoseReading {
       ocrRawText: ocrRawText,
       photoPath: photoPath,
       note: note,
+      adjustedByUser: adjustedByUser,
       createdAt: now.toUtc(),
       updatedAt: now.toUtc(),
     );
@@ -148,6 +158,7 @@ class GlucoseReading {
       ocrRawText: ocrRawText,
       photoPath: photoPath,
       note: note ?? this.note,
+      adjustedByUser: adjustedByUser,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,

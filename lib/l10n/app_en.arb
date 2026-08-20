@@ -66,6 +66,25 @@
     }
   },
 
+  "manualEntryTitle": "Enter reading",
+  "valueLabel": "Blood glucose",
+  "invalidValueEmpty": "Enter a value",
+  "invalidValueFormat": "Enter a number",
+  "invalidValueDecimals": "This unit does not use decimals",
+  "invalidValueRange": "That is outside what a meter can show",
+
+  "historyEmpty": "No readings yet. Scan your meter or enter a value.",
+  "actionDelete": "Delete",
+  "actionUndo": "Undo",
+  "readingDeleted": "Reading deleted",
+  "recentReadings": "Recent",
+
+  "sourceOcr": "Scanned",
+  "sourceManual": "Manual",
+  "sourceBle": "Bluetooth",
+  "sourceHealthSync": "Health app",
+  "sourceImport": "Imported",
+
   "medicalDisclaimer": "sugarScan does not provide a medical diagnosis. Always consult a healthcare professional before making treatment decisions.",
   "@medicalDisclaimer": {
     "description": "Required notice. Must stay visible on onboarding, reports and settings."

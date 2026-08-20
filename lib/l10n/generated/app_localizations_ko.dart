@@ -109,6 +109,54 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
+  String get manualEntryTitle => '혈당 입력';
+
+  @override
+  String get valueLabel => '혈당';
+
+  @override
+  String get invalidValueEmpty => '값을 입력하세요';
+
+  @override
+  String get invalidValueFormat => '숫자를 입력하세요';
+
+  @override
+  String get invalidValueDecimals => '이 단위는 소수점을 쓰지 않습니다';
+
+  @override
+  String get invalidValueRange => '혈당계가 표시할 수 있는 범위를 벗어납니다';
+
+  @override
+  String get historyEmpty => '아직 기록이 없습니다. 혈당계를 스캔하거나 직접 입력해 보세요.';
+
+  @override
+  String get actionDelete => '삭제';
+
+  @override
+  String get actionUndo => '실행 취소';
+
+  @override
+  String get readingDeleted => '기록을 삭제했습니다';
+
+  @override
+  String get recentReadings => '최근 기록';
+
+  @override
+  String get sourceOcr => '스캔';
+
+  @override
+  String get sourceManual => '직접 입력';
+
+  @override
+  String get sourceBle => '블루투스';
+
+  @override
+  String get sourceHealthSync => '건강 앱';
+
+  @override
+  String get sourceImport => '가져오기';
+
+  @override
   String get medicalDisclaimer =>
       'sugarScan은 의학적 진단을 제공하지 않습니다. 치료 결정 시 반드시 전문 의료진과 상담하세요.';
 

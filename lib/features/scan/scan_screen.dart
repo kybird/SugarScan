@@ -11,6 +11,7 @@ import '../../l10n/generated/app_localizations.dart';
 import '../../ocr/ocr.dart';
 import 'camera_image_adapter.dart';
 import 'confirm_sheet.dart';
+import 'manual_entry_sheet.dart';
 import 'scan_entry.dart';
 
 /// 카메라 스캐너 화면.
@@ -216,6 +217,26 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
     await _startStream();
   }
 
+  /// 직접 입력. 스캔이 막혔든 아니든 언제나 열 수 있다.
+  Future<void> _openManualEntry() async {
+    _paused = true;
+    await _stopStream();
+    if (!mounted) return;
+
+    final entry = await showManualEntrySheet(context, unit: _unit);
+    if (!mounted) return;
+
+    if (entry != null) {
+      Navigator.of(context).pop(entry);
+      return;
+    }
+
+    _scanner.reset();
+    _paused = false;
+    setState(() => _outcome = _scanner.lastOutcome);
+    await _startStream();
+  }
+
   Future<void> _teardown() async {
     await _stopStream();
     await _controller?.dispose();
@@ -292,7 +313,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
               // OCR 이 성공하든 실패하든 이 버튼은 항상 보인다.
               // 사용자가 기록을 남기지 못하는 상태를 만들지 않는다.
               OutlinedButton.icon(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: _openManualEntry,
                 icon: const Icon(Icons.keyboard),
                 label: Text(l10n.manualEntryCta),
                 style: OutlinedButton.styleFrom(

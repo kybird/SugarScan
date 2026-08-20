@@ -290,6 +290,102 @@ abstract class AppLocalizations {
   /// **'Saved {value} {unit}'**
   String readingSaved(String value, String unit);
 
+  /// No description provided for @manualEntryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter reading'**
+  String get manualEntryTitle;
+
+  /// No description provided for @valueLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Blood glucose'**
+  String get valueLabel;
+
+  /// No description provided for @invalidValueEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a value'**
+  String get invalidValueEmpty;
+
+  /// No description provided for @invalidValueFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a number'**
+  String get invalidValueFormat;
+
+  /// No description provided for @invalidValueDecimals.
+  ///
+  /// In en, this message translates to:
+  /// **'This unit does not use decimals'**
+  String get invalidValueDecimals;
+
+  /// No description provided for @invalidValueRange.
+  ///
+  /// In en, this message translates to:
+  /// **'That is outside what a meter can show'**
+  String get invalidValueRange;
+
+  /// No description provided for @historyEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No readings yet. Scan your meter or enter a value.'**
+  String get historyEmpty;
+
+  /// No description provided for @actionDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get actionDelete;
+
+  /// No description provided for @actionUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get actionUndo;
+
+  /// No description provided for @readingDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading deleted'**
+  String get readingDeleted;
+
+  /// No description provided for @recentReadings.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent'**
+  String get recentReadings;
+
+  /// No description provided for @sourceOcr.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanned'**
+  String get sourceOcr;
+
+  /// No description provided for @sourceManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual'**
+  String get sourceManual;
+
+  /// No description provided for @sourceBle.
+  ///
+  /// In en, this message translates to:
+  /// **'Bluetooth'**
+  String get sourceBle;
+
+  /// No description provided for @sourceHealthSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Health app'**
+  String get sourceHealthSync;
+
+  /// No description provided for @sourceImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported'**
+  String get sourceImport;
+
   /// Required notice. Must stay visible on onboarding, reports and settings.
   ///
   /// In en, this message translates to:

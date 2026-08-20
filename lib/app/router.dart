@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/dashboard/dashboard_screen.dart';
+import '../features/history/history_screen.dart';
 import '../features/scan/scan_screen.dart';
 import '../features/shared/placeholder_screen.dart';
 import '../l10n/generated/app_localizations.dart';
@@ -38,11 +39,7 @@ GoRouter createRouter() {
             GoRoute(
               path: AppRoute.history.path,
               name: AppRoute.history.name,
-              builder: (context, state) => PlaceholderScreen(
-                title: AppLocalizations.of(context).navHistory,
-                phase: 'W8',
-                icon: Icons.list_alt,
-              ),
+              builder: (context, state) => const HistoryScreen(),
             ),
           ]),
           StatefulShellBranch(routes: [
