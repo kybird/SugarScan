@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../data/sync/sync_engine.dart';
 import '../../domain/models/glucose_unit.dart';
 import '../../l10n/generated/app_localizations.dart';
 
@@ -53,6 +54,8 @@ class SettingsScreen extends ConsumerWidget {
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
           ),
+          const Divider(),
+          const _SyncSection(),
           const Divider(),
           const _AccountSection(),
           const Divider(),
@@ -116,6 +119,62 @@ class _AccountSection extends ConsumerWidget {
           title: Text(l10n.authSignOut),
           subtitle: email == null ? null : Text(l10n.authSignedInAs(email)),
           onTap: () => ref.read(signOutProvider)(),
+        ),
+      ],
+    );
+  }
+}
+
+/// 동기화 상태. 서버가 설정된 빌드에서만 보인다.
+///
+/// 배너와 달리 여기서는 **평상시에도 숫자를 보여준다.** 사용자가 "지금 어떤
+/// 상태인가"를 확인하러 오는 곳이라, 아무것도 없으면 기능이 없는 것처럼 보인다.
+class _SyncSection extends ConsumerWidget {
+  const _SyncSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+
+    if (!ref.watch(remoteBackendProvider).isReady) {
+      return const SizedBox.shrink();
+    }
+
+    final status = ref.watch(syncStatusProvider);
+    final failedLast =
+        ref.watch(syncReportProvider).value?.outcome == SyncOutcome.failed;
+
+    final summary = switch (status) {
+      SyncStatusBlocked(:final count) => l10n.syncBlocked(count),
+      SyncStatusSignedOut() => l10n.syncSignedOut,
+      SyncStatusPending(:final count) => l10n.syncPending(count),
+      SyncStatusIdle() =>
+        failedLast ? l10n.syncLastFailed : l10n.syncUpToDate,
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Text(l10n.syncSection, style: theme.textTheme.titleSmall),
+        ),
+        ListTile(
+          title: Text(summary),
+          subtitle: status is SyncStatusBlocked
+              ? Text(l10n.syncBlockedHint)
+              : null,
+          trailing: TextButton(
+            // 막힌 항목은 시도 횟수를 되돌려야 다시 집힌다. 그냥 한 회차 더
+            // 돌리는 것으로는 아무 일도 일어나지 않는다.
+            onPressed: () => status is SyncStatusBlocked
+                ? ref.read(retrySyncProvider)()
+                : ref.read(syncSchedulerProvider).now(),
+            child: Text(
+              status is SyncStatusBlocked ? l10n.syncRetry : l10n.syncNow,
+            ),
+          ),
         ),
       ],
     );

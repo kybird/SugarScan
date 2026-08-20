@@ -252,6 +252,26 @@ void main() {
       expect(api.calls.where((c) => c == 'upsert').length, 3);
     });
 
+    // 되돌리는 경로가 없으면 blocked 는 막다른 길이다 — "다시 시도" 버튼을
+    // 달아도 pending() 이 그 항목을 집어오지 않아 아무 일도 일어나지 않는다.
+    test('다시 시도하면 막혔던 것이 올라간다', () async {
+      await addLocal();
+      api.failUpsert = StateError('서버 없음');
+      for (var i = 0; i < 3; i++) {
+        await engine(maxAttempts: 3).syncOnce();
+      }
+      expect((await engine(maxAttempts: 3).syncOnce()).blocked, 1);
+
+      api.failUpsert = null;
+      await outbox.retryBlocked(maxAttempts: 3);
+      final report = await engine(maxAttempts: 3).syncOnce();
+
+      expect(report.pushed, 1);
+      expect(report.blocked, 0);
+      expect(await outboxCount(), 0);
+      expect(api.rows, hasLength(1));
+    });
+
     // 지하철을 여섯 번 타는 것만으로 아웃박스가 영구히 막히면 안 된다.
     test('오프라인은 시도 횟수를 태우지 않는다', () async {
       await addLocal();

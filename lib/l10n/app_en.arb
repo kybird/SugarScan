@@ -126,5 +126,29 @@
       }
     }
   },
-  "authAccountSection": "Account"
+  "authAccountSection": "Account",
+  "syncSection": "Sync",
+  "syncUpToDate": "Everything is backed up",
+  "syncPending": "{count} waiting to upload",
+  "@syncPending": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncBlocked": "Couldn't upload {count} readings",
+  "@syncBlocked": {
+    "description": "Shown when entries exhausted their retry attempts. Must make clear nothing was lost.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncBlockedHint": "They are still saved on this device.",
+  "syncSignedOut": "Backup is paused because you are signed out.",
+  "syncRetry": "Try again",
+  "syncNow": "Sync now",
+  "syncLastFailed": "Last attempt failed."
 }

@@ -221,4 +221,35 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get authAccountSection => '계정';
+
+  @override
+  String get syncSection => '동기화';
+
+  @override
+  String get syncUpToDate => '모두 백업되었습니다';
+
+  @override
+  String syncPending(int count) {
+    return '$count건 대기 중';
+  }
+
+  @override
+  String syncBlocked(int count) {
+    return '$count건을 올리지 못했습니다';
+  }
+
+  @override
+  String get syncBlockedHint => '기록은 이 기기에 그대로 있습니다.';
+
+  @override
+  String get syncSignedOut => '로그아웃 상태라 백업이 멈춰 있습니다.';
+
+  @override
+  String get syncRetry => '다시 시도';
+
+  @override
+  String get syncNow => '지금 동기화';
+
+  @override
+  String get syncLastFailed => '마지막 시도가 실패했습니다.';
 }

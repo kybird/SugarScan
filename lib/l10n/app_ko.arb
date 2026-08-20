@@ -66,5 +66,14 @@
   "authSignInUnavailable": "이 빌드에서는 로그인을 쓸 수 없습니다.",
   "authSignOut": "로그아웃",
   "authSignedInAs": "{email} 로 로그인됨",
-  "authAccountSection": "계정"
+  "authAccountSection": "계정",
+  "syncSection": "동기화",
+  "syncUpToDate": "모두 백업되었습니다",
+  "syncPending": "{count}건 대기 중",
+  "syncBlocked": "{count}건을 올리지 못했습니다",
+  "syncBlockedHint": "기록은 이 기기에 그대로 있습니다.",
+  "syncSignedOut": "로그아웃 상태라 백업이 멈춰 있습니다.",
+  "syncRetry": "다시 시도",
+  "syncNow": "지금 동기화",
+  "syncLastFailed": "마지막 시도가 실패했습니다."
 }

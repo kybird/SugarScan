@@ -499,6 +499,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Account'**
   String get authAccountSection;
+
+  /// No description provided for @syncSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync'**
+  String get syncSection;
+
+  /// No description provided for @syncUpToDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything is backed up'**
+  String get syncUpToDate;
+
+  /// No description provided for @syncPending.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} waiting to upload'**
+  String syncPending(int count);
+
+  /// Shown when entries exhausted their retry attempts. Must make clear nothing was lost.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t upload {count} readings'**
+  String syncBlocked(int count);
+
+  /// No description provided for @syncBlockedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'They are still saved on this device.'**
+  String get syncBlockedHint;
+
+  /// No description provided for @syncSignedOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup is paused because you are signed out.'**
+  String get syncSignedOut;
+
+  /// No description provided for @syncRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get syncRetry;
+
+  /// No description provided for @syncNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync now'**
+  String get syncNow;
+
+  /// No description provided for @syncLastFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Last attempt failed.'**
+  String get syncLastFailed;
 }
 
 class _AppLocalizationsDelegate

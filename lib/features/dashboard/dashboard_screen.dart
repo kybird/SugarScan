@@ -9,6 +9,7 @@ import '../../domain/models/glucose_unit.dart';
 import '../../domain/services/ea1c_calculator.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../scan/scan_entry.dart';
+import '../sync/sync_status_banner.dart';
 import '../shared/reading_tile.dart';
 
 /// 홈 대시보드.
@@ -32,6 +33,8 @@ class DashboardScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
         children: [
+          // 막혔을 때만 나타난다. 평상시에는 높이 0 이라 배치가 흔들리지 않는다.
+          const SyncStatusBanner(),
           _Ea1cCard(readings: readings.value ?? const []),
           const SizedBox(height: 24),
           Text(l10n.recentReadings, style: theme.textTheme.titleSmall),

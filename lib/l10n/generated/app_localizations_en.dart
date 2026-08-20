@@ -228,4 +228,35 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get authAccountSection => 'Account';
+
+  @override
+  String get syncSection => 'Sync';
+
+  @override
+  String get syncUpToDate => 'Everything is backed up';
+
+  @override
+  String syncPending(int count) {
+    return '$count waiting to upload';
+  }
+
+  @override
+  String syncBlocked(int count) {
+    return 'Couldn\'t upload $count readings';
+  }
+
+  @override
+  String get syncBlockedHint => 'They are still saved on this device.';
+
+  @override
+  String get syncSignedOut => 'Backup is paused because you are signed out.';
+
+  @override
+  String get syncRetry => 'Try again';
+
+  @override
+  String get syncNow => 'Sync now';
+
+  @override
+  String get syncLastFailed => 'Last attempt failed.';
 }

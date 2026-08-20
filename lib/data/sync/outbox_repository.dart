@@ -110,6 +110,17 @@ class OutboxRepository {
     );
   }
 
+  /// 막힌 항목의 시도 횟수를 되돌린다.
+  ///
+  /// **사용자가 명시적으로 "다시 시도"를 누를 때만 부른다.** 자동으로 되돌리면
+  /// 한도의 의미가 없어져, 고쳐지지 않는 오류를 무한히 재시도하며 배터리와
+  /// 데이터를 태운다. 사람이 원인을 고쳤을 수도 있다는 신호가 있을 때만 푼다.
+  Future<int> retryBlocked({required int maxAttempts}) {
+    return (_db.update(_db.syncOutboxRows)
+          ..where((t) => t.attempts.isBiggerOrEqualValue(maxAttempts)))
+        .write(const SyncOutboxRowsCompanion(attempts: Value(0)));
+  }
+
   /// 한도를 넘겨 더 이상 시도하지 않는 변경의 수.
   ///
   /// 0 이 아니면 사용자에게 알려야 한다. 조용히 안 올라가는 상태가 가장 나쁘다.

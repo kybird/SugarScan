@@ -235,3 +235,69 @@ class _OfflineReadingApi implements ReadingApi {
   }) async =>
       const [];
 }
+
+/// 사용자에게 보여줄 동기화 상태.
+///
+/// 세 갈래 신호(대기 수, 막힌 수, 세션 유무)를 화면이 각자 조합하면 어떤
+/// 화면에서는 막힌 상태를 놓치는 조합이 생긴다. 판정을 여기 한곳에 모은다.
+sealed class SyncStatus {
+  const SyncStatus();
+}
+
+/// 보여줄 것이 없다. 다 올라갔거나, 서버가 없는 빌드다.
+final class SyncStatusIdle extends SyncStatus {
+  const SyncStatusIdle();
+}
+
+/// 올라가기를 기다리는 변경이 있다. 곧 처리되므로 경고가 아니다.
+final class SyncStatusPending extends SyncStatus {
+  const SyncStatusPending(this.count);
+  final int count;
+}
+
+/// 시도 한도를 넘겨 멈춰 섰다. **사용자가 개입해야 풀린다.**
+///
+/// 조용히 안 올라가는 상태가 가장 나쁘다. 데이터는 그대로 있다는 것을 함께
+/// 알려야 사용자가 불필요하게 불안해하지 않는다.
+final class SyncStatusBlocked extends SyncStatus {
+  const SyncStatusBlocked(this.count);
+  final int count;
+}
+
+/// 로그아웃 상태다. 세션이 만료된 채 로컬 모드로 쓰는 중일 수 있다.
+final class SyncStatusSignedOut extends SyncStatus {
+  const SyncStatusSignedOut();
+}
+
+final syncStatusProvider = Provider<SyncStatus>((ref) {
+  // 서버가 없는 빌드에서는 동기화라는 개념이 없다. 있지도 않은 기능이 고장 난
+  // 것처럼 보이게 만들지 않는다.
+  if (!ref.watch(remoteBackendProvider).isReady) return const SyncStatusIdle();
+
+  final report = ref.watch(syncReportProvider).value;
+  final blocked = report?.blocked ?? 0;
+  if (blocked > 0) return SyncStatusBlocked(blocked);
+
+  // 게이트가 첫 로그인을 강제하므로, 여기 걸리는 것은 세션이 끊겼거나
+  // 사용자가 직접 로그아웃한 경우다. 둘 다 백업이 멈춘 상태라 알려야 한다.
+  if (ref.watch(signedInProvider).value == false) {
+    return const SyncStatusSignedOut();
+  }
+
+  final pending = ref.watch(pendingSyncCountProvider).value ?? 0;
+  return pending > 0 ? SyncStatusPending(pending) : const SyncStatusIdle();
+});
+
+/// 막힌 항목을 풀고 즉시 한 회차 돌린다. "다시 시도" 버튼이 부른다.
+///
+/// 시도 횟수를 되돌리지 않으면 [OutboxRepository.pending] 이 그 항목을 영영
+/// 집어오지 않아, 버튼을 눌러도 아무 일도 일어나지 않는다.
+final retrySyncProvider = Provider<Future<void> Function()>((ref) {
+  return () async {
+    final engine = ref.read(syncEngineProvider);
+    await ref
+        .read(outboxRepositoryProvider)
+        .retryBlocked(maxAttempts: engine.maxAttempts);
+    await ref.read(syncSchedulerProvider).now();
+  };
+});
