@@ -85,6 +85,23 @@
   "sourceHealthSync": "Health app",
   "sourceImport": "Imported",
 
+  "onboardingUnitTitle": "Which unit does your meter use?",
+  "onboardingUnitBody": "Look at your meter's display. Pick the unit it shows.",
+  "onboardingUnitWarning": "This matters: the same number means very different things in each unit. A reading of 40 is very low in mg/dL, and very high in mmol/L.",
+  "@onboardingUnitWarning": {
+    "description": "Descriptive, not alarming. States the fact without telling the user what to do about it."
+  },
+  "unitExampleMgdl": "Readings look like 138",
+  "unitExampleMmoll": "Readings look like 7.6",
+  "actionContinue": "Continue",
+
+  "settingsUnitSection": "Display unit",
+  "settingsUnitChanged": "Display unit changed to {unit}",
+  "@settingsUnitChanged": {
+    "placeholders": { "unit": { "type": "String" } }
+  },
+  "settingsUnitNote": "Changing this only affects how readings are shown. Saved readings keep the unit they were entered in.",
+
   "medicalDisclaimer": "sugarScan does not provide a medical diagnosis. Always consult a healthcare professional before making treatment decisions.",
   "@medicalDisclaimer": {
     "description": "Required notice. Must stay visible on onboarding, reports and settings."

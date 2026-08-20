@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../features/dashboard/dashboard_screen.dart';
 import '../features/history/history_screen.dart';
 import '../features/scan/scan_screen.dart';
+import '../features/settings/settings_screen.dart';
 import '../features/shared/placeholder_screen.dart';
 import '../l10n/generated/app_localizations.dart';
 
@@ -57,11 +58,7 @@ GoRouter createRouter() {
             GoRoute(
               path: AppRoute.settings.path,
               name: AppRoute.settings.name,
-              builder: (context, state) => PlaceholderScreen(
-                title: AppLocalizations.of(context).navSettings,
-                phase: 'W11',
-                icon: Icons.settings,
-              ),
+              builder: (context, state) => const SettingsScreen(),
             ),
           ]),
         ],

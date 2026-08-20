@@ -157,6 +157,37 @@ class AppLocalizationsKo extends AppLocalizations {
   String get sourceImport => '가져오기';
 
   @override
+  String get onboardingUnitTitle => '혈당계가 어떤 단위를 쓰나요?';
+
+  @override
+  String get onboardingUnitBody => '혈당계 화면을 보고 표시되는 단위를 골라 주세요.';
+
+  @override
+  String get onboardingUnitWarning =>
+      '중요합니다. 같은 숫자라도 단위에 따라 뜻이 완전히 달라집니다. 40은 mg/dL에서는 매우 낮고, mmol/L에서는 매우 높습니다.';
+
+  @override
+  String get unitExampleMgdl => '이런 식으로 표시됩니다: 138';
+
+  @override
+  String get unitExampleMmoll => '이런 식으로 표시됩니다: 7.6';
+
+  @override
+  String get actionContinue => '계속';
+
+  @override
+  String get settingsUnitSection => '표시 단위';
+
+  @override
+  String settingsUnitChanged(String unit) {
+    return '표시 단위를 $unit로 바꿨습니다';
+  }
+
+  @override
+  String get settingsUnitNote =>
+      '이 설정은 보여 주는 방식만 바꿉니다. 이미 저장된 기록은 입력 당시의 단위를 그대로 간직합니다.';
+
+  @override
   String get medicalDisclaimer =>
       'sugarScan은 의학적 진단을 제공하지 않습니다. 치료 결정 시 반드시 전문 의료진과 상담하세요.';
 

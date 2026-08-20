@@ -85,3 +85,19 @@ class SyncOutboxRows extends Table {
   IntColumn get attempts => integer().withDefault(const Constant(0))();
   TextColumn get lastError => text().nullable()();
 }
+
+/// 앱 설정. 키-값으로 둔다.
+///
+/// 설정이 늘 때마다 스키마를 바꾸지 않기 위해서다. 타입 해석은 저장소가
+/// 맡고, 이 테이블은 문자열만 다룬다.
+@DataClassName('AppSettingRow')
+class AppSettingRows extends Table {
+  @override
+  String get tableName => 'app_settings';
+
+  TextColumn get key => text()();
+  TextColumn get value => text()();
+
+  @override
+  Set<Column> get primaryKey => {key};
+}

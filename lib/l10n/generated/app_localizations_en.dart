@@ -162,6 +162,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sourceImport => 'Imported';
 
   @override
+  String get onboardingUnitTitle => 'Which unit does your meter use?';
+
+  @override
+  String get onboardingUnitBody =>
+      'Look at your meter\'s display. Pick the unit it shows.';
+
+  @override
+  String get onboardingUnitWarning =>
+      'This matters: the same number means very different things in each unit. A reading of 40 is very low in mg/dL, and very high in mmol/L.';
+
+  @override
+  String get unitExampleMgdl => 'Readings look like 138';
+
+  @override
+  String get unitExampleMmoll => 'Readings look like 7.6';
+
+  @override
+  String get actionContinue => 'Continue';
+
+  @override
+  String get settingsUnitSection => 'Display unit';
+
+  @override
+  String settingsUnitChanged(String unit) {
+    return 'Display unit changed to $unit';
+  }
+
+  @override
+  String get settingsUnitNote =>
+      'Changing this only affects how readings are shown. Saved readings keep the unit they were entered in.';
+
+  @override
   String get medicalDisclaimer =>
       'sugarScan does not provide a medical diagnosis. Always consult a healthcare professional before making treatment decisions.';
 

@@ -386,6 +386,60 @@ abstract class AppLocalizations {
   /// **'Imported'**
   String get sourceImport;
 
+  /// No description provided for @onboardingUnitTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Which unit does your meter use?'**
+  String get onboardingUnitTitle;
+
+  /// No description provided for @onboardingUnitBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Look at your meter\'s display. Pick the unit it shows.'**
+  String get onboardingUnitBody;
+
+  /// Descriptive, not alarming. States the fact without telling the user what to do about it.
+  ///
+  /// In en, this message translates to:
+  /// **'This matters: the same number means very different things in each unit. A reading of 40 is very low in mg/dL, and very high in mmol/L.'**
+  String get onboardingUnitWarning;
+
+  /// No description provided for @unitExampleMgdl.
+  ///
+  /// In en, this message translates to:
+  /// **'Readings look like 138'**
+  String get unitExampleMgdl;
+
+  /// No description provided for @unitExampleMmoll.
+  ///
+  /// In en, this message translates to:
+  /// **'Readings look like 7.6'**
+  String get unitExampleMmoll;
+
+  /// No description provided for @actionContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get actionContinue;
+
+  /// No description provided for @settingsUnitSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Display unit'**
+  String get settingsUnitSection;
+
+  /// No description provided for @settingsUnitChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Display unit changed to {unit}'**
+  String settingsUnitChanged(String unit);
+
+  /// No description provided for @settingsUnitNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Changing this only affects how readings are shown. Saved readings keep the unit they were entered in.'**
+  String get settingsUnitNote;
+
   /// Required notice. Must stay visible on onboarding, reports and settings.
   ///
   /// In en, this message translates to:

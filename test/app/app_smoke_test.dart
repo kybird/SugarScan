@@ -5,11 +5,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sugarscan/app/app.dart';
 import 'package:sugarscan/app/providers.dart';
 import 'package:sugarscan/data/local/database.dart';
+import 'package:sugarscan/data/repositories/settings_repository.dart';
+import 'package:sugarscan/domain/models/glucose_unit.dart';
 
 void main() {
   late AppDatabase db;
 
-  setUp(() => db = AppDatabase(NativeDatabase.memory()));
+  setUp(() async {
+    db = AppDatabase(NativeDatabase.memory());
+    // 표시 단위 확인 게이트가 앱 전체를 막는다. 대부분의 테스트는 그 뒤를
+    // 보려는 것이므로 미리 확인된 상태로 시작한다.
+    await SettingsRepository(database: db).confirmUnit(GlucoseUnit.mgdl);
+  });
   tearDown(() => db.close());
 
   /// 실제 DB 파일 대신 메모리 DB 를 물린다. 프로바이더가 주입 가능해야
@@ -41,6 +48,47 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
   }
 
+  testWidgets('단위를 확인하기 전에는 앱의 나머지가 막힌다', (tester) async {
+    // 단위 확인 전에 기록이 저장되면 10~50 구간에서 저혈당이 고혈당으로
+    // 뒤집혀 남는다. 게이트가 그 경로를 원천 차단한다.
+    final fresh = AppDatabase(NativeDatabase.memory());
+    addTearDown(fresh.close);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [databaseProvider.overrideWithValue(fresh)],
+        child: const SugarScanApp(),
+      ),
+    );
+    await settle(tester);
+
+    expect(find.textContaining('Which unit'), findsOneWidget);
+    expect(find.byType(NavigationBar), findsNothing);
+    expect(find.byType(FloatingActionButton), findsNothing);
+
+    await unmount(tester);
+  });
+
+  testWidgets('단위를 고르면 게이트가 열린다', (tester) async {
+    final fresh = AppDatabase(NativeDatabase.memory());
+    addTearDown(fresh.close);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [databaseProvider.overrideWithValue(fresh)],
+        child: const SugarScanApp(),
+      ),
+    );
+    await settle(tester);
+
+    await tester.tap(find.text('Continue'));
+    await settle(tester);
+
+    expect(find.byType(NavigationBar), findsOneWidget);
+
+    await unmount(tester);
+  });
+
   testWidgets('앱이 뜨고 4개 탭과 스캔 진입점이 보인다', (tester) async {
     await tester.pumpWidget(app());
     await settle(tester);
@@ -68,6 +116,19 @@ void main() {
     await settle(tester);
 
     expect(find.textContaining('No readings yet'), findsWidgets);
+
+    await unmount(tester);
+  });
+
+  testWidgets('설정에서 표시 단위를 바꿀 수 있다', (tester) async {
+    await tester.pumpWidget(app());
+    await settle(tester);
+
+    await tester.tap(find.text('Settings'));
+    await settle(tester);
+
+    expect(find.text('mg/dL'), findsWidgets);
+    expect(find.text('mmol/L'), findsWidgets);
 
     await unmount(tester);
   });

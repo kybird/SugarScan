@@ -11,13 +11,13 @@ import 'tables.dart';
 
 part 'database.g.dart';
 
-@DriftDatabase(tables: [GlucoseReadingRows, SyncOutboxRows])
+@DriftDatabase(tables: [GlucoseReadingRows, SyncOutboxRows, AppSettingRows])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor])
       : super(executor ?? driftDatabase(name: 'sugarscan'));
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   /// 날짜를 유닉스 정수가 아니라 **ISO-8601 UTC 문자열**로 저장한다.
   ///
@@ -30,6 +30,12 @@ class AppDatabase extends _$AppDatabase {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (m, from, to) async {
+          // v2: 표시 단위 등 앱 설정 저장소.
+          if (from < 2) {
+            await m.createTable(appSettingRows);
+          }
+        },
         beforeOpen: (details) async {
           // 소프트 삭제와 동기화 큐가 참조 무결성에 기대게 될 때를 대비해
           // 처음부터 켜 둔다. 나중에 켜면 기존 데이터가 걸린다.
