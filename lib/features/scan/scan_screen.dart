@@ -54,6 +54,12 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // 세로로 고정한다. ROI 계산과 프레임 회전(`uprightRotationFor`)이 세로를
+    // 전제하고 있어서, 가로로 돌리면 가이드 박스와 실제 판독 영역이 조용히
+    // 어긋난다 — 값이 틀리게 읽히는 쪽이라 그냥 막는다.
+    SystemChrome.setPreferredOrientations(const [
+      DeviceOrientation.portraitUp,
+    ]);
     // 첫 프레임 이후로 미룬다. initState 시점에는 Localizations 같은 상속
     // 위젯을 읽을 수 없다.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -64,6 +70,8 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    // 스캔 화면을 벗어나면 회전 제한을 푼다. 앱 전체를 세로로 묶을 이유는 없다.
+    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     _teardown();
     super.dispose();
   }
@@ -278,9 +286,17 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
     //
     // 다만 센서 종횡비와 회전 보정 때문에 완전히 일치한다고 단정할 수 없다.
     // 실기기에서 눈으로 맞춰 보정해야 하는 부분이다(W2 잔여 과제).
+    // `controller.value.aspectRatio` 는 **센서(가로) 기준** 값이다. 16:9 카메라면
+    // 1.78 을 돌려주는데, 세로 화면에서 이 값을 그대로 쓰면 "폭이 높이의 1.78배"
+    // 인 가로 상자가 만들어지고 그 안에서 텍스처가 눌린다. 뒤집어야 한다.
+    //
+    // 프리뷰를 화면 가득 채우지(cover) 않는 것은 의도다. 잘라내는 순간 화면의
+    // 가이드 박스와 프레임의 ROI 가 가리키는 영역이 어긋나고, 그 어긋남은
+    // "인식이 그냥 잘 안 된다"로만 보여서 찾기가 매우 어렵다. 위아래 검은 띠를
+    // 감수하고 정렬을 1:1 로 유지한다.
     return Center(
       child: AspectRatio(
-        aspectRatio: controller.value.aspectRatio,
+        aspectRatio: 1 / controller.value.aspectRatio,
         child: Stack(
           fit: StackFit.expand,
           children: [
