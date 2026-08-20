@@ -9,7 +9,7 @@ class AppLocalizationsKo extends AppLocalizations {
   AppLocalizationsKo([String locale = 'ko']) : super(locale);
 
   @override
-  String get appTitle => 'sugarScan';
+  String get appTitle => 'SugarScan';
 
   @override
   String get navHome => '홈';
@@ -189,7 +189,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get medicalDisclaimer =>
-      'sugarScan은 의학적 진단을 제공하지 않습니다. 치료 결정 시 반드시 전문 의료진과 상담하세요.';
+      'SugarScan은 의학적 진단을 제공하지 않습니다. 치료 결정 시 반드시 전문 의료진과 상담하세요.';
 
   @override
   String comingSoon(String phase) {

@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'sugarScan';
+  String get appTitle => 'SugarScan';
 
   @override
   String get navHome => 'Home';
@@ -195,7 +195,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get medicalDisclaimer =>
-      'sugarScan does not provide a medical diagnosis. Always consult a healthcare professional before making treatment decisions.';
+      'SugarScan does not provide a medical diagnosis. Always consult a healthcare professional before making treatment decisions.';
 
   @override
   String comingSoon(String phase) {

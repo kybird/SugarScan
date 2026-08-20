@@ -1,4 +1,4 @@
--- sugarScan 초기 스키마.
+-- SugarScan 초기 스키마.
 --
 -- 이 파일은 Drift 스키마(lib/data/local/tables.dart)의 복제본이 아니다.
 -- 서버에는 **의도적으로 빠진 열이 있다**:

@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-sugarScan — 일반 혈당계(SMBG) LCD를 카메라로 읽어 기록하는 Flutter 앱.
+SugarScan — 일반 혈당계(SMBG) LCD를 카메라로 읽어 기록하는 Flutter 앱.
 상세 설계와 구현 이력은 `docs/IMPLEMENTATION_PLAN.md`, 특히 **§15 구현 로그**에 있다.
 
 ## 명령어
@@ -140,8 +140,10 @@ W1~W2, W8, W11-a, W9-a, W10 완료(스캐폴드, OCR 모듈, 규칙 기반 판�
 연결, 로컬 저장, 표시 단위 확인 온보딩 + 설정, Supabase 연결, 동기화 엔진).
 다음 후보는 기록 편집 UI 또는 주기 실행(WorkManager)+ 지수 백오프.
 
-**동기화는 아직 실기기에서 검증되지 않았다.** Google 로그인 설정(Cloud 콘솔
-클라이언트 ID)이 끝나야 가능하다. 지금까지는 가짜 서버 상대의 테스트뿐이다.
+**W9·W10 은 실기기에서 검증됐다**(2026-08-20, Redmi Note 11 / Android 14).
+구글 로그인 → `auth.users` 생성 → 직접 입력 저장 → 3.6초 뒤 서버 반영까지 확인.
+서버의 `updated_at` 이 `created_at` 보다 늦게 찍힌 것으로 트리거 동작도 확인했다.
+아직 안 해본 것: 다기기 pull, 충돌, 오프라인 후 복귀.
 
 **Supabase 접속 정보는 저장소에 없다.** `--dart-define` 으로 주입하고, 주입하지
 않은 상태(`RemoteDisabled`)가 정상 상태다 — 서버 없이도 앱이 온전히 동작해야

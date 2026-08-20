@@ -1,4 +1,4 @@
-# sugarScan
+# SugarScan
 
 일반 혈당계(SMBG) LCD를 카메라로 읽어 기록하는 Flutter 앱.
 인식은 **단말에서만** 돈다. 설계와 구현 이력은 [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md).

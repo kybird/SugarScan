@@ -101,7 +101,7 @@ abstract class AppLocalizations {
   /// Application name. Not translated.
   ///
   /// In en, this message translates to:
-  /// **'sugarScan'**
+  /// **'SugarScan'**
   String get appTitle;
 
   /// No description provided for @navHome.
@@ -443,7 +443,7 @@ abstract class AppLocalizations {
   /// Required notice. Must stay visible on onboarding, reports and settings.
   ///
   /// In en, this message translates to:
-  /// **'sugarScan does not provide a medical diagnosis. Always consult a healthcare professional before making treatment decisions.'**
+  /// **'SugarScan does not provide a medical diagnosis. Always consult a healthcare professional before making treatment decisions.'**
   String get medicalDisclaimer;
 
   /// Placeholder for screens not built yet.

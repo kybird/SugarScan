@@ -1,6 +1,6 @@
 {
   "@@locale": "en",
-  "appTitle": "sugarScan",
+  "appTitle": "SugarScan",
   "@appTitle": {
     "description": "Application name. Not translated."
   },
@@ -96,7 +96,7 @@
     }
   },
   "settingsUnitNote": "Changing this only affects how readings are shown. Saved readings keep the unit they were entered in.",
-  "medicalDisclaimer": "sugarScan does not provide a medical diagnosis. Always consult a healthcare professional before making treatment decisions.",
+  "medicalDisclaimer": "SugarScan does not provide a medical diagnosis. Always consult a healthcare professional before making treatment decisions.",
   "@medicalDisclaimer": {
     "description": "Required notice. Must stay visible on onboarding, reports and settings."
   },
