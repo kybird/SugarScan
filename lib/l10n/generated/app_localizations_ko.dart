@@ -252,4 +252,27 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get syncLastFailed => '마지막 시도가 실패했습니다.';
+
+  @override
+  String get editReadingTitle => '기록 수정';
+
+  @override
+  String get editEnteredUnitLabel => '입력 단위';
+
+  @override
+  String get editUnitWarning => '단위를 바꾸면 입력한 숫자를 그 단위로 다시 읽습니다 — 값을 변환하지 않습니다.';
+
+  @override
+  String editEquivalent(String value, String unit) {
+    return '$value $unit 에 해당';
+  }
+
+  @override
+  String get noteLabel => '메모 (선택)';
+
+  @override
+  String get readingUpdated => '기록을 수정했습니다';
+
+  @override
+  String get readingRestored => '기록을 되살렸습니다';
 }

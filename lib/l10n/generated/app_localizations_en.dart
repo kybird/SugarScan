@@ -259,4 +259,28 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get syncLastFailed => 'Last attempt failed.';
+
+  @override
+  String get editReadingTitle => 'Edit reading';
+
+  @override
+  String get editEnteredUnitLabel => 'Entered in';
+
+  @override
+  String get editUnitWarning =>
+      'Changing this reinterprets the number you typed — it does not convert it.';
+
+  @override
+  String editEquivalent(String value, String unit) {
+    return 'Same as $value $unit';
+  }
+
+  @override
+  String get noteLabel => 'Note (optional)';
+
+  @override
+  String get readingUpdated => 'Reading updated';
+
+  @override
+  String get readingRestored => 'Reading restored';
 }

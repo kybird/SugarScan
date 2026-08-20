@@ -102,7 +102,30 @@ class GlucoseRepository {
     });
   }
 
+  /// 삭제를 되돌린다.
+  ///
+  /// 소프트 삭제라 행이 남아 있어 복구 자체는 값을 되돌리는 일이다. 다만
+  /// **아웃박스에 다시 올려야 한다** — 이미 서버로 삭제가 전파됐을 수 있고,
+  /// 그렇다면 되살렸다는 사실도 똑같이 전파되어야 다른 기기에서 되살아난다.
+  Future<void> restore(String id) async {
+    final now = _clock();
+    await _db.transaction(() async {
+      await (_db.update(_db.glucoseReadingRows)..where((t) => t.id.equals(id)))
+          .write(
+        GlucoseReadingRowsCompanion(
+          deletedAt: const Value(null),
+          updatedAt: Value(now.toUtc()),
+          syncState: const Value(SyncState.pending),
+        ),
+      );
+      await _enqueue(id, 'upsert', now);
+    });
+  }
+
   /// 태그나 값을 고친다.
+  ///
+  /// [note] 의 `null` 은 **바꾸지 않음**이고, 빈 문자열은 **지움**이다. 둘을
+  /// 같게 두면 메모를 한 번 남긴 뒤로는 지울 방법이 없어진다.
   Future<void> update(
     String id, {
     double? value,
@@ -125,7 +148,11 @@ class GlucoseRepository {
               ? const Value.absent()
               : Value(resolvedUnit.toMgdl(value)),
           tag: tag == null ? const Value.absent() : Value(tag),
-          note: note == null ? const Value.absent() : Value(note),
+          note: switch (note) {
+            null => const Value.absent(),
+            final String text when text.trim().isEmpty => const Value(null),
+            final String text => Value(text),
+          },
           updatedAt: Value(now.toUtc()),
           syncState: const Value(SyncState.pending),
         ),

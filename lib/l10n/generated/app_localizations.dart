@@ -553,6 +553,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Last attempt failed.'**
   String get syncLastFailed;
+
+  /// No description provided for @editReadingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit reading'**
+  String get editReadingTitle;
+
+  /// No description provided for @editEnteredUnitLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Entered in'**
+  String get editEnteredUnitLabel;
+
+  /// Shown when the user switches the unit of an existing reading. The same digits mean opposite things in the two units, so this must not read like a conversion.
+  ///
+  /// In en, this message translates to:
+  /// **'Changing this reinterprets the number you typed — it does not convert it.'**
+  String get editUnitWarning;
+
+  /// No description provided for @editEquivalent.
+  ///
+  /// In en, this message translates to:
+  /// **'Same as {value} {unit}'**
+  String editEquivalent(String value, String unit);
+
+  /// No description provided for @noteLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Note (optional)'**
+  String get noteLabel;
+
+  /// No description provided for @readingUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading updated'**
+  String get readingUpdated;
+
+  /// No description provided for @readingRestored.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading restored'**
+  String get readingRestored;
 }
 
 class _AppLocalizationsDelegate

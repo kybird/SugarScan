@@ -75,5 +75,12 @@
   "syncSignedOut": "로그아웃 상태라 백업이 멈춰 있습니다.",
   "syncRetry": "다시 시도",
   "syncNow": "지금 동기화",
-  "syncLastFailed": "마지막 시도가 실패했습니다."
+  "syncLastFailed": "마지막 시도가 실패했습니다.",
+  "editReadingTitle": "기록 수정",
+  "editEnteredUnitLabel": "입력 단위",
+  "editUnitWarning": "단위를 바꾸면 입력한 숫자를 그 단위로 다시 읽습니다 — 값을 변환하지 않습니다.",
+  "editEquivalent": "{value} {unit} 에 해당",
+  "noteLabel": "메모 (선택)",
+  "readingUpdated": "기록을 수정했습니다",
+  "readingRestored": "기록을 되살렸습니다"
 }

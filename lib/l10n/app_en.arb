@@ -150,5 +150,25 @@
   "syncSignedOut": "Backup is paused because you are signed out.",
   "syncRetry": "Try again",
   "syncNow": "Sync now",
-  "syncLastFailed": "Last attempt failed."
+  "syncLastFailed": "Last attempt failed.",
+  "editReadingTitle": "Edit reading",
+  "editEnteredUnitLabel": "Entered in",
+  "editUnitWarning": "Changing this reinterprets the number you typed — it does not convert it.",
+  "@editUnitWarning": {
+    "description": "Shown when the user switches the unit of an existing reading. The same digits mean opposite things in the two units, so this must not read like a conversion."
+  },
+  "editEquivalent": "Same as {value} {unit}",
+  "@editEquivalent": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "noteLabel": "Note (optional)",
+  "readingUpdated": "Reading updated",
+  "readingRestored": "Reading restored"
 }

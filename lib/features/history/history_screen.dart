@@ -5,6 +5,7 @@ import '../../app/providers.dart';
 import '../../domain/models/glucose_reading.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../shared/reading_tile.dart';
+import 'edit_reading_sheet.dart';
 
 class HistoryScreen extends ConsumerWidget {
   const HistoryScreen({super.key});
@@ -39,7 +40,11 @@ class HistoryScreen extends ConsumerWidget {
                 direction: DismissDirection.endToStart,
                 background: _DeleteBackground(label: l10n.actionDelete),
                 onDismissed: (_) => _delete(context, ref, reading),
-                child: ReadingTile(reading: reading, unit: unit),
+                child: ReadingTile(
+                  reading: reading,
+                  unit: unit,
+                  onTap: () => _edit(context, ref, reading),
+                ),
               );
             },
           );
@@ -56,13 +61,47 @@ class HistoryScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
 
-    await ref.read(glucoseRepositoryProvider).delete(reading.id);
+    final repository = ref.read(glucoseRepositoryProvider);
+    await repository.delete(reading.id);
 
     messenger.showSnackBar(
-      SnackBar(content: Text(l10n.readingDeleted)),
+      SnackBar(
+        content: Text(l10n.readingDeleted),
+        action: SnackBarAction(
+          label: l10n.actionUndo,
+          // 되살리는 것도 아웃박스를 거친다. 이미 서버로 삭제가 전파됐을 수
+          // 있어서, 되살렸다는 사실도 똑같이 전파되어야 다른 기기에서 살아난다.
+          onPressed: () => repository.restore(reading.id),
+        ),
+      ),
     );
-    // 되돌리기는 아직 없다. 소프트 삭제라 행은 남아 있으므로 복구 자체는
-    // 가능하지만, 동기화 계층(W10)에서 삭제 전파와 함께 다뤄야 한다.
+  }
+
+  /// 기록을 수정한다.
+  ///
+  /// 값·단위·태그·메모만 고칠 수 있다. 측정 시각은 건드리지 않는다 — 태깅과
+  /// 일별 집계가 벽시계 시각 위에 서 있어서, 시각을 고치면 그 기록이 속한
+  /// 날짜와 구간이 통째로 움직인다. 시각 수정이 필요해지면 그때 따로 다룬다.
+  Future<void> _edit(
+    BuildContext context,
+    WidgetRef ref,
+    GlucoseReading reading,
+  ) async {
+    final edit = await showEditReadingSheet(context, reading: reading);
+    if (edit == null || !context.mounted) return;
+
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    await ref.read(glucoseRepositoryProvider).update(
+          reading.id,
+          value: edit.value,
+          unit: edit.unit,
+          tag: edit.tag,
+          note: edit.note,
+        );
+
+    messenger.showSnackBar(SnackBar(content: Text(l10n.readingUpdated)));
   }
 }
 
