@@ -49,10 +49,10 @@ flutter test       → All tests passed! (333 tests)
 
 ## 병합 전 사람이 봐야 할 것 (범위 밖이므로 수정하지 않고 기록)
 
-- **미지원 로케일 폴백이 독일어로 바뀐다.** gen-l10n 이 `supportedLocales` 를
-  알파벳순으로 생성해서 de 가 첫 항목이 됐다. 앱이 `localeResolutionCallback`
-  없이 기본 해석을 쓰므로, 지원하지 않는 언어(예: 일본어) 기기은 이제 영어가
-  아니라 독일어로 떨어진다. 영어 폴백을 원하면 콜백 추가이 필요하다(별도 작업).
+- ~~**미지원 로케일 폴백이 독일어로 바뀐다.**~~ — **2026-08-21 해결.** 사용자
+  결정으로 영어 폴백을 구현했다(`lib/app/app.dart` 의 `resolveAppLocale` 콜백,
+  `test/app/locale_fallback_test.dart` 로 고정). 지원 밖 언어는 이제 영어로
+  떨어진다.
 - 소수점 표기(de/fr/es 권 쉼표)는 §5 에서 사람이 정하기로 한 사항이라 건드리지
   않았다. `unitExampleMmoll` 의 "7.6" 은 예시 원문 숫자라 점을 유지했다.
 
