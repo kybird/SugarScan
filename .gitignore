@@ -66,3 +66,7 @@ ios/Runner/GoogleService-Info.plist
 
 # Supabase CLI 링크 상태 (프로젝트 ref 등)
 supabase/.temp/
+
+# Windows 데스크톱 타깃은 l10n·UI 미리보기용으로만 만든다(제품 타깃 아님).
+# 재생성 방법은 docs/IMPLEMENTATION_PLAN.md 참조.
+/windows/

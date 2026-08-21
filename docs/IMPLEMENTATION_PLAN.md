@@ -1382,8 +1382,37 @@ W 시리즈와 **평행하게 도는 두 번째 이력**이다. 기능을 늘리
 늘어난다. 라벨에 판정어를 넣지 않는 §2.4 규칙은 낭독문에도 그대로 적용된다.
 
 **남은 것**
-- **독일어 글자 넘침 미확인.** 기기 없이 확인할 수 없어 G8 이 보고로만 남겼다.
+- **독일어 글자 넘침 미확인.** G8 시점에는 데스크톱 타깃이 없어 확인하지 못했다.
   독일어는 영어보다 30% 가까이 길어 버튼·칩이 깨지기 쉽다.
+  **2026-08-22: Windows 빌드가 되는 것을 확인했으므로 이제 기기 없이 볼 수 있다**
+  (아래 참조).
+
+**Windows 데스크톱 빌드 — l10n·UI 미리보기 전용** (2026-08-22 확인)
+
+`flutter build windows --debug` 가 통과한다(약 120초, Visual Studio Community
+2022 필요). 6개 언어의 글자 넘침과 창 크기별 레이아웃을 실기기 없이 볼 수 있다.
+
+**제품 타깃이 아니다.** `camera`·`google_mlkit_text_recognition`·`health`·
+`google_sign_in`·`sign_in_with_apple` 은 Windows 구현이 없다. 빌드는 막지 않지만
+(Flutter 가 해당 플러그인을 빌드에서 빼고 Dart 코드는 그대로 컴파일된다) 호출하면
+`MissingPluginException` 이 난다. 스캔·헬스 연동·로그인은 Windows 에서 동작하지
+않는다 — 대신 `ScanUnavailable` → 수동 입력, `RemoteDisabled` 로 떨어지므로 기록
+입력·목록·편집·통계·설정은 온전히 돈다. **그래서 미리보기 도구로 쓸 수 있는 것이지,
+Windows 를 지원한다는 뜻이 아니다.**
+
+`windows/` 는 **커밋하지 않는다**(`.gitignore`). 필요할 때 만들고 쓴 뒤 지운다.
+
+```bash
+flutter config --enable-windows-desktop
+flutter create --platforms=windows .
+flutter build windows --debug
+```
+
+**`flutter create` 가 두 가지 부작용을 남긴다. 반드시 되돌릴 것:**
+1. `test/widget_test.dart` 를 새로 만든다 — 존재하지 않는 `MyApp` 을 쓰는 카운터
+   템플릿이라 그대로 두면 테스트가 깨진다. **지운다.**
+2. `.metadata` 의 `migration.platforms` 에서 android·ios 항목을 지우고 windows 로
+   갈아치운다. **`git checkout -- .metadata` 로 되돌린다.**
 - **EasyOCR 가중치 라이선스 미확정.** 코드는 Apache-2.0 이 확인됐지만 학습 가중치의
   배포 조건은 공개 자료 어디에도 없다. 모델을 저장소에 반입하기 전에 Jaided AI 에
   직접 문의해야 한다. 지금은 모델 파일이 없어 당장 막히지는 않는다.
