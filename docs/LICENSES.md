@@ -1,7 +1,8 @@
 # 서드파티 라이선스 검토
 
 > 최초 작성 2026-08-20 · 담당: 개발자 본인
-> **상태: 초안 — 아래 "확인 필요" 항목은 실제 저장소의 LICENSE 파일을 직접 열어 확인한 뒤 갱신할 것.**
+> 라이선스 실사: 2026-08-21 (G5) — 아래 각 행의 확인 URL 은 당일 직접 연 기준.
+> 남은 미해결 항목은 §4 참조.
 
 앱에 실제로 반입되는 자산(모델 가중치·폰트·학습 코드)의 상업적 사용 가능 여부와
 고지 의무를 여기에 모은다. 정확도만 보고 모델을 골랐다가 출시 직전에 라이선스로
@@ -13,20 +14,20 @@
 
 | 자산 | 출처 | 라이선스 | 앱에 반입되는가 | 상태 |
 |---|---|---|---|---|
-| EasyOCR | JaidedAI/EasyOCR | Apache-2.0 | 코드는 아니오, **가중치는 예**(ONNX 변환본) | 확인 필요 |
-| CRAFT (text detector) | clovaai/CRAFT-pytorch | MIT (연구용 조항 확인 요) | **미반입** (가이드 박스로 대체) | 확인 필요 |
-| deep-text-recognition-benchmark | clovaai | Apache-2.0 | 아니오 (학습 도구) | 확인 필요 |
-| ONNX Runtime | microsoft/onnxruntime | MIT | 예 (flutter_onnxruntime 경유) | 확인 필요 |
+| EasyOCR | JaidedAI/EasyOCR | **코드: Apache-2.0** ([LICENSE](https://github.com/JaidedAI/EasyOCR/blob/master/LICENSE), 2026-08-21 확인) | 코드는 아니오, **가중치는 예**(ONNX 변환본) | **가중치: 확인 실패** — README·공식 사이트 어디에도 가중치의 배포 조건이 명시되어 있지 않다. 코드 LICENSE 가 가중치까지 덮는다는 문구도 없다. 반입 전 Jaided AI 에 직접 확인 필요 |
+| CRAFT (text detector) | clovaai/CRAFT-pytorch | **MIT** (Copyright (c) 2019-present NAVER Corp., [LICENSE](https://github.com/clovaai/CRAFT-pytorch/blob/master/LICENSE), 2026-08-21 확인) — **연구용 한정 조항 없음.** LICENSE 원문과 README 어디에도 비상업 조항이 없는 순수 MIT 다 | **미반입** (가이드 박스로 대체) | 확인 완료 |
+| deep-text-recognition-benchmark | clovaai | **Apache-2.0** ([LICENSE.md](https://github.com/clovaai/deep-text-recognition-benchmark/blob/master/LICENSE.md), 2026-08-21 확인 — 파일명이 `LICENSE.md` 다) | 아니오 (학습 도구) | 확인 완료 |
+| ONNX Runtime | microsoft/onnxruntime | **MIT** (Copyright (c) Microsoft Corporation, [LICENSE](https://github.com/microsoft/onnxruntime/blob/master/LICENSE), 2026-08-21 확인) | 예 (flutter_onnxruntime 경유) | 확인 완료 |
 | **7seg_classifier.tflite** | [Kazuhito00/7segment-display-reader](https://github.com/Kazuhito00/7segment-display-reader) | **Apache-2.0** (GitHub API 확인 완료) | **예** — `assets/models/` 에 번들 | 고지 의무 반영 필요 |
-| TensorFlow Lite | tflite_flutter 경유 | Apache-2.0 | 예 | 확인 필요 |
+| TensorFlow Lite | tflite_flutter 경유 | **Apache-2.0** (TensorFlow 본저장소 [LICENSE](https://github.com/tensorflow/tensorflow/blob/master/LICENSE), 2026-08-21 확인. 원문 말미에 Caffe 유래 코드의 BSD 스타일 고지가 함께 실려 있다) | 예 | 확인 완료 |
 
 **참고만 하고 코드를 쓰지 않은 것** (반입 자산 아님)
 
 | 프로젝트 | 라이선스 | 처리 |
 |---|---|---|
 | [SSOCR](https://github.com/jiweibo/SSOCR) | GPL-3.0 | **코드 미사용.** GPL 전염성 때문에 상용 앱에 넣을 수 없어 알고리즘 아이디어만 참고하고 `SegmentRuleEngine` 을 자체 구현했다 |
-| [SegoDec](https://github.com/scottmudge/SegoDec) | 확인 필요 | 코드 미사용. CLAHE/대비 개선 접근만 참고 |
-| [seven-segment-ocr](https://github.com/suyashkumar/seven-segment-ocr) | 확인 필요 | 코드 미사용 |
+| [SegoDec](https://github.com/scottmudge/SegoDec) | **Apache-2.0** ([LICENSE](https://github.com/scottmudge/SegoDec/blob/master/LICENSE), 2026-08-21 확인 — 저작자명이 기입되지 않은 템플릿 원문 그대로다) | 코드 미사용. CLAHE/대비 개선 접근만 참고 |
+| [seven-segment-ocr](https://github.com/suyashkumar/seven-segment-ocr) | **LICENSE 파일 없음** (2026-08-21 확인 — 저장소 파일 목록에 라이선스 파일이 아예 없고 README 에도 규정이 없다. 라이선스 명시가 없으면 기본적으로 모든 권리가 저작자에게 남는다) | 코드 미사용이라 실무상 영향 없음. 코드를 쓰게 되면 저작자에게 별도 허락을 받아야 한다 |
 | [OICWS/lcd-digit-recognition](https://github.com/OICWS/lcd-digit-recognition) | **AGPL-3.0** | **채택하지 않음.** YOLOv8 기반이며 AGPL 은 상용 배포에 부적합 |
 
 > 자체 구현이라는 사실 자체가 라이선스 방어선이다. 나중에 성능이 아쉬워 참고
@@ -35,10 +36,17 @@
 **확인 포인트**
 - EasyOCR 사전학습 가중치는 코드와 라이선스가 다를 수 있다. 가중치 배포 조건을
   별도로 확인한다.
+  - 2026-08-21 실사 결과: 저장소 LICENSE(Apache-2.0)·README·공식 사이트
+    (jaided.ai/easyocr) 어디에도 **가중치의 배포 조건에 대한 문구가 없다.**
+    "없다 = 코드와 같다"로 읽는 것은 추측이므로 반입 전 Jaided AI 에 문의하는
+    것이 남은 절차다.
 - CRAFT 는 현재 계획상 **앱에 넣지 않는다**(§2.5 Detector 생략). 학습 파이프라인
   에서만 쓴다면 반입 자산이 아니므로 조건이 완화된다.
+  - 2026-08-21 실사 결과: LICENSE 원문·README 모두 순수 MIT 이며 연구용 한정
+    조항은 없었다.
 - fine-tune 결과물의 저작권 귀속: 원 가중치의 라이선스가 파생 가중치에도
-  따라붙는지 확인한다.
+  따라붙는지 확인한다. EasyOCR 가중치 조건이 확인되기 전까지는 이 항목도
+  열려 있는 상태로 둔다.
 
 ---
 
@@ -72,8 +80,10 @@ SIL OFL 은 상업적 사용·임베딩을 허용하지만 **폰트 자체를 �
 
 ## 4. 미해결 항목
 
-- [ ] EasyOCR 사전학습 가중치의 배포 조건 확인
-- [ ] fine-tune 파생 가중치의 라이선스 귀속 확인
+- [ ] EasyOCR 사전학습 가중치의 배포 조건 확인 — 2026-08-21: 공개 문서상 명시가
+      없음을 확인. Jaided AI 문의 필요
+- [ ] fine-tune 파생 가중치의 라이선스 귀속 확인 — EasyOCR 가중치 조건 확인에
+      의존하므로 위 항목과 함께 진행
 - [ ] 실촬 학습 데이터에 타인의 혈당계·개인정보가 찍히지 않도록 하는 수집 지침 문서화
 - [ ] 출시 빌드에 `showLicensePage` 연결
 - [ ] **Apache-2.0 고지**: `7seg_classifier.tflite` 는 앱에 직접 번들되므로 라이선스 사본과 저작자 고지를 앱 내 라이선스 화면에 포함해야 한다. 모델을 fine-tune 해 교체하면 "변경 사항 고지"도 함께 필요하다.
