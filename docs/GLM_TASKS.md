@@ -194,7 +194,10 @@ flutter test     → All tests passed! (NNN tests)
 
 ### G1 — 쓰이지 않는 l10n 키 정리
 
-**상태**: 대기
+**상태**: 완료 (2026-08-21)
+
+> 브랜치 `glm/G1-unused-l10n` · 코드 커밋 `cc8d02f` · main 병합 `96fac33`
+> 결과: 지정 4키 삭제, en/ko 각 99키 동일 확인. 보고서 → [reports/G1-unused-l10n-keys.md](reports/G1-unused-l10n-keys.md)
 
 `lib/l10n/app_en.arb` / `app_ko.arb` 에 코드에서 참조되지 않는 키가 남아 있다.
 W1 스캐폴드 시절에 만들어 놓고 실제 화면이 다른 키를 쓰게 된 것들이다.
@@ -224,7 +227,11 @@ W1 스캐폴드 시절에 만들어 놓고 실제 화면이 다른 키를 쓰게
 
 ### G2 — 삭제 되돌리기에 확인 문구 붙이기
 
-**상태**: 대기
+**상태**: 완료 (2026-08-21)
+
+> 브랜치 `glm/G2-restore-confirmation` · 코드 커밋 `01d12b8` · main 병합 `96fac33`
+> 결과: 실행 취소 시 `readingRestored` 확인 스낵바 + 삭제→되돌리기 위젯 테스트.
+> 보고서 → [reports/G2-restore-confirmation.md](reports/G2-restore-confirmation.md)
 
 `lib/features/history/history_screen.dart` 에서 기록을 스와이프로 삭제하면
 스낵바에 "실행 취소" 가 뜬다. 그런데 **되돌린 뒤에는 아무 반응이 없다.**
@@ -252,7 +259,11 @@ W1 스캐폴드 시절에 만들어 놓고 실제 화면이 다른 키를 쓰게
 
 ### G3 — 기록 목록에 메모 표시
 
-**상태**: 대기
+**상태**: 완료 (2026-08-21)
+
+> 브랜치 `glm/G3-note-in-list` · 코드 커밋 `a3e2121` · main 병합 `96fac33`
+> 결과: 부제 아래 메모 한 줄(없으면 높이 불변), 아이콘·색 없음.
+> 보고서 → [reports/G3-note-in-list.md](reports/G3-note-in-list.md)
 
 기록에 메모를 남길 수 있는데(`GlucoseReading.note`) **목록에서는 안 보인다.**
 편집 시트를 열어야만 확인할 수 있어서, 메모를 남겨도 다시 찾아보기 어렵다.
@@ -278,7 +289,11 @@ W1 스캐폴드 시절에 만들어 놓고 실제 화면이 다른 키를 쓰게
 
 ### G4 — 죽은 TODO 주석 정리
 
-**상태**: 대기
+**상태**: 완료 (2026-08-21)
+
+> 브랜치 `glm/G4-dead-todo` · 코드 커밋 `52fd501` · main 병합 `96fac33`
+> 결과: 25줄 주석만 삭제, `flutter build apk --debug` 성공으로 검증.
+> 보고서 → [reports/G4-dead-todo.md](reports/G4-dead-todo.md)
 
 `android/app/build.gradle.kts` 에 Flutter 템플릿이 남긴 TODO 두 개가 있다.
 하나는 이미 해결됐고 하나는 아직 유효하다.
@@ -302,7 +317,12 @@ W1 스캐폴드 시절에 만들어 놓고 실제 화면이 다른 키를 쓰게
 
 ### G5 — 라이선스 문서의 "확인 필요" 채우기
 
-**상태**: 대기
+**상태**: 완료 (2026-08-21)
+
+> 브랜치 `glm/G5-license-audit` · 코드 커밋 `75b6302` · main 병합 `96fac33`
+> 결과: 7개 저장소 LICENSE 직접 확인해 표 갱신. CRAFT 는 연구용 한정 조항
+> 없음(순수 MIT). EasyOCR **가중치**만 공식 명시가 없어 "확인 실패 — Jaided AI
+> 문의 필요"로 잔여. 보고서 → [reports/G5-license-audit.md](reports/G5-license-audit.md)
 
 `docs/LICENSES.md` 는 초안이다. 표의 여러 항목이 "확인 필요" 로 남아 있다.
 **코드를 고치는 작업이 아니라 조사 작업이다.**
@@ -335,7 +355,11 @@ W1 스캐폴드 시절에 만들어 놓고 실제 화면이 다른 키를 쓰게
 
 ### G6 — 접근성 라벨 (스크린리더)
 
-**상태**: 대기
+**상태**: 완료 (2026-08-21)
+
+> 브랜치 `glm/G6-accessibility-labels` · 코드 커밋 `cc4d32a` · main 병합 `96fac33`
+> 결과: 기록 타일·통계 요약 카드에 Semantics 라벨(기존 l10n 조각으로만 구성,
+> 판정어 없음, 차트 미수정). 보고서 → [reports/G6-accessibility-labels.md](reports/G6-accessibility-labels.md)
 
 앱 전체에 `Semantics` 사용이 **0건**이다. 스크린리더 사용자에게 대시보드의
 기록이 "137" 처럼 숫자만 읽히고, 단위·시각·태그가 따로 읽히거나 안 읽힌다.
@@ -364,7 +388,11 @@ W1 스캐폴드 시절에 만들어 놓고 실제 화면이 다른 키를 쓰게
 
 ### G7 — 사용자에게 예외 원문을 보여 주지 않기
 
-**상태**: 대기
+**상태**: 완료 (2026-08-21)
+
+> 브랜치 `glm/G7-error-message` · 코드 커밋 `4d62001` · main 병합 `96fac33`
+> 결과: `readingsLoadFailed` 추가, 원문은 debugPrint 로만 남김,
+> `Text('$error` 검색 0건. 보고서 → [reports/G7-error-message-localization.md](reports/G7-error-message-localization.md)
 
 앱 전체에서 번역되지 않은 문자열이 딱 두 군데 있는데, 둘 다 같은 문제다.
 
@@ -401,7 +429,14 @@ malformed` 같은 문장이 보인다. 사용자가 할 수 있는 일이 없는
 
 ### G8 — 지원 언어 4개 추가 (es · pt · de · fr)
 
-**상태**: 대기
+**상태**: 완료 (2026-08-21)
+
+> 브랜치 `glm/G8-locales-es-pt-de-fr` · 코드 커밋 `44d4f74`(+영어 폴백 `359a5b7`) · main 병합 `96fac33`
+> 결과: 4개 언어 각 100키(en/ko 와 일치, 플레이스홀더 보존), supportedLocales 6개.
+> 의료 문구 21개는 DeepL 역번역 교차검증 84/84 의미 보존·판정어 0건
+> ([reports/G8-backtranslate-input.md](reports/G8-backtranslate-input.md)).
+> 미지원 언어 폴백은 사용자 결정으로 영어 구현(`resolveAppLocale`).
+> 보고서 → [reports/G8-locales-es-pt-de-fr.md](reports/G8-locales-es-pt-de-fr.md)
 
 지금은 영어와 한국어뿐이다(`app_en.arb`, `app_ko.arb`, 키 103개). 아래 넷을
 추가한다. 시장 규모로 고른 것이고 규제·배포 범위와는 무관한 결정이다.
@@ -500,3 +535,5 @@ ea1cEstimateBadge      ea1cInsufficientData   invalidValueRange
   문장**이 섞여 있다. 기계 번역을 그대로 넣을 수 없고, 언어마다 검토자가
   필요하다. **어느 언어를 추가할지는 정해졌고(G8), 남은 것은 의료 문구 검토다** —
   G8 보고서의 역번역 표를 사람이 읽고 승인해야 병합할 수 있다.
+  - 2026-08-21: DeepL 역번역 교차검증 84/84 통과 후 병합 완료. 시장 노출 전
+    원어민 스팟 검토(어감)는 남아 있다.
