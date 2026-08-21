@@ -56,11 +56,29 @@ class ReadingTile extends StatelessWidget {
           ),
         ],
       ),
-      subtitle: Text(
-        '$timeText · ${reading.tag.label(l10n)} · ${reading.source.label(l10n)}',
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
+      subtitle: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$timeText · ${reading.tag.label(l10n)} · ${reading.source.label(l10n)}',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          // 메모는 서술 정보다. 아이콘도 색도 붙이지 않고 부제와 같은 몸으로
+          // 한 줄만 보여 준다. 없으면 아예 그리지 않는다 — 빈 줄이 생기면
+          // 메모 없는 기록의 높이가 달라진다.
+          if (reading.note != null && reading.note!.trim().isNotEmpty)
+            Text(
+              reading.note!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+        ],
       ),
     );
   }
