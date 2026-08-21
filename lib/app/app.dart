@@ -9,6 +9,24 @@ import 'router.dart';
 import 'sync_runner.dart';
 import 'theme/app_theme.dart';
 
+/// 기기 언어를 지원 로케일 하나로 정한다.
+///
+/// `AppLocalizations.supportedLocales` 는 gen-l10n 이 알파벳순으로 만들어서
+/// `de` 가 첫 항목이다. 콜백이 없으면 Flutter 의 기본 해석이 매칭 실패 시 첫
+/// 항목으로 떨어지므로, 일본어·중국어처럼 지원 밖 언어 기기이 독일어를 보게
+/// 된다. 언어 코드가 일치하는 지원 로케일을 돌려주고, 없으면 **영어**로
+/// 떨어뜨린다.
+Locale resolveAppLocale(Locale? locale, Iterable<Locale> supportedLocales) {
+  if (locale != null) {
+    for (final supported in supportedLocales) {
+      if (supported.languageCode == locale.languageCode) {
+        return supported;
+      }
+    }
+  }
+  return const Locale('en');
+}
+
 class SugarScanApp extends StatefulWidget {
   const SugarScanApp({super.key});
 
@@ -47,6 +65,7 @@ class _SugarScanAppState extends State<SugarScanApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: AppLocalizations.supportedLocales,
+      localeResolutionCallback: resolveAppLocale,
     );
   }
 }
