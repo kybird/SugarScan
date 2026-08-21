@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 import 'package:sugarscan/domain/models/glucose_reading.dart';
 import 'package:sugarscan/domain/models/glucose_unit.dart';
 import 'package:sugarscan/domain/models/measurement_tag.dart';
@@ -91,6 +92,29 @@ void main() {
       greaterThan(plainHeight),
     );
 
+    await unmount(tester);
+  });
+
+  // 값만 읽히면 단위가 생략된다. 혈당에서 단위는 숫자의 뜻을 바꾸므로 타일
+  // 전체가 "값 단위, 시각, 태그, 출처" 한 문장으로 낭독되어야 한다.
+  testWidgets('스크린리더에게 값·단위·시각·태그·출처를 한 문장으로 읽는다', (tester) async {
+    final handle = tester.ensureSemantics();
+
+    await pumpTile(tester, reading());
+    final timeText = DateFormat.yMMMd('en')
+        .add_jm()
+        .format(reading().measuredAtLocalWallClock);
+    expect(
+      find.bySemanticsLabel('137 mg/dL, $timeText, Fasting, Manual'),
+      findsOneWidget,
+    );
+
+    // 메모는 라벨 문자열에 직접 넣지 않지만 같은 의미론 노드로 병합되어
+    // 이어서 읽힌다 — 낭독에서 빠지는 보이는 내용이 없어야 한다.
+    await pumpTile(tester, reading(note: '아침 공복'));
+    expect(find.bySemanticsLabel(RegExp('아침 공복')), findsOneWidget);
+
+    handle.dispose();
     await unmount(tester);
   });
 }

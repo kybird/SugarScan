@@ -227,4 +227,27 @@ void main() {
 
     await unmount(tester);
   });
+
+  // 스크린리더 사용자에게도 요약 카드가 통계 한 문장으로 읽혀야 한다.
+  // 라벨은 보이는 내용과 같게 — 판정 문구가 섞이면 안 된다.
+  testWidgets('요약 카드가 스크린리더용 라벨을 갖는다', (tester) async {
+    final handle = tester.ensureSemantics();
+
+    await add(100);
+    await add(140);
+
+    await pumpStats(tester);
+
+    expect(
+      find.bySemanticsLabel(RegExp('Average 120 mg/dL, 2 readings')),
+      findsOneWidget,
+    );
+    expect(
+      find.bySemanticsLabel(RegExp('Within target range 100%')),
+      findsOneWidget,
+    );
+
+    handle.dispose();
+    await unmount(tester);
+  });
 }

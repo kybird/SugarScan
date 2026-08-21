@@ -119,65 +119,79 @@ class _SummaryCard extends StatelessWidget {
     // 정본은 mg/dL 이고 표시할 때만 사용자의 단위로 옮긴다.
     String show(double mgdl) => unit.format(unit.fromMgdl(mgdl));
 
+    // 카드 전체를 한 문장으로 낭독한다. 화면에 보이는 내용(평균·건수·최저·
+    // 최고·편차)만으로 짜맞추고 판정은 넣지 않는다. 문구는 전부 l10n 을 거친
+    // 조각이다.
+    final semanticsLabel =
+        '${l10n.statsMean} ${show(summary.meanMgdl)} ${unit.symbol}, '
+        '${l10n.statsReadingCount(summary.count)}, '
+        '${l10n.statsLow} ${show(summary.minMgdl)}, '
+        '${l10n.statsHigh} ${show(summary.maxMgdl)}, '
+        '${l10n.statsSd} ${show(summary.standardDeviation)}';
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         color: scheme.surfaceContainerHighest,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(l10n.statsMean, style: theme.textTheme.titleSmall),
-                    const SizedBox(height: 4),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
-                      children: [
-                        Text(
-                          show(summary.meanMgdl),
-                          style: theme.textTheme.displaySmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            fontFeatures: const [FontFeature.tabularFigures()],
+      child: Semantics(
+        label: semanticsLabel,
+        excludeSemantics: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(l10n.statsMean, style: theme.textTheme.titleSmall),
+                      const SizedBox(height: 4),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            show(summary.meanMgdl),
+                            style: theme.textTheme.displaySmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              fontFeatures: const [FontFeature.tabularFigures()],
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          unit.symbol,
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(color: scheme.onSurfaceVariant),
-                        ),
-                      ],
-                    ),
-                  ],
+                          const SizedBox(width: 6),
+                          Text(
+                            unit.symbol,
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(color: scheme.onSurfaceVariant),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              Text(
-                l10n.statsReadingCount(summary.count),
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: scheme.onSurfaceVariant),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              _Minor(label: l10n.statsLow, value: show(summary.minMgdl)),
-              _Minor(label: l10n.statsHigh, value: show(summary.maxMgdl)),
-              _Minor(
-                label: l10n.statsSd,
-                value: show(summary.standardDeviation),
-              ),
-            ],
-          ),
-        ],
+                Text(
+                  l10n.statsReadingCount(summary.count),
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: scheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                _Minor(label: l10n.statsLow, value: show(summary.minMgdl)),
+                _Minor(label: l10n.statsHigh, value: show(summary.maxMgdl)),
+                _Minor(
+                  label: l10n.statsSd,
+                  value: show(summary.standardDeviation),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -235,46 +249,57 @@ class _InRangeCard extends ConsumerWidget {
         ref.watch(targetRangePresetProvider).value ?? TargetRangePreset.fallback;
     final percent = (summary.inRangeRatio * 100).round();
 
+    // 카드 전체를 한 문장로 낭독한다. "건수 기준" 단서는 임상적으로 중요한
+    // 문구라 라벨에서도 빼지 않는다. 판정은 넣지 않는다.
+    final semanticsLabel =
+        '${l10n.statsInRange} $percent%, '
+        '${l10n.statsTargetRange(preset.labelFor(unit), unit.symbol)}, '
+        '${l10n.statsInRangeNote}';
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         color: scheme.surfaceContainerHighest,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(l10n.statsInRange, style: theme.textTheme.titleSmall),
-          const SizedBox(height: 8),
-          Text(
-            '$percent%',
-            style: theme.textTheme.displaySmall?.copyWith(
-              fontWeight: FontWeight.w600,
-              fontFeatures: const [FontFeature.tabularFigures()],
+      child: Semantics(
+        label: semanticsLabel,
+        excludeSemantics: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l10n.statsInRange, style: theme.textTheme.titleSmall),
+            const SizedBox(height: 8),
+            Text(
+              '$percent%',
+              style: theme.textTheme.displaySmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          LinearProgressIndicator(
-            value: summary.inRangeRatio,
-            minHeight: 6,
-            borderRadius: BorderRadius.circular(3),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            // 지침이 발표한 표기를 그대로 쓴다. 여기서 변환해 다시 만들면
-            // 설정 화면과 통계 화면의 숫자가 반올림에 따라 갈릴 수 있다.
-            l10n.statsTargetRange(preset.labelFor(unit), unit.symbol),
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: scheme.onSurfaceVariant),
-          ),
-          const SizedBox(height: 4),
-          // CGM 의 TIR 과 혼동하면 임상적으로 잘못 읽힌다. 매번 붙여 둔다.
-          Text(
-            l10n.statsInRangeNote,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: scheme.onSurfaceVariant),
-          ),
-        ],
+            const SizedBox(height: 8),
+            LinearProgressIndicator(
+              value: summary.inRangeRatio,
+              minHeight: 6,
+              borderRadius: BorderRadius.circular(3),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              // 지침이 발표한 표기를 그대로 쓴다. 여기서 변환해 다시 만들면
+              // 설정 화면과 통계 화면의 숫자가 반올림에 따라 갈릴 수 있다.
+              l10n.statsTargetRange(preset.labelFor(unit), unit.symbol),
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 4),
+            // CGM 의 TIR 과 혼동하면 임상적으로 잘못 읽힌다. 매번 붙여 둔다.
+            Text(
+              l10n.statsInRangeNote,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ],
+        ),
       ),
     );
   }
