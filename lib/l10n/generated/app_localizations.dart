@@ -308,6 +308,12 @@ abstract class AppLocalizations {
   /// **'No readings yet. Scan your meter or enter a value.'**
   String get historyEmpty;
 
+  /// Shown when reading the local database fails. Do not guess a cause or a remedy; the cause is local, not the network.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load your readings.'**
+  String get readingsLoadFailed;
+
   /// No description provided for @actionDelete.
   ///
   /// In en, this message translates to:

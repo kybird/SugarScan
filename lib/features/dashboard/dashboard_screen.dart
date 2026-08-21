@@ -111,10 +111,18 @@ class _RecentList extends StatelessWidget {
         padding: EdgeInsets.all(24),
         child: Center(child: CircularProgressIndicator()),
       ),
-      error: (error, _) => Padding(
-        padding: const EdgeInsets.all(16),
-        child: Text('$error'),
-      ),
+      error: (error, _) {
+        // 원문은 화면이 아니라 로그로 남긴다. 번역되지 않은 예외 문장을
+        // 사용자에게 보여 주지 않는다.
+        debugPrint('최근 기록 조회 실패: $error');
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            AppLocalizations.of(context).readingsLoadFailed,
+            textAlign: TextAlign.center,
+          ),
+        );
+      },
       data: (items) {
         if (items.isEmpty) {
           return Card(

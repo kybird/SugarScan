@@ -64,6 +64,10 @@
   "invalidValueDecimals": "This unit does not use decimals",
   "invalidValueRange": "That is outside what a meter can show",
   "historyEmpty": "No readings yet. Scan your meter or enter a value.",
+  "readingsLoadFailed": "Couldn't load your readings.",
+  "@readingsLoadFailed": {
+    "description": "Shown when reading the local database fails. Do not guess a cause or a remedy; the cause is local, not the network."
+  },
   "actionDelete": "Delete",
   "actionUndo": "Undo",
   "readingDeleted": "Reading deleted",

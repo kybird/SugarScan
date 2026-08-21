@@ -35,6 +35,7 @@
   "invalidValueDecimals": "이 단위는 소수점을 쓰지 않습니다",
   "invalidValueRange": "혈당계가 표시할 수 있는 범위를 벗어납니다",
   "historyEmpty": "아직 기록이 없습니다. 혈당계를 스캔하거나 직접 입력해 보세요.",
+  "readingsLoadFailed": "기록을 불러오지 못했습니다.",
   "actionDelete": "삭제",
   "actionUndo": "실행 취소",
   "readingDeleted": "기록을 삭제했습니다",

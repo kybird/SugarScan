@@ -20,12 +20,20 @@ class HistoryScreen extends ConsumerWidget {
       appBar: AppBar(title: Text(l10n.navHistory)),
       body: readings.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text('$error', textAlign: TextAlign.center),
-          ),
-        ),
+        error: (error, _) {
+          // 원문은 화면이 아니라 로그로 남긴다. 번역되지 않은 예외 문장을
+          // 사용자에게 보여 주지 않는다.
+          debugPrint('기록 목록 조회 실패: $error');
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                l10n.readingsLoadFailed,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        },
         data: (items) {
           if (items.isEmpty) {
             return _EmptyState(message: l10n.historyEmpty);

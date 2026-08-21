@@ -123,6 +123,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'No readings yet. Scan your meter or enter a value.';
 
   @override
+  String get readingsLoadFailed => 'Couldn\'t load your readings.';
+
+  @override
   String get actionDelete => 'Delete';
 
   @override

@@ -118,6 +118,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get historyEmpty => '아직 기록이 없습니다. 혈당계를 스캔하거나 직접 입력해 보세요.';
 
   @override
+  String get readingsLoadFailed => '기록을 불러오지 못했습니다.';
+
+  @override
   String get actionDelete => '삭제';
 
   @override

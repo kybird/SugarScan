@@ -7,6 +7,7 @@ import 'package:sugarscan/app/providers.dart';
 import 'package:sugarscan/data/local/database.dart';
 import 'package:sugarscan/data/repositories/glucose_repository.dart';
 import 'package:sugarscan/data/repositories/settings_repository.dart';
+import 'package:sugarscan/domain/models/glucose_reading.dart';
 import 'package:sugarscan/domain/models/glucose_unit.dart';
 import 'package:sugarscan/domain/models/measurement_tag.dart';
 import 'package:sugarscan/domain/models/reading_source.dart';
@@ -102,6 +103,60 @@ void main() {
     // 타이머가 있으면 테스트가 "Timer is still pending" 으로 죽는다.
     await tester.pump(const Duration(seconds: 5));
     await tester.pump(const Duration(milliseconds: 300));
+
+    await unmount(tester);
+  });
+
+  // 읽기 실패는 빈 목록과 다른 화면이다. 예외 원문을 그대로 보여 주면 번역되지
+  // 않은 문장이 사용자에게 노출된다 — 원문은 로그로만 남는다.
+  testWidgets('기록 조회가 실패하면 안내 문구를 보고 원문은 로그로 남긴다', (tester) async {
+    final printed = <String>[];
+    final original = debugPrint;
+    debugPrint = (String? message, {int? wrapWidth}) {
+      printed.add(message ?? '');
+    };
+    // flutter_test 는 테스트 끝에 foundation 디버그 변수가 원상태인지 검사한다.
+    // addTearDown 으로 복원하면 검사보다 늦게 도니 본문 안에서 직접 되돌린다.
+    try {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            recentReadingsProvider.overrideWith(
+              (ref) => Stream<List<GlucoseReading>>.error(
+                StateError(
+                    'SqliteException(11): database disk image is malformed'),
+              ),
+            ),
+          ],
+          child: const MaterialApp(
+            localizationsDelegates: [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: HistoryScreen(),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text("Couldn't load your readings."), findsOneWidget);
+      // 원문은 화면에 없고 로그에 있다.
+      expect(find.textContaining('SqliteException'), findsNothing);
+      expect(
+        printed.join('\n'),
+        contains('database disk image is malformed'),
+      );
+      // 빈 상태 문구와 뭉개지지 않는다.
+      expect(find.textContaining('No readings yet'), findsNothing);
+    } finally {
+      debugPrint = original;
+    }
 
     await unmount(tester);
   });
