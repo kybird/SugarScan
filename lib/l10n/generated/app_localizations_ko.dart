@@ -295,8 +295,8 @@ class AppLocalizationsKo extends AppLocalizations {
       '시간이 아니라 건수 기준입니다. 채혈 측정은 시점 표본이라 CGM 의 TIR 과 다릅니다.';
 
   @override
-  String statsTargetRange(String low, String high, String unit) {
-    return '목표 범위 $low–$high $unit';
+  String statsTargetRange(String range, String unit) {
+    return '목표 범위 $range $unit';
   }
 
   @override
@@ -313,4 +313,33 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get statsSd => '편차';
+
+  @override
+  String get settingsTargetSection => '목표 범위';
+
+  @override
+  String get targetObservation => '관찰 범위';
+
+  @override
+  String get targetObservationNote => '범위 내 비율을 볼 때 쓰이는 구간입니다.';
+
+  @override
+  String get targetPreMeal => '식전 목표';
+
+  @override
+  String get targetPreMealNote => 'ADA Standards of Care, 비임신 성인 기준.';
+
+  @override
+  String get targetTight => '좁은 범위';
+
+  @override
+  String get targetTightNote => '당뇨가 없는 사람이 대부분의 시간을 보내는 구간입니다.';
+
+  @override
+  String get settingsTargetNote => '참고 범위일 뿐 권고가 아닙니다. 본인의 목표는 담당 의료진과 정하세요.';
+
+  @override
+  String settingsTargetChanged(String range) {
+    return '목표 범위를 $range 로 바꿨습니다';
+  }
 }

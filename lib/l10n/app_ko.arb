@@ -88,10 +88,19 @@
   "statsMean": "평균",
   "statsInRange": "목표 범위 안",
   "statsInRangeNote": "시간이 아니라 건수 기준입니다. 채혈 측정은 시점 표본이라 CGM 의 TIR 과 다릅니다.",
-  "statsTargetRange": "목표 범위 {low}–{high} {unit}",
+  "statsTargetRange": "목표 범위 {range} {unit}",
   "statsByTag": "태그별 평균",
   "statsTrend": "기간 내 기록",
   "statsLow": "최저",
   "statsHigh": "최고",
-  "statsSd": "편차"
+  "statsSd": "편차",
+  "settingsTargetSection": "목표 범위",
+  "targetObservation": "관찰 범위",
+  "targetObservationNote": "범위 내 비율을 볼 때 쓰이는 구간입니다.",
+  "targetPreMeal": "식전 목표",
+  "targetPreMealNote": "ADA Standards of Care, 비임신 성인 기준.",
+  "targetTight": "좁은 범위",
+  "targetTightNote": "당뇨가 없는 사람이 대부분의 시간을 보내는 구간입니다.",
+  "settingsTargetNote": "참고 범위일 뿐 권고가 아닙니다. 본인의 목표는 담당 의료진과 정하세요.",
+  "settingsTargetChanged": "목표 범위를 {range} 로 바꿨습니다"
 }

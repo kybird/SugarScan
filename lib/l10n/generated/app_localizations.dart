@@ -629,8 +629,8 @@ abstract class AppLocalizations {
   /// No description provided for @statsTargetRange.
   ///
   /// In en, this message translates to:
-  /// **'Target range {low}–{high} {unit}'**
-  String statsTargetRange(String low, String high, String unit);
+  /// **'Target range {range} {unit}'**
+  String statsTargetRange(String range, String unit);
 
   /// No description provided for @statsByTag.
   ///
@@ -661,6 +661,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'SD'**
   String get statsSd;
+
+  /// No description provided for @settingsTargetSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Target range'**
+  String get settingsTargetSection;
+
+  /// No description provided for @targetObservation.
+  ///
+  /// In en, this message translates to:
+  /// **'Observation range'**
+  String get targetObservation;
+
+  /// No description provided for @targetObservationNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The range used for time-in-range reporting.'**
+  String get targetObservationNote;
+
+  /// No description provided for @targetPreMeal.
+  ///
+  /// In en, this message translates to:
+  /// **'Before-meal target'**
+  String get targetPreMeal;
+
+  /// No description provided for @targetPreMealNote.
+  ///
+  /// In en, this message translates to:
+  /// **'ADA Standards of Care, non-pregnant adults.'**
+  String get targetPreMealNote;
+
+  /// No description provided for @targetTight.
+  ///
+  /// In en, this message translates to:
+  /// **'Tight range'**
+  String get targetTight;
+
+  /// No description provided for @targetTightNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Where people without diabetes spend most of their time.'**
+  String get targetTightNote;
+
+  /// Required disclaimer under the target range picker. The app must not appear to prescribe a target.
+  ///
+  /// In en, this message translates to:
+  /// **'These are reference ranges, not advice. Decide your own target with your healthcare provider.'**
+  String get settingsTargetNote;
+
+  /// No description provided for @settingsTargetChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Target range set to {range}'**
+  String settingsTargetChanged(String range);
 }
 
 class _AppLocalizationsDelegate

@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../app/providers.dart';
 import '../../domain/models/glucose_reading.dart';
 import '../../domain/models/glucose_unit.dart';
+import '../../domain/models/target_range_preset.dart';
 import '../../domain/services/glucose_statistics.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../shared/tag_labels.dart';
@@ -230,7 +231,8 @@ class _InRangeCard extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final target = ref.watch(targetRangeProvider);
+    final preset =
+        ref.watch(targetRangePresetProvider).value ?? TargetRangePreset.fallback;
     final percent = (summary.inRangeRatio * 100).round();
 
     return Container(
@@ -259,11 +261,9 @@ class _InRangeCard extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            l10n.statsTargetRange(
-              unit.format(unit.fromMgdl(target.lowMgdl)),
-              unit.format(unit.fromMgdl(target.highMgdl)),
-              unit.symbol,
-            ),
+            // 지침이 발표한 표기를 그대로 쓴다. 여기서 변환해 다시 만들면
+            // 설정 화면과 통계 화면의 숫자가 반올림에 따라 갈릴 수 있다.
+            l10n.statsTargetRange(preset.labelFor(unit), unit.symbol),
             style: theme.textTheme.bodySmall
                 ?.copyWith(color: scheme.onSurfaceVariant),
           ),

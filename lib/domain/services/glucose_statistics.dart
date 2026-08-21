@@ -2,17 +2,23 @@ import 'dart:math' as math;
 
 import '../models/glucose_reading.dart';
 import '../models/measurement_tag.dart';
+import '../models/target_range_preset.dart';
 
-/// 사용자가 설정한 목표 범위(mg/dL 정본).
+/// 사용자가 고른 목표 범위(mg/dL 정본).
 ///
-/// 임상 지침이 아니라 사용자가 스스로 정하는 관찰 범위다. 기본값은 흔히 쓰이는
-/// 참고 구간이며, 앱은 이 범위를 근거로 어떤 권고도 하지 않는다.
+/// 앱은 이 범위를 근거로 어떤 권고도 하지 않는다. "범위 안/밖"이라는 서술만
+/// 한다. 고를 수 있는 후보는 [TargetRangePreset] 에 있다.
 class TargetRange {
   const TargetRange({this.lowMgdl = 70, this.highMgdl = 180});
+
+  TargetRange.of(TargetRangePreset preset)
+      : lowMgdl = preset.lowMgdl,
+        highMgdl = preset.highMgdl;
 
   final double lowMgdl;
   final double highMgdl;
 
+  /// 경계값은 범위 안이다.
   bool contains(double mgdl) => mgdl >= lowMgdl && mgdl <= highMgdl;
 }
 

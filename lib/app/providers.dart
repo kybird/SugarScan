@@ -18,6 +18,7 @@ import '../data/repositories/settings_repository.dart';
 import '../data/system_timezone.dart';
 import '../domain/models/glucose_reading.dart';
 import '../domain/models/glucose_unit.dart';
+import '../domain/models/target_range_preset.dart';
 import '../domain/services/glucose_statistics.dart';
 
 /// 앱 전역 의존성.
@@ -331,11 +332,19 @@ final statsReadingsProvider = StreamProvider<List<GlucoseReading>>((ref) {
       );
 });
 
-/// 사용자가 정한 목표 범위.
+/// 사용자가 고른 목표 범위 프리셋.
+final targetRangePresetProvider = StreamProvider<TargetRangePreset>((ref) {
+  return ref.watch(settingsRepositoryProvider).watchTargetRange();
+});
+
+/// 통계 계산에 쓸 목표 범위.
 ///
-/// 임상 지침이 아니라 관찰용 범위다. 아직 설정 화면이 없어 기본값을 쓴다.
+/// 아직 못 읽었으면 기본값으로 떨어진다. 화면이 잠깐 다른 범위로 계산하는 것을
+/// 감수하는 대신, 로딩 중이라고 통계를 비워 두지 않는다.
 final targetRangeProvider = Provider<TargetRange>((ref) {
-  return const TargetRange();
+  final preset =
+      ref.watch(targetRangePresetProvider).value ?? TargetRangePreset.fallback;
+  return TargetRange.of(preset);
 });
 
 /// 기간 요약. 기록이 없으면 null — "0건"과 "평균 0"은 다른 이야기다.

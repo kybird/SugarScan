@@ -195,6 +195,55 @@ void main() {
       expect(await outboxCount(), 0);
     });
 
+    // 오프라인으로 쌓였다가 나중에 한꺼번에 올라가도 측정 시각은 그대로여야
+    // 한다. 여기가 밀리면 기록이 엉뚱한 날짜와 구간에 가서 붙는다.
+    test('밀렸다 올라가도 측정 시각이 바뀌지 않는다', () async {
+      // 실제 저장 경로처럼 로컬 시각을 넘긴다. 저장소가 이 값에서 UTC 오프셋을
+      // 뽑아 쓰므로, UTC DateTime 을 넘기면 오프셋이 0 으로 잡혀 상황이 달라진다.
+      final measured = DateTime(2026, 3, 10, 22, 15);
+      final reading = await readings.add(
+        value: 137,
+        unit: GlucoseUnit.mgdl,
+        tag: MeasurementTag.bedtime,
+        source: ReadingSource.manual,
+        measuredAt: measured,
+      );
+      final wallClockHour =
+          (await readings.byId(reading.id))!.measuredAtLocalWallClock.hour;
+
+      // 한동안 오프라인. 그동안 아무것도 못 보낸다.
+      await engine(isOnline: () async => false).syncOnce();
+      expect(api.rows, isEmpty);
+
+      // 네트워크 복구.
+      await engine().syncOnce();
+
+      expect(api.rows.single.id, reading.id);
+      expect(api.rows.single.measuredAtUtc, measured.toUtc());
+      // 사용자가 그때 시계에서 본 시각이 그대로여야 한다. 여기가 밀리면
+      // 기록이 엉뚱한 날짜와 구간에 가서 붙는다.
+      expect(api.rows.single.measuredAtLocalWallClock.hour, wallClockHour);
+      expect(wallClockHour, 22);
+    });
+
+    test('수정해도 측정 시각은 그대로다', () async {
+      final measured = DateTime(2026, 3, 10, 22, 15);
+      final reading = await readings.add(
+        value: 137,
+        unit: GlucoseUnit.mgdl,
+        tag: MeasurementTag.bedtime,
+        source: ReadingSource.manual,
+        measuredAt: measured,
+      );
+      await engine().syncOnce();
+
+      await readings.update(reading.id, value: 150, unit: GlucoseUnit.mgdl);
+      await engine().syncOnce();
+
+      expect(api.rows.single.enteredValue, 150);
+      expect(api.rows.single.measuredAtUtc, measured.toUtc());
+    });
+
     test('소프트 삭제도 deleted_at 이 채워진 채로 올라간다', () async {
       final reading = await addLocal();
       await engine().syncOnce();

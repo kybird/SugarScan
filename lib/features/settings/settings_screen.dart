@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/providers.dart';
 import '../../data/sync/sync_engine.dart';
 import '../../domain/models/glucose_unit.dart';
+import '../../domain/models/target_range_preset.dart';
 import '../../l10n/generated/app_localizations.dart';
+import '../shared/tag_labels.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -54,6 +56,8 @@ class SettingsScreen extends ConsumerWidget {
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
           ),
+          const Divider(),
+          const _TargetRangeSection(),
           const Divider(),
           const _SyncSection(),
           const Divider(),
@@ -177,6 +181,88 @@ class _SyncSection extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// 목표 범위 선택.
+///
+/// **직접 입력을 받지 않는다.** 임의의 숫자를 넣게 하면 앱이 근거 없는 범위로
+/// "범위 안 73%" 를 계속 그리게 되는데, 화면은 똑같이 그럴듯해 보인다.
+/// 근거 있는 몇 개 중에서만 고르게 하고, 그 근거를 함께 적는다.
+class _TargetRangeSection extends ConsumerWidget {
+  const _TargetRangeSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final unit = ref.watch(displayUnitProvider);
+    final selected =
+        ref.watch(targetRangePresetProvider).value ?? TargetRangePreset.fallback;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Text(
+            l10n.settingsTargetSection,
+            style: theme.textTheme.titleSmall,
+          ),
+        ),
+        RadioGroup<TargetRangePreset>(
+          groupValue: selected,
+          onChanged: (value) => _change(context, ref, value, unit),
+          child: Column(
+            children: [
+              for (final preset in TargetRangePreset.values)
+                RadioListTile<TargetRangePreset>(
+                  value: preset,
+                  title: Text(
+                    // 범위 숫자를 이름과 함께 보여 준다. 이름만으로는 무엇을
+                    // 고르는지 알 수 없다.
+                    '${preset.label(l10n)}  ${preset.labelFor(unit)} '
+                    '${unit.symbol}',
+                  ),
+                  subtitle: Text(preset.note(l10n)),
+                ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(16),
+          // 앱이 목표를 권하는 것처럼 읽히지 않게 하는 문구다. 지우지 말 것.
+          child: Text(
+            l10n.settingsTargetNote,
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _change(
+    BuildContext context,
+    WidgetRef ref,
+    TargetRangePreset? preset,
+    GlucoseUnit unit,
+  ) async {
+    if (preset == null) return;
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    await ref.read(settingsRepositoryProvider).setTargetRange(preset);
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          l10n.settingsTargetChanged(
+            '${preset.labelFor(unit)} ${unit.symbol}',
+          ),
+        ),
+      ),
     );
   }
 }

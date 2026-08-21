@@ -303,8 +303,8 @@ class AppLocalizationsEn extends AppLocalizations {
       'Counts readings, not time. A finger-prick meter samples moments, so this is not the same as a CGM time-in-range.';
 
   @override
-  String statsTargetRange(String low, String high, String unit) {
-    return 'Target range $low–$high $unit';
+  String statsTargetRange(String range, String unit) {
+    return 'Target range $range $unit';
   }
 
   @override
@@ -321,4 +321,36 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statsSd => 'SD';
+
+  @override
+  String get settingsTargetSection => 'Target range';
+
+  @override
+  String get targetObservation => 'Observation range';
+
+  @override
+  String get targetObservationNote =>
+      'The range used for time-in-range reporting.';
+
+  @override
+  String get targetPreMeal => 'Before-meal target';
+
+  @override
+  String get targetPreMealNote => 'ADA Standards of Care, non-pregnant adults.';
+
+  @override
+  String get targetTight => 'Tight range';
+
+  @override
+  String get targetTightNote =>
+      'Where people without diabetes spend most of their time.';
+
+  @override
+  String get settingsTargetNote =>
+      'These are reference ranges, not advice. Decide your own target with your healthcare provider.';
+
+  @override
+  String settingsTargetChanged(String range) {
+    return 'Target range set to $range';
+  }
 }

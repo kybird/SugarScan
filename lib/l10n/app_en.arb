@@ -185,13 +185,10 @@
     "description": "Share of readings inside the user-set target range. Purely descriptive: never phrase this as normal, safe, or good."
   },
   "statsInRangeNote": "Counts readings, not time. A finger-prick meter samples moments, so this is not the same as a CGM time-in-range.",
-  "statsTargetRange": "Target range {low}–{high} {unit}",
+  "statsTargetRange": "Target range {range} {unit}",
   "@statsTargetRange": {
     "placeholders": {
-      "low": {
-        "type": "String"
-      },
-      "high": {
+      "range": {
         "type": "String"
       },
       "unit": {
@@ -203,5 +200,24 @@
   "statsTrend": "Readings over time",
   "statsLow": "Low",
   "statsHigh": "High",
-  "statsSd": "SD"
+  "statsSd": "SD",
+  "settingsTargetSection": "Target range",
+  "targetObservation": "Observation range",
+  "targetObservationNote": "The range used for time-in-range reporting.",
+  "targetPreMeal": "Before-meal target",
+  "targetPreMealNote": "ADA Standards of Care, non-pregnant adults.",
+  "targetTight": "Tight range",
+  "targetTightNote": "Where people without diabetes spend most of their time.",
+  "settingsTargetNote": "These are reference ranges, not advice. Decide your own target with your healthcare provider.",
+  "@settingsTargetNote": {
+    "description": "Required disclaimer under the target range picker. The app must not appear to prescribe a target."
+  },
+  "settingsTargetChanged": "Target range set to {range}",
+  "@settingsTargetChanged": {
+    "placeholders": {
+      "range": {
+        "type": "String"
+      }
+    }
+  }
 }

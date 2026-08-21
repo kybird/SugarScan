@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sugarscan/data/local/database.dart';
 import 'package:sugarscan/data/repositories/settings_repository.dart';
 import 'package:sugarscan/domain/models/glucose_unit.dart';
+import 'package:sugarscan/domain/models/target_range_preset.dart';
 
 void main() {
   late AppDatabase db;
@@ -57,5 +58,46 @@ void main() {
     await repo.confirmUnit(GlucoseUnit.mgdl);
     expect(await repo.readUnitPreference(), isNotNull);
     expect(db.schemaVersion, 2);
+  });
+
+  group('목표 범위', () {
+    test('고른 적이 없으면 기본값을 흘린다', () async {
+      final repository = SettingsRepository(database: db);
+
+      expect(await repository.watchTargetRange().first,
+          TargetRangePreset.fallback);
+    });
+
+    test('고른 값을 기억한다', () async {
+      final repository = SettingsRepository(database: db);
+
+      await repository.setTargetRange(TargetRangePreset.tight);
+
+      expect(await repository.watchTargetRange().first,
+          TargetRangePreset.tight);
+    });
+
+    // Dart enum 이름이 아니라 wireName 이 저장된다. 식별자를 바꿔도 사용자
+    // 설정이 깨지지 않아야 한다.
+    test('저장되는 것은 wireName 이다', () async {
+      final repository = SettingsRepository(database: db);
+      await repository.setTargetRange(TargetRangePreset.preMeal);
+
+      final rows = await db.select(db.appSettingRows).get();
+      final saved = rows.firstWhere((r) => r.key == 'target_range');
+
+      expect(saved.value, 'pre_meal');
+    });
+
+    test('표시 단위 설정과 서로 간섭하지 않는다', () async {
+      final repository = SettingsRepository(database: db);
+
+      await repository.confirmUnit(GlucoseUnit.mmoll);
+      await repository.setTargetRange(TargetRangePreset.tight);
+
+      expect((await repository.readUnitPreference())!.unit, GlucoseUnit.mmoll);
+      expect(await repository.watchTargetRange().first,
+          TargetRangePreset.tight);
+    });
   });
 }

@@ -11,6 +11,7 @@ import 'package:sugarscan/data/repositories/settings_repository.dart';
 import 'package:sugarscan/domain/models/glucose_unit.dart';
 import 'package:sugarscan/domain/models/measurement_tag.dart';
 import 'package:sugarscan/domain/models/reading_source.dart';
+import 'package:sugarscan/domain/models/target_range_preset.dart';
 import 'package:sugarscan/features/stats/stats_screen.dart';
 import 'package:sugarscan/l10n/generated/app_localizations.dart';
 
@@ -190,6 +191,26 @@ void main() {
 
     expect(find.text('2 readings'), findsOneWidget);
 
+    await unmount(tester);
+  });
+
+  // 목표 범위를 바꾸면 같은 기록이 다르게 집계된다. 화면이 설정을 실제로
+  // 따라가는지가 이 기능의 전부다.
+  testWidgets('고른 목표 범위가 비율과 표기에 반영된다', (tester) async {
+    await add(100); // 어느 범위든 안
+    await add(160); // 관찰(70–180) 안, 좁은 범위(70–140) 밖
+
+    await pumpStats(tester);
+    expect(find.text('100%'), findsOneWidget);
+    expect(find.textContaining('70–180'), findsOneWidget);
+    await unmount(tester);
+
+    await SettingsRepository(database: db)
+        .setTargetRange(TargetRangePreset.tight);
+
+    await pumpStats(tester);
+    expect(find.text('50%'), findsOneWidget);
+    expect(find.textContaining('70–140'), findsOneWidget);
     await unmount(tester);
   });
 

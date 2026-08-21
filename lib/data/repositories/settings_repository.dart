@@ -1,4 +1,5 @@
 import '../../domain/models/glucose_unit.dart';
+import '../../domain/models/target_range_preset.dart';
 import '../local/database.dart';
 
 /// 표시 단위 설정의 상태.
@@ -34,6 +35,13 @@ class SettingsRepository {
   /// 남길 방법이 없어진다.** 한 번 로그인한 기기는 세션이 끊겨도 로컬 모드로
   /// 계속 쓰게 하고, 동기화만 세션이 돌아올 때까지 미룬다.
   static const String _signedInBeforeKey = 'auth_signed_in_before';
+
+  /// 사용자가 고른 목표 범위. 저장되는 것은 프리셋의 `wireName` 뿐이다.
+  ///
+  /// 숫자 두 개를 저장하지 않는 이유: 지침이 갱신되어 범위가 바뀌면 저장된
+  /// 숫자는 옛 값으로 굳어 버린다. 어떤 범위를 골랐는지만 남기면 정의는
+  /// 코드 한곳에서 관리된다.
+  static const String _targetRangeKey = 'target_range';
 
   final AppDatabase _db;
 
@@ -82,6 +90,18 @@ class SettingsRepository {
   }
 
   Future<void> markSignedIn() => _write(_signedInBeforeKey, 'true');
+
+  /// 사용자가 고른 목표 범위. 고른 적이 없으면 기본값.
+  Stream<TargetRangePreset> watchTargetRange() {
+    final query = _db.select(_db.appSettingRows)
+      ..where((t) => t.key.equals(_targetRangeKey));
+    return query.watch().map((rows) => rows.isEmpty
+        ? TargetRangePreset.fallback
+        : TargetRangePreset.fromWireName(rows.first.value));
+  }
+
+  Future<void> setTargetRange(TargetRangePreset preset) =>
+      _write(_targetRangeKey, preset.wireName);
 
   Future<String?> _read(String key) async {
     final row = await (_db.select(_db.appSettingRows)
