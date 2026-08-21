@@ -71,7 +71,12 @@ class HistoryScreen extends ConsumerWidget {
           label: l10n.actionUndo,
           // 되살리는 것도 아웃박스를 거친다. 이미 서버로 삭제가 전파됐을 수
           // 있어서, 되살렸다는 사실도 똑같이 전파되어야 다른 기기에서 살아난다.
-          onPressed: () => repository.restore(reading.id),
+          onPressed: () async {
+            await repository.restore(reading.id);
+            messenger.showSnackBar(
+              SnackBar(content: Text(l10n.readingRestored)),
+            );
+          },
         ),
       ),
     );
