@@ -15,9 +15,6 @@
   "scanTitle": "Scan your meter",
   "scanGuideHint": "Fit the meter display inside the frame",
   "manualEntryCta": "Enter manually",
-  "unitLabel": "Unit",
-  "unitMgdl": "mg/dL",
-  "unitMmoll": "mmol/L",
   "ea1cLabel": "Estimated A1c",
   "ea1cEstimateBadge": "Estimate",
   "ea1cInsufficientData": "Need {readings} readings across {days} days to estimate",
@@ -42,7 +39,6 @@
   "scanTagQuestion": "When was this measured?",
   "actionSave": "Save",
   "actionCancel": "Cancel",
-  "actionRetry": "Scan again",
   "meterShowsHigh": "The meter shows HI — above its measurable range.",
   "meterShowsLow": "The meter shows LO — below its measurable range.",
   "@meterShowsLow": {

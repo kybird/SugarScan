@@ -152,24 +152,6 @@ abstract class AppLocalizations {
   /// **'Enter manually'**
   String get manualEntryCta;
 
-  /// No description provided for @unitLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Unit'**
-  String get unitLabel;
-
-  /// No description provided for @unitMgdl.
-  ///
-  /// In en, this message translates to:
-  /// **'mg/dL'**
-  String get unitMgdl;
-
-  /// No description provided for @unitMmoll.
-  ///
-  /// In en, this message translates to:
-  /// **'mmol/L'**
-  String get unitMmoll;
-
   /// No description provided for @ea1cLabel.
   ///
   /// In en, this message translates to:
@@ -253,12 +235,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cancel'**
   String get actionCancel;
-
-  /// No description provided for @actionRetry.
-  ///
-  /// In en, this message translates to:
-  /// **'Scan again'**
-  String get actionRetry;
 
   /// No description provided for @meterShowsHigh.
   ///

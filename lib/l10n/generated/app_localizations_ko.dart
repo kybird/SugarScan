@@ -36,15 +36,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get manualEntryCta => '직접 입력';
 
   @override
-  String get unitLabel => '표시 단위';
-
-  @override
-  String get unitMgdl => 'mg/dL';
-
-  @override
-  String get unitMmoll => 'mmol/L';
-
-  @override
   String get ea1cLabel => '추정 당화혈색소';
 
   @override
@@ -87,9 +78,6 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get actionCancel => '취소';
-
-  @override
-  String get actionRetry => '다시 스캔';
 
   @override
   String get meterShowsHigh => '혈당계가 HI를 표시했습니다 — 측정 가능 범위를 넘었습니다.';

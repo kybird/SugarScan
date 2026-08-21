@@ -36,15 +36,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get manualEntryCta => 'Enter manually';
 
   @override
-  String get unitLabel => 'Unit';
-
-  @override
-  String get unitMgdl => 'mg/dL';
-
-  @override
-  String get unitMmoll => 'mmol/L';
-
-  @override
   String get ea1cLabel => 'Estimated A1c';
 
   @override
@@ -87,9 +78,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get actionCancel => 'Cancel';
-
-  @override
-  String get actionRetry => 'Scan again';
 
   @override
   String get meterShowsHigh =>
