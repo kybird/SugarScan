@@ -163,9 +163,128 @@ C'est en dehors de ce qu'un lecteur peut afficher
 검증 결과는 아래에 적고 이 파일과 함께 커밋한다. 4개 언어 전부 "이상 없음"이면
 G8 병합 조건 충족.
 
+**2026-08-21 실시 — GLM 이 브라우저 자동화로 DeepL 웹 번역기(es/pt/de/fr→en)를
+직접 구동해 역번역했다.** 판정 기준(위 "적신호 판정 기준")대로 EN 원문과
+줄 단위 대조했고, 별도로 4개 언헐 전체에서 판정 어휘(normal/safe/dangerous/
+good/bad/riesgo/risiko/risque 계열)를 스캔했다(0건 — de "Sicherung"=백업은 오탐).
+
 | 언어 | 날짜 | 도구 | 결과 | 비고 |
 |---|---|---|---|---|
-| es | | | | |
-| pt | | | | |
-| de | | | | |
-| fr | | | | |
+| es | 2026-08-21 | DeepL 웹 (es→en) | **이상 없음 (21/21)** | ★ 5개 의미 보존: #3 "counts readings, not time", #14 40 단위 방향 정확, #15 "reinterprets — it does not convert", #16/17 "above/below its measurable range", #21 유지 |
+| pt | 2026-08-21 | DeepL 웹 (pt→en) | **이상 없음 (21/21)** | ★ 5개 동일 기준 통과. #20 플레이스홀더 짝({readings}×{days}) 정확 |
+| de | 2026-08-21 | DeepL 웹 (de→en) | **이상 없음 (21/21)** | ★ 5개 동일 기준 통과. #15 "re-reads the entered number — it is not converted" — 재해석/비변환 완전 보존 |
+| fr | 2026-08-21 | DeepL 웹 (fr→en) | **이상 없음 (21/21)** | ★ 5개 동일 기준 통과. #14 40 단위 방향 정확 |
+
+**잔여 신뢰도 참고**: 번역 생성(GLM)과 역번역(DeepL)은 서로 다른 엔진이라
+의미 반전 검증으로는 유효하다. 다만 결과 판독·대조는 GLM 이 수행했으므로,
+병합 전 사람이 아래 증거 출력의 ★ 5줄(#3, #14, #15, #16/17, #21)만이라도
+훑어보면 독립성이 완전해진다. 문구의 자연스러움(원어민 어감)은 이 검증의
+범위 밖이며, 시장 진출 전 원어민 스팟 검토 권장(보고서 참조).
+
+---
+
+## 부록 — DeepL 역번역 출력 원문 (증거)
+
+### es → en
+
+```
+SugarScan does not provide a medical diagnosis. Always consult a healthcare professional before making treatment decisions.
+Within the target range
+It counts readings, not time. A fingerstick glucose meter takes one-time samples, so this is not equivalent to the time in range for a continuous glucose monitor (CGM).
+These are reference ranges, not recommendations. Set your own target in consultation with your healthcare professional.
+Changing this only affects how readings are displayed. Saved readings retain the unit in which they were entered.
+Observation Range
+The range used for the time-in-range report.
+Pre-meal Target
+ADA Standards of Care, non-pregnant adults.
+Tight Range
+Where people without diabetes spend most of their time.
+What unit does your glucose meter use?
+Look at your glucose meter's screen and select the unit it displays.
+This matters: the same number means very different things in each unit. A reading of 40 is very low in mg/dL, and very high in mmol/L.
+Changing this reinterprets the number you entered—it does not convert it.
+The meter displays HI: it's above its measurable range.
+The meter displays LO: it's below its measurable range.
+Estimated A1c
+Estimate
+{readings} measurements over {days} days are needed to estimate
+That's outside the range a meter can display
+```
+
+### pt → en
+
+```
+SugarScan does not provide a medical diagnosis. Always consult a healthcare professional before making decisions about treatment.
+Within the target range
+It counts readings, not time. A fingerstick glucose meter measures isolated moments, so this is not the same as the time spent within the target range on a continuous glucose monitor (CGM).
+These are reference ranges, not recommendations. Set your own target range with your healthcare provider.
+Changing this affects only how readings are displayed. Saved readings retain the unit in which they were entered.
+Observation range
+The range used in the time-in-range report.
+Pre-meal Target
+ADA Standards of Care, non-pregnant adults.
+Narrow Range
+Where people without diabetes spend most of their time.
+What unit does your glucose meter use?
+Look at your glucose meter's screen and choose the unit it displays.
+This matters: the same number means very different things in each unit. A reading of 40 is very low in mg/dL, and very high in mmol/L.
+Changing this reinterprets the number you entered—it is not converted.
+The meter displays HI—the reading is above the range it can measure.
+The meter displays LO—the reading is below the range it can measure.
+Estimated A1c
+Estimate
+{readings} measurements over {days} days are needed to estimate
+This is outside the range a meter can display
+```
+
+### de → en
+
+```
+SugarScan does not provide medical diagnoses. Always consult a healthcare professional before making decisions about treatment.
+In the Target Range
+Counts readings, not time. A fingerstick blood glucose meter records individual readings and therefore cannot be compared to the "time-in-range" of a CGM system.
+These are reference ranges, not recommendations. Set your own target in consultation with your healthcare provider.
+A change affects only how readings are displayed. Stored readings retain the unit in which they were entered.
+Observation Range
+The range used for the "Time-in-Range" analysis.
+Target Value Before Meals
+ADA Standards of Care, non-pregnant adults.
+Tight Range
+The range in which people without diabetes spend most of their time.
+What unit does your meter use?
+Look at your meter's display and select the unit shown.
+Important: The same number means something completely different in each unit. A value of 40 is very low in mg/dL and very high in mmol/L.
+Changing the unit re-reads the entered number—it is not converted.
+The meter displays HI—above its measurable range.
+The meter displays LO—below its measurable range.
+Estimated A1c value
+Estimated value
+An estimate requires {readings} measurements over {days} days
+This is outside the range that a meter can display
+```
+
+### fr → en
+
+```
+SugarScan does not provide medical diagnoses. Always consult a healthcare professional before making medical treatment decisions.
+Within the target range
+Counts readings, not time. A fingerstick glucose meter measures isolated moments, so this is not the same as the time spent within the target range of a continuous glucose monitor (CGM).
+These are reference ranges, not recommendations. Set your own target range with your healthcare professional.
+Changing this only affects how readings are displayed. Saved readings retain the unit in which they were entered.
+Observation Range
+The range used for the time-in-range report.
+Pre-meal Target
+ADA Standards of Care, non-pregnant adults.
+Tight Range
+The range where people without diabetes spend most of their time.
+What unit does your meter use?
+Look at your meter's screen and select the unit it displays.
+Important: The same number can mean very different things depending on the unit. A value of 40 is very low in mg/dL, and very high in mmol/L.
+Changing this reinterprets the entered number—it is not converted.
+The meter displays HI—above its measurable range.
+The meter displays LO—below its measurable range.
+Estimated A1c
+Estimate
+It takes {readings} readings over {days} days to estimate it
+This is outside the range a meter can display
+```
