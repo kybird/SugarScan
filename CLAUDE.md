@@ -228,3 +228,12 @@ Play 스토어 등록에도 개인정보처리방침 URL 과 Data safety 양식�
 
 `assets/models/7seg_classifier.tflite` 는 아직 저장소에 없다. 없어도 앱은 정상
 동작하며(`ScanUnavailable` → 수동 입력), 받는 방법은 `assets/models/README.md` 참조.
+
+**참고한 저장소의 코드를 붙여 넣지 말 것.** 7-세그먼트 판독을 다루는 공개 구현
+중 상당수가 GPL-3.0(SSOCR)·AGPL-3.0(lcd-digit-recognition)이다. 그래서
+`SegmentRuleEngine` 은 알고리즘 아이디어만 보고 **자체 구현**했다 — 자체 구현이라는
+사실 자체가 라이선스 방어선이다. 성능이 아쉽다고 조각이라도 옮겨 오면 그 순간
+전염성 라이선스가 따라 들어와 상용 배포가 막힌다. 반입 자산의 라이선스 상태는
+`docs/LICENSES.md` 가 정본이고, **EasyOCR 은 코드가 Apache-2.0 이지만 학습
+가중치의 배포 조건은 아직 미확인**이다(§4). 모델을 새로 들일 때는 정확도보다
+라이선스를 먼저 볼 것.

@@ -1440,7 +1440,8 @@ W 시리즈와 **평행하게 도는 두 번째 이력**이다. 기능을 늘리
 - `lib/domain/` — 단위 변환, 검증, 태그 추천, eA1c, 통계 (모두 Flutter 비의존)
 - `lib/app/` — go_router 셸(4탭 + 전체화면 스캔), 라이트/다크 테마
 - `lib/l10n/` — en·ko ARB + 생성 코드, 의료 면책 문구 포함
-- `docs/LICENSES.md` — 라이선스 검토 초안(미해결 4건)
+- `docs/LICENSES.md` — 라이선스 검토 초안. G5(2026-08-21)에서 7건을 실사해
+  채웠고, 남은 미해결은 §4 의 5건이다(핵심은 EasyOCR **가중치** 조건)
 
 **남은 W1 과제**: 실촬 데이터 수집 개시, `tools/easyocr_server/` FastAPI 구성.
 
