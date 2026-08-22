@@ -50,6 +50,39 @@
 
 ---
 
+## 1.5 학습·평가 데이터셋
+
+2026-08-22 확보. 전부 `assets_dev/upstream/` 에 두며 **저장소에 커밋하지 않는다**
+(`.gitignore` 의 `assets_dev/`). 앱에 반입되는 것은 여기서 파생된 모델뿐이고
+이미지 자체는 나가지 않는다.
+
+| 자산 | 내용 | 라이선스 | 확인 |
+|---|---|---|---|
+| [Kazuhito00/7segment-display-reader](https://github.com/Kazuhito00/7segment-display-reader) `01.dataset` | **실촬 41,990장** — 7세그 디스플레이 2종. 클래스 `00`~`09`(각 ≈4,000장) + `11`(표시 없음, 1,992장) | **Apache-2.0** (GitHub API `spdx_id`, 2026-08-22) | 확보 완료 (244MB) |
+| [Kazuhito00/7segment-display-reader](https://github.com/Kazuhito00/7segment-display-reader) `02.model` | `7seg_classifier.tflite` (609,904 B) · `7seg_classifier(monochrome).tflite` (2,654,048 B) | **Apache-2.0** | 확보 완료 — `assets/models/README.md` 의 규격과 일치 |
+| [Kazuhito00/7seg-image-generator](https://github.com/Kazuhito00/7seg-image-generator) | 합성 생성기(Python/OpenCV). 96×96 기본, shear −10~30°, shift ±10px | **Apache-2.0** (GitHub API `spdx_id`, 2026-08-22) | 확보 완료 (152KB) |
+| Oxford / Finnegan 2019 — 혈당계·혈압계 실촬 | 논문 [10.1080/03091902.2019.1673844](https://www.tandfonline.com/doi/full/10.1080/03091902.2019.1673844), 기록 [ORA](https://ora.ox.ac.uk/objects/uuid:72be1fdf-327d-4d30-ab66-8892e642fc68) 의 라이선스는 **CC BY** | **확보 실패** — 아래 참조 | 2026-08-22 |
+
+**Oxford 데이터셋은 사라졌다.** 배포처 `cameralab.eng.ox.ac.uk` 가 폐쇄되어
+`data/bp_bg_meters.zip` 과 안내 페이지 `seven_segment.html` 이 모두
+`eng.ox.ac.uk/lcmt` 로 302 리디렉트된다. **Wayback Machine 스냅샷도 zip 이 아니라
+그 리디렉트 페이지(148바이트)를 담고 있어** 아카이브로도 복구되지 않는다.
+남은 경로는 저자 문의(`eoin.finnegan@eng.ox.ac.uk`)뿐이다 —
+[`CLAUDE_TASKS.md`](CLAUDE_TASKS.md) C2 에 딸린 항목으로 둔다.
+
+> ORA 기록의 CC BY 는 **논문**에 붙은 것이다. 데이터셋 자체의 조건은 zip 안
+> README 로만 확인할 수 있는데 그 zip 을 구할 수 없다. 확보하더라도 조건을
+> 먼저 읽을 것 — "논문이 CC BY 니 데이터도 그렇다"는 추측이다.
+
+**Kazuhito00 자산은 라이선스·규격이 둘 다 맞는다.** 생성기 기본 출력 96×96 이
+`7seg_classifier.tflite` 의 입력 `[1, 96, 96, 3]` 과 일치한다(같은 저자). 합성
+생성기를 새로 짤 이유가 없다.
+
+**Apache-2.0 고지 의무**: 파생 모델을 앱에 번들하면 라이선스 사본과 저작자 고지,
+그리고 **변경 사항 고지**가 필요하다. §4 에 항목이 있다.
+
+---
+
 ## 2. 폰트
 
 | 자산 | 용도 | 라이선스 | 앱에 반입되는가 |
