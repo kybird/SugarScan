@@ -15,6 +15,7 @@ import 'camera_image_adapter.dart';
 import 'confirm_sheet.dart';
 import 'manual_entry_sheet.dart';
 import 'photo_import_sheet.dart';
+import 'photo_preprocessor.dart';
 import 'scan_entry.dart';
 
 /// 카메라 스캐너 화면.
@@ -284,23 +285,29 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
 
     try {
       final bytes = file.readAsBytesSync();
-      final decoded = img.decodeImage(bytes);
-      if (decoded == null) {
-        await _resumeScanning();
-        return;
+      // 정렬 전처리 — 표시를 찾아 기울기를 펴고 엔진 셀 규격으로 다시
+      // 그린다. 엔진은 프레임 전체가 4셀 표시라고 가정하므로 임의 사진은
+      // 이 정렬을 거쳐야 읽힌다. 실패(예: 표시가 안 보이는 사진)하면
+      // 원본 프레임으로 넘어간다.
+      var frame = preprocessPhotoForEngine(bytes);
+      if (frame == null) {
+        final decoded = img.decodeImage(bytes);
+        if (decoded == null) {
+          await _resumeScanning();
+          return;
+        }
+        frame = OcrFrame(
+          bytes: bytes,
+          format: OcrImageFormat.png,
+          width: decoded.width,
+          height: decoded.height,
+        );
       }
       if (!await _ensureScannerStarted()) return;
 
       // 사진은 정적 이미지라 프레임이 한 종류다. 프레임 합의(기본 3연속)를
       // 같은 프레임 반복으로 채운다 — 카메라와 동일한 확정 조건을 지나게
-      // 하기 위해서다. ROI 를 주지 않으면 전체 프레임을 판독한다.
-      final frame = OcrFrame(
-        bytes: bytes,
-        format: OcrImageFormat.png,
-        width: decoded.width,
-        height: decoded.height,
-      );
-
+      // 하기 위해서다.
       setState(() => _importedPhoto = file);
       for (var i = 0; i < 3; i++) {
         final outcome = await _scanner.offer(frame);
