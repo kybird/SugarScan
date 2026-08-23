@@ -178,6 +178,12 @@ abstract class AppLocalizations {
   /// **'No PNG files in this folder.'**
   String get scanImportNoImages;
 
+  /// No description provided for @scanImportNoReading.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read a value from this image. Try another one.'**
+  String get scanImportNoReading;
+
   /// No description provided for @ea1cLabel.
   ///
   /// In en, this message translates to:

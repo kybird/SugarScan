@@ -479,7 +479,11 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
       ScanUnavailable() => l10n.scanUnavailable,
       ScanScanning(:final previewValue) when previewValue != null =>
         l10n.scanReading,
-      _ => l10n.scanGuideHint,
+      // 사진 모드에는 가이드 박스가 없다 — 카메라용 안내가 새어 나가면
+      // 사용자는 맞춰야 할 가이드를 찾게 된다. 사진용 안내로 바꾼다.
+      _ => _importedPhoto == null
+          ? l10n.scanGuideHint
+          : l10n.scanImportNoReading,
     };
   }
 }

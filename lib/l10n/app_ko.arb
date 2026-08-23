@@ -12,6 +12,7 @@
   "scanImportPhotoCta": "사진 불러오기",
   "scanImportPickTitle": "이미지 고르기",
   "scanImportNoImages": "이 폴더에 PNG 파일이 없습니다.",
+  "scanImportNoReading": "이 사진에서 값을 읽지 못했습니다. 다른 사진을 골라 보세요.",
   "ea1cLabel": "추정 당화혈색소",
   "ea1cEstimateBadge": "추정치",
   "ea1cInsufficientData": "{days}일에 걸쳐 {readings}회 이상 측정하면 추정할 수 있어요",

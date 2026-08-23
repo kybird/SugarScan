@@ -12,6 +12,7 @@
   "scanImportPhotoCta": "Carregar foto",
   "scanImportPickTitle": "Escolher uma imagem",
   "scanImportNoImages": "Não há arquivos PNG nesta pasta.",
+  "scanImportNoReading": "Não foi possível ler um valor desta imagem. Tente outra.",
   "ea1cLabel": "A1c estimada",
   "ea1cEstimateBadge": "Estimativa",
   "ea1cInsufficientData": "São necessárias {readings} medições ao longo de {days} dias para estimar",

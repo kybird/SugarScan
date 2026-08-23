@@ -180,4 +180,50 @@ void main() {
     await tester.pump(const Duration(seconds: 7));
     await tester.pump(const Duration(milliseconds: 100));
   });
+
+  testWidgets('사진 판독이 값을 못 만들면 사진용 안내를 보여 준다', (
+    tester,
+  ) async {
+    writePng('empty.png');
+
+    // 아무것도 읽지 못하는 엔진 — 3회 offer 후에도 pending 이다.
+    final fake = FakeOcrEngine(script: const []);
+    final registry = OcrEngineRegistry();
+    registry.register(fake.descriptor, () => fake);
+
+    await tester.pumpWidget(
+      host(ScanScreen(scanner: GlucoseScanner(registry: registry))),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    await tester.tap(find.text('Load photo'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.enterText(find.byType(TextField), tempDir.path);
+    await tester.tap(find.byIcon(Icons.refresh));
+    await tester.pump();
+    await tester.tap(find.text('empty.png'));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // 사진 모드에는 가이드 박스가 없다 — 카메라용 안내가 아니라 사진용
+    // 안내가 떠야 한다.
+    expect(find.byType(Image), findsOneWidget);
+    expect(
+      find.text("Couldn't read a value from this image. Try another one."),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Fit the meter display inside the frame'),
+      findsNothing,
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 7));
+    await tester.pump(const Duration(milliseconds: 100));
+  });
 }

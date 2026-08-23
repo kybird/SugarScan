@@ -45,6 +45,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scanImportNoImages => 'No PNG files in this folder.';
 
   @override
+  String get scanImportNoReading =>
+      'Couldn\'t read a value from this image. Try another one.';
+
+  @override
   String get ea1cLabel => 'Estimated A1c';
 
   @override

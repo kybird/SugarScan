@@ -45,6 +45,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get scanImportNoImages => '이 폴더에 PNG 파일이 없습니다.';
 
   @override
+  String get scanImportNoReading => '이 사진에서 값을 읽지 못했습니다. 다른 사진을 골라 보세요.';
+
+  @override
   String get ea1cLabel => '추정 당화혈색소';
 
   @override
