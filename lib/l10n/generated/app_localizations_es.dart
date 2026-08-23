@@ -37,6 +37,15 @@ class AppLocalizationsEs extends AppLocalizations {
   String get manualEntryCta => 'Introducir a mano';
 
   @override
+  String get scanImportPhotoCta => 'Cargar foto';
+
+  @override
+  String get scanImportPickTitle => 'Elegir una imagen';
+
+  @override
+  String get scanImportNoImages => 'No hay archivos PNG en esta carpeta.';
+
+  @override
   String get ea1cLabel => 'A1c estimada';
 
   @override

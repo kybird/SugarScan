@@ -36,6 +36,15 @@ class AppLocalizationsKo extends AppLocalizations {
   String get manualEntryCta => '직접 입력';
 
   @override
+  String get scanImportPhotoCta => '사진 불러오기';
+
+  @override
+  String get scanImportPickTitle => '이미지 고르기';
+
+  @override
+  String get scanImportNoImages => '이 폴더에 PNG 파일이 없습니다.';
+
+  @override
   String get ea1cLabel => '추정 당화혈색소';
 
   @override

@@ -1,8 +1,10 @@
-import 'dart:io' show Platform;
+import 'dart:io' show File, Platform;
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image/image.dart' as img;
 
 import '../../domain/models/glucose_unit.dart';
 import '../../domain/models/reading_source.dart';
@@ -12,6 +14,7 @@ import '../../ocr/ocr.dart';
 import 'camera_image_adapter.dart';
 import 'confirm_sheet.dart';
 import 'manual_entry_sheet.dart';
+import 'photo_import_sheet.dart';
 import 'scan_entry.dart';
 
 /// 카메라 스캐너 화면.
@@ -22,7 +25,12 @@ import 'scan_entry.dart';
 ///
 /// 저장 결과를 [ScanEntry] 로 pop 한다. 영속화는 W8 에서 붙는다.
 class ScanScreen extends StatefulWidget {
-  const ScanScreen({super.key});
+  /// 테스트에서 실제 부트스트랩 대신 다른 스캐너를 끼우는 구멍.
+  /// 지정하지 않으면 [buildGlucoseScanner] 로 만든다.
+  const ScanScreen({super.key, GlucoseScanner? scanner})
+      : _injectedScanner = scanner;
+
+  final GlucoseScanner? _injectedScanner;
 
   @override
   State<ScanScreen> createState() => _ScanScreenState();
@@ -35,7 +43,15 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
   /// 사용자는 도는 표시기만 보게 되므로, 끊고 수동 입력으로 안내한다.
   static const Duration _setupTimeout = Duration(seconds: 6);
 
-  final GlucoseScanner _scanner = buildGlucoseScanner();
+  late final GlucoseScanner _scanner =
+      widget._injectedScanner ?? buildGlucoseScanner();
+
+  /// 사진 불러오기 경로가 [GlucoseScanner.start] 을 이미 불렀는지.
+  /// 카메라가 없는 데스크톱에서는 `_boot` 의 start 호출이 일어나지 않는다.
+  bool _scannerStarted = false;
+
+  /// 사진 불러오기로 싣은 이미지. null 이면 카메라 모드다.
+  File? _importedPhoto;
 
   CameraController? _controller;
   int _rotationDegrees = 0;
@@ -127,6 +143,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
 
       final outcome = await _scanner.start(unit: _unit);
       if (!mounted) return;
+      _scannerStarted = true;
 
       if (outcome is ScanUnavailable) {
         // 모델이 없거나 단위를 읽을 수 있는 엔진이 없다. 수동 입력으로 안내한다.
@@ -219,10 +236,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
     }
 
     // 취소했으면 처음부터 다시 읽는다. 이전 프레임 합의는 버린다.
-    _scanner.reset();
-    _paused = false;
-    setState(() => _outcome = _scanner.lastOutcome);
-    await _startStream();
+    await _resumeScanning();
   }
 
   /// 직접 입력. 스캔이 막혔든 아니든 언제나 열 수 있다.
@@ -239,16 +253,91 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
       return;
     }
 
+    await _resumeScanning();
+  }
+
+  /// 스캔을 처음부터 다시 시작한다. 시트 취소 후 공통 경로.
+  Future<void> _resumeScanning() async {
     _scanner.reset();
     _paused = false;
-    setState(() => _outcome = _scanner.lastOutcome);
+    _importedPhoto = null;
+    if (mounted) setState(() => _outcome = _scanner.lastOutcome);
     await _startStream();
+  }
+
+  /// 사진 불러오기 — debug 빌드 전용.
+  ///
+  /// 합성 데이터 생성기가 만든 장면 이미지 등 정적 사진을 카메라 프레임과
+  /// 같은 경로로 넘긴다. 카메라가 없는 Windows 데스크톱에서 판독 경로 전체를
+  /// 직접 확인하려는 목적이라 release 에는 없다.
+  Future<void> _importPhoto() async {
+    _paused = true;
+    await _stopStream();
+    if (!mounted) return;
+
+    final file = await showPhotoImportSheet(context);
+    if (!mounted) return;
+    if (file == null) {
+      await _resumeScanning();
+      return;
+    }
+
+    try {
+      final bytes = file.readAsBytesSync();
+      final decoded = img.decodeImage(bytes);
+      if (decoded == null) {
+        await _resumeScanning();
+        return;
+      }
+      if (!await _ensureScannerStarted()) return;
+
+      // 사진은 정적 이미지라 프레임이 한 종류다. 프레임 합의(기본 3연속)를
+      // 같은 프레임 반복으로 채운다 — 카메라와 동일한 확정 조건을 지나게
+      // 하기 위해서다. ROI 를 주지 않으면 전체 프레임을 판독한다.
+      final frame = OcrFrame(
+        bytes: bytes,
+        format: OcrImageFormat.png,
+        width: decoded.width,
+        height: decoded.height,
+      );
+
+      setState(() => _importedPhoto = file);
+      for (var i = 0; i < 3; i++) {
+        final outcome = await _scanner.offer(frame);
+        if (!mounted) return;
+        setState(() => _outcome = outcome);
+        if (outcome is ScanConfirmed) {
+          await _handleConfirmed(outcome);
+          return;
+        }
+      }
+      // 합의에 못 미쳤으면 사진 모드로 머문다. 상태 텍스트가 판독 상태를
+      // 알리고, 새 사진을 고르거나 직접 입력으로 갈 수 있다.
+    } on Object {
+      if (mounted) {
+        await _resumeScanning();
+      }
+    }
+  }
+
+  /// 사진 경로에서 필요할 때 스캐너를 켠다.
+  Future<bool> _ensureScannerStarted() async {
+    if (_scannerStarted) return true;
+    final outcome = await _scanner.start(unit: _unit);
+    if (!mounted) return false;
+    if (outcome is ScanUnavailable) {
+      setState(() => _outcome = outcome);
+      return false;
+    }
+    _scannerStarted = true;
+    return true;
   }
 
   Future<void> _teardown() async {
     await _stopStream();
     await _controller?.dispose();
     _controller = null;
+    _scannerStarted = false;
     await _scanner.stop();
   }
 
@@ -268,7 +357,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
         fit: StackFit.expand,
         children: [
           const ColoredBox(color: Color(0xFF101214)),
-          if (_blockedMessage == null) _buildPreview(),
+          if (_blockedMessage == null || _importedPhoto != null) _buildPreview(),
           _buildFooter(l10n),
         ],
       ),
@@ -276,6 +365,13 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildPreview() {
+    final photo = _importedPhoto;
+    if (photo != null) {
+      // 사진 모드 — 가이드 박스가 없다. 판독은 프레임 전체(ROI 없음)로
+      // 일어났으므로 잘라 보이면 어디를 봤는지와 어긋난다.
+      return Image.file(photo, fit: BoxFit.contain);
+    }
+
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) {
       return const Center(child: CircularProgressIndicator());
@@ -328,15 +424,38 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
               const SizedBox(height: 16),
               // OCR 이 성공하든 실패하든 이 버튼은 항상 보인다.
               // 사용자가 기록을 남기지 못하는 상태를 만들지 않는다.
-              OutlinedButton.icon(
-                onPressed: _openManualEntry,
-                icon: const Icon(Icons.keyboard),
-                label: Text(l10n.manualEntryCta),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  side: const BorderSide(color: Colors.white54),
-                  minimumSize: const Size(0, 48),
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _openManualEntry,
+                      icon: const Icon(Icons.keyboard),
+                      label: Text(l10n.manualEntryCta),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white54),
+                        minimumSize: const Size(0, 48),
+                      ),
+                    ),
+                  ),
+                  // 사진 불러오기는 판독 경로를 직접 확인하려는 개발용
+                  // 구멍이라 debug 빌드에만 노출한다.
+                  if (kDebugMode) ...[
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _importPhoto,
+                        icon: const Icon(Icons.image),
+                        label: Text(l10n.scanImportPhotoCta),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          side: const BorderSide(color: Colors.white54),
+                          minimumSize: const Size(0, 48),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ],
           ),
@@ -346,7 +465,11 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
   }
 
   String _statusText(AppLocalizations l10n) {
-    if (_blockedMessage != null) return _blockedMessage!;
+    // 사진 모드에서는 판독 결과가 곧 상태다. 카메라가 없다는 안내가
+    // 결과를 가리면 안 된다.
+    if (_blockedMessage != null && _importedPhoto == null) {
+      return _blockedMessage!;
+    }
 
     return switch (_outcome) {
       ScanRejected(:final reason) => switch (reason) {

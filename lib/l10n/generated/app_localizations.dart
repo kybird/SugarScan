@@ -160,6 +160,24 @@ abstract class AppLocalizations {
   /// **'Enter manually'**
   String get manualEntryCta;
 
+  /// No description provided for @scanImportPhotoCta.
+  ///
+  /// In en, this message translates to:
+  /// **'Load photo'**
+  String get scanImportPhotoCta;
+
+  /// No description provided for @scanImportPickTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an image'**
+  String get scanImportPickTitle;
+
+  /// No description provided for @scanImportNoImages.
+  ///
+  /// In en, this message translates to:
+  /// **'No PNG files in this folder.'**
+  String get scanImportNoImages;
+
   /// No description provided for @ea1cLabel.
   ///
   /// In en, this message translates to:
