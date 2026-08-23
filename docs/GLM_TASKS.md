@@ -814,7 +814,13 @@ GLM 은 정하지 말고 그대로 옮기기만 하면 된다. 그리고 **판�
 
 ### G16 — 장면 단위 합성 데이터 생성기
 
-**상태**: 대기
+**상태**: 완료 (2026-08-23)
+
+> 브랜치 `glm/G16-scene-synth` · 커밋 `88e5ef6` (`lib/` 변경 0줄)
+> 결과: `tools/synth7seg/bin/synth.dart`. 같은 시드 바이트 동일 확인,
+> 눈 검증 20/20(소수점 미렌더 버그를 이 검증에서 발견·수정).
+> 기본 2000장 `assets_dev/synth` 생성(HI/LO 7.8%·반사 14.2%·극성 반반).
+> 보고서 → [reports/G16-scene-synth.md](reports/G16-scene-synth.md)
 
 `tools/synth7seg/bin/synth.dart` 를 새로 만든다. **`lib/` 는 건드리지 않는다.**
 
