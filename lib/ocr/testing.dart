@@ -9,7 +9,7 @@ library;
 // 테스트·도구가 공개 배럴(`ocr.dart`)을 함께 import 하게 되는데, 그쪽은
 // `ocr_bootstrap.dart` 를 거쳐 tflite_flutter → Flutter 를 끌고 들어온다.
 // 그러면 순수 Dart 로 돌던 것이 Flutter 없이는 못 도는 것이 된다.
-export 'src/engine/ocr_frame.dart' show NormalizedRect;
+export 'src/engine/ocr_frame.dart' show NormalizedRect, OcrFrame, OcrImageFormat;
 
 export 'src/correction/reading_normalizer.dart';
 export 'src/correction/reading_stabilizer.dart';

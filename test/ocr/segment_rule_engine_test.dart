@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sugarscan/ocr/ocr.dart';
 import 'package:sugarscan/ocr/testing.dart';
 
 import 'support/seven_segment_renderer.dart';

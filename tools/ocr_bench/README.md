@@ -1,8 +1,7 @@
 # ocr_bench — 판독 벤치 하네스
 
-계획서 [§2.6](../../docs/IMPLEMENTATION_PLAN.md) 의 벤치 하네스. 지금은 **셀 단위
-벤치 하나**만 있다(`bin/cell_bench.dart`). 장면 단위 벤치(`bench.dart`)는 골든셋이
-생긴 뒤에 붙인다.
+계획서 [§2.6](../../docs/IMPLEMENTATION_PLAN.md) 의 벤치 하네스. 셀 단위
+벤치(`bin/cell_bench.dart`)와 장면 단위 벤치(`bin/scene_bench.dart`)가 있다.
 
 ## cell_bench
 
@@ -24,6 +23,35 @@ dart run tools/ocr_bench/bin/cell_bench.dart \
 | `--out <파일>` | 리포트를 마크다운으로 적는다 |
 | `--limit N` | 클래스당 N 장. **일정 간격으로 고른다** — 아래 참조 |
 | `--dump-failures N` | 실패 사례 N 건의 비트열을 표로 (기본 12) |
+
+## scene_bench
+
+G16 합성 장면(여러 자릿수가 있는 화면 한 장)에 **엔진 전체 경로**
+`SegmentRuleEngine.recognize()` 를 통째로 태운다 — 품질 게이트 → 이진화 →
+자릿수 분할 → 조립까지. 셀 벤치가 재지 않던 가로 자릿수 분할, `HI`/`LO`,
+소수점, 자릿수 결합을 여기서 잰다. 엔진 구성은 앱 부트스트랩과 같은
+생성 기본값이며 **벤치가 임계치를 조정하지 않는다.**
+
+```bash
+dart run tools/ocr_bench/bin/scene_bench.dart \
+  --dataset assets_dev/synth \
+  --out docs/reports/G17-scene-bench-result.md
+```
+
+| 옵션 | 뜻 |
+|---|---|
+| `--dataset <경로>` | `labels.jsonl` + `images/` 디렉터리(`tools/synth7seg` 출력). 필수 |
+| `--out <파일>` | 리포트를 마크다운으로 적는다 |
+| `--limit N` | 일정 간격으로 N 장만 |
+| `--dump-failures N` | 오독 사례 N 건을 표로 (기본 12) |
+
+판정은 라벨 `value` 문자열과의 완전일치다. 축별 분해(여백·회전·대비)는
+라벨 값으로 구간을 나눈다. 기준선 수치는
+[reports/G17-scene-bench-baseline.md](../../docs/reports/G17-scene-bench-baseline.md).
+
+합성 데이터라는 한계는 셀 벤치와 같다 — **§2.7 승격 게이트가 아니다.**
+특히 합성 이미지에는 센서 노이즈가 없어 초점 게이트(라플라시안 분산)에서의
+거부 비율이 실촬보다 크게 나온다.
 
 ## 읽을 때 조심할 것
 

@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:sugarscan/domain/models/glucose_unit.dart';
-import 'package:sugarscan/ocr/ocr.dart';
 import 'package:sugarscan/ocr/testing.dart';
 
 /// 모델 파일 없이 엔진의 조립 로직을 검증한다.
