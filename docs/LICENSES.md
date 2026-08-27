@@ -61,7 +61,27 @@
 | [Kazuhito00/7segment-display-reader](https://github.com/Kazuhito00/7segment-display-reader) `01.dataset` | **실촬 41,990장** — 7세그 디스플레이 2종. 클래스 `00`~`09`(각 ≈4,000장) + `11`(표시 없음, 1,992장) | **Apache-2.0** (GitHub API `spdx_id`, 2026-08-22) | 확보 완료 (244MB) |
 | [Kazuhito00/7segment-display-reader](https://github.com/Kazuhito00/7segment-display-reader) `02.model` | `7seg_classifier.tflite` (609,904 B) · `7seg_classifier(monochrome).tflite` (2,654,048 B) | **Apache-2.0** | 확보 완료 — `assets/models/README.md` 의 규격과 일치 |
 | [Kazuhito00/7seg-image-generator](https://github.com/Kazuhito00/7seg-image-generator) | 합성 생성기(Python/OpenCV). 96×96 기본, shear −10~30°, shift ±10px | **Apache-2.0** (GitHub API `spdx_id`, 2026-08-22) | 확보 완료 (152KB) |
+| Datacluster Labs — Glucometer Reading OCR | 실촬 폰 사진 **238장** (`assets_dev/upstream/datacluster-glucometer-ocr/`) — 값 GT 없음, 장치 박스뿐 | **CC0** (Kaggle License 필드, 게시자 설정. 단 설명문이 미공개 전체를 유료 판매한다고 밝힘 — 샘플 무료 배포와의 긴장은 기록 유지) | 확보 완료 2026-08-25 |
+| Roboflow `glucometer-amtkm` | 실촬 **233장** (train/valid/test COCO, bbox 카테고리 `glucometer`/`7`/`glucometerrotation` — 값 GT 없음) | **CC BY 4.0** (배포 zip 내 `README.dataset.txt` 명시, 2026-08-27 확인) | 확보 완료 2026-08-26 |
+| Roboflow `glucometer_images-bc9dh` | 실촬 **1,276장** (train+valid COCO, bbox 카테고리 `Digits`/`GM_SCREEN`/`READING`/`STRAIGHT`/`TIME` — 값 GT 없음) | **CC BY 4.0** (같은 방식 확인) | 확보 완료 2026-08-26 |
+| Datumo / TILDE 통합 납품본 | 혈당계 실촬 **2,375장(1차)+137건(2차)** — **이미지 1장당 측정값 GT json 페어**(혈압계 9,500장·체중계·체온계가 한 파일에 섞여 납품됨). `assets_dev/upstream/datumo/` | **미확인 — 구매 조건 문서 수령 대기** (§4) | 수령·개봉 완료 2026-08-27 |
 | Oxford / Finnegan 2019 — 혈당계·혈압계 실촬 | 논문 [10.1080/03091902.2019.1673844](https://www.tandfonline.com/doi/full/10.1080/03091902.2019.1673844), 기록 [ORA](https://ora.ox.ac.uk/objects/uuid:72be1fdf-327d-4d30-ab66-8892e642fc68) 의 라이선스는 **CC BY** | **확보 실패** — 아래 참조 | 2026-08-22 |
+
+### Datumo(TILDE) 개봉 기록 — 2026-08-27
+
+- 원본 `TILDE.zip`(74.8GB, D:\ 루트에서 이동) → `assets_dev/upstream/datumo/TILDE.zip`.
+  생성 도구가 Mac 이라 한국 파일명이 NFD 로 들어 있다. zip 멤버 중 라벨 번들로 보이는
+  것은 **딱 하나인데 이름은 「혈압계_json(BBOX+OCR).zip」**이다(14,500개 json, 전부
+  sphygmomanometer). 처음 화면에 표시된 「혈당계」로 읽힌 것은 NFD 조합 표시 착시였다.
+- **혈당계 GT 는 별도 번들이 아니라 이미지 egg 안에 이미지·json 1:1 페어로 들어 있다.**
+  `.egg` 는 알집(EGGA 매직) 포맷이라 Bandizip(`bz.exe`)으로 개봉했다.
+  batch1 = jpg 2,375 + json 2,375, batch2 = jpg 137 + json 137.
+- 변환 스크립트 `_make_labels.py` 가 두 배치를 합쳐 `assets_dev/upstream/datumo/labels.jsonl`
+  **2,512행**을 만들었다. 수치 GT 100%(4행은 벤더 json 문법 오류를 폴백 정규식으로 회복),
+  값 범위 30~511, 38 미만은 1건(저혈당 30 — 표본 육안 일치 확인).
+- 표본 눈 검증 3장: 30(선명 일치)·95(일치+화면의 05-18 DAY 12:18 이 json `Day-AVG/hour`
+  완전 일치)·87(반사로 저대비 — 라벨 신뢰는 하나 후속 전수 검증 여지).
+- 혈압계·체중계·체온계 데이터는 당장 용도가 없다. TILDE.zip 은 통째로 보관한다.
 
 **Oxford 데이터셋은 사라졌다.** 배포처 `cameralab.eng.ox.ac.uk` 가 폐쇄되어
 `data/bp_bg_meters.zip` 과 안내 페이지 `seven_segment.html` 이 모두
@@ -113,6 +133,10 @@ SIL OFL 은 상업적 사용·임베딩을 허용하지만 **폰트 자체를 �
 
 ## 4. 미해결 항목
 
+- [ ] **Datumo(TILDE 통합 납품본) 이용 조건 문서 확보** — 수령은 끝났지만 라이선스
+      규정 문서가 아직 없다. 혈당계 2,512쌍을 벤치·학습에 쓰기 전에 확정한다
+- [ ] Downloads 에 남아 있는 Roboflow zip 원본 2개(≈4.6GB, upstream 으로 사본 확보됨)
+      — 중복이므로 삭제 여부는 개발자 본인 판단
 - [ ] EasyOCR 사전학습 가중치의 배포 조건 확인 — 2026-08-21: 공개 문서상 명시가
       없음을 확인. Jaided AI 문의 필요
 - [ ] fine-tune 파생 가중치의 라이선스 귀속 확인 — EasyOCR 가중치 조건 확인에
