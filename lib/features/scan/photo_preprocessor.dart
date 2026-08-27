@@ -3,7 +3,11 @@ import 'dart:math' as math;
 
 import 'package:image/image.dart' as img;
 
-import '../../ocr/ocr.dart' show OcrFrame, OcrImageFormat;
+// 배럴(`ocr.dart`)은 bootstrap 을 거쳐 tflite_flutter → Flutter 를 끌어온다.
+// 이 파일이 필요한 것은 프레임 값 타입 두 개뿐이라 정의 파일을 직접 가리킨다 —
+// dart run 으로 도는 벤치 도구(golden_bench)가 이 전처리기를 그대로 물기 위해
+// 필요하다. API 로 노출되는 타입은 바뀌지 않는다.
+import '../../ocr/src/engine/ocr_frame.dart' show OcrFrame, OcrImageFormat;
 
 /// 사진 전처리기 — 사진 불러오기(debug 전용)를 위한 실험 정렬 단계.
 ///
@@ -35,7 +39,15 @@ import '../../ocr/ocr.dart' show OcrFrame, OcrImageFormat;
 ///
 /// 실패하면 null 을 돌려주고 호출자는 원본 프레임으로 넘어간다.
 OcrFrame? preprocessPhotoForEngine(Uint8List pngBytes) {
-  final decoded = img.decodeImage(pngBytes);
+  // 일부 실촬 JPEG 는 image 패키지 디코더가 마커를 이해하지 못하고
+  // ImageException 을 던진다(2026-08-27 Datumo 표본에서 확인). 계약은
+  // "해석할 수 없으면 null" 이므로 예외를 호출자 밖으로 흘려보내지 않는다.
+  final img.Image? decoded;
+  try {
+    decoded = img.decodeImage(pngBytes);
+  } catch (_) {
+    return null;
+  }
   if (decoded == null || decoded.width < 16 || decoded.height < 8) return null;
 
   var gray = <double>[
