@@ -249,7 +249,9 @@ List<_Row> _digitRows(
   }
   log?.call('afterMerge=${cands.length}');
 
-  // 세로 중심이 겹치는 것끼리 행으로
+  // 세로 중심이 겹치는 것끼리 행으로. 병합 단계가 cx 순으로 남긴 배열을
+  // 그대로 쓰면 행이 x 로 엉켜 하나도 안 모인다(1525 실측: 43 후보→행 0).
+  cands.sort((a, b) => a.cy.compareTo(b.cy));
   final rows = <_Row>[];
   for (final c in cands) {
     final last = rows.isEmpty ? null : rows.last.comps.last;
@@ -302,23 +304,37 @@ List<_Row> _digitRows(
     if (why == null && (bw < w * 0.04 || bw > w * 0.7)) why = 'bw=$bw';
 
     var ring = -1.0;
+    var ringMed = -1.0;
     if (why == null) {
-      ring = _ringSpread(
-          lum, w, h, cs.first.minX, cs.last.maxX, hs.first, hs.last);
+      // 링의 세로 범위는 글자 '높이'가 아니라 밴드의 실제 y 범위다 —
+      // 높이를 넘기면 링이 전혀 다른 영역을 샘플링한다(합성 장면으로 적발).
+      final bandTop = cs.map((c) => c.minY).reduce((a, b) => a < b ? a : b);
+      final bandBot = cs.map((c) => c.maxY).reduce((a, b) => a > b ? a : b);
+      final st = _ringStats(
+          lum, w, h, cs.first.minX, cs.last.maxX, bandTop, bandBot);
+      ring = st.spread;
+      ringMed = st.median;
+      // 산포: 패널 회색 속이면 좁다. 중간값: 숫자 밴드는 LCD 회색(중간 밝기)
+      // 속에 있고, 브랜드 텍스트는 몸체(흰)·베젤(검) 위라 갈린다 — v3 실측
+      // ("Plus"=흰 배경 통과)의 정정.
       if (ring > 40) why = 'ring=${ring.toStringAsFixed(0)}';
+      if (why == null && (ringMed < 80 || ringMed > 218)) {
+        why = 'ringMed=${ringMed.toStringAsFixed(0)}';
+      }
     }
 
     log?.call('row#$ri n=${cs.length} pitch=${meanPitch.toStringAsFixed(1)} '
         'jit=${pitchJitter.toStringAsFixed(2)} '
         'h=${hs.first}-${hs.last} bw=$bw ar=${bandAr.toStringAsFixed(1)} '
-        'ring=${ring.toStringAsFixed(0)} => ${why ?? "PASS"}');
+        'ring=${ring.toStringAsFixed(0)} med=${ringMed.toStringAsFixed(0)} '
+        '=> ${why ?? "PASS"}');
     if (why == null) passed.add(r);
   }
   return passed;
 }
 
 /// 밴드 위아래 링의 밝기 산포(상분위 — 링 안의 작은 시간숫자 잡음에 둔감).
-double _ringSpread(
+({double spread, double median}) _ringStats(
     Float64List lum, int w, int h, int x0, int x1, int hLo, int hHi) {
   final bandH = hHi - hLo + 1;
   final top0 = (hLo - 0.8 * bandH).floor().clamp(0, h - 1);
@@ -334,11 +350,12 @@ double _ringSpread(
       vals.add(lum[y * w + x]);
     }
   }
-  if (vals.length < 30) return 255;
+  if (vals.length < 30) return (spread: 255, median: 255);
   vals.sort();
   final p25 = vals[(vals.length * 0.25).floor()];
   final p75 = vals[(vals.length * 0.75).floor()];
-  return (p75 - p25).toDouble();
+  final median = vals[vals.length ~/ 2];
+  return (spread: (p75 - p25).toDouble(), median: median);
 }
 
 // ---------------------------------------------------------------------------
