@@ -64,6 +64,20 @@ void main(List<String> args) async {
     ];
   }
 
+  Map<String, List<({double x, double y})>> quads = {};
+  if (opts.quadsPath != null) {
+    for (final line in File(opts.quadsPath!)
+        .readAsLinesSync()
+        .where((l) => l.trim().isNotEmpty)) {
+      final j = jsonDecode(line) as Map<String, dynamic>;
+      quads[j['id'] as String] = [
+        for (final pt in (j['quad'] as List))
+          (x: (pt[0] as num).toDouble(), y: (pt[1] as num).toDouble()),
+      ];
+    }
+    stdout.writeln('쿼드 ${quads.length}개 로드(${opts.quadsPath})');
+  }
+
   stdout.writeln('${labels.length}장 …');
 
   final engine = SegmentRuleEngine();
@@ -83,7 +97,25 @@ void main(List<String> args) async {
     // 수 있어 전처리(내부 디코드 포함)와 엔진을 따로 잰다.
     final prepWatch = Stopwatch()..start();
     OcrFrame? prepared;
-    if (opts.align == 'auto') {
+    if (opts.align == 'from-json') {
+      final quad = opts.quadsPath == null ? null : quads[label.id];
+      if (quad == null) {
+        report.detectFail++;
+        report.total++;
+        continue;
+      }
+      try {
+        prepared = warpQuadToEngineFrame(file.readAsBytesSync(), quad);
+      } catch (_) {
+        report.recordUndecodable(label);
+        continue;
+      }
+      if (prepared == null) {
+        report.warpFail++;
+        report.total++;
+        continue;
+      }
+    } else if (opts.align == 'auto') {
       // 자동 경로: 밴드 검출 → 4모서리 원근 펴기. 검출 실패는 원본 폴백이
       // 아니라 별도 카운터(전체 프레임 투입은 G17 에서 무의미가 확인됨).
       try {
@@ -275,6 +307,7 @@ class _Report {
   int prepFallback = 0;
   int detectFail = 0;
   int warpFail = 0;
+  int modelFail = 0;
 
   /// 정렬 경로 표기(리포트·요약줄용)
   String align = 'legacy';
@@ -400,7 +433,10 @@ class _Report {
       ..writeln('- 라벨: `$labelsPath` (실사진 + 측정값 GT)')
       ..writeln('- 실행: ${DateTime.now().toIso8601String()}')
       ..writeln('- 경로: $align — '
-          '${align == 'auto'
+          '${align == 'from-json'
+              ? '외부 쿼드 파일 → `warpQuadToEngineFrame()` → '
+                  '`SegmentRuleEngine.recognize()`'
+              : align == 'auto'
               ? '`detectReadingQuad()` → `warpQuadToEngineFrame()` → '
                   '`SegmentRuleEngine.recognize()`'
               : '`preprocessPhotoForEngine()` → 폴백 원본 프레임 → '
@@ -527,7 +563,7 @@ class _Report {
       'misread=$misread digitChanged=$misreadDigitChanged '
       'hiLoReads=$numericReadAsHiLo rejected=$rejected '
       'prep=ok:$prepared/fallback:$prepFallback detectFail=$detectFail '
-      'warpFail=$warpFail missing=$missing '
+      'warpFail=$warpFail modelFail=$modelFail missing=$missing '
       'undecodable=$undecodable engineError=$engineError align=$align';
 }
 
@@ -560,6 +596,7 @@ class _Options {
     required this.dumpFailures,
     required this.dumpHits,
     required this.align,
+    required this.quadsPath,
   });
 
   final String labelsPath;
@@ -569,8 +606,10 @@ class _Options {
   final int dumpFailures;
   final int dumpHits;
 
-  /// legacy = photo_preprocessor(잉크박스 정렬), auto = 밴드 검출+원근 펴기
+  /// legacy = photo_preprocessor(잉크박스 정렬), auto = 밴드 검출+원근 펴기,
+  /// from-json = 외부(학습 모델)가 만든 쿼드 파일
   final String align;
+  final String? quadsPath;
 
   static _Options? parse(List<String> args) {
     String? labels;
@@ -580,6 +619,7 @@ class _Options {
     var dumpF = 12;
     var dumpH = 8;
     var align = 'legacy';
+    String? quadsPath;
 
     for (var i = 0; i < args.length; i++) {
       switch (args[i]) {
@@ -597,6 +637,8 @@ class _Options {
           dumpH = int.tryParse(_next(args, i++) ?? '') ?? 8;
         case '--align':
           align = _next(args, i++) ?? 'legacy';
+        case '--quads':
+          quadsPath = _next(args, i++);
         case '-h':
         case '--help':
           _usage();
@@ -615,6 +657,7 @@ class _Options {
       dumpFailures: dumpF,
       dumpHits: dumpH,
       align: align,
+      quadsPath: quadsPath,
     );
   }
 
@@ -633,7 +676,8 @@ class _Options {
   --limit N              일정 간격으로 N 장만
   --dump-failures N      오독 사례 N 건 (기본 12)
   --dump-hits N          정답 사례 N 건 (기본 8)
-  --align auto|legacy    정렬 경로 (기본 legacy = 기존 전처리기)
+  --align auto|legacy|from-json  정렬 경로 (기본 legacy)
+  --quads <파일>         from-json 용 쿼드 JSONL {id, quad:[[x,y]x4]}
 ''');
   }
 }
