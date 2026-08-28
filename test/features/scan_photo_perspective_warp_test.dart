@@ -11,8 +11,9 @@ void main() {
   const w = 211, h = 96;
 
   /// raw 픽셀(행우선) — 비교 기준. PNG 바이트와 혼동하지 않는다.
+  /// 패턴은 세로로 균일하므로 행 인덱스는 쓰이지 않는다.
   final raw = List<int>.generate(w * h, (i) {
-    final x = i % w, y = i ~/ w;
+    final x = i % w;
     final inBar = (x >= 20 && x < 32) || (x >= 100 && x < 112) || (x >= 180 && x < 192);
     return inBar ? 20 : 235;
   });

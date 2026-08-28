@@ -32,6 +32,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:image/image.dart' as img;
+import 'package:sugarscan/features/scan/lcd_band_detector.dart';
 import 'package:sugarscan/features/scan/photo_preprocessor.dart';
 import 'package:sugarscan/ocr/testing.dart';
 
@@ -68,7 +69,7 @@ void main(List<String> args) async {
   final engine = SegmentRuleEngine();
   await engine.initialize(const OcrEngineConfig());
 
-  final report = _Report();
+  final report = _Report()..align = opts.align;
   final wall = Stopwatch()..start();
 
   for (final label in labels) {
@@ -81,14 +82,36 @@ void main(List<String> args) async {
     // 앱 경로: 전처리 시도 → 실패면 원본 프레임 폴백. 디코딩 비용이 지배적일
     // 수 있어 전처리(내부 디코드 포함)와 엔진을 따로 잰다.
     final prepWatch = Stopwatch()..start();
-    final OcrFrame? prepared;
-    try {
-      prepared = preprocessPhotoForEngine(file.readAsBytesSync());
-      // 실촬 파일은 어느 단계에서든 디코더 예외가 날 수 있다. 한 장의 죽음이
-      // 전체 실행을 끊지 않게 각 단계를 고립한다.
-    } catch (_) {
-      report.recordUndecodable(label);
-      continue;
+    OcrFrame? prepared;
+    if (opts.align == 'auto') {
+      // 자동 경로: 밴드 검출 → 4모서리 원근 펴기. 검출 실패는 원본 폴백이
+      // 아니라 별도 카운터(전체 프레임 투입은 G17 에서 무의미가 확인됨).
+      try {
+        final quad = detectReadingQuad(file.readAsBytesSync());
+        if (quad == null) {
+          report.detectFail++;
+          report.total++;
+          continue;
+        }
+        prepared = warpQuadToEngineFrame(file.readAsBytesSync(), quad);
+      } catch (_) {
+        report.recordUndecodable(label);
+        continue;
+      }
+      if (prepared == null) {
+        report.warpFail++;
+        report.total++;
+        continue;
+      }
+    } else {
+      try {
+        prepared = preprocessPhotoForEngine(file.readAsBytesSync());
+        // 실촬 파일은 어느 단계에서든 디코더 예외가 날 수 있다. 한 장의 죽음이
+        // 전체 실행을 끊지 않게 각 단계를 고립한다.
+      } catch (_) {
+        report.recordUndecodable(label);
+        continue;
+      }
     }
     report.prepMicros += prepWatch.elapsedMicroseconds;
 
@@ -250,6 +273,11 @@ class _Report {
   int engineError = 0;
   int prepared = 0;
   int prepFallback = 0;
+  int detectFail = 0;
+  int warpFail = 0;
+
+  /// 정렬 경로 표기(리포트·요약줄용)
+  String align = 'legacy';
   double prepMicros = 0;
 
   final Map<String, int> rejectReasons = {};
@@ -371,9 +399,12 @@ class _Report {
       ..writeln()
       ..writeln('- 라벨: `$labelsPath` (실사진 + 측정값 GT)')
       ..writeln('- 실행: ${DateTime.now().toIso8601String()}')
-      ..writeln('- 경로: 앱 사진 로드와 동일 — '
-          '`preprocessPhotoForEngine()` → 폴백 원본 프레임 → '
-          '`SegmentRuleEngine.recognize()`')
+      ..writeln('- 경로: $align — '
+          '${align == 'auto'
+              ? '`detectReadingQuad()` → `warpQuadToEngineFrame()` → '
+                  '`SegmentRuleEngine.recognize()`'
+              : '`preprocessPhotoForEngine()` → 폴백 원본 프레임 → '
+                  '`SegmentRuleEngine.recognize()`'}')
       ..writeln('- 엔진 구성: 생성 기본값 그대로(균등 4셀 · blur 60 · separability '
           '0.25). **임계치·기하는 무수정.**')
       ..writeln('- ROI 라벨 없음 — 전처리기가 표시를 스스로 찾아야 하는 조건이다.')
@@ -495,8 +526,9 @@ class _Report {
       'SUMMARY n=$total exact=$exact numEq=$numericOnly '
       'misread=$misread digitChanged=$misreadDigitChanged '
       'hiLoReads=$numericReadAsHiLo rejected=$rejected '
-      'prep=ok:$prepared/fallback:$prepFallback missing=$missing '
-      'undecodable=$undecodable engineError=$engineError';
+      'prep=ok:$prepared/fallback:$prepFallback detectFail=$detectFail '
+      'warpFail=$warpFail missing=$missing '
+      'undecodable=$undecodable engineError=$engineError align=$align';
 }
 
 extension _Zip<A, B> on Iterable<A> {
@@ -527,6 +559,7 @@ class _Options {
     required this.limit,
     required this.dumpFailures,
     required this.dumpHits,
+    required this.align,
   });
 
   final String labelsPath;
@@ -536,6 +569,9 @@ class _Options {
   final int dumpFailures;
   final int dumpHits;
 
+  /// legacy = photo_preprocessor(잉크박스 정렬), auto = 밴드 검출+원근 펴기
+  final String align;
+
   static _Options? parse(List<String> args) {
     String? labels;
     String? root;
@@ -543,6 +579,7 @@ class _Options {
     var limit = 0;
     var dumpF = 12;
     var dumpH = 8;
+    var align = 'legacy';
 
     for (var i = 0; i < args.length; i++) {
       switch (args[i]) {
@@ -558,6 +595,8 @@ class _Options {
           dumpF = int.tryParse(_next(args, i++) ?? '') ?? 12;
         case '--dump-hits':
           dumpH = int.tryParse(_next(args, i++) ?? '') ?? 8;
+        case '--align':
+          align = _next(args, i++) ?? 'legacy';
         case '-h':
         case '--help':
           _usage();
@@ -575,6 +614,7 @@ class _Options {
       limit: limit,
       dumpFailures: dumpF,
       dumpHits: dumpH,
+      align: align,
     );
   }
 
@@ -593,6 +633,7 @@ class _Options {
   --limit N              일정 간격으로 N 장만
   --dump-failures N      오독 사례 N 건 (기본 12)
   --dump-hits N          정답 사례 N 건 (기본 8)
+  --align auto|legacy    정렬 경로 (기본 legacy = 기존 전처리기)
 ''');
   }
 }
