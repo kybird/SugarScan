@@ -3,7 +3,11 @@ import 'dart:math' as math;
 
 import 'package:image/image.dart' as img;
 
-import '../../ocr/ocr.dart' show OcrFrame, OcrImageFormat;
+// 배럴(`ocr.dart`)은 bootstrap 을 거쳐 tflite_flutter → Flutter 를 끌어온다.
+// 이 파일이 필요한 것은 프레임 값 타입 두 개뿐이라 정의 파일을 직접 가리킨다 —
+// dart run 으로 도는 벤치 도구(golden_bench)가 이 전처리기를 그대로 물기 위해
+// 필요하다. API 로 노출되는 타입은 바뀌지 않는다.
+import '../../ocr/src/engine/ocr_frame.dart' show OcrFrame, OcrImageFormat;
 
 /// 사진 전처리기 — 사진 불러오기(debug 전용)를 위한 실험 정렬 단계.
 ///
@@ -35,7 +39,15 @@ import '../../ocr/ocr.dart' show OcrFrame, OcrImageFormat;
 ///
 /// 실패하면 null 을 돌려주고 호출자는 원본 프레임으로 넘어간다.
 OcrFrame? preprocessPhotoForEngine(Uint8List pngBytes) {
-  final decoded = img.decodeImage(pngBytes);
+  // 일부 실촬 JPEG 는 image 패키지 디코더가 마커를 이해하지 못하고
+  // ImageException 을 던진다(2026-08-27 Datumo 표본에서 확인). 계약은
+  // "해석할 수 없으면 null" 이므로 예외를 호출자 밖으로 흘려보내지 않는다.
+  final img.Image? decoded;
+  try {
+    decoded = img.decodeImage(pngBytes);
+  } catch (_) {
+    return null;
+  }
   if (decoded == null || decoded.width < 16 || decoded.height < 8) return null;
 
   var gray = <double>[
@@ -436,4 +448,147 @@ double _bilinear(List<double> gray, int w, int h, double x, double y) {
   final top = tl * (1 - tx) + tr * tx;
   final bottom = bl * (1 - tx) + br * tx;
   return top * (1 - ty) + bottom * ty;
+}
+
+// ---------------------------------------------------------------------------
+// 원근 펴기 — 4모서리 호모그래피
+// ---------------------------------------------------------------------------
+
+/// 사진 속 표시 네 모서리를 엔진 규격 프레임으로 원근 펴기.
+///
+/// 검출 없이 정렬하는 경로다. 카메라는 가이드 박스가 표시 검출을 대신하지만,
+/// 사진에서는 누가 그 역할을 해야 한다 — 여기서는 호출자가 네 모서리를 준다
+/// (자동 검출기 또는 UI 코너 드래그). 모서리 순서는 좌상단→우상단→우하단→
+/// 좌하단.
+///
+/// 회전·기울기·원근 왜곡을 하나의 호모그래피로 흡수한다. 출력은 `_renderSlots`
+/// 과 같은 엔진 규격 캔버스(세로 96, 가로 96×2.1978)의 grayscale8 프레임이고,
+/// 퍼센타일 대비 스케일을 걸어 선명도 게이트가 볼 수 있게 한다.
+OcrFrame? warpQuadToEngineFrame(
+  Uint8List imageBytes,
+  List<({double x, double y})> quad,
+) {
+  img.Image? decoded;
+  try {
+    decoded = img.decodeImage(imageBytes);
+  } catch (_) {
+    return null;
+  }
+  if (decoded == null || decoded.width < 16 || decoded.height < 8) return null;
+  if (quad.length != 4) return null;
+
+  final w = decoded.width;
+  final h = decoded.height;
+  final gray = List<double>.generate(
+    w * h,
+    (i) {
+      final x = i % w;
+      final y = i ~/ w;
+      final p = decoded!.getPixel(x, y);
+      return 0.299 * p.r + 0.587 * p.g + 0.114 * p.b;
+    },
+  );
+
+  const outH = 96;
+  final outW = (outH * 2.1978).round();
+  final dstCorners = <({double x, double y})>[
+    (x: 0.0, y: 0.0),
+    (x: (outW - 1).toDouble(), y: 0.0),
+    (x: (outW - 1).toDouble(), y: (outH - 1).toDouble()),
+    (x: 0.0, y: (outH - 1).toDouble()),
+  ];
+
+  // 역샘플링: 캔버스 좌표 → 사진 좌표 사상을 직접 푼다.
+  final h8 = _homography(dstCorners, quad);
+  if (h8 == null) return null;
+
+  final out = Uint8List(outW * outH);
+  for (var y = 0; y < outH; y++) {
+    for (var x = 0; x < outW; x++) {
+      final d = h8[6] * x + h8[7] * y + 1;
+      final sx = (h8[0] * x + h8[1] * y + h8[2]) / d;
+      final sy = (h8[3] * x + h8[4] * y + h8[5]) / d;
+      // 경계 밖은 가장자리 클램프 — 검은 테두리 링이 이진화를 오염하지 않게.
+      final cx = sx.clamp(0.0, (w - 1).toDouble());
+      final cy = sy.clamp(0.0, (h - 1).toDouble());
+      out[y * outW + x] = _bilinear(gray, w, h, cx, cy).round().clamp(0, 255);
+    }
+  }
+
+  // 퍼센타일 대비 스케일 — 워프 결과도 무노이즈에 가까워 선명도 게이트가
+  // 실촬 전제 임계값에 걸리지 않게 한다(합성 벤치에서 확인된 함정).
+  final sorted = out.toList()..sort();
+  final lo = sorted[(sorted.length * 0.05).floor()].toDouble();
+  final hi = sorted[(sorted.length * 0.95).floor()].toDouble();
+  if (hi - lo < 1) return null;
+  for (var i = 0; i < out.length; i++) {
+    out[i] = (((out[i] - lo) * 255) / (hi - lo)).round().clamp(0, 255);
+  }
+
+  return OcrFrame(
+    bytes: out,
+    format: OcrImageFormat.grayscale8,
+    width: outW,
+    height: outH,
+  );
+}
+
+/// 4점 대응 호모그래피(8매개). `from`→`to` 로 그대로 쓰는 해를 돌려준다.
+/// 네 점이 퇴화(거의 한 직선)하면 null.
+List<double>? _homography(
+  List<({double x, double y})> from,
+  List<({double x, double y})> to,
+) {
+  final a = List.generate(8, (_) => List<double>.filled(8, 0));
+  final b = List<double>.filled(8, 0);
+  for (var i = 0; i < 4; i++) {
+    final f = from[i];
+    final t = to[i];
+    a[2 * i][0] = f.x;
+    a[2 * i][1] = f.y;
+    a[2 * i][2] = 1;
+    a[2 * i][6] = -t.x * f.x;
+    a[2 * i][7] = -t.x * f.y;
+    b[2 * i] = t.x;
+    a[2 * i + 1][3] = f.x;
+    a[2 * i + 1][4] = f.y;
+    a[2 * i + 1][5] = 1;
+    a[2 * i + 1][6] = -t.y * f.x;
+    a[2 * i + 1][7] = -t.y * f.y;
+    b[2 * i + 1] = t.y;
+  }
+  if (!_solveLinear8(a, b)) return null;
+  return b;
+}
+
+bool _solveLinear8(List<List<double>> a, List<double> b) {
+  const n = 8;
+  for (var col = 0; col < n; col++) {
+    var pivot = col;
+    for (var r = col + 1; r < n; r++) {
+      if (a[r][col].abs() > a[pivot][col].abs()) pivot = r;
+    }
+    if (a[pivot][col].abs() < 1e-9) return false;
+    if (pivot != col) {
+      final t = a[pivot];
+      a[pivot] = a[col];
+      a[col] = t;
+      final tb = b[pivot];
+      b[pivot] = b[col];
+      b[col] = tb;
+    }
+    for (var r = 0; r < n; r++) {
+      if (r == col) continue;
+      final f = a[r][col] / a[col][col];
+      if (f == 0) continue;
+      for (var c = col; c < n; c++) {
+        a[r][c] -= f * a[col][c];
+      }
+      b[r] -= f * b[col];
+    }
+  }
+  for (var i = 0; i < n; i++) {
+    b[i] /= a[i][i];
+  }
+  return true;
 }

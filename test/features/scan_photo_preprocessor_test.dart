@@ -28,4 +28,12 @@ void main() {
   test('파일이 아니면 null 을 돌려준다', () {
     expect(preprocessPhotoForEngine(Uint8List(8)), isNull);
   });
+
+  test('JPEG 파서가 예외로 실패하는 바이트열도 null 을 돌려준다', () {
+    // 실촬 벤더 파일에서 확인된 크래시(2026-08-27, Datumo 표본)의 축소 재현.
+    // image 패키지 디코더는 null 이 아니라 예외를 던지고, 그대로 두면 앱 사진
+    // 경로가 통째로 죽는다. 계약은 "해석 불가 = null" 이다.
+    final soiOnly = Uint8List.fromList(const [0xFF, 0xD8]);
+    expect(preprocessPhotoForEngine(soiOnly), isNull);
+  });
 }
