@@ -115,6 +115,16 @@ void main(List<String> args) async {
         report.total++;
         continue;
       }
+      if (opts.relayout) {
+        final laid = relayoutEngineFrame(prepared);
+        if (laid == null) {
+          report.relayoutFail++;
+          report.total++;
+          continue;
+        }
+        prepared = laid;
+        report.relayoutOk++;
+      }
     } else if (opts.align == 'auto') {
       // 자동 경로: 밴드 검출 → 4모서리 원근 펴기. 검출 실패는 원본 폴백이
       // 아니라 별도 카운터(전체 프레임 투입은 G17 에서 무의미가 확인됨).
@@ -308,6 +318,8 @@ class _Report {
   int detectFail = 0;
   int warpFail = 0;
   int modelFail = 0;
+  int relayoutOk = 0;
+  int relayoutFail = 0;
 
   /// 정렬 경로 표기(리포트·요약줄용)
   String align = 'legacy';
@@ -563,7 +575,8 @@ class _Report {
       'misread=$misread digitChanged=$misreadDigitChanged '
       'hiLoReads=$numericReadAsHiLo rejected=$rejected '
       'prep=ok:$prepared/fallback:$prepFallback detectFail=$detectFail '
-      'warpFail=$warpFail modelFail=$modelFail missing=$missing '
+      'warpFail=$warpFail modelFail=$modelFail '
+      'relayout=ok:$relayoutOk/fail:$relayoutFail missing=$missing '
       'undecodable=$undecodable engineError=$engineError align=$align';
 }
 
@@ -597,6 +610,7 @@ class _Options {
     required this.dumpHits,
     required this.align,
     required this.quadsPath,
+    required this.relayout,
   });
 
   final String labelsPath;
@@ -611,6 +625,9 @@ class _Options {
   final String align;
   final String? quadsPath;
 
+  /// 워프 후 글자 칼럼 재배치(라벨 텍스트 제거) 적용
+  final bool relayout;
+
   static _Options? parse(List<String> args) {
     String? labels;
     String? root;
@@ -620,6 +637,7 @@ class _Options {
     var dumpH = 8;
     var align = 'legacy';
     String? quadsPath;
+    var relayout = false;
 
     for (var i = 0; i < args.length; i++) {
       switch (args[i]) {
@@ -639,6 +657,8 @@ class _Options {
           align = _next(args, i++) ?? 'legacy';
         case '--quads':
           quadsPath = _next(args, i++);
+        case '--relayout':
+          relayout = true;
         case '-h':
         case '--help':
           _usage();
@@ -658,6 +678,7 @@ class _Options {
       dumpHits: dumpH,
       align: align,
       quadsPath: quadsPath,
+      relayout: relayout,
     );
   }
 
@@ -678,6 +699,7 @@ class _Options {
   --dump-hits N          정답 사례 N 건 (기본 8)
   --align auto|legacy|from-json  정렬 경로 (기본 legacy)
   --quads <파일>         from-json 용 쿼드 JSONL {id, quad:[[x,y]x4]}
+  --relayout             워프 후 글자 칼럼 재배치(라벨 텍스트 제거)
 ''');
   }
 }

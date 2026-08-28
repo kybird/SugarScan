@@ -450,6 +450,23 @@ double _bilinear(List<double> gray, int w, int h, double x, double y) {
   return top * (1 - ty) + bottom * ty;
 }
 
+/// 워프된 프레임에서 글자 칼럼만 골라 슬롯으로 재배치한다.
+///
+/// 검출 박스 관례상 프레임에 mem·mg/dL 같은 라벨 텍스트가 동봉되는데, 엔진
+/// 셀 샘플링은 그 잉크를 오염으로 삼는다. 칼럼 검출(세로 잉크 분포 클러스터)
+/// 으로 숫자 칼럼만 골라 깨끗한 엔진 캔버스로 다시 그린다. 글자가 1~4개로
+/// 정리되지 않으면 null — 호출자는 원 프레임을 쓰거나 거부한다.
+OcrFrame? relayoutEngineFrame(OcrFrame frame) {
+  if (frame.format != OcrImageFormat.grayscale8) return null;
+  final w = frame.width;
+  final h = frame.height;
+  final gray = List<double>.generate(w * h, (i) => frame.bytes[i].toDouble());
+  final box = _Box(0, 0, w - 1, h - 1);
+  final glyphs = _glyphColumns(gray, w, h, box);
+  if (glyphs.isEmpty || glyphs.length > 4) return null;
+  return _renderSlots(gray, w, h, box, glyphs);
+}
+
 // ---------------------------------------------------------------------------
 // 원근 펴기 — 4모서리 호모그래피
 // ---------------------------------------------------------------------------
