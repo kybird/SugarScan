@@ -29,6 +29,7 @@
 //   --dump-hits N      정답 사례 N 건 표 (기본 8, 눈 검증용)
 
 import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:io';
 
 import 'package:image/image.dart' as img;
@@ -125,6 +126,77 @@ void main(List<String> args) async {
         prepared = laid;
         report.relayoutOk++;
       }
+    } else if (opts.align == 'gm') {
+      // 2단: GM 박스로 화면을 펴고, 패널 내부에서 밴드를 찾아 엔진 캔버스로.
+      final quad = opts.quadsPath == null ? null : quads[label.id];
+      if (quad == null) {
+        report.modelFail++;
+        report.total++;
+        continue;
+      }
+      OcrFrame? screen;
+      try {
+        screen = warpQuadToRect(
+            file.readAsBytesSync(), quad, 640, 320);
+      } catch (_) {
+        report.recordUndecodable(label);
+        continue;
+      }
+      if (screen == null) {
+        report.warpFail++;
+        report.total++;
+        continue;
+      }
+      final sim = img.Image(width: screen.width, height: screen.height);
+      for (var y = 0; y < screen.height; y++) {
+        for (var x = 0; x < screen.width; x++) {
+          final v = screen.bytes[y * screen.width + x];
+          sim.setPixelRgb(x, y, v, v, v);
+        }
+      }
+      final bands = detectReadingBands(img.encodePng(sim));
+      if (bands.isEmpty) {
+        report.detectFail++;
+        report.total++;
+        continue;
+      }
+      final bq = bands.first.quad;
+      final xs = [for (final c in bq) c.x];
+      final ys = [for (final c in bq) c.y];
+      var bx0 = xs.reduce((a, b) => a < b ? a : b);
+      var bx1 = xs.reduce((a, b) => a > b ? a : b);
+      var by0 = ys.reduce((a, b) => a < b ? a : b);
+      var by1 = ys.reduce((a, b) => a > b ? a : b);
+      final padX = (bx1 - bx0) * 0.10;
+      final padY = (by1 - by0) * 0.15;
+      bx0 = (bx0 - padX).clamp(0.0, (screen.width - 1).toDouble());
+      bx1 = (bx1 + padX).clamp(0.0, (screen.width - 1).toDouble());
+      by0 = (by0 - padY).clamp(0.0, (screen.height - 1).toDouble());
+      by1 = (by1 + padY).clamp(0.0, (screen.height - 1).toDouble());
+      final cw = (bx1 - bx0).round().clamp(2, screen.width);
+      final ch = (by1 - by0).round().clamp(2, screen.height);
+      final crop = img.Image(width: cw, height: ch);
+      for (var y = 0; y < ch; y++) {
+        for (var x = 0; x < cw; x++) {
+          crop.setPixelRgb(x, y, screen.bytes[(by0.round() + y) * screen.width + (bx0.round() + x)],
+              screen.bytes[(by0.round() + y) * screen.width + (bx0.round() + x)],
+              screen.bytes[(by0.round() + y) * screen.width + (bx0.round() + x)]);
+        }
+      }
+      final rs = img.copyResize(crop, width: 211, height: 96,
+          interpolation: img.Interpolation.nearest);
+      final fb = Uint8List(211 * 96);
+      for (var y = 0; y < 96; y++) {
+        for (var x = 0; x < 211; x++) {
+          fb[y * 211 + x] = rs.getPixel(x, y).r.round().clamp(0, 255);
+        }
+      }
+      prepared = OcrFrame(
+        bytes: fb,
+        format: OcrImageFormat.grayscale8,
+        width: 211,
+        height: 96,
+      );
     } else if (opts.align == 'auto') {
       // 자동 경로: 밴드 검출 → 4모서리 원근 펴기. 검출 실패는 원본 폴백이
       // 아니라 별도 카운터(전체 프레임 투입은 G17 에서 무의미가 확인됨).
