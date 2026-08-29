@@ -450,6 +450,63 @@ double _bilinear(List<double> gray, int w, int h, double x, double y) {
   return top * (1 - ty) + bottom * ty;
 }
 
+/// 사진의 네 모서리를 임의 크기 회색 프레임으로 원근 펴기 — LCD 화면 등
+/// 엔진 캔버스가 아닌 중간 표상이 필요할 때 쓴다. 퍼센타일 대비 스케일 포함.
+OcrFrame? warpQuadToRect(
+  Uint8List imageBytes,
+  List<({double x, double y})> quad,
+  int outW,
+  int outH,
+) {
+  img.Image? decoded;
+  try {
+    decoded = img.decodeImage(imageBytes);
+  } catch (_) {
+    return null;
+  }
+  if (decoded == null || decoded.width < 16 || decoded.height < 8) return null;
+  if (quad.length != 4) return null;
+
+  final w = decoded.width;
+  final h = decoded.height;
+  final gray = List<double>.generate(
+    w * h,
+    (i) {
+      final x = i % w;
+      final y = i ~/ w;
+      final p = decoded!.getPixel(x, y);
+      return 0.299 * p.r + 0.587 * p.g + 0.114 * p.b;
+    },
+  );
+
+  final dstCorners = <({double x, double y})>[
+    (x: 0.0, y: 0.0),
+    (x: (outW - 1).toDouble(), y: 0.0),
+    (x: (outW - 1).toDouble(), y: (outH - 1).toDouble()),
+    (x: 0.0, y: (outH - 1).toDouble()),
+  ];
+  final h8 = _homography(dstCorners, quad);
+  if (h8 == null) return null;
+
+  final out = Uint8List(outW * outH);
+  for (var y = 0; y < outH; y++) {
+    for (var x = 0; x < outW; x++) {
+      final dd = h8[6] * x + h8[7] * y + 1;
+      final sx = (h8[0] * x + h8[1] * y + h8[2]) / dd;
+      final sy = (h8[3] * x + h8[4] * y + h8[5]) / dd;
+      final cx = sx.clamp(0.0, (w - 1).toDouble());
+      final cy = sy.clamp(0.0, (h - 1).toDouble());
+      out[y * outW + x] = _bilinear(gray, w, h, cx, cy).round().clamp(0, 255);
+    }
+  }
+  return OcrFrame(
+    bytes: out,
+    format: OcrImageFormat.grayscale8,
+    width: outW,
+    height: outH,
+  );
+}
+
 /// 워프된 프레임에서 글자 칼럼만 골라 슬롯으로 재배치한다.
 ///
 /// 검출 박스 관례상 프레임에 mem·mg/dL 같은 라벨 텍스트가 동봉되는데, 엔진
