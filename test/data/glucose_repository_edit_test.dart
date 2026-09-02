@@ -165,4 +165,55 @@ void main() {
       expect((await row(reading.id)).note, '운동 직후');
     });
   });
+
+  // valueMgdl 이 정본이다. 화면은 enteredValue 를 보여 주고 통계·동기화·헬스
+  // 연동은 valueMgdl 을 쓰기 때문에, 한쪽만 갱신하면 같은 기록이 두 숫자를
+  // 갖게 된다. 부분 수정에서도 정본이 따라오는 것을 고정한다.
+  group('정본 일관성', () {
+    test('값만 고쳐도 mg/dL 정본이 다시 계산된다', () async {
+      final reading = await add(value: 137);
+
+      await repository.update(reading.id, value: 150);
+
+      final saved = await row(reading.id);
+      expect(saved.enteredValue, 150);
+      expect(saved.valueMgdl, 150);
+    });
+
+    test('단위만 고쳐도 mg/dL 정본이 다시 계산된다', () async {
+      final reading = await add(value: 7.6, unit: GlucoseUnit.mmoll);
+      expect((await row(reading.id)).valueMgdl, closeTo(136.9, 0.5));
+
+      await repository.update(reading.id, unit: GlucoseUnit.mgdl);
+
+      final saved = await row(reading.id);
+      expect(saved.enteredUnit, GlucoseUnit.mgdl);
+      expect(saved.enteredValue, 7.6);
+      // mg/dL 로 재해석한 것이지 변환한 것이 아니다 — 7.6 mg/dL 이 정본이 된다.
+      expect(saved.valueMgdl, closeTo(7.6, 1e-9));
+    });
+
+    test('값·단위를 함께 고치면 둘 다 반영된다', () async {
+      final reading = await add(value: 137);
+
+      await repository.update(
+        reading.id,
+        value: 7.6,
+        unit: GlucoseUnit.mmoll,
+      );
+
+      final saved = await row(reading.id);
+      expect(saved.enteredUnit, GlucoseUnit.mmoll);
+      expect(saved.enteredValue, 7.6);
+      expect(saved.valueMgdl, closeTo(136.9, 0.5));
+    });
+
+    test('값과 무관한 수정은 정본을 건드리지 않는다', () async {
+      final reading = await add(value: 137);
+
+      await repository.update(reading.id, tag: MeasurementTag.bedtime);
+
+      expect((await row(reading.id)).valueMgdl, 137);
+    });
+  });
 }

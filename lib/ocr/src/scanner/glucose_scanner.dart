@@ -44,6 +44,10 @@ class GlucoseScanner {
   GlucoseUnit? _unit;
   ScanOutcome _last = const ScanIdle();
 
+  /// 스캔 세션 번호. start()/stop() 마다 올라간다. 추론 중이던 프레임이 세션이
+  /// 바뀐 뒤에 돌아오면 그 결과는 버린다 — 단위가 달라진 채 확정되면 안 된다.
+  int _session = 0;
+
   ScanOutcome get lastOutcome => _last;
 
   /// 현재 활성 엔진 id. 기록에 남길 때만 쓴다.
@@ -56,6 +60,7 @@ class GlucoseScanner {
     OcrEngineConfig? config,
   }) async {
     _unit = unit;
+    _session++;
     _stabilizer.reset();
     _throttler.reset();
 
@@ -101,6 +106,17 @@ class GlucoseScanner {
   /// 프레임 하나를 넘긴다. 추론이 이미 진행 중이면 프레임은 버려지고
   /// 직전 상태가 그대로 돌아온다 — 앱이 드롭 여부를 판단할 필요는 없다.
   Future<ScanOutcome> offer(OcrFrame frame) async {
+    // 계약("절대 예외를 던지지 않는다")은 엔진 호출만 감싸서는 지켜지지 않는다.
+    // 정규화·검증·안정화도 이 안에서 돌고, 그중 하나라도 던지면 라이브 프레임
+    // 루프가 죽어 스캔 화면 전체가 멈춘다. 경계는 이 메서드 전체다.
+    try {
+      return await _offer(frame);
+    } on Object {
+      return _emit(const ScanUnavailable(ScanUnavailableReason.engineError));
+    }
+  }
+
+  Future<ScanOutcome> _offer(OcrFrame frame) async {
     final unit = _unit;
     if (unit == null) {
       return _emit(const ScanUnavailable(ScanUnavailableReason.notStarted));
@@ -110,8 +126,13 @@ class GlucoseScanner {
       return _emit(const ScanUnavailable(ScanUnavailableReason.noEngine));
     }
 
+    // 이 프레임이 속한 세션. 추론이 도는 사이 start()/stop() 이 불리면 단위가
+    // 바뀌었을 수 있고, 옛 단위로 확정하면 값의 의미가 뒤집힌다(10~50 구간은
+    // 두 단위 모두 검증을 통과한다). 늦게 돌아온 프레임은 버린다.
+    final session = _session;
     final result = await _throttler.run(() => _recognizeSafely(engine, frame));
     if (result == null) return _last;
+    if (session != _session) return _last;
 
     return _emit(_interpret(result, unit));
   }
@@ -123,6 +144,7 @@ class GlucoseScanner {
   }
 
   Future<void> stop() async {
+    _session++;
     await _registry.deactivate();
     _stabilizer.reset();
     _throttler.reset();

@@ -16,11 +16,26 @@ import '../shared/tag_labels.dart';
 /// **판정하지 않는다.** 값에 "정상/높음/위험" 같은 이름이나 색을 붙이지 않고,
 /// 목표 범위도 사용자가 정한 관찰 구간으로만 다룬다. 붙이는 순간 이 앱은
 /// 일반 건강관리 도구가 아니라 진단 보조 기기 쪽으로 넘어간다.
-class StatsScreen extends ConsumerWidget {
+class StatsScreen extends ConsumerStatefulWidget {
   const StatsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<StatsScreen> createState() => _StatsScreenState();
+}
+
+class _StatsScreenState extends ConsumerState<StatsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // 기간 질의는 구독 시점의 시각으로 굳는다. 화면에 들어올 때마다 다시
+    // 계산하지 않으면 앱을 켜 둔 채 자정을 넘긴 사용자에게 창이 하루씩 늘어난다.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.read(refreshStatsProvider)();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final unit = ref.watch(displayUnitProvider);

@@ -323,13 +323,39 @@ final statsWindowProvider =
     NotifierProvider<StatsWindow, int>(StatsWindow.new);
 
 /// 선택한 기간의 기록. 저장·수정·삭제에 스스로 반응한다.
+///
+/// **위쪽 경계를 `now` 로 잡지 않는다.** 이 프로바이더는 한 번 구독되면 기간이
+/// 바뀔 때까지 살아 있고, Drift 스트림은 처음 만든 질의를 그대로 다시 돌린다.
+/// 위 경계를 구독 시점의 `now` 로 고정하면 그 뒤에 저장한 기록이 전부 질의
+/// 범위 밖으로 떨어져, 방금 남긴 오늘 기록이 통계에서 사라진다.
+///
+/// 아래 경계도 같은 이유로 굳는다(자정을 넘기면 창이 하루씩 늘어난다). 그쪽은
+/// 화면을 다시 열 때 [refreshStats] 로 푼다 — 범위를 넓히는 방향이라
+/// 데이터가 사라지지는 않는다.
 final statsReadingsProvider = StreamProvider<List<GlucoseReading>>((ref) {
   final days = ref.watch(statsWindowProvider);
+  ref.watch(_statsEpochProvider);
   final now = DateTime.now();
   return ref.watch(glucoseRepositoryProvider).watchBetween(
         now.subtract(Duration(days: days)),
-        now,
+        // 미래 시각으로 들어온 기록(단말 시계 오차, 수동 입력)도 놓치지 않는다.
+        now.add(const Duration(days: 365)),
       );
+});
+
+/// 통계 질의를 다시 만들게 하는 손잡이. 값 자체에는 의미가 없다.
+class _StatsEpoch extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void bump() => state = state + 1;
+}
+
+final _statsEpochProvider = NotifierProvider<_StatsEpoch, int>(_StatsEpoch.new);
+
+/// 통계 기간을 지금 시각 기준으로 다시 계산한다. 통계 화면 진입 시 부른다.
+final refreshStatsProvider = Provider<void Function()>((ref) {
+  return () => ref.read(_statsEpochProvider.notifier).bump();
 });
 
 /// 사용자가 고른 목표 범위 프리셋.

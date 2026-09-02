@@ -126,6 +126,10 @@ class GlucoseRepository {
   ///
   /// [note] 의 `null` 은 **바꾸지 않음**이고, 빈 문자열은 **지움**이다. 둘을
   /// 같게 두면 메모를 한 번 남긴 뒤로는 지울 방법이 없어진다.
+  ///
+  /// [value] 와 [unit] 중 하나만 넘겨도 정본인 `valueMgdl` 을 반드시 다시
+  /// 계산한다. 예전에는 둘 다 있을 때만 갱신해서, 값만 고치면 화면(입력 원본)과
+  /// 통계·동기화·헬스 연동(정본 mg/dL)이 서로 다른 숫자를 가리키게 됐다.
   Future<void> update(
     String id, {
     double? value,
@@ -134,19 +138,27 @@ class GlucoseRepository {
     String? note,
   }) async {
     final now = _clock();
-    final resolvedUnit = unit;
 
     await _db.transaction(() async {
+      // 빠진 쪽은 저장된 행에서 채운다. 트랜잭션 안이라 읽는 사이에 값이
+      // 바뀌지 않는다.
+      double? mgdl;
+      if (value != null || unit != null) {
+        final row = await (_db.select(_db.glucoseReadingRows)
+              ..where((t) => t.id.equals(id)))
+            .getSingleOrNull();
+        if (row == null) return;
+        final effectiveUnit = unit ?? row.enteredUnit;
+        final effectiveValue = value ?? row.enteredValue;
+        mgdl = effectiveUnit.toMgdl(effectiveValue);
+      }
+
       await (_db.update(_db.glucoseReadingRows)..where((t) => t.id.equals(id)))
           .write(
         GlucoseReadingRowsCompanion(
           enteredValue: value == null ? const Value.absent() : Value(value),
-          enteredUnit: resolvedUnit == null
-              ? const Value.absent()
-              : Value(resolvedUnit),
-          valueMgdl: value == null || resolvedUnit == null
-              ? const Value.absent()
-              : Value(resolvedUnit.toMgdl(value)),
+          enteredUnit: unit == null ? const Value.absent() : Value(unit),
+          valueMgdl: mgdl == null ? const Value.absent() : Value(mgdl),
           tag: tag == null ? const Value.absent() : Value(tag),
           note: switch (note) {
             null => const Value.absent(),
