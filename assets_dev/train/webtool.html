@@ -126,6 +126,10 @@ tr.miss td.mono { color: var(--bad); }
   padding: 8px 26px; border-radius: 6px; border: 1px solid var(--line);
   background: var(--panel2); color: var(--fg); font-size: 14px; cursor: pointer;
 }
+#btn-resume { background: #1e3a5d; border-color: #2e5f8a; }
+#btn-resume:hover { background: #26497a; }
+#btn-resume:disabled { opacity: .45; cursor: default; }
+#resume-point { color: var(--warn); }
 #btn-start { background: #1e4d2b; border-color: #2e7d4f; }
 #btn-start:hover { background: #276338; }
 #btn-start:disabled { opacity: .45; cursor: default; }
@@ -221,14 +225,19 @@ tr.miss td.mono { color: var(--bad); }
       </div>
     </div>
     <div class="trainctl">
-      <button id="btn-start">▶ 학습 시작 (ctc_reader_v2)</button>
+      <button id="btn-start">▶ 처음부터 학습</button>
+      <button id="btn-resume">↻ 이어서 학습</button>
       <button id="btn-stop">■ 중지</button>
       <span class="stat" id="train-status">-</span>
+      <span class="stat" id="resume-point"></span>
     </div>
     <div id="logtail"></div>
     <div class="note">
       학습 완료 후 <code>conda run -n sugartrain python eval_reader.py</code> 로 hold-out(미라벨) 평가 —
       결과는 모니터 탭에 표시. 학습 로그: ctc_train_gpu.log · 에폭별 CSV: training_log.csv
+      <br><b>이어서 학습</b>은 매 에폭 저장된 지점(가중치+옵티마이저 상태)에서 재개합니다.
+      <b>데이터 캐시를 다시 만들었으면 재개가 거부됩니다</b> — 두 데이터셋에 걸쳐
+      학습한 모델이 되고 그 사실이 로그에 남지 않기 때문입니다. 그때는 처음부터 돌리세요.
     </div>
   </div>
 </section>
@@ -1047,7 +1056,14 @@ async function pollTrain() {
   $("train-status").textContent = run
     ? `실행 중 · ${st.phase} · 에폭 ${st.epoch}`
     : "중지 상태";
+  // 재개 지점은 학습이 끝까지 가면 스크립트가 지운다. 남아 있다는 것은
+  // 중간에 끊겼다는 뜻이라 그대로 보여 준다.
+  const rp = st.resume;
+  $("resume-point").textContent = rp
+    ? `이어서 돌릴 지점: ${rp.phase} ${rp.next_epoch}/${rp.total_epochs} 에폭 (저장 ${rp.saved_at})`
+    : "";
   $("btn-start").disabled = run;
+  $("btn-resume").disabled = run || !rp;
   let lt;
   try { lt = await api("/api/logtail?lines=50"); } catch (e) { return; }
   const el = $("logtail");
@@ -1057,8 +1073,14 @@ async function pollTrain() {
   }
 }
 $("btn-start").addEventListener("click", async () => {
-  const r = await post("/api/train/start");
+  if (!confirm("처음부터 다시 학습합니다. 이어서 돌릴 지점이 있으면 버려집니다.")) return;
+  const r = await post("/api/train/start", { mode: "fresh" });
   toast(r.ok ? "학습 시작 (pid " + r.pid + ")" : "시작 실패: " + (r.error || "?"));
+  pollTrain();
+});
+$("btn-resume").addEventListener("click", async () => {
+  const r = await post("/api/train/start", { mode: "resume" });
+  toast(r.ok ? "이어서 학습 (pid " + r.pid + ")" : "재개 실패: " + (r.error || "?"));
   pollTrain();
 });
 $("btn-stop").addEventListener("click", async () => {

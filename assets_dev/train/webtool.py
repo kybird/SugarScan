@@ -39,6 +39,7 @@ GT_FIX = HERE / "gt_corrections.jsonl"
 BAND_QUADS = HERE / "datumo_quads_v2.jsonl"  # v2 밴드 모델 예측(도메인 AP50 98.4)
 GM_QUADS = HERE / "gmscreen_quads_oriented.jsonl"  # 표시(oriented) 좌표계 변환본 — 라벨러 힌트 전용
 TRAIN_LOG = HERE / "ctc_train_gpu.log"
+RESUME_STATE = HERE / "checkpoints_v2" / "resume_state.json"
 HOLDOUT = HERE / "reader_preds.json"
 HTML = HERE / "webtool.html"
 PID_FILE = HERE / "train_pid.json"
@@ -180,6 +181,16 @@ def pid_alive(pid):
     return str(pid) in out
 
 
+def resume_point():
+    """이어서 돌릴 지점. 학습이 끝까지 가면 스크립트가 지운다."""
+    if not RESUME_STATE.exists():
+        return None
+    try:
+        return json.loads(RESUME_STATE.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
 @route("/api/train/status")
 def api_train_status(qs):
     pid = train_pid()
@@ -188,9 +199,13 @@ def api_train_status(qs):
     if TRAIN_LOG.exists():
         fresh = (time.time() - TRAIN_LOG.stat().st_mtime) < 180
     losses, phase = parse_trainlog()
+    # 에폭 수를 로그의 `loss:` 개수로 세면 재개할 때마다 누적돼 부풀려진다.
+    # 재개 지점이 있으면 그쪽이 정본이다.
+    rp = resume_point()
+    epoch = rp["next_epoch"] if rp else len(losses)
     return {"managed_pid": pid, "managed_alive": alive,
             "log_fresh": fresh, "losses": losses[-300:],
-            "epoch": len(losses), "phase": phase}
+            "epoch": epoch, "phase": phase, "resume": rp}
 
 
 @route("/api/logtail")
@@ -854,15 +869,23 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"ok": False,
                             "error": "다른 학습이 방금까지 로그를 기록 중 — 잠시 후 시도"})
                 return
+            mode = body.get("mode", "fresh")
+            if mode not in ("fresh", "resume", "ft"):
+                self._json({"ok": False, "error": f"모르는 모드: {mode}"})
+                return
+            if mode == "resume" and not RESUME_STATE.exists():
+                self._json({"ok": False,
+                            "error": "이어서 돌릴 지점이 없다 — 처음부터 시작할 것"})
+                return
             logf = open(TRAIN_LOG, "ab")  # 모니터가 같은 파일을 읽는다
             env = dict(os.environ, PYTHONUNBUFFERED="1")
             proc = subprocess.Popen(
-                [sys.executable, str(HERE / "ctc_reader_v2.py")],
+                [sys.executable, str(HERE / "ctc_reader_v2.py"), mode],
                 stdout=logf, stderr=subprocess.STDOUT,
                 creationflags=DETACHED, env=env, cwd=str(HERE))
             (HERE / "train_pid.json").write_text(
                 json.dumps({"pid": proc.pid}), encoding="utf-8")
-            self._json({"ok": True, "pid": proc.pid})
+            self._json({"ok": True, "pid": proc.pid, "mode": mode})
             return
         if u.path == "/api/train/stop":
             pid = self._train_pid()
