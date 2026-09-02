@@ -2,7 +2,7 @@
 status: active
 version_context: "sugarScan lib/domain/models"
 tags: [sync, anti-pattern]
-aliases: [모르는 값 치환, orElse 기본값, silent-normalization]
+aliases: [모르는 값 치환, orElse 기본값, silent-normalization, fromWireName, orElse, firstWhere, MeasurementTag, ReadingSource, measurement_tag.dart]
 created: 2026-09-02
 confidence: 4
 ---

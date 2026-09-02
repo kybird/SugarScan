@@ -2,7 +2,7 @@
 status: draft
 version_context: "sugarScan lib/domain/models · lib/data/remote"
 tags: [sync, pattern]
-aliases: [관용 디코드, unknown 보존, additive-only]
+aliases: [관용 디코드, unknown 보존, additive-only, fromWireName, orElse, MeasurementTag, ReadingSource, GlucoseUnit]
 created: 2026-09-02
 confidence: 3
 ---

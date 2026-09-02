@@ -2,7 +2,7 @@
 status: active
 version_context: "sugarScan assets_dev/train webtool · lib/features/scan"
 tags: [geometry, concept]
-aliases: [좌표계, frame, 표시 좌표계, cross-space-comparison]
+aliases: [좌표계, frame, 표시 좌표계, cross-space-comparison, lb.ow, exif_transpose, quad, screen_boxes.jsonl, oriented]
 created: 2026-09-02
 confidence: 5
 ---

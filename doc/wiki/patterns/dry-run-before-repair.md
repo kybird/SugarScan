@@ -2,7 +2,7 @@
 status: active
 version_context: "sugarScan assets_dev/train"
 tags: [data, pattern]
-aliases: [복구 스크립트 규약, --apply, 백업 후 수정]
+aliases: [복구 스크립트 규약, --apply, 백업 후 수정, repair_prevframe_labels.py, repair_unrotated_band_labels.py]
 created: 2026-09-02
 confidence: 5
 ---

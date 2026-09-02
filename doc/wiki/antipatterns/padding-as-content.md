@@ -2,7 +2,7 @@
 status: active
 version_context: "sugarScan assets_dev/train/ctc_reader_v2.py"
 tags: [ml, anti-pattern]
-aliases: [blank 조인, 패딩 직렬화]
+aliases: [blank 조인, 패딩 직렬화, greedy_decode, NUM_CLASSES, ctc_reader_v2.py, blank]
 created: 2026-09-02
 confidence: 5
 ---

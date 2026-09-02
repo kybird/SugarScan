@@ -2,7 +2,7 @@
 status: active
 version_context: "sugarScan assets_dev/train"
 tags: [geometry, anti-pattern]
-aliases: [경계 통과를 정답으로 오인, oob 검사 과신]
+aliases: [경계 통과를 정답으로 오인, oob 검사 과신, audit_oob.py, oob, 경계 초과]
 created: 2026-09-02
 confidence: 5
 ---

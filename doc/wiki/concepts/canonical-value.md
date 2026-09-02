@@ -2,7 +2,7 @@
 status: active
 version_context: "sugarScan lib/domain · lib/data"
 tags: [data, concept]
-aliases: [정본, single-source-of-truth, value_mgdl]
+aliases: [정본, single-source-of-truth, value_mgdl, valueMgdl, enteredValue, enteredUnit, valueIn, GlucoseReading]
 created: 2026-09-02
 confidence: 5
 ---

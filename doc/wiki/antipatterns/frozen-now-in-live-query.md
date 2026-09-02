@@ -2,7 +2,7 @@
 status: active
 version_context: "Drift 2.x · flutter_riverpod 3.x"
 tags: [data, anti-pattern]
-aliases: [굳은 now, 기간 상한 고정]
+aliases: [굳은 now, 기간 상한 고정, statsReadingsProvider, watchBetween, StreamProvider, DateTime.now(), providers.dart]
 created: 2026-09-02
 confidence: 5
 ---

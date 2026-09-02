@@ -2,7 +2,7 @@
 status: active
 version_context: "sugarScan assets_dev/train"
 tags: [data, anti-pattern]
-aliases: [눈검증 없는 라벨링, 좌표만 저장]
+aliases: [눈검증 없는 라벨링, 좌표만 저장, screen_boxes.jsonl, labeled.jsonl, /api/selftest, audit_oob.py]
 created: 2026-09-02
 confidence: 5
 ---

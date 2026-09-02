@@ -2,7 +2,7 @@
 status: active
 version_context: "sugarScan assets_dev/train/webtool.{py,html}"
 tags: [tooling, pattern]
-aliases: [빌드 지문, stale-tab-detection, /api/build]
+aliases: [빌드 지문, stale-tab-detection, /api/build, _build_stamp, checkBuild, Cache-Control: no-store]
 created: 2026-09-02
 confidence: 5
 ---

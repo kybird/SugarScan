@@ -2,7 +2,7 @@
 status: active
 version_context: "OpenCV 4.11 · Pillow 12.3 · Dart package:image"
 tags: [geometry, anti-pattern]
-aliases: [EXIF 관례 불일치, cv2 vs PIL]
+aliases: [EXIF 관례 불일치, cv2 vs PIL, exif_transpose, cv2.imread, getexif, orientation, build_cache_v2, golden_bench]
 created: 2026-09-02
 confidence: 5
 ---

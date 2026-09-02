@@ -2,7 +2,7 @@
 status: active
 version_context: "Drift 2.x · flutter_riverpod 3.x"
 tags: [data, concept]
-aliases: [살아 있는 질의, Drift watch, 스트림 질의]
+aliases: [살아 있는 질의, Drift watch, 스트림 질의, StreamProvider, watchBetween, autoDispose, Drift watch()]
 created: 2026-09-02
 confidence: 5
 ---

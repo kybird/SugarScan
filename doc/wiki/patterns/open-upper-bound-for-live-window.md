@@ -2,7 +2,7 @@
 status: active
 version_context: "Drift 2.x · flutter_riverpod 3.x"
 tags: [data, pattern]
-aliases: [열린 상한, 기간 질의]
+aliases: [열린 상한, 기간 질의, statsReadingsProvider, watchBetween, refreshStatsProvider]
 created: 2026-09-02
 confidence: 5
 ---

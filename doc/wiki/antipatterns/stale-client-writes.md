@@ -2,7 +2,7 @@
 status: active
 version_context: "sugarScan assets_dev/train/webtool"
 tags: [tooling, anti-pattern]
-aliases: [낡은 탭 쓰기, stale build]
+aliases: [낡은 탭 쓰기, stale build, Cache-Control, no-store, webtool.html, /api/build]
 created: 2026-09-02
 confidence: 5
 ---

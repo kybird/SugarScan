@@ -2,7 +2,7 @@
 status: active
 version_context: "sugarScan lib/ocr"
 tags: [architecture, anti-pattern]
-aliases: [좁은 try, 계약보다 좁은 방어]
+aliases: [좁은 try, 계약보다 좁은 방어, GlucoseScanner.offer, _recognizeSafely, glucose_scanner.dart]
 created: 2026-09-02
 confidence: 5
 ---

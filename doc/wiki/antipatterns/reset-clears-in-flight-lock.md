@@ -2,7 +2,7 @@
 status: active
 version_context: "sugarScan lib/ocr/src/pipeline"
 tags: [concurrency, anti-pattern]
-aliases: [reset 이 잠금을 푸는 것, _busy = false]
+aliases: [reset 이 잠금을 푸는 것, _busy = false, FrameThrottler, frame_throttler.dart, _busy, reset(), isBusy]
 created: 2026-09-02
 confidence: 5
 ---

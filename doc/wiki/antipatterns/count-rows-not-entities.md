@@ -2,7 +2,7 @@
 status: active
 version_context: "sugarScan lib/app/providers.dart"
 tags: [ux, anti-pattern]
-aliases: [대기 n건 오표시, 큐 행 세기]
+aliases: [대기 n건 오표시, 큐 행 세기, pendingSyncCountProvider, syncMaxAttemptsProvider, syncOutboxRows, blockedCount, providers.dart]
 created: 2026-09-02
 confidence: 5
 ---

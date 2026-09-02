@@ -2,7 +2,7 @@
 status: active
 version_context: "sugarScan assets_dev/train/webtool.py"
 tags: [integrity, pattern]
-aliases: [저장 검문, 쓰기 검증, 409 거부]
+aliases: [저장 검문, 쓰기 검증, 409 거부, _verify_frame, /api/label, webtool.py, 409]
 created: 2026-09-02
 confidence: 5
 ---

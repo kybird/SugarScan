@@ -2,7 +2,7 @@
 status: active
 version_context: "sugarScan lib/data/remote · supabase/migrations"
 tags: [sync, concept]
-aliases: [스키마 진화, 버전 공존, forward-compatibility, additive-only-wire-schema]
+aliases: [스키마 진화, 버전 공존, forward-compatibility, additive-only-wire-schema, fromWireName, wireName, ReadingDto, MeasurementTag, ReadingSource]
 created: 2026-09-02
 confidence: 4
 ---

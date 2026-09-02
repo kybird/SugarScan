@@ -2,7 +2,7 @@
 status: active
 version_context: "sugarScan lib/data/sync"
 tags: [sync, anti-pattern]
-aliases: [독행, 배치 단위 관용, 행 하나가 전체를 막음]
+aliases: [독행, 배치 단위 관용, 행 하나가 전체를 막음, ReadingDto.fromJson, _pull, syncOnce, fetchUpdatedSince, reading_dto.dart]
 created: 2026-09-02
 confidence: 5
 ---

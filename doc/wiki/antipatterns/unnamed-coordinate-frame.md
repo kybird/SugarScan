@@ -2,7 +2,7 @@
 status: active
 version_context: "sugarScan assets_dev/train · lib/features/scan"
 tags: [geometry, anti-pattern]
-aliases: [이름 없는 좌표계, 프레임 미기록]
+aliases: [이름 없는 좌표계, 프레임 미기록, lb.ow, lb.frameId, applyImage, screen_boxes.jsonl, labeled.jsonl]
 created: 2026-09-02
 confidence: 5
 ---

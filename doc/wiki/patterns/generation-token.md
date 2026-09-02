@@ -2,7 +2,7 @@
 status: active
 version_context: "sugarScan webtool.html · lib/ocr"
 tags: [concurrency, pattern]
-aliases: [세대 토큰, 세션 토큰, stale-response-guard, lb.gen]
+aliases: [세대 토큰, 세션 토큰, stale-response-guard, lb.gen, _session, GlucoseScanner.offer, show()]
 created: 2026-09-02
 confidence: 5
 ---

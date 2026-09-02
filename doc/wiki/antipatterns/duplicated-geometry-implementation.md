@@ -2,7 +2,7 @@
 status: active
 version_context: "sugarScan lib/features/scan/photo_preprocessor.dart"
 tags: [geometry, anti-pattern]
-aliases: [좌표 변환 중복, 워프 두 벌]
+aliases: [좌표 변환 중복, 워프 두 벌, warpQuadToRect, warpQuadToEngineFrame, _warpQuad, photo_preprocessor.dart, _homography]
 created: 2026-09-02
 confidence: 5
 ---

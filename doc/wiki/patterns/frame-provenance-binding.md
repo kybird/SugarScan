@@ -2,7 +2,7 @@
 status: active
 version_context: "sugarScan assets_dev/train/webtool.html"
 tags: [geometry, pattern]
-aliases: [프레임 이름표, frame-id-binding, 좌표계 귀속]
+aliases: [프레임 이름표, frame-id-binding, 좌표계 귀속, applyImage, frameGuard, lb.frameId, webtool.html]
 created: 2026-09-02
 confidence: 5
 ---

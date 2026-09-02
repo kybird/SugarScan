@@ -2,7 +2,7 @@
 status: active
 version_context: "sugarScan lib/data/sync"
 tags: [sync, pattern]
-aliases: [행 단위 관용, poison-row 방어, ReadingPage]
+aliases: [행 단위 관용, poison-row 방어, ReadingPage, fetchUpdatedSince, fetchedRows, malformed, ReadingDto.fromJson]
 created: 2026-09-02
 confidence: 5
 ---

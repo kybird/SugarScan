@@ -2,7 +2,7 @@
 status: active
 version_context: "sugarScan lib/data/sync/sync_engine.dart"
 tags: [sync, pattern]
-aliases: [커서 홀드백, delta cursor]
+aliases: [커서 홀드백, delta cursor, SyncCursorStore, _pull, _apply, updated_at, skippedFrom]
 created: 2026-09-02
 confidence: 5
 ---

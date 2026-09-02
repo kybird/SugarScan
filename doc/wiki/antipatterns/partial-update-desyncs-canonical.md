@@ -2,7 +2,7 @@
 status: active
 version_context: "sugarScan lib/data/repositories"
 tags: [data, anti-pattern]
-aliases: [부분 수정, 정본 미갱신]
+aliases: [부분 수정, 정본 미갱신, GlucoseRepository.update, valueMgdl, enteredValue, Value.absent, glucose_repository.dart]
 created: 2026-09-02
 confidence: 5
 ---
