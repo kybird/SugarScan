@@ -83,6 +83,11 @@ W11 실기기 검증(2026-08-21): 서버에 26건을 넣어 pull 로 그래프�
 | 2026-09-02 | **통계 화면을 한 번 연 뒤 저장한 기록이 통계에서 사라짐** | `statsReadingsProvider` 가 기간 질의의 위쪽 경계를 구독 시점 `now` 로 굳혔다(autoDispose 아님) | 위 경계를 열고 화면 진입 시 재계산. `test/app/stats_window_test.dart` (`5ed3f06`) |
 | 2026-09-02 | `update(value:)` 만 부르면 `enteredValue` 와 정본 `valueMgdl` 이 갈라짐 | 둘 다 있을 때만 `valueMgdl` 을 갱신했다 | 빠진 쪽을 저장된 행에서 채워 항상 정본 재계산. `glucose_repository_edit_test.dart` (`5ed3f06`) |
 | 2026-09-02 | `GlucoseScanner.offer()` 가 예외를 흘릴 수 있었다 (계약 위반) | `try` 가 엔진 호출만 감쌌다 — 정규화·검증·안정화는 밖에 있었다 | 경계를 메서드 전체로 + 세션 토큰(stop 뒤 늦게 온 프레임이 옛 단위로 확정하지 않게). `test/ocr/glucose_scanner_contract_test.dart` (`5ed3f06`) |
+| 2026-09-02 | **서버 행 하나가 해석 안 되면 pull 이 영구히 막힘** | `ReadingDto` 가 던지면 `_pull` 이 통째로 실패하고 커서가 전혀 전진하지 않았다. 새 앱이 모르는 enum wireName 을 쓰면 구버전 앱은 영영 못 받는다 | 해석 못 한 행은 버리고 `SyncReport.malformed` 로 센다. 페이지 경계·offset·커서는 **서버가 돌려준 행 수** 기준으로 바꿨다(`ReadingPage`). (`d7042da`) |
+| 2026-09-02 | pending 이라 건너뛴 서버 변경이 영영 다시 안 옴 | 건너뛴 행 너머로 커서가 전진했다. push 가 한도에 닿아 막히면 복구 경로가 없다 | 커서를 그 행 앞에 세운다(`gte` 라 다시 받는다). 해석 못 한 행은 **반대로** 넘긴다 (`d7042da`) |
+| 2026-09-02 | "대기 3건"인데 실제로 올라가는 건 1건 | `pendingSyncCount` 가 기록이 아니라 아웃박스 행을 셌고, 막힌 행까지 포함했다 | `distinct entity_id` + 한도 미만만. 한도는 `syncMaxAttemptsProvider` 로 엔진과 공유 (`d7042da`) |
+| 2026-09-02 | 추론 두 개가 겹쳐 돌 수 있었다 | `FrameThrottler.reset()` 이 진행 중인 작업의 잠금을 강제로 내렸다 | 통계만 되돌린다. 잠금은 그 작업이 `finally` 에서 푼다 (`d7042da`) |
+| 2026-09-02 | `warpQuadToRect` 주석이 하지 않는 일을 한다고 적혀 있었다 | 원근 펴기 구현이 두 벌로 중복돼 한쪽 주석만 낡았다 | `_warpQuad` 한 벌로 접고, "대비를 걸지 않는다"를 테스트로 고정 (`d7042da`) |
 
 ### 테스트가 잘못된 이유로 통과하던 종류
 
