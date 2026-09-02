@@ -197,328 +197,6 @@ flutter test     → All tests passed! (NNN tests)
 
 ## 4. 작업 목록
 
-### G1 — 쓰이지 않는 l10n 키 정리
-
-**상태**: 완료 (2026-08-21)
-
-> 브랜치 `glm/G1-unused-l10n` · 코드 커밋 `cc8d02f` · main 병합 `96fac33`
-> 결과: 지정 4키 삭제, en/ko 각 99키 동일 확인. 보고서 → [reports/G1-unused-l10n-keys.md](reports/G1-unused-l10n-keys.md)
-
-`lib/l10n/app_en.arb` / `app_ko.arb` 에 코드에서 참조되지 않는 키가 남아 있다.
-W1 스캐폴드 시절에 만들어 놓고 실제 화면이 다른 키를 쓰게 된 것들이다.
-
-지울 대상 — **아래 넷만**:
-
-| 키 | 비고 |
-|---|---|
-| `unitLabel` | 단위 표기는 `GlucoseUnit.symbol` 을 직접 쓴다 |
-| `unitMgdl` | 위와 같음 |
-| `unitMmoll` | 위와 같음 |
-| `actionRetry` | 동기화 배너는 `syncRetry` 를 쓴다 |
-
-**`readingRestored` 는 지우지 말 것.** 미사용으로 잡히지만 G2 에서 쓴다.
-
-할 일:
-1. 두 ARB 파일에서 해당 키를 지운다. `@키` 메타데이터가 있으면 함께 지운다
-   (지금은 넷 다 메타데이터가 없다).
-2. `flutter gen-l10n` 을 돌린다.
-3. `flutter analyze`, `flutter test` 통과 확인.
-
-완료 기준: 위 넷이 두 ARB 와 생성 코드에서 사라지고, 남은 키 수가 en/ko 동일.
-
-**보고서**: `docs/reports/G1-unused-l10n-keys.md`
-
----
-
-### G2 — 삭제 되돌리기에 확인 문구 붙이기
-
-**상태**: 완료 (2026-08-21)
-
-> 브랜치 `glm/G2-restore-confirmation` · 코드 커밋 `01d12b8` · main 병합 `96fac33`
-> 결과: 실행 취소 시 `readingRestored` 확인 스낵바 + 삭제→되돌리기 위젯 테스트.
-> 보고서 → [reports/G2-restore-confirmation.md](reports/G2-restore-confirmation.md)
-
-`lib/features/history/history_screen.dart` 에서 기록을 스와이프로 삭제하면
-스낵바에 "실행 취소" 가 뜬다. 그런데 **되돌린 뒤에는 아무 반응이 없다.**
-목록은 바뀌지만 사용자는 눌린 게 맞는지 확신하지 못한다.
-
-문구는 이미 있다: `readingRestored` (en `Reading restored`, ko `기록을 되살렸습니다`).
-
-할 일:
-1. `_delete` 안의 `SnackBarAction.onPressed` 에서 `repository.restore(...)` 를
-   `await` 한 뒤 `readingRestored` 스낵바를 띄운다.
-2. 위젯 테스트를 추가한다 — 삭제 → 실행 취소 → 기록이 목록에 돌아오고 확인
-   문구가 뜬다.
-
-주의:
-- `onPressed` 는 동기 콜백이다. `async` 로 바꿀 때 `BuildContext` 를 await 너머로
-  들고 가지 말 것. `ScaffoldMessenger` 를 미리 잡아 두는 방식은 같은 파일의
-  `_edit` 에 이미 쓰여 있으니 그대로 따를 것.
-- 되살리기가 아웃박스를 거치는 동작은 그대로 둘 것.
-
-완료 기준: 실행 취소를 누르면 기록이 돌아오고 확인 스낵바가 뜬다. 테스트 통과.
-
-**보고서**: `docs/reports/G2-restore-confirmation.md`
-
----
-
-### G3 — 기록 목록에 메모 표시
-
-**상태**: 완료 (2026-08-21)
-
-> 브랜치 `glm/G3-note-in-list` · 코드 커밋 `a3e2121` · main 병합 `96fac33`
-> 결과: 부제 아래 메모 한 줄(없으면 높이 불변), 아이콘·색 없음.
-> 보고서 → [reports/G3-note-in-list.md](reports/G3-note-in-list.md)
-
-기록에 메모를 남길 수 있는데(`GlucoseReading.note`) **목록에서는 안 보인다.**
-편집 시트를 열어야만 확인할 수 있어서, 메모를 남겨도 다시 찾아보기 어렵다.
-
-대상: `lib/features/shared/reading_tile.dart`
-
-할 일:
-1. `note` 가 있으면 기존 부제(시각 · 태그 · 출처) 아래에 한 줄로 보여 준다.
-2. 길면 한 줄로 자른다(`maxLines: 1`, `overflow: TextOverflow.ellipsis`).
-3. `note` 가 없으면 아무것도 그리지 않는다. 빈 줄을 남기지 말 것.
-4. 위젯 테스트 추가 — 메모 있음 / 없음 두 경우.
-
-주의:
-- 이 타일은 판정하지 않는다. 메모에 아이콘이나 색을 붙여 강조하지 말 것.
-- 값·시각·태그·출처의 기존 배치를 바꾸지 말 것. 메모 한 줄만 추가한다.
-
-완료 기준: 메모가 있는 기록에서 목록에 메모가 보이고, 없는 기록의 높이가 지금과
-같다. 테스트 통과.
-
-**보고서**: `docs/reports/G3-note-in-list.md`
-
----
-
-### G4 — 죽은 TODO 주석 정리
-
-**상태**: 완료 (2026-08-21)
-
-> 브랜치 `glm/G4-dead-todo` · 코드 커밋 `52fd501` · main 병합 `96fac33`
-> 결과: 25줄 주석만 삭제, `flutter build apk --debug` 성공으로 검증.
-> 보고서 → [reports/G4-dead-todo.md](reports/G4-dead-todo.md)
-
-`android/app/build.gradle.kts` 에 Flutter 템플릿이 남긴 TODO 두 개가 있다.
-하나는 이미 해결됐고 하나는 아직 유효하다.
-
-| 줄 | 내용 | 처리 |
-|---|---|---|
-| 25 | `TODO: Specify your own unique Application ID` | **지운다** — `com.kybirdlabs.sugarscan` 으로 확정됨 |
-| 39 | `TODO: Add your own signing config for the release build` | **남긴다** — 아직 안 했다 |
-
-할 일: 25번 줄 주석만 지운다. 그 아래 `applicationId` 는 손대지 말 것.
-
-주의: 이 파일의 다른 값(`compileSdk`, `minSdk`, desugaring)은 §2.6 대상이다.
-건드리면 빌드가 깨진다.
-
-완료 기준: 주석 한 줄만 사라지고 `flutter build apk --debug` 가 그대로 성공.
-(빌드를 돌릴 수 없는 환경이면 `flutter analyze` 만 하고 보고서에 적을 것.)
-
-**보고서**: `docs/reports/G4-dead-todo.md`
-
----
-
-### G5 — 라이선스 문서의 "확인 필요" 채우기
-
-**상태**: 완료 (2026-08-21)
-
-> 브랜치 `glm/G5-license-audit` · 코드 커밋 `75b6302` · main 병합 `96fac33`
-> 결과: 7개 저장소 LICENSE 직접 확인해 표 갱신. CRAFT 는 연구용 한정 조항
-> 없음(순수 MIT). EasyOCR **가중치**만 공식 명시가 없어 "확인 실패 — Jaided AI
-> 문의 필요"로 잔여. 보고서 → [reports/G5-license-audit.md](reports/G5-license-audit.md)
-
-`docs/LICENSES.md` 는 초안이다. 표의 여러 항목이 "확인 필요" 로 남아 있다.
-**코드를 고치는 작업이 아니라 조사 작업이다.**
-
-할 일: 아래 각 프로젝트의 저장소에서 **LICENSE 파일을 직접 열어** 확인하고 표를
-채운다.
-
-- JaidedAI/EasyOCR — 특히 **학습된 가중치**의 라이선스가 코드와 같은지
-- clovaai/CRAFT-pytorch — 연구용 한정 조항이 있는지
-- clovaai/deep-text-recognition-benchmark
-- microsoft/onnxruntime
-- tflite_flutter 가 끌어오는 TensorFlow Lite
-- scottmudge/SegoDec
-- suyashkumar/seven-segment-ocr
-
-각 항목에 **확인한 URL과 확인 날짜**를 함께 적을 것. "Apache-2.0 인 것 같다"
-같은 추정은 적지 말고, 확인이 안 되면 "확인 실패 — 이유" 로 남길 것.
-
-주의:
-- 라이선스는 법적 문제다. **추측해서 채우지 말 것.** 모르면 모른다고 적는 편이
-  훨씬 낫다.
-- 문서만 고친다. 코드나 의존성은 건드리지 않는다.
-
-완료 기준: 표의 "확인 필요" 가 확인된 값 또는 "확인 실패 — 이유" 로 바뀌고,
-각 행에 출처 URL 과 날짜가 있다.
-
-**보고서**: `docs/reports/G5-license-audit.md`
-
----
-
-### G6 — 접근성 라벨 (스크린리더)
-
-**상태**: 완료 (2026-08-21)
-
-> 브랜치 `glm/G6-accessibility-labels` · 코드 커밋 `cc4d32a` · main 병합 `96fac33`
-> 결과: 기록 타일·통계 요약 카드에 Semantics 라벨(기존 l10n 조각으로만 구성,
-> 판정어 없음, 차트 미수정). 보고서 → [reports/G6-accessibility-labels.md](reports/G6-accessibility-labels.md)
-
-앱 전체에 `Semantics` 사용이 **0건**이다. 스크린리더 사용자에게 대시보드의
-기록이 "137" 처럼 숫자만 읽히고, 단위·시각·태그가 따로 읽히거나 안 읽힌다.
-혈당 앱에서 단위가 안 읽히는 것은 그냥 불편한 정도가 아니다.
-
-대상: `lib/features/shared/reading_tile.dart`, `lib/features/stats/stats_screen.dart`
-
-할 일:
-1. 기록 타일에 `Semantics(label: ...)` 로 "137 mg/dL, 3월 14일 오전 10시 30분,
-   공복, 직접 입력" 처럼 한 문장으로 읽히게 한다. 안쪽 개별 `Text` 는
-   `excludeSemantics` 로 중복 낭독을 막는다.
-2. 통계 화면의 요약 카드에도 라벨을 붙인다("평균 102 mg/dL" 등).
-3. 차트에는 손대지 말 것. 별도 작업이다.
-
-주의:
-- 라벨은 화면에 보이는 것과 **같은 내용**이어야 한다. 여기서 "정상 범위" 같은
-  말을 덧붙이면 §2.4 위반이다.
-- 문구는 반드시 l10n 을 거친다. 하드코딩하지 말 것. 새 키가 필요하면 en/ko 둘 다
-  추가한다.
-
-완료 기준: 두 화면의 주요 요소에 라벨이 붙고, 테스트가 통과한다.
-
-**보고서**: `docs/reports/G6-accessibility-labels.md`
-
----
-
-### G7 — 사용자에게 예외 원문을 보여 주지 않기
-
-**상태**: 완료 (2026-08-21)
-
-> 브랜치 `glm/G7-error-message` · 코드 커밋 `4d62001` · main 병합 `96fac33`
-> 결과: `readingsLoadFailed` 추가, 원문은 debugPrint 로만 남김,
-> `Text('$error` 검색 0건. 보고서 → [reports/G7-error-message-localization.md](reports/G7-error-message-localization.md)
-
-앱 전체에서 번역되지 않은 문자열이 딱 두 군데 있는데, 둘 다 같은 문제다.
-
-| 파일 | 줄 |
-|---|---|
-| `lib/features/dashboard/dashboard_screen.dart` | `child: Text('$error')` |
-| `lib/features/history/history_screen.dart` | `child: Text('$error', ...)` |
-
-기록을 못 읽었을 때 **Dart 예외 객체를 그대로 화면에 뿌린다.** 번역이 안 되는
-것은 물론이고, 사용자에게 `SqliteException(11): database disk image is
-malformed` 같은 문장이 보인다. 사용자가 할 수 있는 일이 없는 문구다.
-
-할 일:
-1. l10n 키를 하나 추가한다(en/ko 둘 다). 예: `readingsLoadFailed`
-   - en: `Couldn't load your readings.`
-   - ko: `기록을 불러오지 못했습니다.`
-2. 두 화면에서 `Text('$error')` 를 그 문구로 바꾼다.
-3. 예외 원문은 **버리지 말고** `debugPrint` 로 남긴다. 진단 정보가 사라지면
-   나중에 이 오류를 추적할 방법이 없다.
-4. 두 화면의 오류 상태 위젯 테스트를 추가한다.
-
-주의:
-- 원인이나 조치를 추측해 적지 말 것("네트워크를 확인하세요" 등). 이 경로는
-  로컬 DB 읽기 실패이고 네트워크와 무관하다.
-- 기록이 **0건인 상태**와 **읽기 실패**는 다른 화면이다. 지금 있는 빈 상태
-  (`historyEmpty`)를 재사용해 둘을 뭉개지 말 것.
-
-완료 기준: 두 화면에서 예외 원문이 사라지고, 로그에는 남는다. 테스트 통과.
-`grep -rn "Text('\$error" lib/` 결과가 0건.
-
-**보고서**: `docs/reports/G7-error-message-localization.md`
-
----
-
-### G8 — 지원 언어 4개 추가 (es · pt · de · fr)
-
-**상태**: 완료 (2026-08-21)
-
-> 브랜치 `glm/G8-locales-es-pt-de-fr` · 코드 커밋 `44d4f74`(+영어 폴백 `359a5b7`) · main 병합 `96fac33`
-> 결과: 4개 언어 각 100키(en/ko 와 일치, 플레이스홀더 보존), supportedLocales 6개.
-> 의료 문구 21개는 DeepL 역번역 교차검증 84/84 의미 보존·판정어 0건
-> ([reports/G8-backtranslate-input.md](reports/G8-backtranslate-input.md)).
-> 미지원 언어 폴백은 사용자 결정으로 영어 구현(`resolveAppLocale`).
-> 보고서 → [reports/G8-locales-es-pt-de-fr.md](reports/G8-locales-es-pt-de-fr.md)
-
-지금은 영어와 한국어뿐이다(`app_en.arb`, `app_ko.arb`, 키 100개 — G1 이 4개를
-지우고 G7 이 하나를 더한 뒤의 수다). 아래 넷을
-추가한다. 시장 규모로 고른 것이고 규제·배포 범위와는 무관한 결정이다.
-
-| 파일 | 언어 | 주요 시장 |
-|---|---|---|
-| `app_es.arb` | 스페인어 | 멕시코(당뇨 인구 7위) · 중남미 · 스페인 |
-| `app_pt.arb` | 포르투갈어(브라질 어투) | 브라질(당뇨 6위, Play 매출도 상위) |
-| `app_de.arb` | 독일어 | 독일 · 오스트리아 · 스위스 |
-| `app_fr.arb` | 프랑스어 | 프랑스 · 벨기에 · 스위스 · 퀘벡 |
-
-**작업을 두 단계로 나눈다. 한 번에 끝내려 하지 말 것.**
-
-#### 1단계 — 일반 문구 번역
-
-`app_en.arb` 를 원본으로 삼아 4개 파일을 만든다.
-
-- `@@locale` 을 각 언어 코드로 설정한다.
-- `@키` 메타데이터는 **번역본에 넣지 않는다.** 원본(`app_en.arb`)에만 둔다.
-  `app_ko.arb` 가 이미 그렇게 되어 있으니 그 형태를 따를 것.
-- `appTitle` 은 `SugarScan` 그대로 둔다. 제품명은 번역하지 않는다.
-- 플레이스홀더(`{count}`, `{days}`, `{range}`, `{unit}`, `{email}` 등)를 **그대로
-  유지**한다. 이름을 번역하거나 순서를 바꾸면 생성이 실패한다.
-- 단위 기호 `mg/dL`, `mmol/L` 은 번역하지 않는다.
-
-#### 2단계 — 의료 문구는 역번역을 붙여 보고만 한다
-
-아래 **21개 키**는 잘못 번역되면 앱이 판정하는 것처럼 읽히거나 의미가 뒤집힌다.
-번역은 하되, **보고서에 원문·번역문·한국어 역번역을 나란히 표로 적을 것.**
-사람이 검토한 뒤에 병합한다.
-
-```
-medicalDisclaimer      statsInRange           statsInRangeNote
-settingsTargetNote     settingsUnitNote       targetObservation
-targetObservationNote  targetPreMeal          targetPreMealNote
-targetTight            targetTightNote        onboardingUnitTitle
-onboardingUnitBody     onboardingUnitWarning  editUnitWarning
-meterShowsHigh         meterShowsLow          ea1cLabel
-ea1cEstimateBadge      ea1cInsufficientData   invalidValueRange
-```
-
-번역할 때 반드시 지킬 것:
-
-- **"정상 / 비정상 / 안전 / 위험 / 좋음 / 나쁨" 을 쓰지 말 것.** 원문이 서술로만
-  쓰여 있다. `statsInRange` 는 "목표 범위 안"이지 "정상 범위"가 아니다.
-  언어에 따라 자연스러운 표현이 곧 판정어인 경우가 있으니 주의할 것.
-- `statsInRangeNote` 의 요지는 **"시간이 아니라 건수"** 다. 이 대비가 사라지면
-  CGM 의 TIR 과 혼동되어 임상적으로 다른 의미가 된다.
-- `editUnitWarning` 의 요지는 **"변환이 아니라 재해석"** 이다. "convert" 로
-  번역하면 뜻이 정반대가 된다.
-- `medicalDisclaimer` 는 법적 문구다. 의역하지 말고 직역에 가깝게.
-- `ea1cLabel`/`ea1cEstimateBadge` 는 **추정치**임이 드러나야 한다. 실제 검사값과
-  같은 말로 옮기면 안 된다.
-- `meterShowsHigh`/`meterShowsLow` 는 혈당계 화면의 `HI`/`LO` 표시를 가리킨다.
-  높다/낮다는 뜻이 아니라 **측정 범위를 벗어났다**는 뜻이다.
-
-#### 마무리
-
-1. `flutter gen-l10n` 을 돌린다. 생성된 `supportedLocales` 에 6개가 들어가야 한다.
-2. `flutter analyze`, `flutter test` 통과 확인.
-3. 각 언어로 앱을 띄워 **글자 넘침**을 확인한다. 독일어는 영어보다 30% 가까이
-   길어져서 버튼과 칩이 자주 깨진다. 확인할 수 없으면 보고서에 적을 것.
-
-주의:
-- **키를 추가하거나 지우지 말 것.** 이 작업은 번역만 한다.
-- 번역이 애매한 키는 **비워 두지 말고** 영어 원문을 그대로 넣은 뒤 보고서에
-  "미번역" 으로 적을 것. 키가 빠지면 그 언어에서 런타임에 영어로 떨어지는데,
-  어디가 빠졌는지 추적이 안 된다.
-
-완료 기준: 4개 파일이 생기고 en/ko 와 키 수(100)가 같다. 생성·분석·테스트 통과.
-보고서에 의료 문구 21개의 역번역 표가 있다.
-
-**보고서**: `docs/reports/G8-locales-es-pt-de-fr.md`
-
----
-
 ### G9 — 6개 언어 글자 넘침 점검
 
 **상태**: 대기
@@ -698,18 +376,19 @@ G1·G7·G8·G11 이 전부 같은 종류의 실수를 손으로 막고 있다 �
 
 ---
 
-### G14 — 테스트 없는 화면 셋 채우기
+### G14 — 테스트 없는 화면 넷 채우기
 
 **상태**: 대기
 
 위젯 테스트가 있는 화면은 대시보드·기록·통계·편집 시트·기록 타일뿐이다.
-아래 셋은 하나도 없다.
+아래 넷은 하나도 없다.
 
 | 화면 | 최소한 고정할 것 |
 |---|---|
 | `features/settings/settings_screen.dart` | 단위 변경 시 경고가 뜬다 · 목표 범위 선택이 저장된다 · 서버 미설정 빌드에서 동기화 영역이 숨는다 |
 | `features/scan/manual_entry_sheet.dart` | 범위 밖 값이 저장되지 않는다 · 쉼표 입력(`7,6`)이 받아들여진다 · 태그 선택이 반영된다 |
 | `features/scan/confirm_sheet.dart` | 인식값이 그대로 보인다 · 고치면 `adjustedByUser` 가 선다 · **확인 없이는 저장되지 않는다** |
+| `features/sync/sync_status_banner.dart` | 막힘이 대기·로그아웃보다 먼저 뜬다 · 서버 미설정 빌드에서 배너가 숨는다 · "다시 시도"가 `retrySyncProvider` 를 부른다 |
 
 주의
 - 화면 테스트는 `databaseProvider` 를 `AppDatabase(NativeDatabase.memory())` 로
@@ -721,76 +400,63 @@ G1·G7·G8·G11 이 전부 같은 종류의 실수를 손으로 막고 있다 �
 - 확인 시트의 "저장 전 사용자 확인 1탭" 은 UX 취향이 아니라 안전·규제 요구다.
   이걸 검증하는 테스트를 반드시 넣을 것.
 
-완료 기준: 세 화면에 테스트가 생기고 위 표의 항목이 전부 고정된다. 전체 통과.
+완료 기준: 네 화면에 테스트가 생기고 위 표의 항목이 전부 고정된다. 전체 통과.
+
+> 동기화 배너는 판정 로직 자체(`syncStatusProvider`)가 이미
+> `test/app/sync_status_test.dart` 로 고정돼 있다. **여기서 볼 것은 그 판정이
+> 화면에 어떻게 나타나는가**다. 판정 로직을 다시 검증하지 말 것.
 
 **보고서**: `docs/reports/G14-untested-screens.md`
 
 ---
 
-### G15 — 셀 단위 판독 벤치 전량 실행
+### G21 — 위키 안티패턴 체크리스트로 `lib/` 전수 점검 (**보고만** 한다)
 
-**상태**: 완료 (2026-08-22)
+**상태**: 대기 · 독립. 아무 때나
 
-> 브랜치 `glm/G15-cell-bench` · 보고서 커밋 `a9a8259` (코드 변경 0줄)
-> 결과: 전량 41,990장 30초. 치명적 오독 8.71% · 표시 없음 값 생성 86/1992(4.32%)
-> · blank 39.71%. 재실행 판정 수치 완전 일치(p95 지연만 측정 오차).
-> 보고서 → [reports/G15-cell-bench-run.md](reports/G15-cell-bench-run.md)
+2026-09-02 에 안티패턴 15장을 만들었다([`doc/wiki/antipatterns/`](../doc/wiki/antipatterns/)).
+전부 **이 저장소에서 실제로 터진 것**이고, 각 페이지에 점검 체크리스트가 붙어 있다.
+지금 아는 것은 "그 자리에서 터졌다"뿐이고, **같은 모양이 다른 곳에도 있는지는 아무도
+안 봤다.**
 
-하네스는 만들어져 있다([`tools/ocr_bench/`](../tools/ocr_bench/README.md)).
-**돌려서 표를 채우는 것이 이 작업의 전부다.** 41,990장이라 시간이 걸리는 것 말고는
-기계적이다.
+**이 작업은 고치는 작업이 아니라 목록을 만드는 작업이다.** 코드를 한 줄도 바꾸지
+않는다. 다음 사이클의 작업 목록을 만드는 것이 산출물이다.
 
-데이터는 이미 `assets_dev/upstream/` 에 받아 두었다(Apache-2.0). 없으면:
+점검할 안티패턴과 찾는 신호:
 
-```bash
-git clone --depth 1 https://github.com/Kazuhito00/7segment-display-reader.git \
-  assets_dev/upstream/7segment-display-reader
-```
-
-할 일
-
-1. **전량 실행.** 시간이 걸리므로 중간에 끊지 말 것.
-   ```bash
-   dart run tools/ocr_bench/bin/cell_bench.dart \
-     --dataset assets_dev/upstream/7segment-display-reader/01.dataset \
-     --dump-failures 100 \
-     --out docs/reports/G15-cell-bench-result.md
-   ```
-2. **걸린 시간(벽시계)을 잰다.** 나중에 CI 에 넣을지 판단할 근거가 된다.
-3. **같은 명령을 한 번 더 돌려 숫자가 완전히 같은지 확인한다.** 다르면 어딘가에
-   순서 의존이나 난수가 있다는 뜻이라 **멈추고 보고할 것.**
-4. 참고용 간격 표본도 함께 남긴다 — `--limit 100` 으로 한 번 더 돌려 전량 결과와
-   나란히 적는다. 두 숫자가 크게 다르면 표본 크기가 부족하다는 뜻이다.
-5. 보고서에 **실행 환경**을 적는다: `dart --version`, OS, CPU.
-
-**절대 하지 말 것**
-
-- **OCR 코드를 한 줄도 고치지 말 것.** `lib/ocr/` 전체가 §5 대상이다.
-  숫자가 나쁘게 나오는 것이 **이 작업의 결과물**이지 고칠 버그가 아니다.
-  임계값(`SegmentSampler.onRatio`, `maxHammingDistance`)을 만지면 무엇을 재고
-  있었는지가 사라진다.
-- **하네스도 고치지 말 것.** import 를 바꾸면 `dart run` 으로 안 돈다
-  (README 의 마지막 절 참조).
-- 결과를 요약하거나 좋게 정리하지 말 것. **출력을 그대로 붙인다.**
-
-**보고서에 반드시 답할 것** — 표만 붙이고 끝내지 말 것:
-
-| 질문 | 왜 묻나 |
+| 안티패턴 | `lib/` 에서 찾을 것 |
 |---|---|
-| 꺼진 화면(`11`)에서 숫자를 몇 건 만들어 냈나 | 재지도 않은 값이 기록될 수 있다. **가장 나쁜 결과다** |
-| 치명적 오독률은 몇 %인가 | 미판독과 절대 합치지 말 것 |
-| 가장 못 읽는 숫자 셋은 무엇인가 | 튜닝의 출발점이 된다 |
-| `2`↔`5` 가 서로 섞여 나오나 | 섞이면 비트 순서 문제다(최상위부터 `A B C D E F G`) |
-| `blank`(`0000000`)로 떨어진 비율 | 이진화가 아무것도 못 잡았다는 뜻이다 |
+| `frozen-now-in-live-query` | `StreamProvider`/`FutureProvider` 안에서 `DateTime.now()` 를 질의 **경계**로 쓰는 곳. 상한이면 위험, 하한이면 기록 |
+| `partial-update-desyncs-canonical` | 선택적 인자를 받아 일부만 갱신하는 저장소 메서드. 파생값(정본)이 **모든 입력이 있을 때만** 계산되는 곳 |
+| `contract-guard-too-narrow` | 문서에 "던지지 않는다 / 실패하지 않는다"고 적힌 메서드인데 `try` 가 일부만 감싸는 곳 |
+| `reset-clears-in-flight-lock` | `reset()`/`clear()`/`dispose()` 가 진행 중인 작업의 잠금·플래그를 내리는 곳 |
+| `count-rows-not-entities` | 사용자에게 보이는 개수가 행 수인지 엔티티 수인지 |
+| `duplicated-geometry-implementation` | 같은 좌표 변환·이미지 처리가 두 곳 이상에 복사된 곳 |
+| `tolerance-without-preservation` | `firstWhere(..., orElse: ...)` 로 모르는 값을 기본값으로 바꾸는 곳. 그 값이 **직렬화 경로로 되돌아 나가는지**까지 볼 것 |
+| `poison-row-blocks-pipeline` | 목록을 순회하며 역직렬화하는데 `try` 가 **항목 단위가 아니라 전체**를 감싸는 곳 |
 
-완료 기준: 전량 리포트가 `docs/reports/G15-cell-bench-result.md` 에 있고, 위 다섯
-질문에 답이 있으며, 두 번 돌린 결과가 같음이 확인된다. **코드 변경 0줄.**
+할 일:
+1. 각 체크리스트를 `lib/` 전체에 적용한다. `lib/l10n/generated/` 와 `*.g.dart` 는 제외.
+2. 발견마다 **파일:줄 · 어느 안티패턴 · 왜 그렇게 판단했는지 한 줄 · 지금 터지는가**
+   를 적는다. "지금 터지는가"는 셋 중 하나로: `터짐` / `조건부`(어떤 조건인지) /
+   `함정만`(현재 호출부가 우연히 안전).
+3. **아무것도 고치지 않는다.** `flutter analyze`·`flutter test` 는 손대지 않았으니
+   당연히 그대로 통과해야 한다 — 통과 확인만 한다.
 
-**보고서**: `docs/reports/G15-cell-bench-run.md`
+주의:
+- **없는 것을 찾아내려고 억지로 끼워 맞추지 말 것.** 해당 없음이 정답인 항목이
+  대부분일 것이다. 0건이면 0건이라고 적는다.
+- 판단이 애매하면 `조건부` 로 적고 **왜 애매한지**를 쓴다. 혼자 결론 내지 말 것.
+- 이미 알려진 자리(오늘 고친 곳)는 세지 않는다. `doc/wiki/antipatterns/*.md` 의
+  Grounding 에 적힌 파일이 그 목록이다.
+
+완료 기준: 8개 안티패턴 전부에 대해 "몇 건, 어디" 가 표로 나온다. 코드 변경 0줄.
+
+**보고서**: `docs/reports/G21-antipattern-sweep.md`
 
 ---
 
-## 4.1 OCR 작업군 (G16~G19) — 예외적으로 위임한다
+## 4.1 OCR 작업군 (G17~G20) — 예외적으로 위임한다
 
 **원래 §5 는 "OCR 관련 전부"를 위임 대상에서 뺐다.** 값을 잘못 읽는 방향의 버그가
 나오는 영역이라서다. 아래 넷은 그 예외인데, 조건이 붙어 있다.
@@ -808,97 +474,78 @@ GLM 은 정하지 말고 그대로 옮기기만 하면 된다. 그리고 **판�
 **장면 단위(여러 자릿수가 있는 화면 한 장) 데이터가 세상에 없어서** 그렇다.
 그래서 만든다.
 
-순서가 있다: **G16 → G17 → G19.** G18 은 독립이라 아무 때나.
+순서: **G20 → G17 → G19.** G18 은 독립이라 아무 때나.
+(G15·G16 은 완료 → [`DONE.md`](DONE.md))
+
+**G20 이 맨 앞인 이유**: 학습 데이터의 좌표계를 바로잡는 작업이다. 이걸 건너뛰고
+벤치를 돌리면 **옆으로 누운 이미지로 잰 숫자**가 나오고, 그 숫자를 기준선이라고
+믿는 순간 뒤 작업이 전부 그 위에 쌓인다.
 
 ---
 
-### G16 — 장면 단위 합성 데이터 생성기
+### G20 — EXIF 로더 통일 (학습·검출·벤치 3곳)
 
-**상태**: 완료 (2026-08-23)
+**상태**: 대기 · **G17~G19 보다 먼저 할 것**
 
-> 브랜치 `glm/G16-scene-synth` · 커밋 `88e5ef6` (`lib/` 변경 0줄)
-> 결과: `tools/synth7seg/bin/synth.dart`. 같은 시드 바이트 동일 확인,
-> 눈 검증 20/20(소수점 미렌더 버그를 이 검증에서 발견·수정).
-> 기본 2000장 `assets_dev/synth` 생성(HI/LO 7.8%·반사 14.2%·극성 반반).
-> 보고서 → [reports/G16-scene-synth.md](reports/G16-scene-synth.md)
+라벨러와 검수는 2026-09-02 에 통일했지만 **학습 캐시·검출·벤치는 아직 EXIF 를
+처리하지 않는다.** Datumo 원본의 **83.5%(2,098/2,512)가 orientation=6** 이라,
+지금 상태로 GM 파인튜닝을 돌리면 **옆으로 누운 이미지에 올바른 좌표를 물린다.**
 
-`tools/synth7seg/bin/synth.dart` 를 새로 만든다. **`lib/` 는 건드리지 않는다.**
+배경은 [`doc/wiki/antipatterns/mixed-image-decode-conventions.md`](../doc/wiki/antipatterns/mixed-image-decode-conventions.md)
+와 [`doc/raw/2026-09-02.md`](../doc/raw/2026-09-02.md) Case 1 에 있다. **먼저 읽을 것.**
 
-Dart 로 쓴다(Python 포크가 아니다). `image: ^4.9.2` 가 이미 의존성에 있고, 세그먼트는
-사각형 7개라 그리는 데 라이브러리가 더 필요 없다. 새 패키지를 추가하지 말 것.
+좌표 정본은 **표시(EXIF 적용) 이미지의 원본 픽셀**이다. 세 곳을 거기에 맞춘다.
 
-#### 출력
-
-```
-assets_dev/synth/
-  images/000001.png …
-  labels.jsonl
-```
-
-`labels.jsonl` 한 줄의 형식 — **이 키 이름을 그대로 쓸 것**(계획서 §2.6 형식):
-
-```json
-{"file":"000001.png","value":"137","unit":"mgdl","digits":3,
- "margin":0.12,"rotation":-3.5,"perspective":0.02,"contrast":140,
- "blur":0.4,"glare":false}
-```
-
-`value` 는 **화면에 보이는 문자열 그대로**다. `HI`/`LO` 인 경우 그 문자열을 넣고
-`unit` 은 그대로 둔다.
-
-#### 그릴 것
-
-7-세그먼트 글리프는 `lib/ocr/src/engines/segment_rule/segment_patterns.dart` 의
-`kDigitPatterns` / `kLetterPatterns` 를 **그대로 읽어서** 쓴다. 비트가 켜진
-세그먼트만 그린다. **표를 손으로 옮겨 적지 말 것** — 두 벌이 되면 언젠가 갈라진다.
-
-세그먼트 위치는 `SegmentGeometry.standard` 를 참고하되, 생성기는 **판독기와 독립적이어야
-한다.** 판독기의 기하를 그대로 쓰면 "자기가 그린 걸 자기가 읽는" 시험이 되어
-아무것도 검증하지 못한다. 생성기는 일반적인 7-세그먼트 비율로 **따로** 그린다.
-
-#### 변화 축과 범위 — 이 숫자를 그대로 쓸 것
-
-| 축 | 범위 | 왜 |
+| 파일 | 지금 | 고칠 것 |
 |---|---|---|
-| 자릿수 | 3 또는 4 | 혈당계 표시 자릿수 |
-| 값 | mg/dL 20~600 정수 / mmol/L 1.1~33.3 (소수 1자리) | 검증기 범위 |
-| `HI`/`LO` | 전체의 **8%** | 세상 어느 데이터셋에도 없다. 반드시 넣는다 |
-| 여백(margin) | 표시 둘레 **0~25%** | ROI 가 베젤·여백을 포함하는 상황 |
-| 회전 | **−8° ~ +8°** | 손으로 들고 찍는 각도 |
-| 원근 | 네 모서리를 폭의 **0~6%** 만큼 흔든다 | 비스듬히 본 화면 |
-| 대비 | 전경·배경 휘도 차 **30~200** | 30 근처가 저대비 LCD |
-| 흐림 | 가우시안 **0~1.5px** | |
-| 반사 | **15%** 확률로 밝은 타원 하나 | |
-| 극성 | 어두운 글자/밝은 배경과 그 반대를 **반반** | 반사형 LCD 와 백라이트 |
+| `assets_dev/train/build_cache_v2.py` (약 96행) | `Image.open(p)` → PIL 이라 **EXIF 무시** | `pil = ImageOps.exif_transpose(pil)` 를 `convert("RGB")` **앞에** |
+| `assets_dev/train/detect_datumo_gm.py` (약 37·41행) | `cv2.imread`(적용) + `Image.open` 폴백(무시) **혼재** | 둘 다 PIL + `exif_transpose` 로 통일 |
+| `tools/ocr_bench/bin/golden_bench.dart` | `package:image` 의 `decodeImage` 는 **방향을 굽지 않는다** | 벤치가 바이트를 넘기기 전에 `img.bakeOrientation()` 후 재인코딩 |
 
-**시드를 받는다**(`--seed`, 기본 0). 같은 시드는 같은 데이터를 낳아야 한다.
-재현이 안 되면 벤치 결과를 비교할 수 없다.
+Dart 쪽 정확한 모양:
 
-#### 인자
-
-```
---out <디렉터리>   기본 assets_dev/synth
---count N          생성 장수, 기본 2000
---seed N           기본 0
+```dart
+final raw = file.readAsBytesSync();
+final decoded = img.decodeImage(raw);
+if (decoded == null) { /* 기존 undecodable 경로 그대로 */ }
+final bytes = img.encodePng(img.bakeOrientation(decoded));
+// 이 bytes 를 warpQuadToEngineFrame / preprocessPhotoForEngine / detectReadingQuad 에 넘긴다
 ```
 
-#### 완료 기준
+**절대 하지 말 것**
+- **`lib/` 를 건드리지 말 것.** 디코드는 `lib/features/scan/photo_preprocessor.dart`
+  안에서 일어나지만, 거기를 바꾸면 **앱의 사진 불러오기 동작이 바뀐다.** 그건 사람이
+  정할 일이다(아래 "남길 것"). 벤치가 **자기 쪽에서** 방향을 구워 넘기는 것으로 끝낸다.
+- 캐시 파일 이름 규칙을 바꾸지 말 것. 대신 **기존 캐시를 지우고 다시 만든다** —
+  옛 캐시는 방향이 섞여 있다.
+- `webtool.py` 는 이미 통일돼 있다. 손대지 말 것.
 
-- `dart run tools/synth7seg/bin/synth.dart --count 50` 이 50장 + 50줄을 만든다
-- 같은 시드로 두 번 돌리면 **파일 바이트가 동일**하다(확인하고 보고서에 적을 것)
-- 눈으로 20장을 열어 라벨과 화면이 일치하는지 확인한다. **하나라도 어긋나면 멈출 것**
-- `flutter analyze` 무경고
+검증 (**전부 하고 결과를 보고서에 적을 것**)
+1. `build_cache_v2.py` 재실행 후, 생성물에서 **표본 10장을 PNG 로 떨어뜨려 눈으로**
+   본다. 숫자가 똑바로 서 있어야 한다. 옆으로 누운 것이 하나라도 있으면 실패다.
+2. `detect_datumo_gm.py` 재실행 후 검출 쿼드를 **표시 이미지 위에 그려** 표본 10장을
+   확인한다. 유리에 붙어야 한다.
+3. `golden_bench` 를 EXIF 처리 **전/후로 각각 한 번씩** 돌려 수치를 나란히 적는다.
+   숫자가 좋아지든 나빠지든 **그대로 적는다** — 이 작업의 목적은 점수 개선이 아니라
+   좌표계를 맞추는 것이다.
+4. `flutter analyze` · `flutter test` 통과(Dart 쪽을 건드렸으므로).
 
-**주의**: `assets_dev/` 는 gitignore 되어 있다. **생성된 이미지를 커밋하지 말 것.**
-커밋하는 것은 생성기 코드뿐이다.
+**남길 것 (고치지 말고 보고서에 적는다)**
+`lib/features/scan/photo_preprocessor.dart` 의 사진 불러오기 경로가 EXIF 를
+처리하지 않는다. 안드로이드 image_picker 는 방향을 정규화하지 않는 경우가 있어,
+사용자가 세로로 찍은 사진이 누운 채로 들어올 수 있다. **앱 동작을 바꾸는 결정이라
+사람 몫이다.** 재현되는지만 확인해서 적어 둘 것(재현 방법 포함).
 
-**보고서**: `docs/reports/G16-scene-synth.md`
+완료 기준: 세 파일이 표시 좌표계로 통일되고, 위 검증 4개의 결과가 보고서에 숫자로
+남는다. `lib/` 변경 0줄.
+
+**보고서**: `docs/reports/G20-exif-loader-unification.md`
 
 ---
 
 ### G17 — 장면 단위 벤치와 기준선 측정
 
-**상태**: 대기 · **G16 뒤에 할 것**
+**상태**: 대기 · **G20 뒤에 할 것**(G16 은 완료)
 
 `tools/ocr_bench/bin/scene_bench.dart` 를 만든다. G15 의 셀 벤치와 달리
 **`SegmentRuleEngine.recognize()` 를 통째로 태운다** — 품질 게이트, 이진화,
@@ -1041,7 +688,7 @@ G15 가 찾은 것: `0`→`H` 683건, `8`→`H` 555건. 전부 **A(위 가로)�
   쓴다. 기능 변화는 없지만 diff 가 거대해져 `git blame` 이 통째로 밀린다.
   할지 말지, 한다면 언제 할지를 먼저 정해야 한다.
 - **OCR 관련 전부** — 값을 잘못 읽는 방향의 버그가 나오는 영역이다.
-  - **§4.1(G16~G19)이 예외다.** 판단을 지시서 안에 미리 박아 넣고(숫자·규칙 명시),
+  - **§4.1(G17~G20)이 예외다.** 판단을 지시서 안에 미리 박아 넣고(숫자·규칙 명시),
     판독 동작을 바꾸는 것은 플래그 뒤에 기본값 꺼짐으로 두는 조건으로 위임했다.
     **플래그를 켜는 결정과 임계값·기하를 정하는 것은 여전히 사람 몫이다.**
 - **동기화 엔진** — `test/data/sync_engine_test.dart` 가 고정한 판단들이

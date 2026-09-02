@@ -45,7 +45,7 @@ W11 실기기 검증(2026-08-21): 서버에 26건을 넣어 pull 로 그래프�
 
 지시서 [`GLM_TASKS.md`](GLM_TASKS.md) · 작업별 상세 [`reports/`](reports/) ·
 정본 되먹임 [§15 G1~G8](IMPLEMENTATION_PLAN.md).
-전부 2026-08-21 완료, main 병합 `96fac33`.
+G1~G8 은 2026-08-21 완료, main 병합 `96fac33`. G15·G16 은 날짜를 표에 적었다.
 
 | 작업 | 결과 | 커밋 | 보고서 |
 |---|---|---|---|
@@ -57,9 +57,14 @@ W11 실기기 검증(2026-08-21): 서버에 26건을 넣어 pull 로 그래프�
 | G6 | 기록 타일·통계 카드에 `Semantics` 라벨 | `cc4d32a` | [G6](reports/G6-accessibility-labels.md) |
 | G7 | 예외 원문 노출 제거 → `readingsLoadFailed` | `4d62001` | [G7](reports/G7-error-message-localization.md) |
 | G8 | es·pt·de·fr 4개 언어 추가 | `44d4f74` | [G8](reports/G8-locales-es-pt-de-fr.md) |
+| G15 | 셀 벤치 전량 41,990장 실행 (2026-08-22) | `a9a8259` | [G15](reports/G15-cell-bench-run.md) |
+| G16 | 장면 단위 합성 생성기 `tools/synth7seg` (2026-08-23) | `88e5ef6` | [G16](reports/G16-scene-synth.md) |
 
 의료 문구 21개 × 4개 언어는 DeepL 역번역 교차검증으로 **의미 보존 84/84,
 판정어 0건**을 확인했다 → [G8 역번역 표](reports/G8-backtranslate-input.md).
+
+G15 가 남긴 숫자가 이후 OCR 작업의 기준선이다 — 치명적 오독 8.71%,
+"표시 없음" 값 생성 4.32%. G19(셀 정규화 A/B)가 이 수치를 상대로 잰다.
 
 ---
 
