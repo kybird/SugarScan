@@ -11,6 +11,8 @@
 작업을 시작하기 전에 **§1~§3 을 먼저 끝까지 읽을 것.** 이 저장소에는 겉보기에는
 사소해 보이지만 고치면 조용히 데이터가 깨지는 자리가 여럿 있다.
 
+넘길 때 붙여넣는 지시어는 [`GLM_PROMPT.md`](GLM_PROMPT.md) 에 있다.
+
 ---
 
 ## 1. 이 프로젝트가 무엇인가
@@ -511,6 +513,21 @@ if (decoded == null) { /* 기존 undecodable 경로 그대로 */ }
 final bytes = img.encodePng(img.bakeOrientation(decoded));
 // 이 bytes 를 warpQuadToEngineFrame / preprocessPhotoForEngine / detectReadingQuad 에 넘긴다
 ```
+
+**환경과 실행**
+
+Python 쪽은 conda 환경 `sugartrain` 에서 돈다.
+
+```bash
+conda run -n sugartrain python assets_dev/train/build_cache_v2.py
+conda run -n sugartrain python assets_dev/train/detect_datumo_gm.py
+dart run tools/ocr_bench/bin/golden_bench.dart --labels <labels.jsonl> --root <이미지 루트> --out <리포트.md>
+```
+
+> **`detect_datumo_gm.py` 는 실행이 막힐 수 있다.** `torch` 와 저장소 밖의 YOLOX
+> 체크아웃(`sys.path.insert(0, "D:/tmp/YOLOX")`)이 필요하다. 없으면 **코드 수정만
+> 하고 실행 검증은 "막힘"으로 보고할 것.** 없는 환경을 만들려고 하지 말고,
+> 검증을 건너뛰고 통과했다고 적지도 말 것 — 그게 이 작업에서 가장 나쁜 결과다.
 
 **절대 하지 말 것**
 - **`lib/` 를 건드리지 말 것.** 디코드는 `lib/features/scan/photo_preprocessor.dart`
