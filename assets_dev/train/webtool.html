@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SugarScan 작업대</title>
+<style>
+:root {
+  --bg: #14161a; --panel: #1d2026; --panel2: #242830; --line: #343a46;
+  --fg: #d8dde6; --dim: #8b93a3; --acc: #4da3ff; --warn: #ffb84d;
+  --ok: #58d68d; --bad: #ff6b6b; --box: #ffd23f;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font: 14px/1.5 "Segoe UI", "Malgun Gothic", sans-serif;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+header {
+  display: flex; align-items: center; gap: 18px;
+  padding: 8px 16px; background: var(--panel); border-bottom: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+header .title { font-weight: 700; letter-spacing: .3px; }
+header .title small { color: var(--dim); font-weight: 400; margin-left: 8px; }
+nav { display: flex; gap: 6px; }
+nav button {
+  background: var(--panel2); color: var(--fg); border: 1px solid var(--line);
+  padding: 6px 18px; border-radius: 6px; cursor: pointer; font-size: 14px;
+}
+nav button.active { background: var(--acc); border-color: var(--acc); color: #06121f; font-weight: 700; }
+main { flex: 1 1 auto; min-height: 0; display: flex; }
+.tabpage { display: none; flex: 1; min-width: 0; min-height: 0; flex-direction: column; }
+.tabpage.active { display: flex; }
+
+/* ---------- 라벨러 ---------- */
+#labelbar {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 6px 14px; background: var(--panel); border-bottom: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+#labelbar select {
+  background: var(--panel2); color: var(--fg); border: 1px solid var(--line);
+  border-radius: 5px; padding: 4px 8px; font-size: 14px;
+}
+#labelbar .stat { color: var(--dim); }
+#labelbar .stat b { color: var(--fg); }
+#btn-restore {
+  background: var(--panel2); color: var(--fg); border: 1px solid var(--line);
+  border-radius: 5px; padding: 4px 12px; font-size: 13px; cursor: pointer;
+}
+#btn-restore:hover { background: var(--panel); border-color: var(--acc); }
+#btn-rect, #btn-selftest {
+  background: var(--panel2); color: var(--fg); border: 1px solid var(--line);
+  border-radius: 5px; padding: 4px 12px; font-size: 13px; cursor: pointer;
+}
+#btn-rect:hover, #btn-selftest:hover { background: var(--panel); border-color: var(--acc); }
+#buildstamp.stale { color: var(--bad); font-weight: 700; }
+#stview {
+  display: none; position: absolute; inset: 0; z-index: 40;
+  background: rgba(8,9,12,.96); padding: 18px 22px; overflow: auto;
+  font: 13px/1.6 Consolas, monospace; white-space: pre-wrap;
+}
+#stview .pass { color: var(--ok); }
+#stview .fail { color: var(--bad); font-weight: 700; }
+#stview h3 { color: var(--fg); margin: 10px 0 4px; }
+#gtwrap {
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 6px;
+  padding: 3px 12px; font-size: 15px;
+}
+#gtwrap b { font-size: 19px; color: var(--warn); font-family: Consolas, monospace; }
+#gtpred { color: var(--dim); font-size: 12px; margin-left: 8px; }
+#gtfixed { color: var(--bad); font-size: 12px; margin-left: 6px; }
+#keys { margin-left: auto; color: var(--dim); font-size: 12px; }
+#cvbox { flex: 1; min-height: 0; position: relative; background: #0c0d10; }
+#cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#toast {
+  position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%);
+  background: #000c; color: #fff; padding: 7px 16px; border-radius: 6px;
+  font-size: 13px; opacity: 0; transition: opacity .25s; pointer-events: none;
+}
+#loading {
+  position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+  color: var(--fg); font-size: 16px; background: #0c0d10d8;
+  flex-direction: column; gap: 10px; z-index: 5;
+}
+#loading .spin { font-size: 42px; animation: spin 1.1s linear infinite; }
+#loading .sub { font-size: 12px; color: var(--dim); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- 모니터/훈련 공통 ---------- */
+.scroll { flex: 1; min-height: 0; overflow: auto; padding: 14px 18px; }
+.statusline {
+  padding: 8px 18px; background: var(--panel); border-bottom: 1px solid var(--line);
+  flex: 0 0 auto; display: flex; gap: 22px; align-items: center; flex-wrap: wrap;
+}
+.pill { padding: 2px 12px; border-radius: 20px; font-size: 13px; border: 1px solid var(--line); }
+.pill.run { color: var(--ok); border-color: var(--ok); }
+.pill.stop { color: var(--dim); }
+h2 { font-size: 16px; margin: 4px 0 10px; color: var(--fg); }
+h3 { font-size: 14px; margin: 18px 0 8px; color: var(--dim); font-weight: 600; }
+svg text { fill: var(--dim); font-size: 11px; }
+table { border-collapse: collapse; width: 100%; max-width: 760px; font-size: 13px; }
+th, td { border: 1px solid var(--line); padding: 3px 10px; text-align: left; }
+th { background: var(--panel2); color: var(--dim); position: sticky; top: 0; }
+td.mono, th.mono { font-family: Consolas, monospace; }
+tr.hit td { color: var(--ok); }
+tr.miss td.mono { color: var(--bad); }
+.summary { font-size: 15px; margin: 6px 0 12px; }
+.summary b.ok { color: var(--ok); font-size: 19px; }
+
+/* 훈련 탭 */
+.cards { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
+.card {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  padding: 10px; width: 330px;
+}
+.card h4 { margin: 0 0 6px; font-size: 13px; color: var(--fg); }
+.card p { margin: 4px 0 0; font-size: 12px; color: var(--dim); }
+.card img { width: 100%; border-radius: 4px; background: #000; }
+.trainctl {
+  display: flex; gap: 12px; align-items: center; margin: 14px 0 8px; flex-wrap: wrap;
+}
+.trainctl button {
+  padding: 8px 26px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--panel2); color: var(--fg); font-size: 14px; cursor: pointer;
+}
+#btn-start { background: #1e4d2b; border-color: #2e7d4f; }
+#btn-start:hover { background: #276338; }
+#btn-start:disabled { opacity: .45; cursor: default; }
+#btn-stop { background: #5d1f1f; border-color: #8a3030; }
+#btn-stop:hover { background: #732626; }
+#logtail {
+  background: #0a0b0d; border: 1px solid var(--line); border-radius: 6px;
+  padding: 10px 12px; font: 12px/1.45 Consolas, monospace; color: #9fd0a0;
+  white-space: pre-wrap; word-break: break-all; max-height: 340px; overflow: auto;
+}
+.note { color: var(--dim); font-size: 12px; margin-top: 8px; }
+.note code { color: var(--acc); }
+</style>
+</head>
+<body>
+<header>
+  <div class="title">SugarScan 작업대<small>로컬 전용 · 127.0.0.1:8777</small><small id="buildstamp" title="이 탭이 돌리고 있는 webtool.html 지문">build -</small></div>
+  <nav>
+    <button class="tab active" data-tab="labeler">라벨러</button>
+    <button class="tab" data-tab="monitor">모니터</button>
+    <button class="tab" data-tab="train">훈련</button>
+  </nav>
+</header>
+<main>
+
+<!-- ================= 라벨러 ================= -->
+<section id="tab-labeler" class="tabpage active">
+  <div id="labelbar">
+    <label>모드
+      <select id="mode">
+        <option value="band">밴드 (labeled.jsonl)</option>
+        <option value="lcd">LCD 화면 (screen_boxes.jsonl)</option>
+      </select>
+    </label>
+    <span class="stat" id="box-meaning"></span>
+    <span class="stat">라벨 <b id="cnt-labeled">-</b> · 스킵 <b id="cnt-skipped">-</b> · 남음 <b id="cnt-remain">-</b></span>
+    <span class="stat">파일 <b id="cur-id" style="color:#4da3ff;font-family:Consolas,monospace;font-size:15px">-</b></span>
+    <span class="stat" id="pos">-</span>
+    <button id="btn-restore" title="박스를 열었을 때의 값(저장 라벨→모델 예측)으로 되돌림">↺ 박스 복원 (R)</button>
+    <button id="btn-rect" title="라벨 박스 안에서 유리 사각형을 찾아 원근를 편 결과를 현재 방식(박스 스트레치)과 나란히 비교">⤢ 펼치기 검수 (E)</button>
+    <button id="btn-selftest" title="캔버스 좌표계·저장 좌표계·서버 라벨 파일을 한 번에 대조">✓ 좌표 자가검증 (T)</button>
+    <span id="gtwrap">GT <b id="gt">-</b><span id="gtfixed"></span><a id="gt-revert" href="#" style="display:none;color:var(--bad);font-size:12px;margin-left:6px">원복</a><span id="gtpred"></span></span>
+    <span id="keys">Space 저장·다음 | Backspace 이전 | R 박스복원 | D 스킵 | G GT수정 | E 펼치기 검수 | T 자가검증 | 드래그 이동·신규 / 모서리 리사이즈 | 방향키 이동(+Shift 크기) | 휠 줌 | 우클릭 드래그 pan</span>
+  </div>
+  <div id="cvbox">
+    <canvas id="cv"></canvas>
+    <div id="loading"><div class="spin">◐</div><div>이미지 준비 중…<div class="sub">처음 열어보는 장은 12MP 처리로 수 초 걸립니다 — 이후 장은 빠릅니다</div></div></div>
+    <div id="toast"></div>
+    <div id="stview"></div>
+    <div id="rectview" style="display:none;position:absolute;inset:0;z-index:30;background:rgba(8,9,12,.94);flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:14px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span id="rv-cap" style="color:#cfd6e4;font-size:13px">-</span>
+        <button id="rv-close">닫기 (E / Esc)</button>
+      </div>
+      <img id="rv-img" alt="펼치기 미리보기" style="max-width:97%;max-height:85%;object-fit:contain;border:1px solid #333;background:#000">
+      <div style="color:#8b93a3;font-size:12px">좌상=원본 박스+검출 쿼드(초록선이 유리에 붙는지로 신뢰 판정) · 좌하=현재 방식(2:1·각도 왜곡됨) · 우측=4방향 펼치기 · <b style="color:#ffd23f">1~4=방향 선택·저장</b> · Backspace/Space 장 이동</div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 모니터 ================= -->
+<section id="tab-monitor" class="tabpage">
+  <div class="statusline" id="mon-status">상태 로딩…</div>
+  <div class="scroll">
+    <h2>CTC 학습 loss 궤적</h2>
+    <div id="loss-chart"></div>
+    <h3>hold-out 판독 (eval_reader.py · 미라벨 Datumo)</h3>
+    <div id="pred-summary" class="summary">-</div>
+    <table id="pred-table"></table>
+    <div class="note" id="pred-note"></div>
+  </div>
+</section>
+
+<!-- ================= 훈련 ================= -->
+<section id="tab-train" class="tabpage">
+  <div class="scroll">
+    <h2>학습 데이터 검토</h2>
+    <div class="cards">
+      <div class="card">
+        <h4>합성 LCD 화면 (synth 23k)</h4>
+        <img src="/img/synth_screens/sample_combo.png" alt="합성 표본">
+        <p>렌더러 v2 — 광택·비네팅·회전·폭 지터. 라벨은 GT 값 그대로.</p>
+      </div>
+      <div class="card">
+        <h4>실사진 rect 240장 (파인튜닝)</h4>
+        <img src="/img/finetune_rects_sheet.png" alt="실사진 rect">
+        <p>라벨 304장 중 GM 쿼드 있는 240장 — 화면 전체를 320×160으로 워프.</p>
+      </div>
+      <div class="card">
+        <h4>글자 크롭 표본 (glyph_data)</h4>
+        <img src="/img/glyph_sheet.png" alt="글자 크롭">
+        <p>성분분할 자동라벨 산출물(참고용 — CTC 경로에는 미사용).</p>
+      </div>
+    </div>
+    <div class="trainctl">
+      <button id="btn-start">▶ 학습 시작 (ctc_reader_v2)</button>
+      <button id="btn-stop">■ 중지</button>
+      <span class="stat" id="train-status">-</span>
+    </div>
+    <div id="logtail"></div>
+    <div class="note">
+      학습 완료 후 <code>conda run -n sugartrain python eval_reader.py</code> 로 hold-out(미라벨) 평가 —
+      결과는 모니터 탭에 표시. 학습 로그: ctc_train_gpu.log · 에폭별 CSV: training_log.csv
+    </div>
+  </div>
+</section>
+
+</main>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  return r.json();
+}
+function post(path, body) {
+  return api(path, { method: "POST", headers: { "Content-Type": "application/json" },
+                     body: JSON.stringify(body || {}) });
+}
+function fmtPct(x) { return (100 * x).toFixed(1) + "%"; }
+
+/* ================= 탭 전환 ================= */
+let activeTab = "labeler";
+document.querySelectorAll("nav .tab").forEach(btn => {
+  btn.addEventListener("click", () => {
+    activeTab = btn.dataset.tab;
+    document.querySelectorAll("nav .tab").forEach(b => b.classList.toggle("active", b === btn));
+    document.querySelectorAll(".tabpage").forEach(p =>
+      p.classList.toggle("active", p.id === "tab-" + activeTab));
+    if (activeTab === "monitor") { pollMonitor(); loadPreds(); }
+    if (activeTab === "train") pollTrain();
+    // 숨어 있는 동안은 rect 가 0 이라 그리기를 건너뛴다 — 돌아오면 다시 맞춘다.
+    if (activeTab === "labeler") { fitView(); draw(); }
+  });
+});
+
+/* ================= 라벨러 ================= */
+const MODES = {
+  band: { labelKind: "band", flag: "band", name: "밴드",
+          meaning: "이 모드의 박스 = 숫자줄+단위 (시간줄·배터리 제외, 단위 없는 기기는 숫자만)" },
+  lcd:  { labelKind: "gm",   flag: "lcd",  name: "LCD",
+          meaning: "이 모드의 박스 = LCD 화면 전체 (숫자+단위+시간줄 포함) — 모델이 못 찾은 장(파란 박스 없음)부터 표시" },
+};
+const IMG_W = 1920;
+const lb = {
+  meta: null, labels: {}, quads: {}, mode: "band",
+  idx: -1, box: null, img: null, ow: 0, oh: 0,
+  // 좌표계에 이름표를 붙인다. lb.ow/lb.oh 가 '어느 장의' 표시 크기인지 모르면
+  // 한 장 밀린 프레임으로 그린 박스를 그대로 저장하게 된다(2026-09-02 사고).
+  frameId: null,
+  gen: 0,          // show() 세대 — 늦게 도착한 onload 가 새 장의 좌표계를 덮지 못하게
+  s: 1, ox: 0, oy: 0, fitS: 1, dpr: 1, cssW: 0, cssH: 0,
+  build: null,     // 서버가 알려준 webtool.html 지문 — 낡은 탭 감지용
+  drag: null, imgCache: new Map(),
+};
+const cv = $("cv"), ctx = cv.getContext("2d");
+window.__lb = lb;  // 콘솔/검증용 — 라벨러 상태 접근
+
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg; t.style.opacity = 1;
+  clearTimeout(t._h);
+  t._h = setTimeout(() => { t.style.opacity = 0; }, 1800);
+}
+
+function curItem() { return lb.meta ? lb.meta.items[lb.idx] : null; }
+function isLabeled(it) { return it && it[MODES[lb.mode].flag]; }
+
+async function boot() {
+  lb.meta = await api("/api/meta");
+  const saved = localStorage.getItem("lbmode");
+  if (saved && MODES[saved]) lb.mode = saved;
+  $("mode").value = lb.mode;
+  await loadMode(lb.mode);
+  lb.idx = lb.meta.items.findIndex(it => !isLabeled(it));
+  if (lb.idx < 0) lb.idx = 0;
+  show(lb.idx);
+}
+async function loadMode(mode) {
+  lb.mode = mode;
+  const mk = MODES[mode];
+  const [lab, qd] = await Promise.all([
+    api("/api/labels?mode=" + mode),
+    api("/api/quads?kind=" + mk.labelKind),
+  ]);
+  lb.labels = lab.labels || {};
+  lb.quads = qd.quads || {};
+  // LCD 모드는 모델 미검출(예측 없음) 장을 앞에 — GM 파인튜닝 타깃 우선
+  if (mode === "lcd") {
+    lb.meta.items.sort((a, b) =>
+      (lb.quads[a.id] ? 1 : 0) - (lb.quads[b.id] ? 1 : 0) ||
+      (a.id < b.id ? -1 : 1));
+  } else {
+    lb.meta.items.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  }
+  $("box-meaning").textContent = MODES[mode].meaning;
+  updateCounts();
+}
+function updateCounts() {
+  let human = 0, skip = 0;
+  const flag = MODES[lb.mode].flag;
+  for (const it of lb.meta.items) {
+    if (!it[flag]) continue;
+    const l = lb.labels[it.id];
+    if (l && l.source === "skipped") skip++; else human++;
+  }
+  $("cnt-labeled").textContent = human;
+  $("cnt-skipped").textContent = skip;
+  $("cnt-remain").textContent = lb.meta.items.length - human - skip;
+  const it = curItem();
+  $("pos").textContent = it ? `${lb.idx + 1} / ${lb.meta.items.length}` : "-";
+  $("cur-id").textContent = it ? it.id : "-";
+}
+$("mode").addEventListener("change", async (e) => {
+  localStorage.setItem("lbmode", e.target.value);
+  await loadMode(e.target.value);
+  lb.idx = lb.meta.items.findIndex(it => !isLabeled(it));
+  if (lb.idx < 0) lb.idx = 0;
+  show(lb.idx);
+});
+
+function quadToAABB(q) {
+  const xs = q.map(p => p[0]), ys = q.map(p => p[1]);
+  return { x0: Math.min(...xs), y0: Math.min(...ys),
+           x1: Math.max(...xs), y1: Math.max(...ys) };
+}
+function aabbToQuad(b) {
+  return [[b.x0, b.y0], [b.x1, b.y0], [b.x1, b.y1], [b.x0, b.y1]];
+}
+
+async function show(idx) {
+  const gen = ++lb.gen;          // 이 호출의 세대. 늦게 오는 응답은 전부 버린다.
+  lb.idx = idx;
+  const it = curItem();
+  if (!it) return;
+  lb.box = null;
+  // 프레임이 확정되기 전에는 좌표계가 없는 상태다 — 저장도, 이전 장 그림 위에
+  // 그리는 것도 막는다. 캔버스를 비워 '앞 장 사진에 박스를 그리는' 사고를 원천 차단.
+  lb.frameId = null;
+  lb.img = null;
+  lb.ow = 0; lb.oh = 0;
+  draw();
+  const l = lb.labels[it.id];
+  if (l && l.quad) lb.box = quadToAABB(l.quad);
+  const pred = lb.quads[it.id];
+  $("gtpred").textContent = pred ? "· 모델예측 표시" : "· 모델예측 없음";
+  if (!lb.box && pred) lb.box = quadToAABB(pred);
+  $("gt").textContent = it.gt;
+  $("gtfixed").textContent = it.fixed ? "(수정됨)" : "";
+  $("gt-revert").style.display = it.fixed ? "inline" : "none";
+  updateCounts();
+  refreshRect();
+  $("loading").style.display = "flex";
+  const cached = lb.imgCache.get(it.id);
+  if (cached && cached.complete && cached.naturalWidth && cached._ow) {
+    applyImage(cached, it.id, gen);
+    prefetchNext();
+    return;
+  }
+  const url = `/api/image?id=${encodeURIComponent(it.id)}&w=${IMG_W}`;
+  let info;
+  try {
+    info = await api(url);
+  } catch (e) { info = { error: String(e) }; }
+  if (gen !== lb.gen) return;    // 그 사이 다른 장으로 넘어갔다
+  if (info.error || !info.url || !info.ow || !info.oh) {
+    $("loading").style.display = "none";
+    toast("이미지 오류: " + (info.error || "좌표계(ow/oh) 없음"));
+    return;
+  }
+  const img = new Image();
+  img._ow = info.ow; img._oh = info.oh; img._id = it.id;
+  img.onload = () => {
+    if (lb.imgCache.size > 12) lb.imgCache.clear();
+    lb.imgCache.set(it.id, img);
+    if (gen !== lb.gen) return;  // 낡은 응답 — 현재 장의 좌표계를 덮지 않는다
+    applyImage(img, it.id, gen);
+    prefetchNext();
+  };
+  img.onerror = () => {
+    if (gen !== lb.gen) return;
+    $("loading").style.display = "none"; toast("이미지 로드 실패");
+  };
+  img.src = info.url;
+}
+function prefetchNext() {
+  for (let i = lb.idx + 1; i < lb.meta.items.length; i++) {
+    if (isLabeled(lb.meta.items[i])) continue;
+    const nid = lb.meta.items[i].id;
+    if (!lb.imgCache.has(nid)) {
+      api(`/api/image?id=${encodeURIComponent(nid)}&w=${IMG_W}`)
+        .then(info => {
+          if (!info || !info.url) return;
+          if (!info.ow || !info.oh) return;   // 좌표계 없는 응답은 캐시하지 않는다
+          const im = new Image();
+          im._ow = info.ow; im._oh = info.oh; im._id = nid;
+          im.onload = () => { lb.imgCache.set(nid, im); };
+          im.src = info.url;
+        })
+        .catch(() => {});
+    }
+    return;
+  }
+}
+// 좌표계는 여기서만 만들어진다. 이미지·크기·id 셋이 항상 함께 바뀐다.
+function applyImage(img, id, gen) {
+  if (gen !== undefined && gen !== lb.gen) return;
+  if (!img._ow || !img._oh || img._id !== id) {
+    $("loading").style.display = "none";
+    toast("좌표계 미상 이미지 — 저장 차단. 장을 다시 열 것");
+    return;
+  }
+  // 서빙된 JPEG 의 종횡비가 표시 크기와 다르면 캔버스가 늘려 그리게 되고
+  // 박스가 통째로 어긋난다(예전 디스크 캐시가 실제로 그랬다).
+  const arImg = img.naturalWidth / img.naturalHeight;
+  const arFrame = img._ow / img._oh;
+  if (Math.abs(arImg - arFrame) > 0.01 * arFrame) {
+    $("loading").style.display = "none";
+    toast(`종횡비 불일치 ${img.naturalWidth}×${img.naturalHeight} vs ` +
+          `${img._ow}×${img._oh} — 저장 차단`);
+    return;
+  }
+  lb.img = img;
+  lb.ow = img._ow; lb.oh = img._oh;
+  lb.frameId = id;
+  fitView();
+  $("loading").style.display = "none";
+  draw();
+}
+
+// 저장 직전 마지막 검문 — 통과하지 못하면 파일에 아무것도 쓰지 않는다.
+function frameGuard(it) {
+  if (!lb.img || !lb.ow || !lb.oh) return "이미지 미로딩 — 저장 안 함";
+  if (lb.frameId !== it.id)
+    return `좌표계가 다른 장(${lb.frameId || "없음"})의 것 — 저장 차단. 장을 다시 열 것`;
+  // 이미지 객체가 들고 온 크기와 대조 — lb.ow 만 다른 장 값으로 밀린 경우를 잡는다.
+  if (lb.img._id !== it.id || lb.img._ow !== lb.ow || lb.img._oh !== lb.oh)
+    return `프레임 불일치 — 캔버스 ${lb.ow}×${lb.oh} vs 이미지 ` +
+           `${lb.img._ow}×${lb.img._oh}(${lb.img._id}). 저장 차단`;
+  const b = lb.box;
+  if (b && (b.x0 < -1 || b.y0 < -1 || b.x1 > lb.ow + 1 || b.y1 > lb.oh + 1))
+    return "박스가 이미지 밖 — 저장 차단";
+  return null;
+}
+
+function fitView() {
+  const r = cv.getBoundingClientRect();
+  // 탭이 숨겨져 있으면 rect 가 0 이다. 그대로 계산하면 fitS=0 → lb.s=0 이 되고
+  // evPos 가 0 으로 나눠 좌표가 Infinity 로 죽는다. 보이게 될 때 다시 맞춘다.
+  if (r.width < 2 || r.height < 2 || !lb.ow || !lb.oh) return false;
+  lb.fitS = Math.min(r.width / lb.ow, r.height / lb.oh) * 0.96;
+  lb.s = lb.fitS;
+  lb.ox = (r.width - lb.ow * lb.s) / 2;
+  lb.oy = (r.height - lb.oh * lb.s) / 2;
+  return true;
+}
+
+function resizeCanvas() {
+  // 백킹 버퍼 동기화는 draw() 안에 한 벌만 둔다 — 두 곳에서 하면 규칙이 갈린다.
+  draw();
+}
+window.addEventListener("resize", resizeCanvas);
+
+function draw() {
+  // 백킹 버퍼를 현재 CSS 크기에 강제 동기화 — 레이아웃 변화(라벨바 줄바꿈 등)로
+  // 버퍼가 낡으면 표시가 수직 압축돼 아래로 갈수록 히트 판정이 밀린다(실측 버그).
+  const rc = cv.getBoundingClientRect();
+  // 숨겨진 탭(rect 0)에서는 아무것도 손대지 않는다. 0 으로 동기화하면
+  // 아래 비율 보정이 팬 오프셋을 0 으로 밀어 버린다.
+  if (rc.width < 2 || rc.height < 2) return;
+  const dp = window.devicePixelRatio || 1;
+  const bw = Math.round(rc.width * dp), bh = Math.round(rc.height * dp);
+  if (cv.width !== bw || cv.height !== bh) {
+    // lb.ox/oy 는 CSS 픽셀 공간이다. 백킹 버퍼 비율(=CSS×dpr)로 보정하면
+    // dpr 이 바뀌기만 해도 팬 오프셋이 튄다 — CSS 크기 변화분만 따라간다.
+    const rx = lb.cssW ? rc.width / lb.cssW : 1;
+    const ry = lb.cssH ? rc.height / lb.cssH : 1;
+    cv.width = bw; cv.height = bh;
+    lb.ox *= rx; lb.oy *= ry;
+  }
+  lb.dpr = dp; lb.cssW = rc.width; lb.cssH = rc.height;
+  const k = lb.dpr;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  if (!lb.img) return;
+  ctx.setTransform(k * lb.s, 0, 0, k * lb.s, k * lb.ox, k * lb.oy);
+  ctx.imageSmoothingEnabled = lb.s < 1;
+  ctx.drawImage(lb.img, 0, 0, lb.ow, lb.oh);
+  const it = curItem();
+  const pred = it && lb.quads[it.id];
+  if (pred) {
+    ctx.strokeStyle = "#4da3ff"; ctx.lineWidth = 2 / lb.s;
+    ctx.setLineDash([8 / lb.s, 6 / lb.s]);
+    ctx.beginPath();
+    pred.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]));
+    ctx.closePath(); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  if (lb.box) {
+    const b = lb.box;
+    ctx.strokeStyle = "#ffd23f"; ctx.lineWidth = 2.5 / lb.s;
+    ctx.strokeRect(b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0);
+    // 코너 4 + 변 중점 4 — 편집기 스타일 핸들
+    const mx = (b.x0 + b.x1) / 2, my = (b.y0 + b.y1) / 2;
+    const pts = [
+      [b.x0, b.y0], [mx, b.y0], [b.x1, b.y0],
+      [b.x0, my], [b.x1, my],
+      [b.x0, b.y1], [mx, b.y1], [b.x1, b.y1],
+    ];
+    const hs = 12 / lb.s;
+    ctx.lineWidth = 1.2 / lb.s;
+    for (const [hx, hy] of pts) {
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(hx - hs / 2, hy - hs / 2, hs, hs);
+      ctx.strokeStyle = "#333";
+      ctx.strokeRect(hx - hs / 2, hy - hs / 2, hs, hs);
+    }
+  }
+  ctx.setTransform(k, 0, 0, k, 0, 0);
+  ctx.fillStyle = "#8b93a3"; ctx.font = "12px Consolas";
+  // 프레임 id 를 같이 띄운다 — '지금 그리는 좌표계가 이 장의 것인가'를
+  // 화면에서 바로 읽을 수 있어야 한다. zoom 은 fit 대비라 항상 100%로 보인다.
+  const okFrame = curItem() && lb.frameId === curItem().id;
+  ctx.fillText(
+    `zoom ${(lb.s / lb.fitS * 100).toFixed(0)}% (배율 ${lb.s.toFixed(4)} · dpr ${lb.dpr})` +
+    `  프레임 ${lb.frameId || "없음"} ${lb.ow}×${lb.oh}`, 10, 18);
+  if (!okFrame) {
+    ctx.fillStyle = "#ff6b6b";
+    ctx.fillText("좌표계 미확정 — 저장 차단 상태", 10, 34);
+  }
+}
+
+function evPos(e) {
+  const r = cv.getBoundingClientRect();
+  return { sx: e.clientX - r.left, sy: e.clientY - r.top,
+           ix: (e.clientX - r.left - lb.ox) / lb.s,
+           iy: (e.clientY - r.top - lb.oy) / lb.s };
+}
+// 편집기 방식 히트 판정: 코너 → 변(선 전체) → 내부 → 밖
+// 판정 띠는 박스 화면 크기에 비례해 캡 — 좁은 박스에서 좌우 띠가
+// 박스 전체를 덮어 커서가 ↔ 로만 뜨는 문제(실측)를 막는다.
+function hitTest(p) {
+  if (!lb.box) return { kind: "outside", cur: "crosshair" };
+  const b = lb.box;
+  const capX = Math.min(13 / lb.s, (b.x1 - b.x0) / 3);
+  const capY = Math.min(13 / lb.s, (b.y1 - b.y0) / 3);
+  const corners = [
+    ["x0", "y0", "x1", "y1", "nwse-resize"],
+    ["x1", "y0", "x0", "y1", "nesw-resize"],
+    ["x0", "y1", "x1", "y0", "nesw-resize"],
+    ["x1", "y1", "x0", "y0", "nwse-resize"],
+  ];
+  for (const [cx, cy, ax, ay, cur] of corners) {
+    if (Math.abs(p.ix - b[cx]) < capX && Math.abs(p.iy - b[cy]) < capY)
+      return { kind: "corner", ax, ay, cur };
+  }
+  const etY = Math.min(12 / lb.s, (b.y1 - b.y0) / 3);
+  const etX = Math.min(12 / lb.s, (b.x1 - b.x0) / 3);
+  if (Math.abs(p.iy - b.y0) < etY && p.ix > b.x0 && p.ix < b.x1)
+    return { kind: "edge", edge: "y0", start: { ...b }, cur: "ns-resize" };
+  if (Math.abs(p.iy - b.y1) < etY && p.ix > b.x0 && p.ix < b.x1)
+    return { kind: "edge", edge: "y1", start: { ...b }, cur: "ns-resize" };
+  if (Math.abs(p.ix - b.x0) < etX && p.iy > b.y0 && p.iy < b.y1)
+    return { kind: "edge", edge: "x0", start: { ...b }, cur: "ew-resize" };
+  if (Math.abs(p.ix - b.x1) < etX && p.iy > b.y0 && p.iy < b.y1)
+    return { kind: "edge", edge: "x1", start: { ...b }, cur: "ew-resize" };
+  if (p.ix > b.x0 && p.ix < b.x1 && p.iy > b.y0 && p.iy < b.y1)
+    return { kind: "move", cur: "move" };
+  return { kind: "outside", cur: "crosshair" };
+}
+function clampBox(b) {
+  const x0 = Math.max(0, Math.min(b.x0, lb.ow)), x1 = Math.max(0, Math.min(b.x1, lb.ow));
+  const y0 = Math.max(0, Math.min(b.y0, lb.oh)), y1 = Math.max(0, Math.min(b.y1, lb.oh));
+  return { x0: Math.min(x0, x1), y0: Math.min(y0, y1), x1: Math.max(x0, x1), y1: Math.max(y0, y1) };
+}
+
+cv.addEventListener("mousedown", (e) => {
+  if (!lb.img) return;
+  e.preventDefault();  // 드래그 중 텍스트 선택 방지
+  const p = evPos(e);
+  if (e.button === 2) {
+    lb.drag = { mode: "pan", sx: p.sx, sy: p.sy, ox: lb.ox, oy: lb.oy };
+    return;
+  }
+  if (e.button !== 0) return;
+  const h = hitTest(p);
+  if (h.kind === "corner") lb.drag = { mode: "corner", ax: lb.box[h.ax], ay: lb.box[h.ay] };
+  else if (h.kind === "edge") lb.drag = { mode: "edge", edge: h.edge, start: h.start };
+  else if (h.kind === "move") lb.drag = { mode: "move", dx: p.ix, dy: p.iy, start: { ...lb.box } };
+  else lb.drag = { mode: "create", ax: p.ix, ay: p.iy };
+});
+window.addEventListener("mousemove", (e) => {
+  const d = lb.drag;
+  const p = evPos(e);
+  if (!d) {
+    if (activeTab === "labeler" && lb.img) {
+      cv.style.cursor = hitTest(p).cur;
+    }
+    return;
+  }
+  if (d.mode === "pan") {
+    lb.ox = d.ox + (p.sx - d.sx);
+    lb.oy = d.oy + (p.sy - d.sy);
+  } else if (d.mode === "move") {
+    const b = d.start, ddx = p.ix - d.dx, ddy = p.iy - d.dy;
+    lb.box = clampBox({ x0: b.x0 + ddx, y0: b.y0 + ddy, x1: b.x1 + ddx, y1: b.y1 + ddy });
+  } else if (d.mode === "corner") {
+    // 앵커(대각 코너) 기준 — 포인터가 앵커를 넘어가면 자연히 뒤집힌다
+    const minS = 4 / lb.s;
+    let x0 = Math.min(d.ax, p.ix), x1 = Math.max(d.ax, p.ix);
+    let y0 = Math.min(d.ay, p.iy), y1 = Math.max(d.ay, p.iy);
+    if (x1 - x0 < minS) { if (p.ix >= d.ax) x1 = x0 + minS; else x0 = x1 - minS; }
+    if (y1 - y0 < minS) { if (p.iy >= d.ay) y1 = y0 + minS; else y0 = y1 - minS; }
+    lb.box = clampBox({ x0, y0, x1, y1 });
+  } else if (d.mode === "edge") {
+    const b = { ...d.start };
+    const minS = 4 / lb.s;
+    if (d.edge === "y0") b.y0 = Math.max(0, Math.min(p.iy, b.y1 - minS));
+    if (d.edge === "y1") b.y1 = Math.min(lb.oh, Math.max(p.iy, b.y0 + minS));
+    if (d.edge === "x0") b.x0 = Math.max(0, Math.min(p.ix, b.x1 - minS));
+    if (d.edge === "x1") b.x1 = Math.min(lb.ow, Math.max(p.ix, b.x0 + minS));
+    lb.box = clampBox(b);
+  } else if (d.mode === "create") {
+    lb.box = clampBox({
+      x0: Math.min(d.ax, p.ix), y0: Math.min(d.ay, p.iy),
+      x1: Math.max(d.ax, p.ix), y1: Math.max(d.ay, p.iy) });
+  }
+  draw();
+});
+window.addEventListener("mouseup", () => {
+  if (lb.drag && lb.drag.mode === "create" && lb.box) {
+    const b = lb.box;
+    if ((b.x1 - b.x0) * lb.s < 4 || (b.y1 - b.y0) * lb.s < 4) lb.box = null;
+  }
+  lb.drag = null;
+  if (activeTab === "labeler") draw();
+});
+cv.addEventListener("contextmenu", (e) => e.preventDefault());
+cv.addEventListener("wheel", (e) => {
+  if (!lb.img) return;
+  e.preventDefault();
+  const p = evPos(e);
+  const f = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+  const ns = Math.max(lb.fitS * 0.3, Math.min(lb.fitS * 40, lb.s * f));
+  lb.ox = p.sx - p.ix * ns;
+  lb.oy = p.sy - p.iy * ns;
+  lb.s = ns;
+  draw();
+}, { passive: false });
+
+// ---- 펼치기(원근 펴기) 검수 ----
+window.addEventListener("error", (e) => {
+  if (typeof toast === "function") toast("JS 오류: " + e.message);
+});
+let rectOpen = false;
+async function refreshRect() {
+  const it = curItem();
+  if (!rectOpen || !it) return;
+  $("rv-cap").textContent = "펼치기 처리 중… (12MP라 수 초) " + it.id;
+  let q = "";
+  if (lb.box) q = "&q=" + [lb.box.x0, lb.box.y0, lb.box.x1, lb.box.y1].map(v => Math.round(v)).join(",");
+  const r = await api("/api/rect?id=" + encodeURIComponent(it.id) + "&mode=" + lb.mode + q);
+  if (!rectOpen) return;
+  if (r.error) { $("rv-cap").textContent = "오류: " + r.error; return; }
+  $("rv-img").src = r.img;
+  $("rv-cap").textContent = it.id + " · GT " + it.gt +
+    (r.quad_ok ? " · 펼치기 4방향(자동 판정 " + r.upright_k + "°) — 1~4로 방향 선택·저장" : " · 쿼드 실패(박스 비율 펼침)") +
+    (r.chosen !== null && r.chosen !== undefined ? " · 선택된 방향 " + r.chosen + "°(초록 테두리)" : "") +
+    (r.oob ? " · ⚠ 라벨이 이미지 경계 초과 — 재라벨 필요" : "");
+}
+function toggleRect(force) {
+  rectOpen = (force !== undefined) ? force : !rectOpen;
+  $("rectview").style.display = rectOpen ? "flex" : "none";
+  if (rectOpen) refreshRect();
+}
+$("btn-rect").addEventListener("click", () => toggleRect());
+$("rv-close").addEventListener("click", () => toggleRect(false));
+async function chooseUpright(k) {
+  const it = curItem();
+  if (!it || !rectOpen) return;
+  const bad = frameGuard(it);
+  if (bad) { toast("저장 차단: " + bad); return; }
+  const quad = lb.box ? aabbToQuad(lb.box)
+    : (lb.labels[it.id] && lb.labels[it.id].quad);
+  if (!quad) { toast("박스가 없어 방향을 저장할 수 없음 — 박스 먼저 그릴 것"); return; }
+  const r = await post("/api/label",
+    { mode: lb.mode, id: it.id, quad, upright_k: k, source: "human",
+      ow: lb.ow, oh: lb.oh });
+  if (r.error) { toast("방향 저장 실패: " + r.error); return; }
+  lb.labels[it.id] = { quad, source: "human" };
+  it[MODES[lb.mode].flag] = true;
+  toast("방향 " + k + "° 저장: " + it.id);
+  refreshRect();
+}
+
+window.addEventListener("keydown", (e) => {
+  const tag = (e.target.tagName || "").toLowerCase();
+  if (tag === "input" || tag === "select" || tag === "textarea") return;
+  if (activeTab !== "labeler") return;
+  // 자가검증 리포트가 열려 있으면 아무 키나 눌러 닫는 것이 유일한 동작이다 —
+  // 리포트를 읽는 중에 Space 가 저장·다음으로 새어 나가면 안 된다.
+  if ($("stview").style.display === "block") {
+    e.preventDefault();
+    $("stview").style.display = "none";
+    return;
+  }
+  const it = curItem();
+  if (e.code === "Space") {
+    e.preventDefault();
+    if (!lb.box) { toast("박스 없음 — 저장 안 됨 (없는 장은 D 스킵)"); return; }
+    saveBox();
+  } else if (e.key === "Backspace") {
+    e.preventDefault();
+    if (lb.idx > 0) show(lb.idx - 1);
+  } else if (e.key === "d" || e.key === "D") {
+    e.preventDefault();
+    skip();
+  } else if (e.key === "r" || e.key === "R") {
+    e.preventDefault();
+    restoreBox();
+  } else if (e.key === "t" || e.key === "T") {
+    e.preventDefault();
+    selfTest();
+  } else if (e.key === "e" || e.key === "E") {
+    e.preventDefault();
+    toggleRect();
+  } else if (["1", "2", "3", "4"].includes(e.key) && rectOpen) {
+    e.preventDefault();
+    chooseUpright((parseInt(e.key, 10) - 1) * 90);
+  } else if (e.key === "Escape") {
+    if (rectOpen) toggleRect(false);
+  } else if (e.key === "g" || e.key === "G") {
+    e.preventDefault();
+    if (!it) return;
+    const v = prompt("GT 수정 (id: " + it.id + ")", it.gt);
+    if (v && v.trim() && v.trim() !== it.gt) gtfix(v.trim());
+  } else if (e.key.startsWith("Arrow")) {
+    e.preventDefault();
+    if (!lb.box) return;
+    const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    const st = Math.max(1, Math.round(3 / lb.s));
+    const b = lb.box;
+    if (e.shiftKey) {
+      if (d[0] > 0) b.x1 += st; if (d[0] < 0) b.x1 -= st;
+      if (d[1] > 0) b.y1 += st; if (d[1] < 0) b.y1 -= st;
+      b.x1 = Math.min(lb.ow, Math.max(b.x0 + 2, b.x1));
+      b.y1 = Math.min(lb.oh, Math.max(b.y0 + 2, b.y1));
+    } else {
+      lb.box = clampBox({ x0: b.x0 + d[0] * st, y0: b.y0 + d[1] * st,
+                          x1: b.x1 + d[0] * st, y1: b.y1 + d[1] * st });
+    }
+    draw();
+  }
+});
+
+async function saveBox() {
+  const it = curItem();
+  if (!it || !lb.box) return;
+  const bad = frameGuard(it);
+  if (bad) { toast("저장 차단: " + bad); return; }
+  const body = { mode: lb.mode, id: it.id, quad: aabbToQuad(lb.box),
+                 source: "human", ow: lb.ow, oh: lb.oh };
+  const r = await post("/api/label", body);
+  if (r.error) { toast("저장 실패: " + r.error); return; }
+  lb.labels[it.id] = { quad: body.quad, source: "human" };
+  it[MODES[lb.mode].flag] = true;
+  toast("저장: " + it.id);
+  if (rectOpen) refreshRect();
+  nextUnlabeled();
+}
+async function skip() {
+  const it = curItem();
+  if (!it) return;
+  const r = await post("/api/label", { mode: lb.mode, id: it.id, source: "skipped" });
+  if (r.error) { toast("스킵 실패: " + r.error); return; }
+  lb.labels[it.id] = { quad: null, source: "skipped" };
+  it[MODES[lb.mode].flag] = true;
+  toast("스킵: " + it.id);
+  nextUnlabeled();
+}
+async function gtfix(v) {
+  const it = curItem();
+  const r = await post("/api/gtfix", { id: it.id, corrected: v });
+  if (r.error) { toast("GT 수정 실패: " + r.error); return; }
+  it.gt = v; it.fixed = true;
+  $("gt").textContent = v;
+  $("gtfixed").textContent = "(수정됨)";
+  toast("GT 수정 기록: " + it.id + " → " + v);
+}
+function restoreBox() {
+  const it = curItem();
+  if (!it) return;
+  const l = lb.labels[it.id];
+  const pred = lb.quads[it.id];
+  if (l && l.quad) {
+    lb.box = quadToAABB(l.quad);
+    toast("저장된 라벨로 복원");
+  } else if (pred) {
+    lb.box = quadToAABB(pred);
+    toast("모델 예측으로 복원");
+  } else {
+    lb.box = null;
+    toast("복원할 박스 없음 (직접 그려야 하는 장)");
+  }
+  draw();
+}
+$("btn-restore").addEventListener("click", restoreBox);
+
+async function gtRevert() {
+  const it = curItem();
+  if (!it || !it.fixed) return;
+  const r = await post("/api/gtfix", { id: it.id, revert: true });
+  if (r.error) { toast("원복 실패: " + r.error); return; }
+  it.gt = r.gt;
+  it.fixed = false;
+  $("gt").textContent = it.gt;
+  $("gtfixed").textContent = "";
+  $("gt-revert").style.display = "none";
+  toast("GT 원복: " + it.id + " → " + it.gt);
+}
+$("gt-revert").addEventListener("click", (e) => {
+  e.preventDefault();
+  gtRevert();
+});
+
+function nextUnlabeled() {
+  for (let i = lb.idx + 1; i < lb.meta.items.length; i++) {
+    if (!isLabeled(lb.meta.items[i])) { show(i); return; }
+  }
+  toast("미라벨 없음 — 전부 완료!");
+  updateCounts();
+}
+
+/* ================= 좌표 자가검증 =================
+   "그린 박스 == 저장 박스"를 사람 눈이 아니라 코드가 확인한다.
+   dpr 의존 버그는 개발자 브라우저(dpr=1)에서 재현되지 않으므로,
+   검증은 반드시 사용자 브라우저 안에서 한 번에 돌아야 한다. */
+function stRow(ok, label, detail) {
+  return `<div class="${ok ? "pass" : "fail"}">[${ok ? "PASS" : "FAIL"}] ${label}` +
+         (detail ? `\n        ${detail}` : "") + "</div>";
+}
+async function selfTest() {
+  const v = $("stview");
+  v.style.display = "block";
+  v.innerHTML = "좌표 자가검증 실행 중…";
+  const out = [];
+  let fails = 0;
+  const bad = (ok, label, detail) => { if (!ok) fails++; out.push(stRow(ok, label, detail)); };
+
+  const it = curItem();
+  const rc = cv.getBoundingClientRect();
+  const dp = window.devicePixelRatio || 1;
+
+  out.push("<h3>1. 캔버스 백킹 버퍼</h3>");
+  bad(cv.width === Math.round(rc.width * dp) && cv.height === Math.round(rc.height * dp),
+      "백킹 버퍼 = CSS 크기 × dpr",
+      `backing ${cv.width}×${cv.height} · css ${rc.width.toFixed(1)}×${rc.height.toFixed(1)} · dpr ${dp}`);
+  bad(lb.dpr === dp, "lb.dpr 가 실제 dpr 과 일치", `lb.dpr ${lb.dpr} vs ${dp}`);
+
+  out.push("<h3>2. 좌표 왕복 (이미지 → 화면 → 이미지)</h3>");
+  if (!lb.img) {
+    bad(false, "이미지가 로딩되지 않아 왕복 검사를 못 함");
+  } else {
+    const pts = [[0, 0], [lb.ow, 0], [lb.ow, lb.oh], [0, lb.oh],
+                 [lb.ow / 2, lb.oh / 2], [lb.ow * 0.317, lb.oh * 0.733]];
+    let worst = 0, worstAt = "";
+    for (const [ix, iy] of pts) {
+      // draw() 가 쓰는 변환의 역: 화면(CSS) = 이미지×s + o
+      const clientX = rc.left + ix * lb.s + lb.ox;
+      const clientY = rc.top + iy * lb.s + lb.oy;
+      const back = evPos({ clientX, clientY });   // 마우스 경로와 동일한 함수
+      const d = Math.max(Math.abs(back.ix - ix), Math.abs(back.iy - iy));
+      if (d > worst) { worst = d; worstAt = `(${ix.toFixed(0)},${iy.toFixed(0)})`; }
+    }
+    bad(worst < 0.01, "evPos ∘ draw변환 = 항등",
+        `최대 오차 ${worst.toExponential(2)} px @ ${worstAt}`);
+    const arImg = lb.img.naturalWidth / lb.img.naturalHeight;
+    bad(Math.abs(arImg - lb.ow / lb.oh) < 0.01 * (lb.ow / lb.oh),
+        "서빙 JPEG 종횡비 = 표시 프레임 종횡비",
+        `jpeg ${lb.img.naturalWidth}×${lb.img.naturalHeight} · frame ${lb.ow}×${lb.oh}`);
+  }
+
+  out.push("<h3>3. 프레임 귀속</h3>");
+  bad(!!it && lb.frameId === it.id, "lb.ow/oh 가 현재 장의 것",
+      `현재 장 ${it ? it.id : "-"} · 프레임 ${lb.frameId || "없음"} ${lb.ow}×${lb.oh}`);
+  if (it) {
+    let srv = null;
+    try { srv = await api(`/api/image?id=${encodeURIComponent(it.id)}&w=${IMG_W}`); } catch (e) {}
+    bad(!!srv && srv.ow === lb.ow && srv.oh === lb.oh,
+        "서버가 말하는 표시 크기 = 캔버스가 쓰는 프레임",
+        srv ? `서버 ${srv.ow}×${srv.oh} vs 캔버스 ${lb.ow}×${lb.oh}` : "서버 응답 없음");
+  }
+
+  out.push("<h3>4. 저장 왕복 (실제 파일에 쓰지 않는 예행)</h3>");
+  if (it && lb.frameId === it.id) {
+    const g = frameGuard(it);
+    bad(g === null, "frameGuard 통과", g || "차단 사유 없음");
+  } else {
+    bad(false, "프레임 미확정이라 저장이 차단되는 것이 정상");
+  }
+
+  out.push("<h3>5. 서버측 라벨 파일 전수 점검</h3>");
+  let rep = null;
+  try { rep = await api("/api/selftest"); } catch (e) {}
+  if (!rep || rep.error) {
+    bad(false, "서버 자가검증 호출 실패", rep ? rep.error : "응답 없음");
+  } else {
+    for (const [mode, m] of Object.entries(rep.modes)) {
+      bad(m.problem_count === 0,
+          `${mode}: 라벨 ${m.checked}건 중 문제 ${m.problem_count}건 (정상 ${m.ok}, 스킵 ${m.skipped}, 구버전·검증불가 ${m.legacy})`,
+          m.problems.map(p => `${p.id} — ${p.why}` +
+            (p.box ? ` [${p.box.join(",")}] vs ${p.size.join("×")}` : "")).join("\n        "));
+    }
+    bad(rep.cache_bad.length === 0,
+        `디스크 캐시 종횡비 (${rep.cache_files}개)`,
+        rep.cache_bad.map(c => `${c.file} ${JSON.stringify(c.cache)} vs ${JSON.stringify(c.oriented)}`).join("\n        "));
+    bad(!lb.build || lb.build.sha === rep.build.sha,
+        "이 탭의 JS 가 서버의 최신 webtool.html",
+        `탭 ${lb.build ? lb.build.sha : "?"} vs 서버 ${rep.build.sha}`);
+  }
+
+  v.innerHTML =
+    `<div style="margin-bottom:10px"><b style="font-size:15px">좌표 자가검증 — ` +
+    (fails ? `<span class="fail">실패 ${fails}건</span>` : `<span class="pass">전부 통과</span>`) +
+    `</b> · 아무 키나 눌러 닫기</div>` + out.join("\n");
+}
+$("btn-selftest").addEventListener("click", selfTest);
+
+// 낡은 탭 감지 — "고쳤는데 왜 그대로냐"의 절반이 이것이었다.
+async function checkBuild() {
+  let b;
+  try { b = await api("/api/build"); } catch (e) { return; }
+  if (!b || !b.sha) return;
+  if (!lb.build) {
+    lb.build = b;
+    $("buildstamp").textContent = "build " + b.sha;
+    return;
+  }
+  if (b.sha !== lb.build.sha) {
+    $("buildstamp").textContent = `build ${lb.build.sha} → 서버 ${b.sha} · Ctrl+Shift+R 필요`;
+    $("buildstamp").className = "stale";
+  }
+}
+
+/* ================= 모니터 ================= */
+const TOTAL_EPOCHS = 52; // 사전학습 40 + 파인튜닝 12
+async function pollMonitor() {
+  let st;
+  try { st = await api("/api/train/status"); } catch (e) { return; }
+  const run = st.managed_alive || st.log_fresh;
+  const last = st.losses && st.losses.length ? st.losses[st.losses.length - 1] : null;
+  $("mon-status").innerHTML =
+    `<span class="pill ${run ? "run" : "stop"}">${st.managed_alive ? "실행 중 (pid " + st.managed_pid + ")" : (st.log_fresh ? "로그 갱신 중" : "대기")}</span>` +
+    `<span>위상 <b>${st.phase}</b></span>` +
+    `<span>에폭 <b>${st.epoch}</b> / ${TOTAL_EPOCHS}</span>` +
+    (last !== null ? `<span>최근 loss <b>${last.toFixed(4)}</b></span>` : "") +
+    (run ? "" : `<span style="color:var(--dim)">학습 시작은 훈련 탭에서</span>`);
+  drawLoss(st.losses || []);
+}
+function drawLoss(losses) {
+  if (!losses.length) {
+    $("loss-chart").innerHTML = "<p class='note'>loss 데이터 없음 — 학습 시작 후 표시</p>";
+    return;
+  }
+  const W = 920, H = 240, L = 52, R = 14, T = 16, B = 28;
+  const mn = Math.min(...losses), mx = Math.max(...losses);
+  const X = i => L + (losses.length === 1 ? 0 : i / (losses.length - 1)) * (W - L - R);
+  const Y = v => T + (1 - (v - mn) / Math.max(1e-9, mx - mn)) * (H - T - B);
+  let d = "";
+  losses.forEach((v, i) => { d += (i ? "L" : "M") + X(i).toFixed(1) + " " + Y(v).toFixed(1); });
+  const bnd = losses.length > 40
+    ? `<line x1="${X(39)}" y1="${T}" x2="${X(39)}" y2="${H - B}" stroke="#8b93a3" stroke-dasharray="4 4"/>` +
+      `<text x="${X(39) + 5}" y="${T + 11}">파인튜닝</text>` : "";
+  $("loss-chart").innerHTML =
+    `<svg width="${W}" height="${H}" style="background:var(--panel);border:1px solid var(--line);border-radius:8px;display:block">` +
+    `<line x1="${L}" y1="${H - B}" x2="${W - R}" y2="${H - B}" stroke="#343a46"/>` +
+    `<line x1="${L}" y1="${T}" x2="${L}" y2="${H - B}" stroke="#343a46"/>` +
+    `<text x="${L - 7}" y="${Y(mx) + 4}" text-anchor="end">${mx.toFixed(2)}</text>` +
+    `<text x="${L - 7}" y="${Y(mn) + 4}" text-anchor="end">${mn.toFixed(2)}</text>` +
+    `<text x="${W - R}" y="${H - 8}" text-anchor="end">에폭 ${losses.length}</text>` +
+    bnd +
+    `<path d="${d}" fill="none" stroke="#4da3ff" stroke-width="2"/></svg>`;
+}
+async function loadPreds() {
+  let r;
+  try { r = await api("/api/preds_holdout"); } catch (e) { return; }
+  const tbl = $("pred-table"), sum = $("pred-summary");
+  if (!r.preds) { sum.textContent = "평가 결과 없음 (eval_reader.py 실행 후 표시)"; tbl.innerHTML = ""; return; }
+  const entries = Object.entries(r.preds);
+  let exact = 0;
+  for (const [, v] of entries) if (v[0] === v[1]) exact++;
+  sum.innerHTML = `완전일치 <b class="ok">${exact} / ${entries.length}</b> (${fmtPct(exact / entries.length)}) — GT vs CTC 예측`;
+  entries.sort((a, b) => (a[1][0] === a[1][1] ? 1 : 0) - (b[1][0] === b[1][1] ? 1 : 0));
+  const MAX = 300;
+  let html = "<tr><th>id</th><th>GT</th><th>예측</th><th>판정</th></tr>";
+  for (const [id, v] of entries.slice(0, MAX)) {
+    const ok = v[0] === v[1];
+    html += `<tr class="${ok ? "hit" : "miss"}"><td class="mono">${id}</td>` +
+            `<td class="mono">${v[1]}</td><td class="mono">${v[0]}</td><td>${ok ? "적중" : "오답"}</td></tr>`;
+  }
+  tbl.innerHTML = html;
+  $("pred-note").textContent = entries.length > MAX
+    ? `오답 우선 ${MAX}행만 표시 (전체 ${entries.length}행은 reader_preds.json 참고)` : "";
+}
+
+/* ================= 훈련 탭 ================= */
+async function pollTrain() {
+  let st;
+  try { st = await api("/api/train/status"); } catch (e) { return; }
+  const run = st.managed_alive || st.log_fresh;
+  $("train-status").textContent = run
+    ? `실행 중 · ${st.phase} · 에폭 ${st.epoch}`
+    : "중지 상태";
+  $("btn-start").disabled = run;
+  let lt;
+  try { lt = await api("/api/logtail?lines=50"); } catch (e) { return; }
+  const el = $("logtail");
+  if (el.textContent !== lt.text) {
+    el.textContent = lt.text || "(로그 없음)";
+    el.scrollTop = el.scrollHeight;
+  }
+}
+$("btn-start").addEventListener("click", async () => {
+  const r = await post("/api/train/start");
+  toast(r.ok ? "학습 시작 (pid " + r.pid + ")" : "시작 실패: " + (r.error || "?"));
+  pollTrain();
+});
+$("btn-stop").addEventListener("click", async () => {
+  if (!confirm("학습 프로세스를 종료할까요?")) return;
+  const r = await post("/api/train/stop");
+  toast(r.ok ? "중지 요청" : "실패");
+  pollTrain();
+});
+
+/* ================= 폴링 ================= */
+setInterval(() => {
+  if (document.hidden) return;
+  if (activeTab === "monitor") pollMonitor();
+  if (activeTab === "train") pollTrain();
+}, 5000);
+
+boot();
+resizeCanvas();
+checkBuild();
+setInterval(checkBuild, 15000);
+</script>
+</body>
+</html>

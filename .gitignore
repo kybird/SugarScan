@@ -48,7 +48,23 @@ app.*.map.json
 
 # --- sugarScan ---
 # OCR 학습 자산: 저장소에 직접 넣지 않는다 (Git LFS 또는 별도 스토리지)
+# 대용량 데이터셋·모델·캐시는 저장소에 넣지 않는다.
 assets_dev/
+# 다만 **라벨링 도구와 사람이 만든 라벨은 소스다.** 버전 관리 밖에 두었더니
+# "고친 코드가 실제로 돌고 있느냐"를 확인할 방법이 없었고, 좌표 파손 사고가
+# 언제 어느 빌드에서 들어왔는지 되짚을 수도 없었다(2026-09-02).
+!assets_dev/
+assets_dev/*
+!assets_dev/train/
+assets_dev/train/*
+!assets_dev/train/*.py
+!assets_dev/train/*.html
+!assets_dev/train/*.bat
+!assets_dev/train/*.md
+!assets_dev/train/labeled.jsonl
+!assets_dev/train/screen_boxes.jsonl
+!assets_dev/train/gt_corrections.jsonl
+assets_dev/train/__pycache__/
 *.onnx
 *.pth
 *.pt
