@@ -78,6 +78,11 @@ W11 실기기 검증(2026-08-21): 서버에 26건을 넣어 pull 로 그래프�
 | W12 | 메모를 지울 수 없음 | `update(note: null)` 이 "바꾸지 않음"과 "지움"을 구분하지 않았다 | null = 바꾸지 않음, `''` = 지움 |
 | W12 | mmol/L 로 넣은 7.6 이 편집 시트에서 137 로 보이고, 저장하면 원본이 사라짐 | 편집 시트가 값을 **표시 단위**로 그렸다 | 그 기록의 `enteredUnit` 으로 그린다 |
 | G8 | 일본어 사용자에게 **독일어** 앱이 보임 | 언어가 6개가 되자 Flutter 기본 로케일 해석이 목록 첫 항목(`de`)을 집었다 | `resolveAppLocale` (`359a5b7`) · `test/app/locale_fallback_test.dart` |
+| 2026-09-02 | 라벨러가 그린 박스를 **직전 장의 표시 크기** 프레임으로 저장 — LCD 2건 파손 | 캐시 히트로 장을 넘길 때 `lb.ow/oh` 만 갱신되지 않았다. 좌표계에 이름표가 없어 아무도 못 알아챘다 | 프레임 귀속(`lb.frameId`) + 세대 토큰 + `frameGuard` + **서버가 원본 파일로 대조 후 409 거부** + 빌드 지문. [보고서](reports/20260902-labeler-coordinate-frame.md) (`d5366c5`) |
+| 2026-09-02 | band 라벨 5건이 이미지 경계를 초과 | EXIF **미적용(회전 전)** 좌표계로 그려졌다. 배율이 아니라 회전이라 스케일 보정으로는 못 맞춘다 | `repair_unrotated_band_labels.py` 로 90° 사상 복구. 육안 확인 후 적용 |
+| 2026-09-02 | **통계 화면을 한 번 연 뒤 저장한 기록이 통계에서 사라짐** | `statsReadingsProvider` 가 기간 질의의 위쪽 경계를 구독 시점 `now` 로 굳혔다(autoDispose 아님) | 위 경계를 열고 화면 진입 시 재계산. `test/app/stats_window_test.dart` (`5ed3f06`) |
+| 2026-09-02 | `update(value:)` 만 부르면 `enteredValue` 와 정본 `valueMgdl` 이 갈라짐 | 둘 다 있을 때만 `valueMgdl` 을 갱신했다 | 빠진 쪽을 저장된 행에서 채워 항상 정본 재계산. `glucose_repository_edit_test.dart` (`5ed3f06`) |
+| 2026-09-02 | `GlucoseScanner.offer()` 가 예외를 흘릴 수 있었다 (계약 위반) | `try` 가 엔진 호출만 감쌌다 — 정규화·검증·안정화는 밖에 있었다 | 경계를 메서드 전체로 + 세션 토큰(stop 뒤 늦게 온 프레임이 옛 단위로 확정하지 않게). `test/ocr/glucose_scanner_contract_test.dart` (`5ed3f06`) |
 
 ### 테스트가 잘못된 이유로 통과하던 종류
 
