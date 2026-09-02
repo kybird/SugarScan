@@ -880,10 +880,18 @@ async function selfTest() {
   const dp = window.devicePixelRatio || 1;
 
   out.push("<h3>1. 캔버스 백킹 버퍼</h3>");
-  bad(cv.width === Math.round(rc.width * dp) && cv.height === Math.round(rc.height * dp),
-      "백킹 버퍼 = CSS 크기 × dpr",
-      `backing ${cv.width}×${cv.height} · css ${rc.width.toFixed(1)}×${rc.height.toFixed(1)} · dpr ${dp}`);
-  bad(lb.dpr === dp, "lb.dpr 가 실제 dpr 과 일치", `lb.dpr ${lb.dpr} vs ${dp}`);
+  // 캔버스가 숨겨져 있으면 rect 가 0 이다. 이건 결함이 아니라 그냥 안 보이는
+  // 상태라, 실패로 세면 자가검증이 늑대를 외치게 된다.
+  const visible = rc.width >= 2 && rc.height >= 2;
+  if (!visible) {
+    out.push(stRow(true, "캔버스가 화면에 없어 버퍼 검사 건너뜀 — 라벨러 탭을 띄운 채 다시 실행할 것",
+                   `css ${rc.width}×${rc.height}`));
+  } else {
+    bad(cv.width === Math.round(rc.width * dp) && cv.height === Math.round(rc.height * dp),
+        "백킹 버퍼 = CSS 크기 × dpr",
+        `backing ${cv.width}×${cv.height} · css ${rc.width.toFixed(1)}×${rc.height.toFixed(1)} · dpr ${dp}`);
+    bad(lb.dpr === dp, "lb.dpr 가 실제 dpr 과 일치", `lb.dpr ${lb.dpr} vs ${dp}`);
+  }
 
   out.push("<h3>2. 좌표 왕복 (이미지 → 화면 → 이미지)</h3>");
   if (!lb.img) {
