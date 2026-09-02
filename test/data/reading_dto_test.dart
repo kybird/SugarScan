@@ -4,6 +4,7 @@ import 'package:sugarscan/domain/models/glucose_reading.dart';
 import 'package:sugarscan/domain/models/glucose_unit.dart';
 import 'package:sugarscan/domain/models/measurement_tag.dart';
 import 'package:sugarscan/domain/models/reading_source.dart';
+import 'package:sugarscan/domain/models/wire_name.dart';
 
 GlucoseReading _reading({
   double enteredValue = 7.6,
@@ -126,6 +127,66 @@ void main() {
       expect(restored.enteredUnit, original.enteredUnit);
       expect(restored.enteredValue, original.enteredValue);
       expect(restored.measuredAtUtc, original.measuredAtUtc);
+    });
+  });
+
+  // 서버 행 하나가 이 버전이 모르는 값을 담고 있으면 **행을 통째로 건너뛴다.**
+  // 아는 값으로 치환하면 그 기록을 수정하는 순간 서버에 덮어써 원본이 죽는다.
+  // 건너뛴 행은 SyncEngine 이 세어서 SyncReport.malformed 로 보고한다.
+  group('모르는 wireName', () {
+    Map<String, dynamic> row({
+      String tag = 'pre_meal',
+      String source = 'ocr',
+      String unit = 'mgdl',
+    }) =>
+        {
+          'id': '11111111-2222-3333-4444-555555555555',
+          'measured_at': '2026-03-14T01:30:00Z',
+          'tz_name': 'Asia/Seoul',
+          'utc_offset_minutes': 540,
+          'value_mgdl': 137.0,
+          'entered_unit': unit,
+          'entered_value': 137.0,
+          'tag': tag,
+          'source': source,
+          'created_at': '2026-03-14T01:31:00Z',
+          'updated_at': '2026-03-14T01:31:00Z',
+        };
+
+    test('아는 값만 있으면 되살아난다', () {
+      expect(ReadingDto.fromJson(row()).tag, MeasurementTag.preMeal);
+    });
+
+    test('새 버전이 쓴 태그는 던진다 — 기본값으로 치환하지 않는다', () {
+      expect(
+        () => ReadingDto.fromJson(row(tag: 'post_snack')),
+        throwsA(isA<UnknownWireNameException>()),
+      );
+    });
+
+    test('새 버전이 쓴 source 도 던진다', () {
+      expect(
+        () => ReadingDto.fromJson(row(source: 'cgm_stream')),
+        throwsA(isA<UnknownWireNameException>()),
+      );
+    });
+
+    test('모르는 단위도 던진다', () {
+      expect(
+        () => ReadingDto.fromJson(row(unit: 'mmol_per_liter')),
+        throwsA(isA<UnknownWireNameException>()),
+      );
+    });
+
+    // 해석에 실패해도 커서는 그 행 너머로 가야 한다 — 못 가면 pull 이 그
+    // 자리에서 영원히 제자리를 돈다.
+    test('해석에 실패해도 updated_at 은 따로 읽힌다', () {
+      expect(
+        ReadingDto.updatedAtOf(row(tag: 'post_snack')),
+        DateTime.utc(2026, 3, 14, 1, 31),
+      );
+      expect(ReadingDto.idOf(row(tag: 'post_snack')),
+          '11111111-2222-3333-4444-555555555555');
     });
   });
 }

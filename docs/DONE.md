@@ -88,6 +88,7 @@ W11 실기기 검증(2026-08-21): 서버에 26건을 넣어 pull 로 그래프�
 | 2026-09-02 | "대기 3건"인데 실제로 올라가는 건 1건 | `pendingSyncCount` 가 기록이 아니라 아웃박스 행을 셌고, 막힌 행까지 포함했다 | `distinct entity_id` + 한도 미만만. 한도는 `syncMaxAttemptsProvider` 로 엔진과 공유 (`d7042da`) |
 | 2026-09-02 | 추론 두 개가 겹쳐 돌 수 있었다 | `FrameThrottler.reset()` 이 진행 중인 작업의 잠금을 강제로 내렸다 | 통계만 되돌린다. 잠금은 그 작업이 `finally` 에서 푼다 (`d7042da`) |
 | 2026-09-02 | `warpQuadToRect` 주석이 하지 않는 일을 한다고 적혀 있었다 | 원근 펴기 구현이 두 벌로 중복돼 한쪽 주석만 낡았다 | `_warpQuad` 한 벌로 접고, "대비를 걸지 않는다"를 테스트로 고정 (`d7042da`) |
+| 2026-09-02 | **구버전 앱이 새 버전의 태그를 서버에서 지울 수 있었다**(아직 발생 전) | `MeasurementTag`/`ReadingSource.fromWireName` 이 모르는 값을 `random`/`manual` 로 조용히 치환 → 그 기록의 메모만 고쳐도 push 가 행 전체를 보내 서버를 덮어쓴다 | 셋 다 `UnknownWireNameException` 을 던지고 행을 건너뛴다. `TargetRangePreset` 은 동기화되지 않아 예외. `test/domain/wire_name_test.dart` |
 
 ### 테스트가 잘못된 이유로 통과하던 종류
 

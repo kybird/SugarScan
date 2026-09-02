@@ -28,15 +28,24 @@ confidence: 4
 - [ ] 추측이 값의 **의미를 뒤집는** 필드인가 (단위 등) → 그렇다면 관용이 아니라 행 건너뛰기
 - [ ] 스키마 변경이 덧붙이기만인가 (이름 변경·타입 변경 금지)
 
-## 현재 상태 (미해결)
+## 현재 상태 (2026-09-02 해결)
 
-| 디코더 | 정책 | 평가 |
+세 정책이 제각각이었고 그중 어느 것도 버전 공존을 고려해 정해지지 않았다.
+이제 **동기화되는 기록 필드는 전부 던진다.**
+
+| 디코더 | 이전 | 지금 |
 |---|---|---|
-| `GlucoseUnit.fromWireName` | 던짐 | **옳다** — 단위를 추측하면 값의 의미가 뒤집힌다 |
-| `MeasurementTag.fromWireName` | `random` 치환 | 위험 — 되돌려 쓰면 파괴 |
-| `ReadingSource.fromWireName` | `manual` 치환 | 위험 — 중복 제거 판정도 흔들린다 |
+| `GlucoseUnit.fromWireName` | 던짐(`Bad state: No element`) | `UnknownWireNameException` — 진단 가능 |
+| `MeasurementTag.fromWireName` | **`random` 치환** | 던짐 |
+| `ReadingSource.fromWireName` | **`manual` 치환** | 던짐 |
+| `TargetRangePreset.fromWireName` | 기본값 | **그대로** — 동기화되지 않는 로컬 설정이라 파괴 경로가 없다 |
 
-세 정책이 제각각이고, 그중 어느 것도 버전 공존을 고려해 정해지지 않았다.
+던진 행은 [[row-level-decode-tolerance]] 가 받아 건너뛰고 `SyncReport.malformed`
+로 센다. **구버전에서 그 기록이 잠깐 안 보이는 것은 앱을 업데이트하면 낫지만,
+덮어쓴 값은 업데이트해도 못 살린다** — 이 비대칭이 결정의 근거다.
+
+행을 건너뛰는 대신 값·시각은 보이게 하려면 [[tolerant-decode-with-preservation]]
+(2단계)로 올리면 된다. 데이터가 죽지 않으므로 **급하지 않다.**
 
 ## 올바른 대안
 

@@ -30,7 +30,15 @@ confidence: 4
 | `tag` | 라벨 하나가 어긋난다 | 중립 표시로 관용하되 **원문 보존**, 되돌려 쓰지 않는다 |
 | `source` | 중복 제거 판정이 흔들린다 | 위와 같음 |
 
-**현재 상태(미해결):** `GlucoseUnit.fromWireName` 은 던지고(옳다), `MeasurementTag`/`ReadingSource.fromWireName` 은 각각 `random`/`manual` 로 **조용히 치환한다.** 세 정책이 제각각이고 그중 어느 것도 버전 공존을 고려해 정해지지 않았다. 치환된 행을 나중에 수정하면 push 가 치환값을 서버에 덮어써 다른 기기의 태그를 파괴한다.
+**현재 상태(2026-09-02):** 동기화되는 기록 필드 셋(`GlucoseUnit`·`MeasurementTag`·`ReadingSource`)은 전부 `UnknownWireNameException` 을 던진다. 그 행은 pull 이 건너뛰고 `SyncReport.malformed` 로 센다. 로컬 설정(`TargetRangePreset`)만 기본값으로 떨어진다 — 서버로 되돌아 나가지 않아 파괴 경로가 없다.
+
+**서버가 Postgres enum 이라는 점이 유일한 안전장치다.** `create type measurement_tag as enum (...)` 이므로 새 값은 우리가 `ALTER TYPE ... ADD VALUE` 를 하기 전에는 서버에 들어올 수 없다. 그래서 **순서가 전부다**:
+
+1. 모르는 값에서 던지는 클라이언트를 **먼저 배포**한다
+2. 충분히 퍼진 뒤 서버 enum 에 값을 추가한다
+3. 그 다음 새 값을 쓰는 앱을 낸다
+
+1을 건너뛰고 2를 하면 되돌릴 수 없다 — 그때 필드에 남아 있는 구버전은 고칠 수 없기 때문이다.
 
 ## Related
 

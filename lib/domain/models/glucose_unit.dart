@@ -1,3 +1,5 @@
+import 'wire_name.dart';
+
 import 'dart:math' as math;
 
 /// 혈당 표시 단위.
@@ -14,8 +16,13 @@ enum GlucoseUnit {
   final String wireName;
   final String symbol;
 
+  /// 모르는 값은 던진다. 단위를 추측하면 **값의 의미가 뒤집힌다** — 10~50 정수는
+  /// 두 단위 모두 검증을 통과해서, mg/dL 로는 중증 저혈당이고 mmol/L 로는 중증
+  /// 고혈당이다. 원래도 던졌지만 `Bad state: No element` 라 로그에서 어느 열이
+  /// 문제인지 알 수 없었다.
   static GlucoseUnit fromWireName(String value) =>
-      values.firstWhere((e) => e.wireName == value);
+      values.firstWhere((e) => e.wireName == value,
+          orElse: () => throw UnknownWireNameException('GlucoseUnit', value));
 }
 
 /// 1 mmol/L 에 해당하는 mg/dL.

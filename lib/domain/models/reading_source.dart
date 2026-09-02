@@ -1,3 +1,5 @@
+import 'wire_name.dart';
+
 /// 기록이 어디서 들어왔는지.
 ///
 /// [healthSync] 는 OS 건강 앱에서 읽어온 값이라 앱이 직접 만든 기록과
@@ -13,7 +15,10 @@ enum ReadingSource {
 
   final String wireName;
 
+  /// 모르는 값은 **기본값으로 치환하지 않고 던진다.** 이유는
+  /// [UnknownWireNameException] — 치환한 값을 되돌려 쓰면 데이터가 죽는다.
+  /// 여기서는 중복 제거 판정([healthSync])까지 흔들린다는 이유가 더 붙는다.
   static ReadingSource fromWireName(String value) =>
       values.firstWhere((e) => e.wireName == value,
-          orElse: () => ReadingSource.manual);
+          orElse: () => throw UnknownWireNameException('ReadingSource', value));
 }
