@@ -67,4 +67,23 @@ class ReadingDto {
   /// timestamptz 는 오프셋을 달고 온다. UTC 정본 규칙에 맞춰 즉시 UTC 로 옮긴다.
   static DateTime? _dateTime(Object? value) =>
       value == null ? null : DateTime.parse(value as String).toUtc();
+
+  /// 나머지 열이 무엇이든 `updated_at` 하나만 읽어 본다.
+  ///
+  /// 해석하지 못한 행이라도 이 값은 읽히는 경우가 많고, 읽히면 델타 커서를 그
+  /// 행 너머로 밀 수 있다. 못 밀면 같은 행을 영원히 다시 받아 오며 pull 이
+  /// 제자리를 돈다 — 버리기로 한 행이 진행을 막아서는 안 된다.
+  static DateTime? updatedAtOf(Map<String, dynamic> json) {
+    try {
+      return _dateTime(json['updated_at']);
+    } on Object {
+      return null;
+    }
+  }
+
+  /// 행의 id. 무엇을 버렸는지 로그에 남기기 위한 것이라 실패해도 던지지 않는다.
+  static String idOf(Map<String, dynamic> json) {
+    final id = json['id'];
+    return id is String && id.isNotEmpty ? id : '(id 불명)';
+  }
 }

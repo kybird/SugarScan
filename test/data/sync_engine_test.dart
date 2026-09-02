@@ -54,8 +54,12 @@ class _FakeApi implements ReadingApi {
     }
   }
 
+  /// 이 id 들은 서버에는 있지만 이 클라이언트가 해석하지 못하는 행이다.
+  /// 실제 원인은 보통 버전 차이(모르는 enum wireName)다.
+  final Set<String> unreadable = {};
+
   @override
-  Future<List<GlucoseReading>> fetchUpdatedSince(
+  Future<ReadingPage> fetchUpdatedSince(
     DateTime? since, {
     required int limit,
     required int offset,
@@ -72,8 +76,21 @@ class _FakeApi implements ReadingApi {
         return byTime != 0 ? byTime : a.id.compareTo(b.id);
       });
 
-    if (offset >= matching.length) return [];
-    return matching.skip(offset).take(limit).toList();
+    if (offset >= matching.length) return const ReadingPage.empty();
+    final page = matching.skip(offset).take(limit).toList();
+
+    // 진짜 서버 구현과 같은 규칙: 못 읽은 행도 돌려준 행 수와 updated_at 에는
+    // 반영된다. 그래야 페이지 경계 판정과 커서가 어긋나지 않는다.
+    DateTime? newest;
+    for (final r in page) {
+      if (newest == null || r.updatedAt.isAfter(newest)) newest = r.updatedAt;
+    }
+    return ReadingPage(
+      readings: [for (final r in page) if (!unreadable.contains(r.id)) r],
+      fetchedRows: page.length,
+      malformed: [for (final r in page) if (unreadable.contains(r.id)) r.id],
+      newestSeen: newest,
+    );
   }
 }
 
@@ -163,6 +180,11 @@ void main() {
   Future<GlucoseReadingRow> localRow(String id) {
     return (db.select(db.glucoseReadingRows)..where((t) => t.id.equals(id)))
         .getSingle();
+  }
+
+  Future<GlucoseReadingRow?> localRowOrNull(String id) {
+    return (db.select(db.glucoseReadingRows)..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
   }
 
   group('보내기', () {
@@ -427,6 +449,59 @@ void main() {
     });
   });
 
+  // 서버 행 하나가 해석되지 않는다고 pull 전체가 멈추면, 그 행이 고쳐질 때까지
+  // 동기화가 통째로 죽는다. 가장 현실적인 시나리오는 버전 차이다 — 새 앱이
+  // 새로운 enum wireName 을 쓰면 구버전 앱은 그때부터 영원히 받지 못한다.
+  group('해석 못 한 행', () {
+    test('버리고 나머지는 계속 받는다', () async {
+      api.rows.addAll([
+        _serverReading(id: 'bad', updatedAt: DateTime.utc(2026, 3, 14, 2)),
+        _serverReading(id: 'good', updatedAt: DateTime.utc(2026, 3, 14, 3)),
+      ]);
+      api.unreadable.add('bad');
+
+      final report = await engine().syncOnce();
+
+      expect(report.outcome, SyncOutcome.ok, reason: 'pull 이 실패로 끝나면 안 된다');
+      expect(report.pulled, 1);
+      expect(report.malformed, 1);
+      expect(await localRowOrNull('good'), isNotNull);
+      expect(await localRowOrNull('bad'), isNull);
+    });
+
+    // 붙잡으면 다시 받아도 또 못 읽으므로 pull 이 그 자리에서 제자리를 돈다.
+    test('커서를 붙잡지 않는다 — 다시 받아도 또 못 읽는다', () async {
+      api.rows.add(
+        _serverReading(id: 'bad', updatedAt: DateTime.utc(2026, 3, 14, 2)),
+      );
+      api.unreadable.add('bad');
+
+      await engine().syncOnce();
+      await engine().syncOnce();
+
+      expect(api.fetchedSince.last, DateTime.utc(2026, 3, 14, 2));
+    });
+
+    // 버린 행을 뺀 수로 페이지를 세면 마지막 페이지로 오판해 뒷 페이지를
+    // 통째로 놓친다.
+    test('버린 행이 페이지 경계 판정을 흐리지 않는다', () async {
+      for (var i = 0; i < 6; i++) {
+        api.rows.add(
+          _serverReading(
+            id: 'remote-$i',
+            updatedAt: DateTime.utc(2026, 3, 14, 2, i),
+          ),
+        );
+      }
+      api.unreadable.addAll({'remote-0', 'remote-1'});
+
+      final report = await engine(batchSize: 2).syncOnce();
+
+      expect(report.pulled, 4, reason: '읽을 수 있는 행은 전부 받아야 한다');
+      expect(report.malformed, 2);
+    });
+  });
+
   group('커서', () {
     test('두 번째 회차는 받은 지점부터 요청한다', () async {
       api.rows.add(
@@ -451,6 +526,37 @@ void main() {
       await engine(userId: 'user-2').syncOnce();
 
       expect(api.fetchedSince.last, isNull);
+    });
+
+    // pending 이라 건너뛴 행 너머로 커서가 가면, 그 push 가 한도에 닿아 막혔을 때
+    // 서버 쪽 변경이 영영 다시 오지 않는다. 조용한 분기다.
+    test('pending 때문에 건너뛴 행 앞에 커서를 세운다', () async {
+      final reading = await addLocal(value: 137);
+      api.rows.addAll([
+        _serverReading(
+          id: reading.id,
+          enteredValue: 999,
+          updatedAt: DateTime.utc(2026, 3, 14, 5),
+        ),
+        _serverReading(id: 'remote-1', updatedAt: DateTime.utc(2026, 3, 14, 6)),
+      ]);
+
+      // 한 번 실패시켜 아웃박스를 한도까지 밀어 둔다. 그 뒤로는 보낼 것이
+      // 없어 push 가 던지지 않고, 로컬 행은 pending 인 채로 pull 이 돈다 —
+      // 보고서가 지적한 바로 그 상황이다.
+      api.failUpsert = StateError('보내기 실패');
+      await engine(maxAttempts: 1).syncOnce();
+      api.failUpsert = null;
+
+      await engine(maxAttempts: 1).syncOnce();
+      await engine(maxAttempts: 1).syncOnce();
+
+      expect((await localRow(reading.id)).enteredValue, 137,
+          reason: '안 보낸 로컬 변경은 그대로다');
+      expect(await localRowOrNull('remote-1'), isNotNull,
+          reason: '건너뛴 행 뒤의 기록은 그대로 적용된다');
+      expect(api.fetchedSince.last, DateTime.utc(2026, 3, 14, 5),
+          reason: '건너뛴 행 앞에 커서가 서야 나중에 다시 받는다');
     });
 
     test('로그아웃하면 커서를 버린다', () async {

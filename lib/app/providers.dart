@@ -177,6 +177,13 @@ final isOnlineProvider = Provider<Future<bool> Function()>((ref) {
   };
 });
 
+/// 한 변경을 몇 번까지 다시 보낼지.
+///
+/// 엔진과 "대기 n건" 표시가 같은 값을 봐야 한다 — 갈리면 화면이 이미 멈춘
+/// 항목을 아직 올라가는 중인 것처럼 센다. 프로바이더로 뽑아 둔 덕에 개수만
+/// 필요한 쪽이 엔진 전체를 만들지 않아도 된다.
+final syncMaxAttemptsProvider = Provider<int>((ref) => 6);
+
 /// 서버가 없는 빌드에서도 엔진은 만든다 — `syncOnce()` 가
 /// [SyncOutcome.backendUnavailable] 을 돌려줄 뿐이라 호출부가 분기하지 않아도 된다.
 final syncEngineProvider = Provider<SyncEngine>((ref) {
@@ -187,6 +194,7 @@ final syncEngineProvider = Provider<SyncEngine>((ref) {
     cursor: ref.watch(syncCursorStoreProvider),
     outbox: ref.watch(outboxRepositoryProvider),
     isOnline: ref.watch(isOnlineProvider),
+    maxAttempts: ref.watch(syncMaxAttemptsProvider),
   );
 });
 
@@ -215,11 +223,19 @@ final syncReportProvider = StreamProvider<SyncReport>((ref) {
   return ref.watch(syncSchedulerProvider).reports;
 });
 
-/// 아직 서버로 보내지 못한 변경 수. 저장할 때마다 바뀐다.
+/// 아직 서버로 보내지 못한 **기록** 수. 저장할 때마다 바뀐다.
+///
+/// 아웃박스 행이 아니라 **기록**을 센다. 한 기록을 세 번 고치면 행은 셋이지만
+/// 올라가는 것은 한 건이라, 행을 세면 사용자에게 "대기 3건"으로 보인다.
+/// 시도 한도에 닿아 멈춘 행도 뺀다 — 그쪽은 [SyncStatusBlocked] 가 따로
+/// 알리는데, 여기서도 세면 같은 것을 두 번 세게 된다.
 final pendingSyncCountProvider = StreamProvider<int>((ref) {
   final db = ref.watch(databaseProvider);
-  final count = db.syncOutboxRows.seq.count();
-  final query = db.selectOnly(db.syncOutboxRows)..addColumns([count]);
+  final maxAttempts = ref.watch(syncMaxAttemptsProvider);
+  final count = db.syncOutboxRows.entityId.count(distinct: true);
+  final query = db.selectOnly(db.syncOutboxRows)
+    ..addColumns([count])
+    ..where(db.syncOutboxRows.attempts.isSmallerThanValue(maxAttempts));
   return query.watch().map((rows) => rows.first.read(count) ?? 0);
 });
 
@@ -230,12 +246,12 @@ class _OfflineReadingApi implements ReadingApi {
   Future<void> upsert(List<GlucoseReading> readings, String userId) async {}
 
   @override
-  Future<List<GlucoseReading>> fetchUpdatedSince(
+  Future<ReadingPage> fetchUpdatedSince(
     DateTime? since, {
     required int limit,
     required int offset,
   }) async =>
-      const [];
+      const ReadingPage.empty();
 }
 
 /// 사용자에게 보여줄 동기화 상태.
@@ -296,10 +312,9 @@ final syncStatusProvider = Provider<SyncStatus>((ref) {
 /// 집어오지 않아, 버튼을 눌러도 아무 일도 일어나지 않는다.
 final retrySyncProvider = Provider<Future<void> Function()>((ref) {
   return () async {
-    final engine = ref.read(syncEngineProvider);
     await ref
         .read(outboxRepositoryProvider)
-        .retryBlocked(maxAttempts: engine.maxAttempts);
+        .retryBlocked(maxAttempts: ref.read(syncMaxAttemptsProvider));
     await ref.read(syncSchedulerProvider).now();
   };
 });

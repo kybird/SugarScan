@@ -451,60 +451,19 @@ double _bilinear(List<double> gray, int w, int h, double x, double y) {
 }
 
 /// 사진의 네 모서리를 임의 크기 회색 프레임으로 원근 펴기 — LCD 화면 등
-/// 엔진 캔버스가 아닌 중간 표상이 필요할 때 쓴다. 퍼센타일 대비 스케일 포함.
+/// 엔진 캔버스가 아닌 중간 표상이 필요할 때 쓴다.
+///
+/// **대비 스케일을 걸지 않는다.** 이 결과는 사람이 보는 화면이 아니라 밴드
+/// 검출기(`detectReadingBands`)의 입력이고, 검출기는 원래 밝기 분포 위에서
+/// 임계값을 잡는다. 여기서 늘려 놓으면 벤치에 남은 수치와 다른 것을 재게 된다.
+/// 엔진에 바로 먹일 프레임이 필요하면 [warpQuadToEngineFrame] 을 쓸 것.
 OcrFrame? warpQuadToRect(
   Uint8List imageBytes,
   List<({double x, double y})> quad,
   int outW,
   int outH,
 ) {
-  img.Image? decoded;
-  try {
-    decoded = img.decodeImage(imageBytes);
-  } catch (_) {
-    return null;
-  }
-  if (decoded == null || decoded.width < 16 || decoded.height < 8) return null;
-  if (quad.length != 4) return null;
-
-  final w = decoded.width;
-  final h = decoded.height;
-  final gray = List<double>.generate(
-    w * h,
-    (i) {
-      final x = i % w;
-      final y = i ~/ w;
-      final p = decoded!.getPixel(x, y);
-      return 0.299 * p.r + 0.587 * p.g + 0.114 * p.b;
-    },
-  );
-
-  final dstCorners = <({double x, double y})>[
-    (x: 0.0, y: 0.0),
-    (x: (outW - 1).toDouble(), y: 0.0),
-    (x: (outW - 1).toDouble(), y: (outH - 1).toDouble()),
-    (x: 0.0, y: (outH - 1).toDouble()),
-  ];
-  final h8 = _homography(dstCorners, quad);
-  if (h8 == null) return null;
-
-  final out = Uint8List(outW * outH);
-  for (var y = 0; y < outH; y++) {
-    for (var x = 0; x < outW; x++) {
-      final dd = h8[6] * x + h8[7] * y + 1;
-      final sx = (h8[0] * x + h8[1] * y + h8[2]) / dd;
-      final sy = (h8[3] * x + h8[4] * y + h8[5]) / dd;
-      final cx = sx.clamp(0.0, (w - 1).toDouble());
-      final cy = sy.clamp(0.0, (h - 1).toDouble());
-      out[y * outW + x] = _bilinear(gray, w, h, cx, cy).round().clamp(0, 255);
-    }
-  }
-  return OcrFrame(
-    bytes: out,
-    format: OcrImageFormat.grayscale8,
-    width: outW,
-    height: outH,
-  );
+  return _warpQuad(imageBytes, quad, outW, outH, stretchContrast: false);
 }
 
 /// 워프된 프레임에서 글자 칼럼만 골라 슬롯으로 재배치한다.
@@ -542,37 +501,47 @@ OcrFrame? warpQuadToEngineFrame(
   Uint8List imageBytes,
   List<({double x, double y})> quad,
 ) {
-  img.Image? decoded;
+  const outH = 96;
+  final outW = (outH * 2.1978).round();
+  return _warpQuad(imageBytes, quad, outW, outH, stretchContrast: true);
+}
+
+/// 원근 펴기 실제 구현. 공개 함수 둘은 출력 크기와 대비 처리만 다르다.
+///
+/// 한 벌로 두는 이유: 예전에는 거의 같은 100줄이 두 군데 있었고, 경계 클램프나
+/// 역샘플링 식을 한쪽만 고치면 두 경로가 조용히 갈라진다. 좌표를 다루는 코드는
+/// 갈라진 것을 눈으로 알아채기 가장 어려운 종류다.
+OcrFrame? _warpQuad(
+  Uint8List imageBytes,
+  List<({double x, double y})> quad,
+  int outW,
+  int outH, {
+  required bool stretchContrast,
+}) {
+  if (quad.length != 4 || outW < 1 || outH < 1) return null;
+
+  final img.Image? decoded;
   try {
     decoded = img.decodeImage(imageBytes);
   } catch (_) {
     return null;
   }
   if (decoded == null || decoded.width < 16 || decoded.height < 8) return null;
-  if (quad.length != 4) return null;
 
   final w = decoded.width;
   final h = decoded.height;
-  final gray = List<double>.generate(
-    w * h,
-    (i) {
-      final x = i % w;
-      final y = i ~/ w;
-      final p = decoded!.getPixel(x, y);
-      return 0.299 * p.r + 0.587 * p.g + 0.114 * p.b;
-    },
-  );
+  final gray = List<double>.generate(w * h, (i) {
+    final p = decoded!.getPixel(i % w, i ~/ w);
+    return 0.299 * p.r + 0.587 * p.g + 0.114 * p.b;
+  });
 
-  const outH = 96;
-  final outW = (outH * 2.1978).round();
+  // 역샘플링: 캔버스 좌표 → 사진 좌표 사상을 직접 푼다.
   final dstCorners = <({double x, double y})>[
     (x: 0.0, y: 0.0),
     (x: (outW - 1).toDouble(), y: 0.0),
     (x: (outW - 1).toDouble(), y: (outH - 1).toDouble()),
     (x: 0.0, y: (outH - 1).toDouble()),
   ];
-
-  // 역샘플링: 캔버스 좌표 → 사진 좌표 사상을 직접 푼다.
   final h8 = _homography(dstCorners, quad);
   if (h8 == null) return null;
 
@@ -589,14 +558,16 @@ OcrFrame? warpQuadToEngineFrame(
     }
   }
 
-  // 퍼센타일 대비 스케일 — 워프 결과도 무노이즈에 가까워 선명도 게이트가
-  // 실촬 전제 임계값에 걸리지 않게 한다(합성 벤치에서 확인된 함정).
-  final sorted = out.toList()..sort();
-  final lo = sorted[(sorted.length * 0.05).floor()].toDouble();
-  final hi = sorted[(sorted.length * 0.95).floor()].toDouble();
-  if (hi - lo < 1) return null;
-  for (var i = 0; i < out.length; i++) {
-    out[i] = (((out[i] - lo) * 255) / (hi - lo)).round().clamp(0, 255);
+  if (stretchContrast) {
+    // 퍼센타일 대비 스케일 — 워프 결과도 무노이즈에 가까워 선명도 게이트가
+    // 실촬 전제 임계값에 걸리지 않게 한다(합성 벤치에서 확인된 함정).
+    final sorted = out.toList()..sort();
+    final lo = sorted[(sorted.length * 0.05).floor()].toDouble();
+    final hi = sorted[(sorted.length * 0.95).floor()].toDouble();
+    if (hi - lo < 1) return null;
+    for (var i = 0; i < out.length; i++) {
+      out[i] = (((out[i] - lo) * 255) / (hi - lo)).round().clamp(0, 255);
+    }
   }
 
   return OcrFrame(

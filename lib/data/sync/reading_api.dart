@@ -2,10 +2,49 @@
 // 허용하지 않아 initializing formal(`this._client`)을 쓸 수 없다.
 // ignore_for_file: prefer_initializing_formals
 
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../domain/models/glucose_reading.dart';
 import '../remote/reading_dto.dart';
+
+/// pull 한 페이지의 결과.
+///
+/// 해석한 기록만 돌려주면 안 되는 이유가 두 가지다.
+///
+/// **① 페이지 경계 판정.** 다음 페이지가 있는지는 서버가 **돌려준 행 수**로
+/// 판정해야 한다. 버린 행을 뺀 수로 판정하면 마지막 페이지로 오판해 뒷 페이지를
+/// 통째로 놓친다. offset 을 밀 때도 마찬가지다.
+///
+/// **② 커서 전진.** 해석하지 못한 행도 `updated_at` 은 읽히는 경우가 많다.
+/// 그 값까지 봐야 커서가 그 행 너머로 넘어가고, pull 이 같은 행에서 제자리를
+/// 돌지 않는다.
+class ReadingPage {
+  const ReadingPage({
+    required this.readings,
+    required this.fetchedRows,
+    this.malformed = const [],
+    this.newestSeen,
+  });
+
+  const ReadingPage.empty()
+      : readings = const [],
+        fetchedRows = 0,
+        malformed = const [],
+        newestSeen = null;
+
+  /// 해석에 성공한 기록.
+  final List<GlucoseReading> readings;
+
+  /// 서버가 실제로 돌려준 행 수. **버린 행도 포함한다.**
+  final int fetchedRows;
+
+  /// 해석하지 못해 버린 행의 id.
+  final List<String> malformed;
+
+  /// 이 페이지에서 본 가장 큰 `updated_at`(버린 행 포함).
+  final DateTime? newestSeen;
+}
 
 /// 서버의 기록 테이블에 접근하는 표면.
 ///
@@ -25,7 +64,12 @@ abstract interface class ReadingApi {
   /// 시각이라 한 번에 올린 배치가 **전부 같은 값**을 갖는다. `초과`로 자르면
   /// 페이지 경계에 걸친 동일 시각 행들이 영영 안 넘어온다. 경계 행을 매번 다시
   /// 받는 비용이 훨씬 싸다 — 적용이 멱등이라 다시 받아도 결과가 같다.
-  Future<List<GlucoseReading>> fetchUpdatedSince(
+  ///
+  /// **해석하지 못한 행은 던지지 말고 버린다.** 행 하나가 던지면 pull 전체가
+  /// 실패하고 커서가 전혀 전진하지 않아, 그 행이 고쳐질 때까지 동기화가 통째로
+  /// 멈춘다. 가장 현실적인 시나리오는 버전 차이다 — 새 앱이 새로운 enum
+  /// `wireName` 을 쓰면 구버전 앱은 그때부터 영원히 받지 못한다.
+  Future<ReadingPage> fetchUpdatedSince(
     DateTime? since, {
     required int limit,
     required int offset,
@@ -49,7 +93,7 @@ class SupabaseReadingApi implements ReadingApi {
   }
 
   @override
-  Future<List<GlucoseReading>> fetchUpdatedSince(
+  Future<ReadingPage> fetchUpdatedSince(
     DateTime? since, {
     required int limit,
     required int offset,
@@ -68,8 +112,31 @@ class SupabaseReadingApi implements ReadingApi {
         .order('id', ascending: true)
         .range(offset, offset + limit - 1);
 
-    return [
-      for (final row in rows) ReadingDto.fromJson(Map<String, dynamic>.from(row)),
-    ];
+    final readings = <GlucoseReading>[];
+    final malformed = <String>[];
+    DateTime? newest;
+
+    for (final raw in rows) {
+      final json = Map<String, dynamic>.from(raw);
+      final seen = ReadingDto.updatedAtOf(json);
+      if (seen != null && (newest == null || seen.isAfter(newest))) {
+        newest = seen;
+      }
+      try {
+        readings.add(ReadingDto.fromJson(json));
+      } on Object catch (error) {
+        final id = ReadingDto.idOf(json);
+        malformed.add(id);
+        // 사용자에게 예외 원문을 보여 주지 않는다. 진단은 로그로만 남긴다.
+        debugPrint('pull: 해석 못 한 행을 건너뛴다 — $id: $error');
+      }
+    }
+
+    return ReadingPage(
+      readings: readings,
+      fetchedRows: rows.length,
+      malformed: malformed,
+      newestSeen: newest,
+    );
   }
 }

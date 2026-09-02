@@ -34,6 +34,7 @@ class SyncReport {
     this.pushed = 0,
     this.pulled = 0,
     this.blocked = 0,
+    this.malformed = 0,
     this.error,
   });
 
@@ -48,11 +49,17 @@ class SyncReport {
   /// 시도 한도를 넘겨 멈춰 선 변경 수. 0 이 아니면 사용자에게 알려야 한다.
   final int blocked;
 
+  /// 해석하지 못해 버린 서버 행 수.
+  ///
+  /// 데이터가 사라진 것은 아니다 — 서버에는 그대로 있고 이 버전이 못 읽을
+  /// 뿐이다. 0 이 아니면 앱 버전이 서버 스키마를 따라가지 못한다는 신호다.
+  final int malformed;
+
   final String? error;
 
   @override
   String toString() => 'SyncReport($outcome, pushed: $pushed, '
-      'pulled: $pulled, blocked: $blocked)';
+      'pulled: $pulled, blocked: $blocked, malformed: $malformed)';
 }
 
 /// 아웃박스 소비자. push → pull 순서로 한 회차를 돈다.
@@ -125,11 +132,12 @@ class SyncEngine {
     }
 
     try {
-      final pulled = await _pull(userId);
+      final pull = await _pull(userId);
       return SyncReport(
         outcome: SyncOutcome.ok,
         pushed: pushed,
-        pulled: pulled,
+        pulled: pull.applied,
+        malformed: pull.malformed,
         blocked: await _blocked(),
       );
     } catch (error) {
@@ -177,35 +185,59 @@ class SyncEngine {
     return live.length;
   }
 
-  Future<int> _pull(String userId) async {
+  /// 델타 pull 한 회차.
+  ///
+  /// 커서를 어디까지 미느냐가 이 함수의 전부다. 두 종류의 "건너뛴 행"을 **반대로**
+  /// 다룬다.
+  ///
+  /// - **해석 못 한 행**: 커서를 넘긴다. 다시 받아도 또 못 읽으므로, 붙잡으면
+  ///   pull 이 그 자리에서 영원히 제자리를 돈다.
+  /// - **로컬이 pending 이라 건너뛴 행**: 커서를 넘기지 **않는다.** 보통은 다음
+  ///   push 가 서버 `updated_at` 을 올려 자연히 다시 받지만, 그 push 가 한도에
+  ///   닿아 막히면 서버 쪽 변경이 영영 다시 오지 않는다. 커서를 그 행 앞에
+  ///   세워 두면 조용한 분기가 생기지 않는다(커서는 `gte` 라 다시 받는다).
+  Future<({int applied, int malformed})> _pull(String userId) async {
     final since = await _cursor.read(userId);
 
     var offset = 0;
     var applied = 0;
+    var malformed = 0;
     DateTime? newest;
+    DateTime? heldBack;
 
     while (true) {
-      final batch = await _api.fetchUpdatedSince(
+      final page = await _api.fetchUpdatedSince(
         since,
         limit: batchSize,
         offset: offset,
       );
-      if (batch.isEmpty) break;
+      if (page.fetchedRows == 0) break;
 
-      applied += await _apply(batch);
+      malformed += page.malformed.length;
+      final result = await _apply(page.readings);
+      applied += result.applied;
 
-      for (final reading in batch) {
-        if (newest == null || reading.updatedAt.isAfter(newest)) {
-          newest = reading.updatedAt;
-        }
+      final skipped = result.skippedFrom;
+      if (skipped != null && (heldBack == null || skipped.isBefore(heldBack))) {
+        heldBack = skipped;
+      }
+      final seen = page.newestSeen;
+      if (seen != null && (newest == null || seen.isAfter(newest))) {
+        newest = seen;
       }
 
-      if (batch.length < batchSize) break;
-      offset += batch.length;
+      // 다음 페이지 판정과 offset 은 **서버가 돌려준 행 수** 기준이다.
+      // 버린 행을 뺀 수로 세면 마지막 페이지로 오판하거나 offset 이 밀린다.
+      if (page.fetchedRows < batchSize) break;
+      offset += page.fetchedRows;
     }
 
-    if (newest != null) await _cursor.write(userId, newest);
-    return applied;
+    var next = newest;
+    if (heldBack != null && (next == null || heldBack.isBefore(next))) {
+      next = heldBack;
+    }
+    if (next != null) await _cursor.write(userId, next);
+    return (applied: applied, malformed: malformed);
   }
 
   /// 받아 온 기록을 로컬에 적용한다.
@@ -222,8 +254,12 @@ class SyncEngine {
   /// `adjustedByUser` 는 서버 스키마에 없다. companion 에서 통째로 빼면 Drift 가
   /// UPDATE SET 에서도 제외하므로 로컬 값이 그대로 남는다. 넣었다가는 이 기기에만
   /// 있던 OCR 원문과 사진 경로가 동기화 한 번에 사라진다.
-  Future<int> _apply(List<GlucoseReading> readings) async {
-    if (readings.isEmpty) return 0;
+  /// 반환의 `skippedFrom` 은 로컬 pending 때문에 건너뛴 행 중 가장 이른
+  /// `updatedAt` 이다. 커서를 그 앞에 세우는 데 쓴다.
+  Future<({int applied, DateTime? skippedFrom})> _apply(
+    List<GlucoseReading> readings,
+  ) async {
+    if (readings.isEmpty) return (applied: 0, skippedFrom: null);
 
     return _db.transaction(() async {
       final ids = [for (final r in readings) r.id];
@@ -236,8 +272,14 @@ class SyncEngine {
       };
 
       var applied = 0;
+      DateTime? skippedFrom;
       for (final reading in readings) {
-        if (pendingIds.contains(reading.id)) continue;
+        if (pendingIds.contains(reading.id)) {
+          if (skippedFrom == null || reading.updatedAt.isBefore(skippedFrom)) {
+            skippedFrom = reading.updatedAt;
+          }
+          continue;
+        }
 
         await _db.into(_db.glucoseReadingRows).insertOnConflictUpdate(
               GlucoseReadingRowsCompanion.insert(
@@ -262,7 +304,7 @@ class SyncEngine {
         applied++;
       }
 
-      return applied;
+      return (applied: applied, skippedFrom: skippedFrom);
     });
   }
 

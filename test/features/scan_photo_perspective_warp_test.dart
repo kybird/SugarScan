@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:sugarscan/features/scan/photo_preprocessor.dart';
+import 'package:sugarscan/ocr/ocr.dart';
 
 /// 원근 펴기 코어 — 검출 없이 모서리 4점으로 사진을 엔진 규격(211×96)으로 편다.
 /// 엔진 호출 없이 기하만 검증한다(판독 종단은 golden_bench 가 한다).
@@ -128,5 +129,51 @@ void main() {
       pt(0, 10), pt(100, 10), pt(200, 10), pt(150, 10),
     ]);
     expect(frame, isNull);
+  });
+
+  // 두 공개 함수는 같은 구현을 공유한다. 출력 크기와 대비 처리만 다르다는 것을
+  // 여기서 고정한다 — 갈라지면 좌표 코드는 눈으로 알아채기 가장 어렵다.
+  group('warpQuadToRect', () {
+    test('요청한 크기 그대로 돌려준다', () {
+      final frame = warpQuadToRect(patternPng(), identity, 320, 160);
+      expect(frame, isNotNull);
+      expect(frame!.width, 320);
+      expect(frame.height, 160);
+      expect(frame.format, OcrImageFormat.grayscale8);
+      expect(frame.bytes.length, 320 * 160);
+    });
+
+    // 이 결과는 사람이 보는 화면이 아니라 밴드 검출기의 입력이다. 늘려 놓으면
+    // 검출 임계값이 벤치에 남은 수치와 다른 것을 보게 된다.
+    test('대비 스케일을 걸지 않는다 — 원래 밝기를 보존한다', () {
+      final frame = warpQuadToRect(patternPng(), identity, w, h)!;
+      final values = frame.bytes.toSet();
+      expect(values.reduce(math.min), closeTo(20, 3),
+          reason: '어두운 획이 0 으로 늘어나면 안 된다');
+      expect(values.reduce(math.max), closeTo(235, 3),
+          reason: '밝은 배경이 255 로 늘어나면 안 된다');
+    });
+
+    test('같은 크기·같은 모서리면 엔진 프레임과 기하가 일치한다', () {
+      final rect = warpQuadToRect(patternPng(), identity, 211, 96)!;
+      final engine = warpQuadToEngineFrame(patternPng(), identity)!;
+      // 엔진 쪽만 20~235 를 0~255 로 늘린다. 그 스트레치를 되돌리면 같아진다.
+      var diff = 0;
+      for (var i = 0; i < rect.bytes.length; i++) {
+        final stretched =
+            ((rect.bytes[i] - 20) * 255 / 215).round().clamp(0, 255);
+        diff += (engine.bytes[i] - stretched).abs();
+      }
+      expect(diff / rect.bytes.length, lessThan(2));
+    });
+
+    test('퇴화 모서리는 null 이다', () {
+      expect(
+        warpQuadToRect(patternPng(), [
+          pt(0, 10), pt(100, 10), pt(200, 10), pt(150, 10),
+        ], 320, 160),
+        isNull,
+      );
+    });
   });
 }
