@@ -6,6 +6,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 import torch
+from PIL import Image, ImageOps
 
 sys.path.insert(0, "D:/tmp/YOLOX")
 from yolox.exp import get_exp  # noqa: E402
@@ -16,6 +17,16 @@ LABELS = HERE.parent / "upstream" / "datumo" / "labels.jsonl"
 DATUMO = HERE.parent / "upstream" / "datumo"
 OUT = HERE / "gmscreen_quads.jsonl"
 CONF = 0.25
+
+
+def _load_bgr(p: Path):
+    # 단일 로더: PIL + exif_transpose. cv2.imread(EXIF 적용) 와 PIL 폴백(EXIF 무시)
+    # 이 갈라져 출력 좌표계가 섞이던 것을 표시(EXIF 적용) 좌표계 하나로 통일한다.
+    # 채널 순서는 기존 cv2.imread 경로와 같은 BGR 로 내놓는다(모델 입력 불변).
+    with Image.open(p) as pil:
+        pil.load()
+        pil = ImageOps.exif_transpose(pil)
+        return cv2.cvtColor(np.asarray(pil.convert("RGB")), cv2.COLOR_RGB2BGR)
 
 
 def main() -> int:
@@ -34,16 +45,10 @@ def main() -> int:
     with open(OUT, "w", encoding="utf-8") as out:
         for k, row in enumerate(rows):
             p = DATUMO / row["image"]
-            img0 = cv2.imread(str(p))
-            if img0 is None:
-                from PIL import Image
-                try:
-                    with Image.open(p) as pil:
-                        pil.load()
-                        img0 = cv2.cvtColor(
-                            np.asarray(pil.convert("RGB")), cv2.COLOR_RGB2BGR)
-                except Exception:
-                    continue
+            try:
+                img0 = _load_bgr(p)
+            except Exception:
+                continue
             sh, sw = img0.shape[:2]
             img = cv2.resize(img0, (416, 416))
             x = torch.from_numpy(img[..., ::-1].copy()).permute(2, 0, 1)[None].float().cuda()
