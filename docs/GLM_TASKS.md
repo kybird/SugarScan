@@ -509,21 +509,15 @@ GLM 은 정하지 말고 그대로 옮기기만 하면 된다. 그리고 **판�
 
 좌표 정본은 **표시(EXIF 적용) 이미지의 원본 픽셀**이다. 세 곳을 거기에 맞춘다.
 
-| 파일 | 지금 | 고칠 것 |
+> **[2026-09-02 정정]** 이 지시서의 처음 판은 세 곳 전부 EXIF 무처리라고 적었다.
+> **실측 결과 두 곳은 이미 처리되고 있었다.** 아래 표는 정정판이다.
+> 근거는 `doc/raw/2026-09-02.md` Case 13.
+
+| 파일 | 실측한 현재 상태 | 고칠 것 |
 |---|---|---|
-| `assets_dev/train/build_cache_v2.py` (약 96행) | `Image.open(p)` → PIL 이라 **EXIF 무시** | `pil = ImageOps.exif_transpose(pil)` 를 `convert("RGB")` **앞에** |
-| `assets_dev/train/detect_datumo_gm.py` (약 37·41행) | `cv2.imread`(적용) + `Image.open` 폴백(무시) **혼재** | 둘 다 PIL + `exif_transpose` 로 통일 |
-| `tools/ocr_bench/bin/golden_bench.dart` | `package:image` 의 `decodeImage` 는 **방향을 굽지 않는다** | 벤치가 바이트를 넘기기 전에 `img.bakeOrientation()` 후 재인코딩 |
-
-Dart 쪽 정확한 모양:
-
-```dart
-final raw = file.readAsBytesSync();
-final decoded = img.decodeImage(raw);
-if (decoded == null) { /* 기존 undecodable 경로 그대로 */ }
-final bytes = img.encodePng(img.bakeOrientation(decoded));
-// 이 bytes 를 warpQuadToEngineFrame / preprocessPhotoForEngine / detectReadingQuad 에 넘긴다
-```
+| `assets_dev/train/build_cache_v2.py` (약 96행) | `Image.open(p)` → PIL 이라 **EXIF 무시**. 그런데 쓰는 쿼드(`gmscreen_quads.jsonl`)는 **표시 좌표계**다 → **어긋난다. 진짜 결함은 여기 하나뿐.** | `pil = ImageOps.exif_transpose(pil)` 를 `convert("RGB")` **앞에** |
+| `assets_dev/train/detect_datumo_gm.py` (약 37·41행) | 1차 `cv2.imread` 는 **EXIF 를 적용한다**(실측). `Image.open` **폴백만** 무시 — 그 경로로 떨어진 장만 raw 좌표가 섞인다 | 폴백에 `exif_transpose` 를 넣어 1차 경로와 맞춘다. **cv2 1차 경로는 그대로 둘 것** |
+| `tools/ocr_bench/bin/golden_bench.dart` | `package:image` 의 `decodeImage` 는 **JPEG 디코드 시점에 orientation 을 픽셀에 굽는다**(ori 5~8 표본 242장 전부 확인, 예외 0) | **고칠 것 없음.** `bakeOrientation` 을 넣어도 no-op 이다 |
 
 **환경과 실행**
 
@@ -551,21 +545,22 @@ dart run tools/ocr_bench/bin/golden_bench.dart --labels <labels.jsonl> --root <�
 검증 (**전부 하고 결과를 보고서에 적을 것**)
 1. `build_cache_v2.py` 재실행 후, 생성물에서 **표본 10장을 PNG 로 떨어뜨려 눈으로**
    본다. 숫자가 똑바로 서 있어야 한다. 옆으로 누운 것이 하나라도 있으면 실패다.
-2. `detect_datumo_gm.py` 재실행 후 검출 쿼드를 **표시 이미지 위에 그려** 표본 10장을
-   확인한다. 유리에 붙어야 한다.
-3. `golden_bench` 를 EXIF 처리 **전/후로 각각 한 번씩** 돌려 수치를 나란히 적는다.
-   숫자가 좋아지든 나빠지든 **그대로 적는다** — 이 작업의 목적은 점수 개선이 아니라
-   좌표계를 맞추는 것이다.
-4. `flutter analyze` · `flutter test` 통과(Dart 쪽을 건드렸으므로).
+2. `detect_datumo_gm.py` 의 PIL 폴백이 실제로 몇 장에서 쓰이는지 세어 보고 적는다.
+   0 장이면 이 수정은 예방일 뿐이라는 사실도 그대로 적는다.
+3. `golden_bench` 는 **코드를 안 고치므로 재측정이 필요 없다.** 과거 수치가 좌표계
+   오염이 아니었다는 사실만 보고서에 적는다.
+4. `flutter analyze` · `flutter test` 통과(Dart 를 건드렸다면).
 
 **남길 것 (고치지 말고 보고서에 적는다)**
-`lib/features/scan/photo_preprocessor.dart` 의 사진 불러오기 경로가 EXIF 를
-처리하지 않는다. 안드로이드 image_picker 는 방향을 정규화하지 않는 경우가 있어,
-사용자가 세로로 찍은 사진이 누운 채로 들어올 수 있다. **앱 동작을 바꾸는 결정이라
-사람 몫이다.** 재현되는지만 확인해서 적어 둘 것(재현 방법 포함).
+- `package:image` 가 디코드하지 못하는 JPEG 이 이 데이터셋에 섞여 있다
+  (`ImageException: Unknown JPEG marker d3`). `golden_bench` 가 그 장을
+  undecodable 로 세고 있을 것이다. **몇 장인지 세어서 적을 것.**
+- `lib/features/scan/photo_preprocessor.dart` 의 사진 불러오기 경로는 `package:image`
+  가 방향을 구워 주므로 **앱 쪽은 문제없을 가능성이 높다**(위 실측). 다만 카메라
+  경로는 Y 평면이라 EXIF 자체가 없다. 확인만 하고 적어 둘 것.
 
-완료 기준: 세 파일이 표시 좌표계로 통일되고, 위 검증 4개의 결과가 보고서에 숫자로
-남는다. `lib/` 변경 0줄.
+완료 기준: **`build_cache_v2.py` 가 표시 좌표계로 맞춰지고**(핵심), `detect_datumo_gm.py`
+폴백이 1차 경로와 일치하며, 위 검증 4개의 결과가 보고서에 숫자로 남는다. `lib/` 변경 0줄.
 
 **보고서**: `docs/reports/G20-exif-loader-unification.md`
 

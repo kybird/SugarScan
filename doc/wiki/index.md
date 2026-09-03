@@ -34,6 +34,7 @@ tags: [index]
 | [[row-level-decode-tolerance]] | 배치에서 행 하나를 해석하지 못했다고 배치 전체를 실패시키지 않는다. **관용의 단위는 행이다.** | 행 단위 관용, poison-row 방어, ReadingPage, fetchUpdatedSince, fetchedRows, malformed, ReadingDto.fromJson |
 | [[server-side-write-verification]] | 클라이언트가 "무엇을 기준으로 만든 값인지"를 함께 보내게 하고, **서버가 정본에서 직접 재확인한 뒤에만** 기록한다. | 저장 검문, 쓰기 검증, 409 거부, _verify_frame, /api/label, webtool.py, 409 |
 | [[tolerant-decode-with-preservation]] | 모르는 값을 만나면 **관용하되 보존한다.** 기본값으로 치환하고 그대로 되돌려 쓰면, 관용이 곧 데이터 파괴가 된다. | 관용 디코드, unknown 보존, additive-only, fromWireName, orElse, MeasurementTag, ReadingSource, GlucoseUnit |
+| [[verify-premises-before-executing]] | 지시서를 받으면 **적힌 대로 하기 전에 전제가 사실인지 먼저 잰다.** 지시서를 쓴 | 전제 실측, 지시서 검증, 요약 먼저, 위임 안전장치 |
 
 ---
 
@@ -55,6 +56,7 @@ tags: [index]
 | [[stale-client-writes]] | 브라우저에 어느 버전의 JS 가 떠 있는지 **아무도 모르는 상태**로 저장 요청을 받는 것. | 낡은 탭 쓰기, stale build, Cache-Control, no-store, webtool.html, /api/build |
 | [[tolerance-without-preservation]] | `values.firstWhere(..., orElse: () => SomeDefault)` — 관용처럼 보이지만, 그 값을 나중에 서버로 되돌려 쓰는 순간 **다른 기기의 데이터를 파괴한다.** | 모르는 값 치환, orElse 기본값, silent-normalization, fromWireName, orElse, firstWhere, MeasurementTag, ReadingSource, measurement_tag.dart |
 | [[unnamed-coordinate-frame]] | 좌표 배열만 저장하고, **그 좌표가 어느 프레임에서 만들어졌는지**는 저장하지 않는 것. | 이름 없는 좌표계, 프레임 미기록, lb.ow, lb.frameId, applyImage, screen_boxes.jsonl, labeled.jsonl |
+| [[verification-record-without-subject]] | `눈검증: glucose_batch1/10 쿼드가 표시 이미지에서 유리 정확히 감쌈` | 무엇을 검증했는지 안 적기, 눈검증 기록, 검증 주어 누락 |
 | [[wiki-unreachable-by-identifier]] | 개념어와 산문으로만 쓰인 페이지. | 식별자로 안 걸리는 위키, aliases 누락, FrameThrottler, statsReadingsProvider |
 
 ---
@@ -69,7 +71,7 @@ tags: [index]
 ## Statistics
 
 - Total concepts: 5
-- Total patterns: 11
-- Total anti-patterns: 15
+- Total patterns: 12
+- Total anti-patterns: 16
 - Total answers: 0
 - Last updated: 2026-09-02
