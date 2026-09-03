@@ -160,7 +160,9 @@ tr.miss td.mono { color: var(--bad); }
   <div id="labelbar">
     <label>모드
       <select id="mode">
-        <option value="band">밴드 (labeled.jsonl)</option>
+        <!-- 밴드 모드는 A 경로 확정(2026-09-02 사다리꼴 유리)으로 주 파이프라인에서
+             빠졌다 — 라벨이 밴드 모델 외 소비자가 없어 혼란만 주니 노출하지 않는다.
+             데이터(labeled.jsonl)와 MODES.band 정의는 보존: 되돌릴 때 복원만 하면 됨. -->
         <option value="lcd">LCD 화면 (screen_boxes.jsonl)</option>
       </select>
     </label>
@@ -272,15 +274,16 @@ document.querySelectorAll("nav .tab").forEach(btn => {
 });
 
 /* ================= 라벨러 ================= */
+// 밴드 모드는 A 경로 확정(2026-09-02)으로 제거했다 — labeled.jsonl 데이터와
+// 서버 /api/labels?mode=band · /api/quads?kind=band 는 그대로라 되돌릴 땐
+// 이 객체와 <option> 만 복원하면 된다.
 const MODES = {
-  band: { labelKind: "band", flag: "band", name: "밴드",
-          meaning: "이 모드의 박스 = 숫자줄+단위 (시간줄·배터리 제외, 단위 없는 기기는 숫자만)" },
   lcd:  { labelKind: "gm",   flag: "lcd",  name: "LCD",
           meaning: "이 모드의 박스 = LCD 화면 전체 (숫자+단위+시간줄 포함) — 모델이 못 찾은 장(파란 박스 없음)부터 표시" },
 };
 const IMG_W = 1920;
 const lb = {
-  meta: null, labels: {}, quads: {}, mode: "band",
+  meta: null, labels: {}, quads: {}, mode: "lcd",
   idx: -1, box: null, img: null, ow: 0, oh: 0,
   // 좌표계에 이름표를 붙인다. lb.ow/lb.oh 가 '어느 장의' 표시 크기인지 모르면
   // 한 장 밀린 프레임으로 그린 박스를 그대로 저장하게 된다(2026-09-02 사고).
