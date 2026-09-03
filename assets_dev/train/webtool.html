@@ -168,7 +168,7 @@ tr.miss td.mono { color: var(--bad); }
     </label>
     <span class="stat" id="box-meaning"></span>
     <span class="stat">라벨 <b id="cnt-labeled">-</b> · 스킵 <b id="cnt-skipped">-</b> · 남음 <b id="cnt-remain">-</b></span>
-    <span class="stat">파일 <b id="cur-id" style="color:#4da3ff;font-family:Consolas,monospace;font-size:15px">-</b></span>
+    <span class="stat">파일 <b id="cur-id" style="color:#4da3ff;font-family:Consolas,monospace;font-size:15px">-</b> <b id="cur-labeled" style="font-size:12px"></b></span>
     <span class="stat" id="pos">-</span>
     <button id="btn-restore" title="박스를 열었을 때의 값(저장 라벨→모델 예측)으로 되돌림">↺ 박스 복원 (R)</button>
     <button id="btn-rect" title="라벨 박스 안에서 유리 사각형을 찾아 원근를 편 결과를 현재 방식(박스 스트레치)과 나란히 비교">⤢ 펼치기 검수 (E)</button>
@@ -381,6 +381,10 @@ async function show(idx) {
   lb.ow = 0; lb.oh = 0;
   draw();
   const l = lb.labels[it.id];
+  // 현재 장의 라벨 상태를 헤더에 — 프리필(파란 예측)과 저장 라벨을 헷갈리지 않게.
+  const labBadge = $("cur-labeled");
+  labBadge.textContent = l ? (l.quad ? "· 라벨 있음" : "· 스킵됨") : "· 미라벨";
+  labBadge.style.color = l && l.quad ? "#7dd87d" : "#d8a657";
   if (l && l.quad) lb.box = quadToAABB(l.quad);
   const pred = lb.quads[it.id];
   $("gtpred").textContent = pred ? "· 모델예측 표시" : "· 모델예측 없음";
@@ -813,6 +817,8 @@ window.addEventListener("keydown", (e) => {
 async function saveBox() {
   const it = curItem();
   if (!it || !lb.box) return;
+  // 수정(이미 라벨 있는 장)인지 신규 라벨링인지 — 저장 후 이동이 갈린다.
+  const editing = !!(lb.labels[it.id] && lb.labels[it.id].quad);
   const bad = frameGuard(it);
   if (bad) { toast("저장 차단: " + bad); return; }
   const body = { mode: lb.mode, id: it.id, quad: aabbToQuad(lb.box),
@@ -823,7 +829,12 @@ async function saveBox() {
   it[MODES[lb.mode].flag] = true;
   toast("저장: " + it.id);
   if (rectOpen) refreshRect();
-  nextUnlabeled();
+  if (editing) {
+    // 수정 저장은 미라벨로 건너뛰지 않는다 — 검수는 그 자리에서 한 칸씩.
+    if (lb.idx + 1 < lb.meta.items.length) show(lb.idx + 1);
+  } else {
+    nextUnlabeled();
+  }
 }
 async function skip() {
   const it = curItem();
