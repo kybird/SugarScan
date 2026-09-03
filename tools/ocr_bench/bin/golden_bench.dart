@@ -17,6 +17,12 @@
 // margin·rotation·contrast 라벨이 없으므로 축 분해는 배치·자릿수·값구간으로
 // 대체한다.
 //
+// EXIF 방향: package:image 4.9.2 의 JPEG 디코더(getImageFromJpeg)는 디코드
+// 시점에 orientation 을 픽셀에 구우고 태그를 지운다 — 따라서 이 벤치가 다루는
+// 프레임은 이미 표시(EXIF 적용) 좌표계이며, decodeImage 뒤에 bakeOrientation 을
+// 붙이는 것은 no-op 다(실측: G20 보고서). Python(PIL) 처럼 별도 처리가 필요하지
+// 않다.
+//
 // 사용법
 // ------
 //   dart run tools/ocr_bench/bin/golden_bench.dart \

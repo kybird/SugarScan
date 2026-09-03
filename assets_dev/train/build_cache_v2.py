@@ -5,7 +5,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 
 HERE = Path(__file__).resolve().parent
 DATUMO = HERE.parent / "upstream" / "datumo"
@@ -95,6 +95,10 @@ def main() -> int:
             try:
                 with Image.open(p) as pil:
                     pil.load()
+                    # 좌표 정본은 표시(EXIF 적용) 이미지 — gmscreen_quads.jsonl 은
+                    # cv2.imread(EXIF 적용) 로 만들어져 표시 좌표계다. PIL 은 EXIF 를
+                    # 무시하므로 여기서 굽지 않으면 표시 좌표를 raw 이미지에 물린다.
+                    pil = ImageOps.exif_transpose(pil)
                     g = cv2.cvtColor(
                         np.asarray(pil.convert("RGB")), cv2.COLOR_RGB2GRAY)
             except Exception:
