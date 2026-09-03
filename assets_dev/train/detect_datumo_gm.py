@@ -1,4 +1,9 @@
 # torch(YOLOX evaluator와 동일 전처리: 416 스트레치+BGR)로 Datumo 전량 추론.
+# 인자(선택): --ckpt <pth>  체크포인트(기본: 운영 gmscreen/latest_ckpt.pth)
+#             --out <jsonl>  출력(기본: 운영 gmscreen_quads.jsonl)
+#             --exp <exp.py> exp 파일(기본: reading_exp.py — gmscreen 과 동일 구조)
+# 평가 실험은 --out 을 _diag 쪽으로 돌려 운영 쿼드(webtool 힌트·CTC 캐시 원료)를
+# 덮어쓰지 않게 한다.
 import json
 import sys
 from pathlib import Path
@@ -16,6 +21,8 @@ HERE = Path(__file__).resolve().parent
 LABELS = HERE.parent / "upstream" / "datumo" / "labels.jsonl"
 DATUMO = HERE.parent / "upstream" / "datumo"
 OUT = HERE / "gmscreen_quads.jsonl"
+CKPT = HERE / "yolox_out" / "gmscreen" / "latest_ckpt.pth"
+EXP_FILE = "D:/tmp/YOLOX/reading_exp.py"
 CONF = 0.25
 
 
@@ -30,9 +37,23 @@ def _load_bgr(p: Path):
 
 
 def main() -> int:
-    exp = get_exp("D:/tmp/YOLOX/reading_exp.py", "reading")
+    out_path = OUT
+    ckpt_path = CKPT
+    exp_file = EXP_FILE
+    args = sys.argv[1:]
+    for i, a in enumerate(args):
+        if a == "--out" and i + 1 < len(args):
+            out_path = Path(args[i + 1])
+        elif a == "--ckpt" and i + 1 < len(args):
+            ckpt_path = Path(args[i + 1])
+        elif a == "--exp" and i + 1 < len(args):
+            exp_file = args[i + 1]
+    print(f"ckpt: {ckpt_path}")
+    print(f"out:  {out_path}")
+
+    exp = get_exp(exp_file, "reading")
     model = exp.get_model()
-    ckpt = torch.load(HERE / "yolox_out" / "gmscreen" / "latest_ckpt.pth", map_location="cpu")
+    ckpt = torch.load(ckpt_path, map_location="cpu")
     model.load_state_dict(ckpt["model"])
     model.eval().cuda()
 
@@ -42,7 +63,7 @@ def main() -> int:
         if l.strip()
     ]
     n_ok = 0
-    with open(OUT, "w", encoding="utf-8") as out:
+    with open(out_path, "w", encoding="utf-8") as out:
         for k, row in enumerate(rows):
             p = DATUMO / row["image"]
             try:
