@@ -1,0 +1,582 @@
+[
+ {
+  "id": "glucose_batch1/233",
+  "stratum": "gm_miss",
+  "note": "GM 이 박스를 못 냈다"
+ },
+ {
+  "id": "glucose_batch1/92",
+  "stratum": "gm_miss",
+  "note": "GM 이 박스를 못 냈다"
+ },
+ {
+  "id": "glucose_batch1/1094",
+  "stratum": "wide",
+  "note": "GM 박스 가로 w/h=1.27 (판독 62%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/1213",
+  "stratum": "wide",
+  "note": "GM 박스 가로 w/h=1.10 (판독 62%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/1226",
+  "stratum": "wide",
+  "note": "GM 박스 가로 w/h=1.14 (판독 62%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/1590",
+  "stratum": "wide",
+  "note": "GM 박스 가로 w/h=2.19 (판독 62%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/2002",
+  "stratum": "wide",
+  "note": "GM 박스 가로 w/h=1.11 (판독 62%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/2010",
+  "stratum": "wide",
+  "note": "GM 박스 가로 w/h=1.11 (판독 62%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/2011",
+  "stratum": "wide",
+  "note": "GM 박스 가로 w/h=1.12 (판독 62%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/2016",
+  "stratum": "wide",
+  "note": "GM 박스 가로 w/h=1.12 (판독 62%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/2022",
+  "stratum": "wide",
+  "note": "GM 박스 가로 w/h=1.14 (판독 62%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/2041",
+  "stratum": "wide",
+  "note": "GM 박스 가로 w/h=1.13 (판독 62%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/2489",
+  "stratum": "wide",
+  "note": "GM 박스 가로 w/h=1.47 (판독 62%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/283",
+  "stratum": "wide",
+  "note": "GM 박스 가로 w/h=1.46 (판독 62%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/299",
+  "stratum": "wide",
+  "note": "GM 박스 가로 w/h=1.21 (판독 62%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/497",
+  "stratum": "wide",
+  "note": "GM 박스 가로 w/h=1.41 (판독 62%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/65",
+  "stratum": "wide",
+  "note": "GM 박스 가로 w/h=1.26 (판독 62%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/669",
+  "stratum": "wide",
+  "note": "GM 박스 가로 w/h=1.14 (판독 62%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/683",
+  "stratum": "wide",
+  "note": "GM 박스 가로 w/h=1.20 (판독 62%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/821",
+  "stratum": "wide",
+  "note": "GM 박스 가로 w/h=1.19 (판독 62%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/940",
+  "stratum": "wide",
+  "note": "GM 박스 가로 w/h=1.18 (판독 62%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/952",
+  "stratum": "wide",
+  "note": "GM 박스 가로 w/h=2.32 (판독 62%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/953",
+  "stratum": "wide",
+  "note": "GM 박스 가로 w/h=2.34 (판독 62%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/955",
+  "stratum": "wide",
+  "note": "GM 박스 가로 w/h=2.28 (판독 62%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/971",
+  "stratum": "wide",
+  "note": "GM 박스 가로 w/h=1.20 (판독 62%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch2/2524",
+  "stratum": "wide",
+  "note": "GM 박스 가로 w/h=1.54 (판독 62%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/1038",
+  "stratum": "lowconf",
+  "note": "GM score=0.84 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/105",
+  "stratum": "lowconf",
+  "note": "GM score=0.54 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/109",
+  "stratum": "lowconf",
+  "note": "GM score=0.66 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/112",
+  "stratum": "lowconf",
+  "note": "GM score=0.63 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/113",
+  "stratum": "lowconf",
+  "note": "GM score=0.80 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/114",
+  "stratum": "lowconf",
+  "note": "GM score=0.39 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/115",
+  "stratum": "lowconf",
+  "note": "GM score=0.78 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/116",
+  "stratum": "lowconf",
+  "note": "GM score=0.54 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/117",
+  "stratum": "lowconf",
+  "note": "GM score=0.82 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/118",
+  "stratum": "lowconf",
+  "note": "GM score=0.72 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/128",
+  "stratum": "lowconf",
+  "note": "GM score=0.80 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/131",
+  "stratum": "lowconf",
+  "note": "GM score=0.80 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/1456",
+  "stratum": "lowconf",
+  "note": "GM score=0.61 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/1473",
+  "stratum": "lowconf",
+  "note": "GM score=0.83 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/1548",
+  "stratum": "lowconf",
+  "note": "GM score=0.78 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/2000",
+  "stratum": "lowconf",
+  "note": "GM score=0.80 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/2019",
+  "stratum": "lowconf",
+  "note": "GM score=0.79 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/2020",
+  "stratum": "lowconf",
+  "note": "GM score=0.84 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/2025",
+  "stratum": "lowconf",
+  "note": "GM score=0.83 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/2026",
+  "stratum": "lowconf",
+  "note": "GM score=0.79 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/217",
+  "stratum": "lowconf",
+  "note": "GM score=0.75 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/2210",
+  "stratum": "lowconf",
+  "note": "GM score=0.62 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/225",
+  "stratum": "lowconf",
+  "note": "GM score=0.81 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/228",
+  "stratum": "lowconf",
+  "note": "GM score=0.48 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/231",
+  "stratum": "lowconf",
+  "note": "GM score=0.84 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/2316",
+  "stratum": "lowconf",
+  "note": "GM score=0.70 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/2318",
+  "stratum": "lowconf",
+  "note": "GM score=0.77 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/2369",
+  "stratum": "lowconf",
+  "note": "GM score=0.85 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/2371",
+  "stratum": "lowconf",
+  "note": "GM score=0.70 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/2382",
+  "stratum": "lowconf",
+  "note": "GM score=0.74 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/2391",
+  "stratum": "lowconf",
+  "note": "GM score=0.65 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/2428",
+  "stratum": "lowconf",
+  "note": "GM score=0.77 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/2431",
+  "stratum": "lowconf",
+  "note": "GM score=0.40 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/2492",
+  "stratum": "lowconf",
+  "note": "GM score=0.84 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/2495",
+  "stratum": "lowconf",
+  "note": "GM score=0.82 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/2498",
+  "stratum": "lowconf",
+  "note": "GM score=0.83 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/2499",
+  "stratum": "lowconf",
+  "note": "GM score=0.82 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/266",
+  "stratum": "lowconf",
+  "note": "GM score=0.67 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/267",
+  "stratum": "lowconf",
+  "note": "GM score=0.78 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/30",
+  "stratum": "lowconf",
+  "note": "GM score=0.64 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/32",
+  "stratum": "lowconf",
+  "note": "GM score=0.81 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/33",
+  "stratum": "lowconf",
+  "note": "GM score=0.76 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/34",
+  "stratum": "lowconf",
+  "note": "GM score=0.76 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/369",
+  "stratum": "lowconf",
+  "note": "GM score=0.84 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/38",
+  "stratum": "lowconf",
+  "note": "GM score=0.53 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/380",
+  "stratum": "lowconf",
+  "note": "GM score=0.85 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/43",
+  "stratum": "lowconf",
+  "note": "GM score=0.85 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/46",
+  "stratum": "lowconf",
+  "note": "GM score=0.77 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/48",
+  "stratum": "lowconf",
+  "note": "GM score=0.62 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/499",
+  "stratum": "lowconf",
+  "note": "GM score=0.73 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/61",
+  "stratum": "lowconf",
+  "note": "GM score=0.84 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/626",
+  "stratum": "lowconf",
+  "note": "GM score=0.79 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/63",
+  "stratum": "lowconf",
+  "note": "GM score=0.81 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/67",
+  "stratum": "lowconf",
+  "note": "GM score=0.70 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/684",
+  "stratum": "lowconf",
+  "note": "GM score=0.81 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/692",
+  "stratum": "lowconf",
+  "note": "GM score=0.83 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/701",
+  "stratum": "lowconf",
+  "note": "GM score=0.52 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/704",
+  "stratum": "lowconf",
+  "note": "GM score=0.64 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/705",
+  "stratum": "lowconf",
+  "note": "GM score=0.83 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/719",
+  "stratum": "lowconf",
+  "note": "GM score=0.57 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/72",
+  "stratum": "lowconf",
+  "note": "GM score=0.76 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/724",
+  "stratum": "lowconf",
+  "note": "GM score=0.84 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/728",
+  "stratum": "lowconf",
+  "note": "GM score=0.69 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/74",
+  "stratum": "lowconf",
+  "note": "GM score=0.79 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/76",
+  "stratum": "lowconf",
+  "note": "GM score=0.80 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/765",
+  "stratum": "lowconf",
+  "note": "GM score=0.59 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/769",
+  "stratum": "lowconf",
+  "note": "GM score=0.72 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/771",
+  "stratum": "lowconf",
+  "note": "GM score=0.68 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/80",
+  "stratum": "lowconf",
+  "note": "GM score=0.64 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/801",
+  "stratum": "lowconf",
+  "note": "GM score=0.80 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/81",
+  "stratum": "lowconf",
+  "note": "GM score=0.81 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/82",
+  "stratum": "lowconf",
+  "note": "GM score=0.75 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/820",
+  "stratum": "lowconf",
+  "note": "GM score=0.69 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/828",
+  "stratum": "lowconf",
+  "note": "GM score=0.85 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/829",
+  "stratum": "lowconf",
+  "note": "GM score=0.74 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/832",
+  "stratum": "lowconf",
+  "note": "GM score=0.81 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/839",
+  "stratum": "lowconf",
+  "note": "GM score=0.78 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/84",
+  "stratum": "lowconf",
+  "note": "GM score=0.61 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/840",
+  "stratum": "lowconf",
+  "note": "GM score=0.81 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/85",
+  "stratum": "lowconf",
+  "note": "GM score=0.78 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/858",
+  "stratum": "lowconf",
+  "note": "GM score=0.78 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/89",
+  "stratum": "lowconf",
+  "note": "GM score=0.48 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/94",
+  "stratum": "lowconf",
+  "note": "GM score=0.73 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/946",
+  "stratum": "lowconf",
+  "note": "GM score=0.76 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/947",
+  "stratum": "lowconf",
+  "note": "GM score=0.76 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/949",
+  "stratum": "lowconf",
+  "note": "GM score=0.82 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/965",
+  "stratum": "lowconf",
+  "note": "GM score=0.59 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch1/969",
+  "stratum": "lowconf",
+  "note": "GM score=0.74 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch2/2622",
+  "stratum": "lowconf",
+  "note": "GM score=0.53 (판독 88%↓ 구간)"
+ },
+ {
+  "id": "glucose_batch2/2624",
+  "stratum": "lowconf",
+  "note": "GM score=0.58 (판독 88%↓ 구간)"
+ }
+]

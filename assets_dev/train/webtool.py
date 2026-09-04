@@ -252,17 +252,27 @@ def api_failures(qs):
     # band_pilot — make_band_pilot.py 가 만든 시범 라벨링 작업 목록.
     # 사람이 "어느 장을 라벨링할지" 고르지 않아도 되게 미리 층화해 둔 것이다
     # (가로 화면 / 위험군 오독 / 대조군). 없으면 빈 목록.
-    pilot, pilot_note = [], {}
-    pf = HERE / "band_pilot.json"
-    if pf.exists():
-        try:
-            for r in json.loads(pf.read_text(encoding="utf-8")):
-                pilot.append(r["id"])
-                pilot_note[r["id"]] = f"{r['stratum']} · {r['note']}"
-        except Exception:
-            pilot, pilot_note = [], {}
+    def _queue(fname):
+        ids, note = [], {}
+        p = HERE / fname
+        if p.exists():
+            try:
+                for r in json.loads(p.read_text(encoding="utf-8")):
+                    ids.append(r["id"])
+                    note[r["id"]] = f"{r['stratum']} · {r['note']}"
+            except Exception:
+                return [], {}
+        return ids, note
+
+    pilot, pilot_note = _queue("band_pilot.json")
+    lcdfix, lcdfix_note = _queue("lcd_fix_queue.json")
+    # 테스트 holdout — 라벨링하면 개선을 잴 데가 없어진다. 큐에서 빼는 것으로는
+    # 부족하고(전체 큐로 들어올 수 있다) 화면에 경고를 띄운다.
+    hold, _ = _queue("lcd_fix_holdout.json")
     return {"gm_miss": gm_miss, "reader_miss": reader_miss,
-            "band_pilot": pilot, "band_pilot_note": pilot_note}
+            "band_pilot": pilot, "band_pilot_note": pilot_note,
+            "lcd_fix": lcdfix, "lcd_fix_note": lcdfix_note,
+            "lcd_holdout": hold}
 
 
 CACHE.mkdir(exist_ok=True)

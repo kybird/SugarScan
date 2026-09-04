@@ -64,6 +64,13 @@ assets_dev/train/*
 !assets_dev/train/labeled.jsonl
 !assets_dev/train/screen_boxes.jsonl
 !assets_dev/train/gt_corrections.jsonl
+# 사람이 그린 라벨은 전부 추적한다 — 노동이 들어간 것이고 다시 만들 수 없다.
+!assets_dev/train/band_boxes.jsonl
+# 작업 목록. lcd_fix_holdout 은 특히 중요하다 — "이 장들은 학습에 쓰지 않는다"는
+# 약속이라, 잃어버리면 다음 재학습이 테스트 셋을 먹고 실험이 조용히 무효가 된다.
+!assets_dev/train/band_pilot.json
+!assets_dev/train/lcd_fix_queue.json
+!assets_dev/train/lcd_fix_holdout.json
 assets_dev/train/__pycache__/
 *.onnx
 *.pth
