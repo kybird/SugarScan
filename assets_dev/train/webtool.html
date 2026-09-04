@@ -169,9 +169,11 @@ tr.miss td.mono { color: var(--bad); }
         <option value="all">전체 큐</option>
         <option value="gm">GM 미검출만</option>
         <option value="reader">판독 오답만</option>
+        <option value="pilot">밴드 시범 79장</option>
       </select>
     </label>
     <span class="stat" id="box-meaning"></span>
+    <span class="stat" id="pilot-note"></span>
     <span class="stat">라벨 <b id="cnt-labeled">-</b> · 스킵 <b id="cnt-skipped">-</b> · 남음 <b id="cnt-remain">-</b></span>
     <span class="stat">파일 <b id="cur-id" style="color:#4da3ff;font-family:Consolas,monospace;font-size:15px">-</b> <b id="cur-labeled" style="font-size:12px"></b></span>
     <span class="stat" id="pos">-</span>
@@ -315,6 +317,8 @@ async function boot() {
     const f = await api("/api/failures");
     lb.fail.gm = new Set(f.gm_miss);
     lb.fail.reader = new Set(f.reader_miss);
+    lb.fail.pilot = new Set(f.band_pilot || []);
+    lb.pilotNote = f.band_pilot_note || {};
   } catch (e) { /* /api/failures 없는 구형 서버 */ }
   try {
     const p = await api("/api/preds_holdout");
@@ -356,6 +360,14 @@ function applyQueueFilter() {
     lb.meta.items = lb.meta.items.filter(it => lb.fail.gm.has(it.id));
   } else if (q === "reader" && lb.fail.reader.size) {
     lb.meta.items = lb.meta.items.filter(it => lb.fail.reader.has(it.id));
+  } else if (q === "pilot" && lb.fail.pilot && lb.fail.pilot.size) {
+    // 층 순서(가로 → 오독 → 대조군)를 유지한다. 사전순으로 섞이면 어느 층을
+    // 라벨링하는 중인지 알 수 없고, 중간에 멈췄을 때 한 층만 비게 된다.
+    const order = [...lb.fail.pilot];
+    const rank = new Map(order.map((id, i) => [id, i]));
+    lb.meta.items = lb.meta.items
+      .filter(it => rank.has(it.id))
+      .sort((a, b) => rank.get(a.id) - rank.get(b.id));
   }
   lb.idx = 0;
   show(0);
@@ -424,6 +436,15 @@ async function show(idx) {
     rd.textContent = `· 판독 ${pr[0]}`;
     rd.style.color = hit ? "#7dd87d" : "#e06c6c";
   } else { rd.textContent = ""; }
+  // 시범 큐에서는 이 장이 왜 목록에 있는지 보여준다 — 층을 모르면 무엇을
+  // 라벨링하는 중인지 알 수 없고, 대조군을 건너뛰게 된다.
+  const pn = $("pilot-note");
+  if (pn) {
+    const note = lb.pilotNote ? lb.pilotNote[it.id] : null;
+    const onPilot = $("queue") && $("queue").value === "pilot";
+    pn.textContent = (onPilot && note) ? `· ${note}` : "";
+    pn.style.color = "#8ab4f8";
+  }
   updateCounts();
   refreshRect();
   $("loading").style.display = "flex";

@@ -242,7 +242,20 @@ def api_failures(qs):
             if str(v[0]) != gt:
                 reader_miss.append(cid)
         reader_miss.sort()
-    return {"gm_miss": gm_miss, "reader_miss": reader_miss}
+    # band_pilot — make_band_pilot.py 가 만든 시범 라벨링 작업 목록.
+    # 사람이 "어느 장을 라벨링할지" 고르지 않아도 되게 미리 층화해 둔 것이다
+    # (가로 화면 / 위험군 오독 / 대조군). 없으면 빈 목록.
+    pilot, pilot_note = [], {}
+    pf = HERE / "band_pilot.json"
+    if pf.exists():
+        try:
+            for r in json.loads(pf.read_text(encoding="utf-8")):
+                pilot.append(r["id"])
+                pilot_note[r["id"]] = f"{r['stratum']} · {r['note']}"
+        except Exception:
+            pilot, pilot_note = [], {}
+    return {"gm_miss": gm_miss, "reader_miss": reader_miss,
+            "band_pilot": pilot, "band_pilot_note": pilot_note}
 
 
 CACHE.mkdir(exist_ok=True)
