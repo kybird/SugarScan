@@ -6,7 +6,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 import tensorflow as tf
-from PIL import Image
+from PIL import Image, ImageOps
 
 HERE = Path(__file__).resolve().parent
 MODEL = HERE / "reader_model"
@@ -62,6 +62,12 @@ def main() -> int:
         try:
             with Image.open(p) as pil:
                 pil.load()
+                # 좌표 정본은 표시(EXIF 적용) 이미지다. gmscreen_quads.jsonl 은
+                # cv2.imread(EXIF 적용)로 만들어진 표시 좌표계인데 PIL 은 EXIF 를
+                # 무시한다 — 여기서 굽지 않으면 원본의 83.5%(orientation=6)에
+                # 옆으로 누운 이미지에 올바른 좌표를 물려 평가가 통째로 망가진다.
+                # 실측: 이 한 줄 유무로 완전일치 14.7% ↔ 90.7% (표본 300).
+                pil = ImageOps.exif_transpose(pil)
                 img = cv2.cvtColor(
                     np.asarray(pil.convert("RGB")), cv2.COLOR_RGB2GRAY)
         except Exception:

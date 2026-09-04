@@ -305,7 +305,10 @@ def main() -> int:
     logits_all = logits_model.predict(
         X_rh[..., np.newaxis].astype(np.float32), batch_size=128, verbose=0)
     preds = greedy_decode(logits_all)
-    gt_strs = ["".join(str(int(v)) for v in row if int(v) != NUM_CLASSES)
+    # 패딩은 blank(=NUM_CLASSES-1=10)다. NUM_CLASSES(11)와 비교하면 걸러지지 않아
+    # 2자리 라벨 '97' 이 '9710' 이 된다 — 2자리 표본(전체의 20%)이 전부 오답으로
+    # 집계돼 완전일치가 실제보다 18pp 낮게 찍혔다.
+    gt_strs = ["".join(str(int(v)) for v in row if int(v) != NUM_CLASSES - 1)
                for row in y_rh]
     preds_out = {cid: [p, g] for cid, p, g in zip(id_rh, preds, gt_strs)}
     OUT_PREDS.write_text(json.dumps(preds_out, ensure_ascii=False),
@@ -317,7 +320,7 @@ def main() -> int:
         X_rt[:600][..., np.newaxis].astype(np.float32),
         batch_size=128, verbose=0)
     tr_preds = greedy_decode(tr_logits)
-    tr_gts = ["".join(str(int(v)) for v in row if int(v) != NUM_CLASSES)
+    tr_gts = ["".join(str(int(v)) for v in row if int(v) != NUM_CLASSES - 1)
               for row in y_rt[:600]]
     tr_exact = sum(1 for p, g in zip(tr_preds, tr_gts) if p == g)
     print(f"학습셋 참고: {tr_exact}/600 "
