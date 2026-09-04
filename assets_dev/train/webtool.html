@@ -880,16 +880,26 @@ async function saveBox() {
   if (bad) { toast("저장 차단: " + bad); return; }
   // 밴드 모드는 GM 화면 박스를 시작점으로 프리필한다. 줄이지 않고 저장하면
   // '화면 전체'가 밴드 라벨로 들어가는데, 파일에는 사람이 그린 것과 구분이
-  // 남지 않는다. 세로로 거의 안 줄었으면 한 번 되묻는다.
+  // 남지 않는다. 그래서 **프리필을 그대로 저장하는 경우만** 되묻는다.
+  //
+  // 높이 비율로 재면 안 된다(2026-09-04 실측): 가로 LCD 는 화면 자체가 납작해
+  // 숫자줄이 화면 높이의 대부분을 차지하는 것이 정상이다. 시범 79장 중 31장이
+  // 가로라, 높이 기준 가드는 그 31장 전부에서 헛발을 딛고 사용자를 '확인 누르기'
+  // 에 길들인다. 겹침(IoU)으로 재면 방향과 무관하게 '안 바꿨다'만 잡힌다.
   if (lb.mode === "band") {
     const pred = lb.quads[it.id];
     if (pred) {
       const p = quadToAABB(pred), b = lb.box;
-      const ph = Math.abs(p.y1 - p.y0), bh = Math.abs(b.y1 - b.y0);
-      if (ph > 0 && bh / ph > 0.9) {
-        if (!confirm("이 박스는 화면 박스와 높이가 거의 같습니다.\n"
-                     + "밴드는 '숫자줄만'입니다 — 시간줄·날짜·mem 을 빼셨나요?\n\n"
-                     + "확인을 누르면 이대로 저장합니다.")) return;
+      const ix = Math.max(0, Math.min(p.x1, b.x1) - Math.max(p.x0, b.x0));
+      const iy = Math.max(0, Math.min(p.y1, b.y1) - Math.max(p.y0, b.y0));
+      const inter = ix * iy;
+      const ap = Math.abs(p.x1 - p.x0) * Math.abs(p.y1 - p.y0);
+      const ab = Math.abs(b.x1 - b.x0) * Math.abs(b.y1 - b.y0);
+      const iou = (ap + ab - inter) > 0 ? inter / (ap + ab - inter) : 0;
+      if (iou > 0.95) {
+        if (!confirm("화면 박스(파란 예측)와 거의 같은 박스입니다.\n"
+                     + "밴드는 '측정값 숫자줄만' 입니다 — 그대로 저장할까요?\n\n"
+                     + "확인 = 이대로 저장 / 취소 = 돌아가서 조정")) return;
       }
     }
   }
