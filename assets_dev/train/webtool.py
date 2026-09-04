@@ -224,6 +224,27 @@ def api_preds_holdout(qs):
     return {"preds": json.loads(HOLDOUT.read_text(encoding="utf-8"))}
 
 
+@route("/api/failures")
+def api_failures(qs):
+    # 실패 모아보기(라벨러 큐 필터용):
+    #   gm_miss    — GM 검출기가 쿼드를 못 낸 장(gmscreen_quads 기준)
+    #   reader_miss — CTC 판독이 GT 와 다른 장(reader_preds 기준, eval 대상만)
+    readings = load_readings()
+    corrections = load_corrections()
+    gm_ids = set(read_jsonl(GM_QUADS))
+    all_ids = set(readings)
+    gm_miss = sorted(all_ids - gm_ids)
+    reader_miss = []
+    if HOLDOUT.exists():
+        preds = json.loads(HOLDOUT.read_text(encoding="utf-8"))
+        for cid, v in preds.items():
+            gt = str(corrections.get(cid, readings.get(cid, v[1] if len(v) > 1 else v[0])))
+            if str(v[0]) != gt:
+                reader_miss.append(cid)
+        reader_miss.sort()
+    return {"gm_miss": gm_miss, "reader_miss": reader_miss}
+
+
 CACHE.mkdir(exist_ok=True)
 
 
