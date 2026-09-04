@@ -174,6 +174,7 @@ tr.miss td.mono { color: var(--bad); }
         <option value="reader">판독 오답만</option>
         <option value="pilot">밴드 시범 79장</option>
         <option value="lcdfix">LCD 재라벨 (GM 실패·가로)</option>
+        <option value="unlabeled">라벨 없음만</option>
       </select>
     </label>
     <span class="stat" id="box-meaning"></span>
@@ -370,6 +371,10 @@ function applyQueueFilter() {
     lb.meta.items = lb.meta.items.filter(it => lb.fail.gm.has(it.id));
   } else if (q === "reader" && lb.fail.reader.size) {
     lb.meta.items = lb.meta.items.filter(it => lb.fail.reader.has(it.id));
+  } else if (q === "unlabeled") {
+    // 현재 모드에서 아직 라벨이 없는 장. 스킵 표시한 장은 '처리했다'는 판단이
+    // 들어간 것이라 남기지 않는다 — 남기면 스킵할 때마다 목록에 다시 뜬다.
+    lb.meta.items = lb.meta.items.filter(it => !isLabeled(it));
   } else if (q === "lcdfix" && lb.fail.lcdfix && lb.fail.lcdfix.size) {
     const order = [...lb.fail.lcdfix];
     const rank = new Map(order.map((id, i) => [id, i]));

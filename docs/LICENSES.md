@@ -20,6 +20,8 @@
 | ONNX Runtime | microsoft/onnxruntime | **MIT** (Copyright (c) Microsoft Corporation, [LICENSE](https://github.com/microsoft/onnxruntime/blob/master/LICENSE), 2026-08-21 확인) | 예 (flutter_onnxruntime 경유) | 확인 완료 |
 | **7seg_classifier.tflite** | [Kazuhito00/7segment-display-reader](https://github.com/Kazuhito00/7segment-display-reader) | **Apache-2.0** (GitHub API 확인 완료) | **예** — `assets/models/` 에 번들 | 고지 의무 반영 필요 |
 | TensorFlow Lite | tflite_flutter 경유 | **Apache-2.0** (TensorFlow 본저장소 [LICENSE](https://github.com/tensorflow/tensorflow/blob/master/LICENSE), 2026-08-21 확인. 원문 말미에 Caffe 유래 코드의 BSD 스타일 고지가 함께 실려 있다) | 예 | 확인 완료 |
+| **YOLOX** (GM 화면 검출기의 구조·학습 코드) | [Megvii-BaseDetection/YOLOX](https://github.com/Megvii-BaseDetection/YOLOX) | **Apache-2.0** (GitHub API `spdx_id`, 2026-09-04 확인. 로컬 체크아웃 `D:\tmp\YOLOX\LICENSE` 원문도 Apache 2.0 으로 대조 완료) | 아직 아니오 — 검출기는 현재 학습·평가에서만 돈다. **앱에 넣으면 예** | 확인 완료. 반입 시 Apache-2.0 고지 필요 |
+| **GM 화면 검출기 가중치** (`yolox_out/gmscreen_ft2/best_ckpt.pth`) | 우리가 학습. 단 **베이스가 Roboflow `glucometer_images-bc9dh`(CC BY 4.0) 로 학습됐다** → §4 | 아직 아니오 | **CC BY 4.0 귀속 의무 확인 필요** — 파생 가중치를 배포하면 원 데이터셋 저작자 표시가 따라온다 |
 
 **참고만 하고 코드를 쓰지 않은 것** (반입 자산 아님)
 
@@ -145,3 +147,13 @@ SIL OFL 은 상업적 사용·임베딩을 허용하지만 **폰트 자체를 �
 - [ ] 실촬 학습 데이터에 타인의 혈당계·개인정보가 찍히지 않도록 하는 수집 지침 문서화
 - [ ] 출시 빌드에 `showLicensePage` 연결
 - [ ] **Apache-2.0 고지**: `7seg_classifier.tflite` 는 앱에 직접 번들되므로 라이선스 사본과 저작자 고지를 앱 내 라이선스 화면에 포함해야 한다. 모델을 fine-tune 해 교체하면 "변경 사항 고지"도 함께 필요하다.
+- [ ] **GM 검출기를 앱에 넣을 때의 고지 둘** (2026-09-04 추가) — 지금은 학습·평가에서만
+      돌아서 의무가 발생하지 않지만, 파이프라인상 앱 반입이 예정된 자산이다.
+      1. **YOLOX Apache-2.0 고지** — 구조·학습 코드가 Megvii YOLOX 파생이다.
+      2. **Roboflow `glucometer_images-bc9dh` CC BY 4.0 귀속** — GM 베이스 가중치가
+         이 데이터셋으로 학습됐다. CC BY 는 **저작자 표시가 조건**이라 파생
+         가중치를 배포하면 따라온다. 데이터셋이 앱에 안 들어간다고 면제되지 않는다.
+      > 이 두 줄이 2026-09-04 까지 이 문서에 **없었다.** 검출기가 저장소 밖
+      > (`D:\tmp\YOLOX`)에 있어서 반입 자산 점검에서 통째로 빠져 있었다.
+      > 저장소 밖 의존은 이 표에 안 잡힌다 — 다음에 외부 체크아웃을 쓰게 되면
+      > 그 자리에서 여기에 한 줄 적을 것.
