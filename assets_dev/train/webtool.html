@@ -220,16 +220,8 @@ tr.miss td.mono { color: var(--bad); }
         <img src="/img/synth_screens/sample_combo.png" alt="합성 표본">
         <p>렌더러 v2 — 광택·비네팅·회전·폭 지터. 라벨은 GT 값 그대로.</p>
       </div>
-      <div class="card">
-        <h4>실사진 rect 240장 (파인튜닝)</h4>
-        <img src="/img/finetune_rects_sheet.png" alt="실사진 rect">
-        <p>라벨 304장 중 GM 쿼드 있는 240장 — 화면 전체를 320×160으로 워프.</p>
-      </div>
-      <div class="card">
-        <h4>글자 크롭 표본 (glyph_data)</h4>
-        <img src="/img/glyph_sheet.png" alt="글자 크롭">
-        <p>성분분할 자동라벨 산출물(참고용 — CTC 경로에는 미사용).</p>
-      </div>
+      <!-- 밴드 rect 240장·글자 크롭(glyph) 카드는 2026-09-04 구형 파이프라인
+           정리 때 제거 — A 경로 확정으로 해당 학습 데이터는 폐기(_legacy/). -->
     </div>
     <div class="trainctl">
       <button id="btn-start">▶ 처음부터 학습</button>
