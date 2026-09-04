@@ -794,9 +794,9 @@ class Handler(BaseHTTPRequestHandler):
             if p.exists():
                 self._send(200, p.read_bytes(), "image/jpeg")
             else:
-                self._send(404, b"")
+                self._send(404, b"", "image/jpeg")
             return
-        self._send(404, b"not found")
+        self._send(404, b"not found", "text/plain")
 
     def _train_pid(self):
         pf = HERE / "train_pid.json"
