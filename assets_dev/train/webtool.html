@@ -788,8 +788,7 @@ window.addEventListener("keydown", (e) => {
     if (i < 0) { toast("id 없음: " + k); return; }
     show(i);
   } else if (e.key === "PageDown" || e.key === "n" || e.key === "N") {
-    // 검수용: 저장 없이 다음 장. 라벨 다 찬 모드(밴드 검수 등)에서
-    // Space 의 nextUnlabeled 가 멈추는 것을 우회한다.
+    // 검수용: 저장 없이 다음 장. (저장·스킵도 같은 규칙으로 한 칸씩 순차 진행한다.)
     e.preventDefault();
     if (lb.idx + 1 < lb.meta.items.length) show(lb.idx + 1);
   } else if (e.key === "PageUp" || e.key === "p" || e.key === "P") {
@@ -817,8 +816,6 @@ window.addEventListener("keydown", (e) => {
 async function saveBox() {
   const it = curItem();
   if (!it || !lb.box) return;
-  // 수정(이미 라벨 있는 장)인지 신규 라벨링인지 — 저장 후 이동이 갈린다.
-  const editing = !!(lb.labels[it.id] && lb.labels[it.id].quad);
   const bad = frameGuard(it);
   if (bad) { toast("저장 차단: " + bad); return; }
   const body = { mode: lb.mode, id: it.id, quad: aabbToQuad(lb.box),
@@ -829,12 +826,10 @@ async function saveBox() {
   it[MODES[lb.mode].flag] = true;
   toast("저장: " + it.id);
   if (rectOpen) refreshRect();
-  if (editing) {
-    // 수정 저장은 미라벨로 건너뛰지 않는다 — 검수는 그 자리에서 한 칸씩.
-    if (lb.idx + 1 < lb.meta.items.length) show(lb.idx + 1);
-  } else {
-    nextUnlabeled();
-  }
+  // 저장 후 이동 — 예전엔 '다음 미라벨'로 점프했으나(라벨링 sprint 용) 전수조사에서는
+  // 매번 멀리 텔레포트돼 위치를 잃었다. 저장·스킵 공통: 항상 한 칸 순차 진행.
+  if (lb.idx + 1 < lb.meta.items.length) show(lb.idx + 1);
+  else { toast("마지막 장"); updateCounts(); }
 }
 async function skip() {
   const it = curItem();
@@ -844,7 +839,9 @@ async function skip() {
   lb.labels[it.id] = { quad: null, source: "skipped" };
   it[MODES[lb.mode].flag] = true;
   toast("스킵: " + it.id);
-  nextUnlabeled();
+  // 저장과 같은 규칙 — 한 칸 순차 진행(전수조사 흐름).
+  if (lb.idx + 1 < lb.meta.items.length) show(lb.idx + 1);
+  else { toast("마지막 장"); updateCounts(); }
 }
 async function gtfix(v) {
   const it = curItem();
@@ -890,14 +887,6 @@ $("gt-revert").addEventListener("click", (e) => {
   e.preventDefault();
   gtRevert();
 });
-
-function nextUnlabeled() {
-  for (let i = lb.idx + 1; i < lb.meta.items.length; i++) {
-    if (!isLabeled(lb.meta.items[i])) { show(i); return; }
-  }
-  toast("미라벨 없음 — 전부 완료!");
-  updateCounts();
-}
 
 /* ================= 좌표 자가검증 =================
    "그린 박스 == 저장 박스"를 사람 눈이 아니라 코드가 확인한다.
