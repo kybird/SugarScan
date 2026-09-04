@@ -7,7 +7,7 @@
 #   /                       라벨러+모니터 SPA (webtool.html)
 #   /api/meta               이미지 id 목록·GT·라벨 현황
 #   /api/image?id=&w=       리사이즈 JPEG (디스크 캐시)
-#   /api/labels?mode=       band(labeled.jsonl) | lcd(screen_boxes.jsonl)
+#   /api/labels?mode=       band(band_boxes.jsonl) | lcd(screen_boxes.jsonl)
 #   POST /api/label         {mode,id,quad,source} 저장
 #   POST /api/gtfix         {id,corrected} GT 교정 기록
 #   /api/quads?kind=        모델 예측 사전표시용 (band=datumo_quads, gm=gmscreen_quads)
@@ -33,7 +33,14 @@ HERE = Path(__file__).resolve().parent
 DATUMO = HERE.parent / "upstream" / "datumo"
 IMAGES = DATUMO / "extracted" / "TILDE"
 CACHE = HERE / "cache"
-BAND_FILE = HERE / "labeled.jsonl"
+# 밴드 라벨은 **새 파일에 쌓는다.** 옛 `labeled.jsonl` 358장 중 300장이
+# 프레임 검증(`ow`/`oh`, 2026-09-02) 이전에 저장돼 좌표를 신뢰할 수 없다 —
+# 그 크롭으로 읽히면 14.6%(GM 화면 크롭은 96.6%). 같은 파일에 이어 쓰면 옛
+# 라벨이 "라벨 있음"으로 떠서 **깨진 박스가 프리필**되고, 사람이 그걸 그대로
+# 승인하기 쉽다(시범 79장 중 10장이 여기 걸린다).
+# LCD 라벨도 같은 이유로 `screen_boxes.jsonl` 을 새로 팠다 — 그 선례를 따른다.
+BAND_FILE = HERE / "band_boxes.jsonl"
+BAND_LEGACY = HERE / "labeled.jsonl"   # 보존만. 읽지도 쓰지도 않는다.
 LCD_FILE = HERE / "screen_boxes.jsonl"
 GT_FIX = HERE / "gt_corrections.jsonl"
 BAND_QUADS = HERE / "datumo_quads_v2.jsonl"  # v2 밴드 모델 예측(도메인 AP50 98.4)

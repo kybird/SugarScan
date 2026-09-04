@@ -160,10 +160,13 @@ tr.miss td.mono { color: var(--bad); }
   <div id="labelbar">
     <label>모드
       <select id="mode">
-        <!-- 밴드 모드는 A 경로 확정(2026-09-02 사다리꼴 유리)으로 주 파이프라인에서
-             빠졌다 — 라벨이 밴드 모델 외 소비자가 없어 혼란만 주니 노출하지 않는다.
-             데이터(labeled.jsonl)와 MODES.band 정의는 보존: 되돌릴 때 복원만 하면 됨. -->
+        <!-- 밴드 모드 복구(2026-09-04). 2026-09-03 에 "밴드 모델 외 소비자가 없다"고
+             숨겼는데, 소비자가 생겼다 — 가로 화면 판독이 51.6%(세로 94.4%)라 크롭
+             대상을 유리 전체에서 숫자줄로 바꾸는 것이 후보로 올라왔다.
+             **옛 labeled.jsonl 에 이어 쓰지 않는다.** 그 358장 중 300장이 프레임
+             검증 이전 좌표라 신뢰할 수 없어서, 새 band_boxes.jsonl 에 쌓는다. -->
         <option value="lcd">LCD 화면 (screen_boxes.jsonl)</option>
+        <option value="band">밴드 = 숫자줄 (band_boxes.jsonl)</option>
       </select>
       <select id="queue" title="실패 모아보기 — GM 미검출 / CTC 판독 오답만 큐로">
         <option value="all">전체 큐</option>
@@ -279,6 +282,8 @@ document.querySelectorAll("nav .tab").forEach(btn => {
 const MODES = {
   lcd:  { labelKind: "gm",   flag: "lcd",  name: "LCD",
           meaning: "이 모드의 박스 = LCD 화면 전체 (숫자+단위+시간줄 포함) — 모델이 못 찾은 장(파란 박스 없음)부터 표시" },
+  band: { labelKind: "gm",   flag: "band", name: "밴드",
+          meaning: "이 모드의 박스 = 측정값 숫자줄만 (시간줄·날짜·배터리·mem 제외. 단위 mg/dL 은 붙어 있으면 포함)" },
 };
 const IMG_W = 1920;
 const lb = {
@@ -292,7 +297,9 @@ const lb = {
   build: null,     // 서버가 알려준 webtool.html 지문 — 낡은 탭 감지용
   drag: null, imgCache: new Map(),
   // 실패 모아보기 — allItems 는 큐 필터 적용 전(모드 정렬까지 끝낸) 원본 목록.
-  allItems: null, fail: { gm: new Set(), reader: new Set() }, preds: null,
+  allItems: null,
+  fail: { gm: new Set(), reader: new Set(), pilot: new Set() },
+  pilotNote: {}, preds: null,
 };
 const cv = $("cv"), ctx = cv.getContext("2d");
 window.__lb = lb;  // 콘솔/검증용 — 라벨러 상태 접근
@@ -871,6 +878,21 @@ async function saveBox() {
   if (!it || !lb.box) return;
   const bad = frameGuard(it);
   if (bad) { toast("저장 차단: " + bad); return; }
+  // 밴드 모드는 GM 화면 박스를 시작점으로 프리필한다. 줄이지 않고 저장하면
+  // '화면 전체'가 밴드 라벨로 들어가는데, 파일에는 사람이 그린 것과 구분이
+  // 남지 않는다. 세로로 거의 안 줄었으면 한 번 되묻는다.
+  if (lb.mode === "band") {
+    const pred = lb.quads[it.id];
+    if (pred) {
+      const p = quadToAABB(pred), b = lb.box;
+      const ph = Math.abs(p.y1 - p.y0), bh = Math.abs(b.y1 - b.y0);
+      if (ph > 0 && bh / ph > 0.9) {
+        if (!confirm("이 박스는 화면 박스와 높이가 거의 같습니다.\n"
+                     + "밴드는 '숫자줄만'입니다 — 시간줄·날짜·mem 을 빼셨나요?\n\n"
+                     + "확인을 누르면 이대로 저장합니다.")) return;
+      }
+    }
+  }
   const body = { mode: lb.mode, id: it.id, quad: aabbToQuad(lb.box),
                  source: "human", ow: lb.ow, oh: lb.oh };
   const r = await post("/api/label", body);
