@@ -59,6 +59,8 @@ G1~G8 은 2026-08-21 완료, main 병합 `96fac33`. G15·G16 은 날짜를 표�
 | G8 | es·pt·de·fr 4개 언어 추가 | `44d4f74` | [G8](reports/G8-locales-es-pt-de-fr.md) |
 | G15 | 셀 벤치 전량 41,990장 실행 (2026-08-22) | `a9a8259` | [G15](reports/G15-cell-bench-run.md) |
 | G16 | 장면 단위 합성 생성기 `tools/synth7seg` (2026-08-23) | `88e5ef6` | [G16](reports/G16-scene-synth.md) |
+| G17 | 장면 벤치 + 규칙 엔진 기준선 2,000장 (2026-08-24) | `c44938e` | [G17](reports/G17-scene-bench-baseline.md) |
+| G20 | EXIF 로더 통일 (캐시·검출) + 지시서 가해자 지목 정정 (2026-09-02) | `845cd43`·`b07a47d` | [G20](reports/G20-exif-loader-unification.md) |
 
 의료 문구 21개 × 4개 언어는 DeepL 역번역 교차검증으로 **의미 보존 84/84,
 판정어 0건**을 확인했다 → [G8 역번역 표](reports/G8-backtranslate-input.md).
@@ -95,6 +97,7 @@ G15 가 남긴 숫자가 이후 OCR 작업의 기준선이다 — 치명적 오�
 | 2026-09-02 | `warpQuadToRect` 주석이 하지 않는 일을 한다고 적혀 있었다 | 원근 펴기 구현이 두 벌로 중복돼 한쪽 주석만 낡았다 | `_warpQuad` 한 벌로 접고, "대비를 걸지 않는다"를 테스트로 고정 (`d7042da`) |
 | 2026-09-02 | **라벨러 GM 파란 힌트가 ori=6(전체 83.5%)에서 이중 회전** | `convert_quads_oriented.py` 가 "원본은 raw 좌표계"라는 **주석을 믿고** 표시 좌표계 쿼드를 한 번 더 회전했다. 원본은 `cv2.imread`(EXIF 적용)가 만든 표시 좌표계였다 | 변환 없이 복사로 교체 (`dad9b25`). 크롭 대조로 확인 — 원본이 유리를 감싸고 회전본은 어긋난다 |
 | 2026-09-02 | 내 G20 지시서가 무죄인 파일 둘을 가해자로 지목 | Case 1 의 "무처리" 목록을 **코드 확인 없이** 옮겼다. `package:image` 는 디코드 시 orientation 을 굽고(242/242), `detect_datumo_gm` 1차는 cv2(EXIF 적용) | 지시서·위키를 실측 표로 정정. 위임 에이전트가 실행 전 전제를 재서 잡아냈다 → `patterns/verify-premises-before-executing` |
+| 2026-09-04 | **CTC 리더가 "11.7%밖에 못 읽는다"** — 실제로는 92.9%. 하루치 가설 문서(H1~H4)가 이 위에 세워졌다 | 채점만 EXIF 무처리. G20 이 학습·검출 세 곳을 통일하면서 `eval_reader.py` 를 빠뜨려, 원본의 83.5%(ori=6)를 **옆으로 누운 채 채점**했다. 누운 화면은 숫자가 세로로 서서 CTC 시간축 분할이 깨지므로 증상이 "길이 붕괴 61%"라는 **그럴듯한 모델 실패 모양**으로 나왔다 | `exif_transpose` 한 줄(재학습 0). 겹쳐 있던 GT 패딩 버그(blank 10 을 `NUM_CLASSES` 11 과 비교 — 09-02 의 "수정"이 no-op 이었다)도 함께. 위키 `antipatterns/metric-path-not-under-test` (`b015830`) |
 | 2026-09-02 | **구버전 앱이 새 버전의 태그를 서버에서 지울 수 있었다**(아직 발생 전) | `MeasurementTag`/`ReadingSource.fromWireName` 이 모르는 값을 `random`/`manual` 로 조용히 치환 → 그 기록의 메모만 고쳐도 push 가 행 전체를 보내 서버를 덮어쓴다 | 셋 다 `UnknownWireNameException` 을 던지고 행을 건너뛴다. `TargetRangePreset` 은 동기화되지 않아 예외. `test/domain/wire_name_test.dart` |
 
 ### 테스트가 잘못된 이유로 통과하던 종류
