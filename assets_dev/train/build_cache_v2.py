@@ -29,7 +29,13 @@ MAX_LABEL = 3
 #
 # 이 값을 바꾸면 추론 경로(eval_reader.py)도 같이 바꿔야 한다 — 학습과 추론의
 # 프레이밍 규약이 갈리면 그 자체가 성능 저하다.
-BOX_MARGIN = 0.10
+#
+# **변마다 따로** 준다 (G26). 검출 오차는 좌우가 다르다(사람 라벨 396장 실측):
+# 오른쪽이 들어온 정도의 중앙 +0.060 (10% 넘게 잘린 장 104) vs 왼쪽 +0.019 (32) ·
+# 위 −0.002 (6) · 아래 −0.014 (10). 오른쪽이 3배 심한데 같은 여유를 주면
+# 왼쪽은 배경만 들어와 숫자가 작아지고 오른쪽은 여전히 모자라다.
+# 순서: (왼, 오른, 위, 아래).
+BOX_MARGIN = (0.10, 0.10, 0.10, 0.10)
 
 
 def encode_label(s: str):
@@ -124,10 +130,14 @@ def main() -> int:
             xs, ys_ = q[:, 0], q[:, 1]
             x0, y0 = float(xs.min()), float(ys_.min())
             x1, y1 = float(xs.max()), float(ys_.max())
-            mw, mh = (x1 - x0) * BOX_MARGIN, (y1 - y0) * BOX_MARGIN
-            x0, y0 = max(0.0, x0 - mw), max(0.0, y0 - mh)
-            x1 = min(float(g.shape[1] - 1), x1 + mw)
-            y1 = min(float(g.shape[0] - 1), y1 + mh)
+            # 여유는 변마다 따로. 기준 폭·높이는 **원본 박스** 것을 쓴다 —
+            # 좌측 여유로 x0 이 움직인 뒤의 폭을 쓰면 오른쪽 여유가 좌측 값에
+            # 영향을 받는다(순서 의존).
+            w0, h0 = x1 - x0, y1 - y0
+            ml, mr, mt, mb = BOX_MARGIN
+            x0, y0 = max(0.0, x0 - w0 * ml), max(0.0, y0 - h0 * mt)
+            x1 = min(float(g.shape[1] - 1), x1 + w0 * mr)
+            y1 = min(float(g.shape[0] - 1), y1 + h0 * mb)
             src = np.array(
                 [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], dtype=np.float32)
             dst = np.array(

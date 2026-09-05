@@ -40,9 +40,11 @@ def load(p):
 def crop_of(g, quad):
     a = np.array(quad, np.float32)
     x0, y0, x1, y1 = a[:, 0].min(), a[:, 1].min(), a[:, 0].max(), a[:, 1].max()
-    mw, mh = (x1 - x0) * BOX_MARGIN, (y1 - y0) * BOX_MARGIN
-    x0, y0 = max(0, x0 - mw), max(0, y0 - mh)
-    x1 = min(g.shape[1] - 1, x1 + mw); y1 = min(g.shape[0] - 1, y1 + mh)
+    # (왼, 오른, 위, 아래) — build_cache_v2 와 같은 4값 규약.
+    w0, h0 = x1 - x0, y1 - y0
+    ml, mr, mt, mb = BOX_MARGIN
+    x0, y0 = max(0, x0 - w0 * ml), max(0, y0 - h0 * mt)
+    x1 = min(g.shape[1] - 1, x1 + w0 * mr); y1 = min(g.shape[0] - 1, y1 + h0 * mb)
     src = np.array([[x0, y0], [x1, y0], [x1, y1], [x0, y1]], np.float32)
     dst = np.array([[0, 0], [IN_W - 1, 0], [IN_W - 1, IN_H - 1], [0, IN_H - 1]],
                    np.float32)

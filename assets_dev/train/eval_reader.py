@@ -121,14 +121,16 @@ def main() -> int:
             continue
         # 프레이밍 규약은 학습 캐시와 **같아야 한다** — build_cache_v2.BOX_MARGIN.
         # 갈리면 그 불일치 자체가 성능 저하로 나타나 원인을 오독하게 된다.
+        # (왼, 오른, 위, 아래) — 변마다 여유가 다르다.
         q = np.array(quad, dtype=np.float32)
         xs, ys = q[:, 0], q[:, 1]
         bx0, by0 = float(xs.min()), float(ys.min())
         bx1, by1 = float(xs.max()), float(ys.max())
-        mw, mh = (bx1 - bx0) * BOX_MARGIN, (by1 - by0) * BOX_MARGIN
-        bx0, by0 = max(0.0, bx0 - mw), max(0.0, by0 - mh)
-        bx1 = min(float(img.shape[1] - 1), bx1 + mw)
-        by1 = min(float(img.shape[0] - 1), by1 + mh)
+        w0, h0 = bx1 - bx0, by1 - by0
+        ml, mr, mt, mb = BOX_MARGIN
+        bx0, by0 = max(0.0, bx0 - w0 * ml), max(0.0, by0 - h0 * mt)
+        bx1 = min(float(img.shape[1] - 1), bx1 + w0 * mr)
+        by1 = min(float(img.shape[0] - 1), by1 + h0 * mb)
         src = np.array(
             [[bx0, by0], [bx1, by0], [bx1, by1], [bx0, by1]], dtype=np.float32)
         dst = np.array(
