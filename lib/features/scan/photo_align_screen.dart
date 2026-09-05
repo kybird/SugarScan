@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
@@ -79,6 +80,21 @@ class _PhotoAlignScreenState extends State<PhotoAlignScreen> {
 
   void _nudge(double dx, double dy) =>
       setState(() => _offset += Offset(dx, dy));
+
+  /// [anchor] 를 화면상 같은 자리에 붙들어 둔 채로 배율만 바꾼다.
+  ///
+  /// 중심 기준으로 확대하면 가이드 박스에 겨우 맞춰 놓은 숫자가 화면 밖으로
+  /// 달아난다. 확대할수록 다시 맞추기 어려워져 이 화면의 목적이 사라진다.
+  void _zoomAt(double factor, Offset anchor, Size viewport) {
+    setState(() {
+      final next = (_scale * factor).clamp(0.1, 8.0);
+      final applied = next / _scale;
+      // 변환이 중심(alignment: center) 기준이라 중심으로부터의 변위로 푼다.
+      final center = Offset(viewport.width / 2, viewport.height / 2);
+      _offset = anchor - center - (anchor - center - _offset) * applied;
+      _scale = next;
+    });
+  }
 
   void _rotate(double degrees) =>
       setState(() => _rotation += degrees * math.pi / 180);
@@ -171,59 +187,71 @@ class _PhotoAlignScreenState extends State<PhotoAlignScreen> {
                     child: AspectRatio(
                       aspectRatio: _frameAspect,
                       child: LayoutBuilder(
-                        builder: (context, constraints) => GestureDetector(
-                          onScaleStart: (d) {
-                            _focalStart = d.localFocalPoint;
-                            _offsetStart = _offset;
-                            _scaleStart = _scale;
+                        builder: (context, constraints) => Listener(
+                          // 데스크톱에는 핀치가 없다. 휠이 유일한 확대 수단이라
+                          // 여기서 막으면 이 화면은 배율 1 에서만 쓸 수 있다.
+                          onPointerSignal: (signal) {
+                            if (signal is! PointerScrollEvent) return;
+                            _zoomAt(
+                              signal.scrollDelta.dy < 0 ? 1.1 : 1 / 1.1,
+                              signal.localPosition,
+                              constraints.biggest,
+                            );
                           },
-                          onScaleUpdate: (d) => setState(() {
-                            _scale = (_scaleStart * d.scale).clamp(0.1, 8.0);
-                            _offset =
-                                _offsetStart +
-                                (d.localFocalPoint - _focalStart);
-                          }),
-                          child: RepaintBoundary(
-                            key: _captureKey,
-                            child: ClipRect(
-                              child: SizedBox(
-                                width: constraints.maxWidth,
-                                height: constraints.maxHeight,
-                                child: ColoredBox(
-                                  color: Colors.black,
-                                  child: Stack(
-                                    fit: StackFit.expand,
-                                    children: [
-                                      Transform(
-                                        alignment: Alignment.center,
-                                        transform: Matrix4.identity()
-                                          ..translateByDouble(
-                                            _offset.dx,
-                                            _offset.dy,
-                                            0,
-                                            1,
-                                          )
-                                          ..rotateZ(_rotation)
-                                          ..scaleByDouble(
-                                            _flipH ? -_scale : _scale,
-                                            _scale,
-                                            1,
-                                            1,
+                          child: GestureDetector(
+                            onScaleStart: (d) {
+                              _focalStart = d.localFocalPoint;
+                              _offsetStart = _offset;
+                              _scaleStart = _scale;
+                            },
+                            onScaleUpdate: (d) => setState(() {
+                              _scale = (_scaleStart * d.scale).clamp(0.1, 8.0);
+                              _offset =
+                                  _offsetStart +
+                                  (d.localFocalPoint - _focalStart);
+                            }),
+                            child: RepaintBoundary(
+                              key: _captureKey,
+                              child: ClipRect(
+                                child: SizedBox(
+                                  width: constraints.maxWidth,
+                                  height: constraints.maxHeight,
+                                  child: ColoredBox(
+                                    color: Colors.black,
+                                    child: Stack(
+                                      fit: StackFit.expand,
+                                      children: [
+                                        Transform(
+                                          alignment: Alignment.center,
+                                          transform: Matrix4.identity()
+                                            ..translateByDouble(
+                                              _offset.dx,
+                                              _offset.dy,
+                                              0,
+                                              1,
+                                            )
+                                            ..rotateZ(_rotation)
+                                            ..scaleByDouble(
+                                              _flipH ? -_scale : _scale,
+                                              _scale,
+                                              1,
+                                              1,
+                                            ),
+                                          child: RawImage(
+                                            image: image,
+                                            fit: BoxFit.contain,
                                           ),
-                                        child: RawImage(
-                                          image: image,
-                                          fit: BoxFit.contain,
                                         ),
-                                      ),
-                                      // 가이드 박스 — 카메라 화면과 같은 좌표.
-                                      // 캡처본에도 선이 함께 찍히지만 엔진은 이
-                                      // 사각형 **안쪽**만 보므로 판독에 닿지 않는다.
-                                      CustomPaint(
-                                        painter: const _GuidePainter(
-                                          NormalizedRect.defaultGuideBox,
+                                        // 가이드 박스 — 카메라 화면과 같은 좌표.
+                                        // 캡처본에도 선이 함께 찍히지만 엔진은 이
+                                        // 사각형 **안쪽**만 보므로 판독에 닿지 않는다.
+                                        CustomPaint(
+                                          painter: const _GuidePainter(
+                                            NormalizedRect.defaultGuideBox,
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
@@ -243,6 +271,8 @@ class _PhotoAlignScreenState extends State<PhotoAlignScreen> {
                   scale: _scale,
                   frameAspect: _frameAspect,
                   onFrameAspect: (v) => setState(() => _frameAspect = v),
+                  onZoom: (f) =>
+                      setState(() => _scale = (_scale * f).clamp(0.1, 8.0)),
                 ),
                 _OutcomeBar(outcome: _outcome, busy: _busy),
               ],
@@ -287,6 +317,7 @@ class _Controls extends StatelessWidget {
     required this.scale,
     required this.frameAspect,
     required this.onFrameAspect,
+    required this.onZoom,
   });
 
   final void Function(double dx, double dy) onNudge;
@@ -297,6 +328,7 @@ class _Controls extends StatelessWidget {
   final double scale;
   final double frameAspect;
   final ValueChanged<double> onFrameAspect;
+  final ValueChanged<double> onZoom;
 
   @override
   Widget build(BuildContext context) {
@@ -355,6 +387,16 @@ class _Controls extends StatelessWidget {
                 icon: const Icon(Icons.flip),
                 tooltip: '좌우 반전',
               ),
+              IconButton.filledTonal(
+                onPressed: () => onZoom(1 / 1.1),
+                icon: const Icon(Icons.zoom_out),
+                tooltip: '축소',
+              ),
+              IconButton.filledTonal(
+                onPressed: () => onZoom(1.1),
+                icon: const Icon(Icons.zoom_in),
+                tooltip: '확대',
+              ),
               // 센서 비율에 따라 가이드 박스의 **실제 모양**이 달라진다.
               // 16:9 센서면 2.25:1, 4:3 센서면 3.00:1 이다. 기기마다
               // 다르므로 둘 다 볼 수 있게 둔다.
@@ -377,7 +419,7 @@ class _Controls extends StatelessWidget {
                   '회전 ${(rotation * 180 / math.pi).toStringAsFixed(1)}° · '
                   '배율 ${scale.toStringAsFixed(2)}× · 가이드 박스 '
                   '${(0.80 / (0.20 / frameAspect)).toStringAsFixed(2)}:1 · '
-                  '드래그 이동 · 핀치 확대',
+                  '드래그 이동 · 휠 확대',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
