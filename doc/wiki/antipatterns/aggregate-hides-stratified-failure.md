@@ -74,6 +74,7 @@ confidence: 5
 - [[model-invents-what-it-cannot-see]] — 집계가 숨긴 또 다른 행동
 - [[metric-path-not-under-test]]
 - [[downscaled-view-as-evidence]] — 표본이 결론을 지탱하지 못하는 다른 형태
+- [[global-transform-on-heterogeneous-input]] — 이질성을 무시하고 하나의 값을 적용하는 쪽
 - [[verify-premises-before-executing]]
 
 ## Grounding (References)
