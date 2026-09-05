@@ -44,6 +44,7 @@ tags: [index]
 | 안티패턴 | 설명 | 별칭 |
 |------|------|------|
 | [[aggregate-hides-stratified-failure]] | 소수 층의 심각한 실패가 다수 층에 희석되어 **지표에서 사라진다.** 그리고 그 소수 층이 하필 제품에서 중요한 경우가 많다. | 층화, 평균에 묻힌다, stratify, 전체 정확도, 가로 화면, 소수 클래스, 대조군, control group, 표본이 작다 |
+| [[backup-list-by-importance-not-by-what-writes]] | 중요한 자산을 떠 놓고 안심한다. | 백업, 덮어쓰기, 무인 실행, 밤샘, 소실, 재생성 가능, 시드, np.random, synth_screens |
 | [[bounds-check-as-correctness-proof]] | 파손된 좌표를 보정할 때 **결과가 이미지 경계 안에 들어오는지**로 맞았는지 판정하는 것. | 경계 통과를 정답으로 오인, oob 검사 과신, audit_oob.py, oob, 경계 초과 |
 | [[contract-guard-too-narrow]] | "이 메서드는 예외를 던지지 않는다"고 문서에 적어 두고, `try` 는 **위험해 보이는 호출 하나만** 감싸는 것. | 좁은 try, 계약보다 좁은 방어, GlucoseScanner.offer, _recognizeSafely, glucose_scanner.dart |
 | [[count-rows-not-entities]] | 아웃박스는 변경마다 행을 쌓지만, 서버로는 **현재 상태 한 번**만 간다. | 대기 n건 오표시, 큐 행 세기, pendingSyncCountProvider, syncMaxAttemptsProvider, syncOutboxRows, blockedCount, providers.dart |
@@ -78,6 +79,6 @@ tags: [index]
 
 - Total concepts: 5
 - Total patterns: 13
-- Total anti-patterns: 21
+- Total anti-patterns: 22
 - Total answers: 0
 - Last updated: 2026-09-05
