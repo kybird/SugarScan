@@ -2,6 +2,10 @@
 # 실사진에서 관찰된 요소를 모두 포함: 회색 패널, 7세그 숫자 1~3개(우정렬),
 # 소수점(가끔), 작은 시간줄(아래), 단위 텍스트(오른쪽/아래 랜덤), mem 표시(가끔),
 # 극성 반전, 노이즈·블러·밝기 변화, 살짝 기울임.
+#
+# G27(2026-09-05) 실화면화 — 사용자 오류 보고 5종에서 나온 빠진 요소 넷:
+#   국소 그림자 경계(1717·694) · 선형 반사 줄무늬(488·845) · shear 이탤릭(101)
+#   · 키스톤(사다리꼴 원근). 확률·범위는 지시서 값 그대로다.
 import random
 from pathlib import Path
 
@@ -52,6 +56,75 @@ def put_7seg_text(img, x, y, w, h, text, ink, gap_ratio=0.25):
 def put_small_text(img, x, y, text, h, ink):
     cv2.putText(img, text, (x, y + h), cv2.FONT_HERSHEY_SIMPLEX,
                 max(0.35, h / 28.0), ink, max(1, h // 14), cv2.LINE_AA)
+
+
+def add_local_shadow(img, rng):
+    """국소 그림자 — 임의 방향 직선 경계 한쪽을 밝기 계수 0.55~0.85 로 낮춘다.
+
+    1717(그림자 경계가 293 을 가로질러 29 는 어둡고 3 은 밝다)·694(상단 그림자로
+    7 의 윗획이 배경으로) 재현. 경계는 폭 5~25px 가우시안 블러로 부드럽게.
+    """
+    H, W = img.shape[:2]
+    k = rng.uniform(0.55, 0.85)          # 어두운 쪽 밝기 계수
+    t = int(rng.uniform(5, 25))          # 경계 부드러움 폭(px)
+    ang = rng.uniform(0, 180)            # 경계선 방향
+    cx, cy = rng.uniform(0, W), rng.uniform(0, H)
+    yy, xx = np.mgrid[0:H, 0:W]
+    ca, sa = np.cos(np.radians(ang)), np.sin(np.radians(ang))
+    d = (xx - cx) * ca + (yy - cy) * sa  # 경계선 법선 좌표
+    hard = ((d < 0) * (1.0 - k)).astype(np.float32)
+    ksz = max(3, t) | 1                  # 홀수 커널
+    soft = cv2.GaussianBlur(hard, (ksz, ksz), 0)
+    return np.clip(img.astype(np.float32) * (1.0 - soft), 0, 255).astype(np.uint8)
+
+
+def add_reflection_stripe(img, rng):
+    """선형 반사 줄무늬 — 폭 3~12px, 대각선의 0.3~0.9배 길이, 밝기 +30~90.
+
+    488(거울 반사의 희미한 선을 세그먼트로 오인)·845(반사광 155→1559) 재현.
+    포화(255) 는 클리프 — 실제로도 채도된 반사광은 하얗게 붕괴된다.
+    """
+    H, W = img.shape[:2]
+    w = rng.uniform(3, 12)                              # 폭(px)
+    ln = rng.uniform(0.3, 0.9) * (W * W + H * H) ** 0.5  # 길이(px)
+    ang = rng.uniform(0, 180)
+    cx, cy = rng.uniform(0, W), rng.uniform(0, H)
+    add = rng.uniform(30, 90)
+    yy, xx = np.mgrid[0:H, 0:W]
+    ca, sa = np.cos(np.radians(ang)), np.sin(np.radians(ang))
+    du = (xx - cx) * ca + (yy - cy) * sa     # 줄 방향 좌표
+    dv = -(xx - cx) * sa + (yy - cy) * ca    # 줄 법선 좌표
+    prof = np.exp(-(dv ** 2) / (2 * (w / 2) ** 2))       # 폭 방향 가우시안
+    taper = np.clip(1.0 - (np.abs(du) / (ln / 2)) ** 2, 0, 1)  # 길이 방향 테이퍼
+    return np.clip(img.astype(np.float32) + add * prof * taper,
+                   0, 255).astype(np.uint8)
+
+
+def apply_shear(img, rng):
+    """shear(이탤릭) — x 방향 −0.25~+0.25. 101(숫자가 이탤릭체) 재현.
+
+    참고: 7seg-image-generator(Apache-2.0)는 −10~30° 를 쓴다(±0.25 ≈ ∓14°).
+    """
+    H, W = img.shape[:2]
+    sh = rng.uniform(-0.25, 0.25)
+    M = np.float32([[1, sh, -sh * H / 2], [0, 1, 0]])
+    return cv2.warpAffine(img, M, (W, H), borderMode=cv2.BORDER_REPLICATE)
+
+
+def apply_keystone(img, rng):
+    """키스톤 — 네 모서리를 화면 폭·높이의 0~6% 안에서 안쪽으로 밀어 원근 흉내."""
+    H, W = img.shape[:2]
+    fx = [rng.uniform(0, 0.06) for _ in range(4)]
+    fy = [rng.uniform(0, 0.06) for _ in range(4)]
+    src = np.float32([[0, 0], [W - 1, 0], [W - 1, H - 1], [0, H - 1]])
+    dst = np.float32([
+        [fx[0] * W, fy[0] * H],
+        [(W - 1) - fx[1] * W, fy[1] * H],
+        [(W - 1) - fx[2] * W, (H - 1) - fy[2] * H],
+        [fx[3] * W, (H - 1) - fy[3] * H],
+    ])
+    M = cv2.getPerspectiveTransform(src, dst)
+    return cv2.warpPerspective(img, M, (W, H), borderMode=cv2.BORDER_REPLICATE)
 
 
 def render_screen(value, rng, size=(320, 160)):
@@ -147,6 +220,16 @@ def render_screen(value, rng, size=(320, 160)):
     d2 = ((xx - W / 2) / (W / 2)) ** 2 + ((yy - H / 2) / (H / 2)) ** 2
     vig = 1.0 - rng.uniform(0.08, 0.22) * d2
     img = np.clip(img.astype(np.float32) * vig, 0, 255).astype(np.uint8)
+
+    # G27 실화면화 네 요소 — 조명(그림자·반사) 뒤 기하(shear·키스톤) 순서.
+    if rng.random() < 0.35:
+        img = add_local_shadow(img, rng)
+    if rng.random() < 0.30:
+        img = add_reflection_stripe(img, rng)
+    if rng.random() < 0.20:
+        img = apply_shear(img, rng)
+    if rng.random() < 0.25:
+        img = apply_keystone(img, rng)
 
     # 미세 회전 — 촬영 기울기 흉내
     if rng.random() < 0.7:
