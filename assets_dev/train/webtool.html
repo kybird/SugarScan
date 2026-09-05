@@ -189,7 +189,9 @@ tr.miss td.mono { color: var(--bad); }
     <span id="keys">Space 저장·다음 | Backspace 이전 | R 박스복원 | D 스킵 | G GT수정 | E 펼치기 검수 | T 자가검증 | 드래그 이동·신규 / 모서리 리사이즈 | 방향키 이동(+Shift 크기) | 휠 줌 | 우클릭 드래그 pan</span>
   </div>
   <div id="cvbox">
-    <canvas id="cv"></canvas>
+    <!-- tabindex 가 있어야 focus() 가 먹는다. 드롭다운을 고른 뒤 포커스를
+         여기로 되돌려 단축키(PgDn/Space/화살표)를 살린다. outline 은 끈다. -->
+    <canvas id="cv" tabindex="-1" style="outline:none"></canvas>
     <div id="loading"><div class="spin">◐</div><div>이미지 준비 중…<div class="sub">처음 열어보는 장은 12MP 처리로 수 초 걸립니다 — 이후 장은 빠릅니다</div></div></div>
     <div id="toast"></div>
     <div id="stview"></div>
@@ -408,14 +410,27 @@ function updateCounts() {
   $("pos").textContent = it ? `${lb.idx + 1} / ${lb.meta.items.length}` : "-";
   $("cur-id").textContent = it ? it.id : "-";
 }
+// 드롭다운을 고르면 포커스가 <select> 에 남는다. 그 상태에서는 키 핸들러가
+// 맨 앞에서 걸러내므로(입력창에 타이핑할 때 단축키가 새면 안 된다) PgDn/PgUp·
+// Space·화살표가 전부 죽고, 브라우저가 대신 드롭다운 항목을 바꿔 버린다.
+// 그래서 선택이 끝나면 포커스를 캔버스로 돌려준다.
+function blurToCanvas(el) {
+  if (el && el.blur) el.blur();
+  const cv = $("cv");
+  if (cv && cv.focus) cv.focus({ preventScroll: true });
+}
 $("mode").addEventListener("change", async (e) => {
   localStorage.setItem("lbmode", e.target.value);
   await loadMode(e.target.value);
   lb.idx = lb.meta.items.findIndex(it => !isLabeled(it));
   if (lb.idx < 0) lb.idx = 0;
   show(lb.idx);
+  blurToCanvas(e.target);
 });
-$("queue").addEventListener("change", () => applyQueueFilter());
+$("queue").addEventListener("change", (e) => {
+  applyQueueFilter();
+  blurToCanvas(e.target);
+});
 
 function quadToAABB(q) {
   const xs = q.map(p => p[0]), ys = q.map(p => p[1]);
