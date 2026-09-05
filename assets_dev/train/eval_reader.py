@@ -12,7 +12,7 @@ HERE = Path(__file__).resolve().parent
 MODEL = HERE / "reader_model"
 DATUMO = HERE.parent / "upstream" / "datumo"
 GM_QUADS = HERE / "gmscreen_quads.jsonl"
-LABELED = HERE / "labeled.jsonl"
+CACHE = HERE / "data_cache_v2.npz"   # 학습셋 정본 — hold-out 은 여기서 정의된다
 PREDS = HERE / "reader_preds.json"
 IN_H, IN_W = 160, 320
 NUM_CLASSES = 11
@@ -24,10 +24,23 @@ def main() -> int:
         model.get_layer("img").input,
         model.get_layer("logits").output)
 
-    labeled = set()
-    for l in LABELED.read_text(encoding="utf-8").splitlines():
-        if l.strip():
-            labeled.add(json.loads(l)["id"])
+    # hold-out 의 정의는 **리더가 학습한 장을 뺀 것**이다. 그 정본은 학습 캐시의
+    # real_train_ids 하나뿐이다.
+    #
+    # 2026-09-04 까지 여기서 labeled.jsonl 을 뺐는데 그건 틀린 집합이었다 —
+    # 그 파일은 옛 밴드 라벨(좌표 검증 이전, band_boxes.jsonl 로 대체돼 이제
+    # 아무도 안 읽는다)이고 리더 학습셋과는 358장 중 203장만 우연히 겹쳤다.
+    # 결과가 양방향으로 틀렸다: 멀쩡한 356장이 평가에서 빠져 라벨러의 '판독'
+    # 칸이 비어 보였고, **진짜 학습셋 1,372장 중 1,169장이 평가에 섞여** 있어
+    # 표시된 성적이 실제보다 좋았다.
+    trained = set()
+    if CACHE.exists():
+        import numpy as np
+        trained = {str(v) for v in np.load(str(CACHE))["real_train_ids"]}
+        print(f"학습셋 {len(trained)}장을 평가에서 제외한다 (캐시 기준)")
+    else:
+        print(f"경고: {CACHE.name} 이 없어 학습셋을 제외하지 못한다 — "
+              "이 수치는 학습한 장을 포함한다")
 
     quads = {}
     for l in GM_QUADS.read_text(encoding="utf-8").splitlines():
@@ -52,7 +65,7 @@ def main() -> int:
     misses = []
     preds_out = {}
     for cid, quad in quads.items():
-        if cid in labeled:
+        if cid in trained:
             continue
         gt = corrections.get(cid) or str(readings.get(cid))
         p = DATUMO / "extracted" / "TILDE" / f"{cid}.jpg"
