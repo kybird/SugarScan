@@ -44,6 +44,10 @@ class _PhotoAlignScreenState extends State<PhotoAlignScreen> {
   double _scale = 1;
   double _rotation = 0; // 라디안
   bool _flipH = false;
+
+  /// 프레임 종횡비(세로/가로). 카메라 경로가 프리뷰를 이 비율로 묶으므로
+  /// 여기서도 같게 묶어야 가이드 박스의 **실제 모양**이 같아진다.
+  double _frameAspect = 9 / 16;
   ScanOutcome? _outcome;
   bool _busy = false;
 
@@ -80,12 +84,12 @@ class _PhotoAlignScreenState extends State<PhotoAlignScreen> {
       setState(() => _rotation += degrees * math.pi / 180);
 
   void _reset() => setState(() {
-        _offset = Offset.zero;
-        _scale = 1;
-        _rotation = 0;
-        _flipH = false;
-        _outcome = null;
-      });
+    _offset = Offset.zero;
+    _scale = 1;
+    _rotation = 0;
+    _flipH = false;
+    _outcome = null;
+  });
 
   /// 화면에 보이는 그대로를 캡처해 엔진에 넘긴다.
   ///
@@ -97,7 +101,8 @@ class _PhotoAlignScreenState extends State<PhotoAlignScreen> {
     setState(() => _busy = true);
     try {
       final boundary =
-          _captureKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+          _captureKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
       if (boundary == null) return;
 
       final shot = await boundary.toImage();
@@ -155,48 +160,72 @@ class _PhotoAlignScreenState extends State<PhotoAlignScreen> {
           : Column(
               children: [
                 Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) => GestureDetector(
-                      onScaleStart: (d) {
-                        _focalStart = d.localFocalPoint;
-                        _offsetStart = _offset;
-                        _scaleStart = _scale;
-                      },
-                      onScaleUpdate: (d) => setState(() {
-                        _scale = (_scaleStart * d.scale).clamp(0.1, 8.0);
-                        _offset = _offsetStart + (d.localFocalPoint - _focalStart);
-                      }),
-                      child: RepaintBoundary(
-                        key: _captureKey,
-                        child: ClipRect(
-                          child: SizedBox(
-                            width: constraints.maxWidth,
-                            height: constraints.maxHeight,
-                            child: ColoredBox(
-                              color: Colors.black,
-                              child: Stack(
-                                fit: StackFit.expand,
-                                children: [
-                                  Transform(
-                                    alignment: Alignment.center,
-                                    transform: Matrix4.identity()
-                                      ..translateByDouble(
-                                          _offset.dx, _offset.dy, 0, 1)
-                                      ..rotateZ(_rotation)
-                                      ..scaleByDouble(
-                                          _flipH ? -_scale : _scale,
-                                          _scale, 1, 1),
-                                    child: RawImage(image: image, fit: BoxFit.contain),
+                  // 카메라 경로와 **같은 비율로 묶는다.**
+                  //
+                  // 가이드 박스는 `0.80 × 0.20` 이라는 정규화 값이라 그 자체로는
+                  // 모양이 없다 — 프레임이 9:16 이면 2.25:1, 창이 가로면 8:1 이
+                  // 된다. 여기서 묶지 않으면 화면의 박스와 엔진이 보는 ROI 가
+                  // 가리키는 모양이 달라지고, 그 어긋남은 "그냥 인식이 안 된다"
+                  // 로만 보인다.
+                  child: Center(
+                    child: AspectRatio(
+                      aspectRatio: _frameAspect,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) => GestureDetector(
+                          onScaleStart: (d) {
+                            _focalStart = d.localFocalPoint;
+                            _offsetStart = _offset;
+                            _scaleStart = _scale;
+                          },
+                          onScaleUpdate: (d) => setState(() {
+                            _scale = (_scaleStart * d.scale).clamp(0.1, 8.0);
+                            _offset =
+                                _offsetStart +
+                                (d.localFocalPoint - _focalStart);
+                          }),
+                          child: RepaintBoundary(
+                            key: _captureKey,
+                            child: ClipRect(
+                              child: SizedBox(
+                                width: constraints.maxWidth,
+                                height: constraints.maxHeight,
+                                child: ColoredBox(
+                                  color: Colors.black,
+                                  child: Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      Transform(
+                                        alignment: Alignment.center,
+                                        transform: Matrix4.identity()
+                                          ..translateByDouble(
+                                            _offset.dx,
+                                            _offset.dy,
+                                            0,
+                                            1,
+                                          )
+                                          ..rotateZ(_rotation)
+                                          ..scaleByDouble(
+                                            _flipH ? -_scale : _scale,
+                                            _scale,
+                                            1,
+                                            1,
+                                          ),
+                                        child: RawImage(
+                                          image: image,
+                                          fit: BoxFit.contain,
+                                        ),
+                                      ),
+                                      // 가이드 박스 — 카메라 화면과 같은 좌표.
+                                      // 캡처본에도 선이 함께 찍히지만 엔진은 이
+                                      // 사각형 **안쪽**만 보므로 판독에 닿지 않는다.
+                                      CustomPaint(
+                                        painter: const _GuidePainter(
+                                          NormalizedRect.defaultGuideBox,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  // 가이드 박스 — 카메라 화면과 같은 좌표.
-                                  // 캡처본에도 선이 함께 찍히지만 엔진은 이
-                                  // 사각형 **안쪽**만 보므로 판독에 닿지 않는다.
-                                  CustomPaint(
-                                    painter: const _GuidePainter(
-                                      NormalizedRect.defaultGuideBox,
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
                             ),
                           ),
@@ -212,6 +241,8 @@ class _PhotoAlignScreenState extends State<PhotoAlignScreen> {
                   onRead: _busy ? null : _read,
                   rotation: _rotation,
                   scale: _scale,
+                  frameAspect: _frameAspect,
+                  onFrameAspect: (v) => setState(() => _frameAspect = v),
                 ),
                 _OutcomeBar(outcome: _outcome, busy: _busy),
               ],
@@ -254,6 +285,8 @@ class _Controls extends StatelessWidget {
     required this.onRead,
     required this.rotation,
     required this.scale,
+    required this.frameAspect,
+    required this.onFrameAspect,
   });
 
   final void Function(double dx, double dy) onNudge;
@@ -262,6 +295,8 @@ class _Controls extends StatelessWidget {
   final VoidCallback? onRead;
   final double rotation;
   final double scale;
+  final double frameAspect;
+  final ValueChanged<double> onFrameAspect;
 
   @override
   Widget build(BuildContext context) {
@@ -320,6 +355,18 @@ class _Controls extends StatelessWidget {
                 icon: const Icon(Icons.flip),
                 tooltip: '좌우 반전',
               ),
+              // 센서 비율에 따라 가이드 박스의 **실제 모양**이 달라진다.
+              // 16:9 센서면 2.25:1, 4:3 센서면 3.00:1 이다. 기기마다
+              // 다르므로 둘 다 볼 수 있게 둔다.
+              SegmentedButton<double>(
+                segments: const [
+                  ButtonSegment(value: 9 / 16, label: Text('9:16')),
+                  ButtonSegment(value: 3 / 4, label: Text('3:4')),
+                ],
+                selected: {frameAspect},
+                onSelectionChanged: (v) => onFrameAspect(v.first),
+                showSelectedIcon: false,
+              ),
             ],
           ),
           const SizedBox(height: 6),
@@ -328,7 +375,9 @@ class _Controls extends StatelessWidget {
               Expanded(
                 child: Text(
                   '회전 ${(rotation * 180 / math.pi).toStringAsFixed(1)}° · '
-                  '배율 ${scale.toStringAsFixed(2)}× · 드래그 이동 · 핀치 확대',
+                  '배율 ${scale.toStringAsFixed(2)}× · 가이드 박스 '
+                  '${(0.80 / (0.20 / frameAspect)).toStringAsFixed(2)}:1 · '
+                  '드래그 이동 · 핀치 확대',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
@@ -359,21 +408,31 @@ class _OutcomeBar extends StatelessWidget {
 
     final (String text, Color color) = switch (outcome) {
       _ when busy => ('판독 중…', scheme.surfaceContainerHighest),
-      null => (
-          '가이드 박스에 화면을 맞춘 뒤 "판독" 을 누른다',
-          scheme.surfaceContainerHighest,
-        ),
+      null => ('가이드 박스에 화면을 맞춘 뒤 "판독" 을 누른다', scheme.surfaceContainerHighest),
       // 이 화면은 진단용이라 원문(rawText)까지 보여준다. 어떤 글자를 읽고
       // 어떤 값으로 확정했는지가 갈리는 지점을 봐야 하기 때문이다.
-      ScanConfirmed(:final value, :final unit, :final rawText, :final engineId) =>
-        ('확정 $value ${unit.name} · 원문 "$rawText" · $engineId',
-            scheme.primaryContainer),
-      ScanRejected(:final reason) => ('거절: ${reason.name}', scheme.errorContainer),
-      ScanUnavailable(:final reason) =>
-        ('엔진 없음: ${reason.name}', scheme.errorContainer),
-      ScanScanning(:final previewValue) =>
-        ('읽는 중 — 확정 안 됨${previewValue == null ? '' : ' (미리보기 $previewValue)'}',
-            scheme.surfaceContainerHighest),
+      ScanConfirmed(
+        :final value,
+        :final unit,
+        :final rawText,
+        :final engineId,
+      ) =>
+        (
+          '확정 $value ${unit.name} · 원문 "$rawText" · $engineId',
+          scheme.primaryContainer,
+        ),
+      ScanRejected(:final reason) => (
+        '거절: ${reason.name}',
+        scheme.errorContainer,
+      ),
+      ScanUnavailable(:final reason) => (
+        '엔진 없음: ${reason.name}',
+        scheme.errorContainer,
+      ),
+      ScanScanning(:final previewValue) => (
+        '읽는 중 — 확정 안 됨${previewValue == null ? '' : ' (미리보기 $previewValue)'}',
+        scheme.surfaceContainerHighest,
+      ),
       ScanIdle() => ('대기', scheme.surfaceContainerHighest),
     };
 
