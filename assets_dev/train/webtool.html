@@ -175,6 +175,7 @@ tr.miss td.mono { color: var(--bad); }
         <option value="risky">판독 오답 · 위험(자릿수 보존)</option>
         <option value="safe">판독 오답 · 안전(자릿수 변동)</option>
         <option value="blank">판독 무출력</option>
+        <option value="rejected">거절 대상(득표율 낮음)</option>
         <option value="pilot">밴드 시범 79장</option>
         <option value="lcdfix">LCD 재라벨 (GM 실패·가로)</option>
         <option value="unlabeled">라벨 없음만</option>
@@ -306,7 +307,8 @@ const lb = {
   // 실패 모아보기 — allItems 는 큐 필터 적용 전(모드 정렬까지 끝낸) 원본 목록.
   allItems: null,
   fail: { gm: new Set(), reader: new Set(), pilot: new Set(), lcdfix: new Set(),
-          risky: new Set(), safe: new Set(), blank: new Set() },
+          risky: new Set(), safe: new Set(), blank: new Set(),
+          rejected: new Set() },
   readerNote: {},
   holdout: new Set(), pilotNote: {}, preds: null,
 };
@@ -337,6 +339,7 @@ async function boot() {
     lb.fail.risky = new Set(f.reader_risky || []);
     lb.fail.safe = new Set(f.reader_safe || []);
     lb.fail.blank = new Set(f.reader_blank || []);
+    lb.fail.rejected = new Set(f.reader_rejected || []);
     lb.readerNote = f.reader_note || {};
     lb.fail.lcdfix = new Set(f.lcd_fix || []);
     lb.holdout = new Set(f.lcd_holdout || []);
@@ -382,7 +385,7 @@ function applyQueueFilter() {
     lb.meta.items = lb.meta.items.filter(it => lb.fail.gm.has(it.id));
   } else if (q === "reader" && lb.fail.reader.size) {
     lb.meta.items = lb.meta.items.filter(it => lb.fail.reader.has(it.id));
-  } else if (q === "risky" || q === "safe" || q === "blank") {
+  } else if (["risky", "safe", "blank", "rejected"].includes(q)) {
     // 판독 실패를 성격별로. 위험(자릿수 보존)이 이 앱에서 유일하게 위험한 부류다 —
     // 값이 그럴듯해 범위 검증기도 프레임 합의도 통과한다.
     const set = lb.fail[q];
@@ -500,7 +503,7 @@ async function show(idx) {
       const q = $("queue") ? $("queue").value : "all";
       const rnote = lb.readerNote ? lb.readerNote[it.id] : null;
       const note = lb.pilotNote ? lb.pilotNote[it.id] : null;
-      if (["reader", "risky", "safe", "blank"].includes(q) && rnote) {
+      if (["reader", "risky", "safe", "blank", "rejected"].includes(q) && rnote) {
         pn.textContent = `· ${rnote}`;
         pn.style.color = q === "risky" ? "#e06c6c" : "#d8a657";
       } else {

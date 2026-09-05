@@ -56,6 +56,11 @@ DETACHED = 0x00000008 | 0x00000200  # DETACHED_PROCESS | NEW_PROCESS_GROUP
 # 라벨 저장은 "클라이언트가 그린 프레임 크기(ow/oh)"를 함께 받아 서버가
 # 실측 크기와 대조한 뒤에만 기록한다 — 낡은 JS 가 살아 있는 탭에서 온
 # 어긋난 좌표가 파일에 닿지 못하게 막는 마지막 방어선.
+# TTA 득표율이 이 아래면 '거절 대상'으로 표시한다. **잠정값이다** —
+# 실제 임계값은 사람이 정한다(0.778 에서 오독 0.27%·미인식 5.3%,
+# 0.889 에서 0.09%·7.7%. 게이트는 오독 ≤0.2%·미인식 ≤5%).
+REJECT_AT = 0.778
+
 FRAME_TOL = 1        # 표시 크기 허용 오차(px) — 반올림 외에는 허용하지 않는다
 BOUNDS_TOL = 2.0     # 경계 초과 허용치(px)
 
@@ -248,6 +253,7 @@ def api_failures(qs):
     #   safe    자릿수가 달라짐(늘거나 줄거나) → 범위 밖으로 걸러진다
     #   blank   아무것도 못 냄
     reader_miss, reader_risky, reader_safe, reader_blank = [], [], [], []
+    reader_rejected = []
     reader_note = {}
     if HOLDOUT.exists():
         preds = json.loads(HOLDOUT.read_text(encoding="utf-8"))
@@ -264,8 +270,21 @@ def api_failures(qs):
             else:
                 kind, bucket = "안전(자릿수 변동)", reader_safe
             bucket.append(cid)
-            reader_note[cid] = f"{kind} · {gt} -> {pred or '(없음)'}"
-        for b in (reader_miss, reader_risky, reader_safe, reader_blank):
+            # 득표율(TTA 다수결의 지지도)이 있으면 함께 보여준다 — 이 값이 낮으면
+            # 거절 대상이라 실제 앱에서는 사용자에게 값이 가지 않는다.
+            ag = v[2] if len(v) > 2 else None
+            tail = f" · 득표 {ag:.2f}{' → 거절대상' if ag < REJECT_AT else ''}"                 if ag is not None else ""
+            reader_note[cid] = f"{kind} · {gt} -> {pred or '(없음)'}{tail}"
+        # 득표율이 낮아 거절될 장 — 정답·오답 무관. 실제 앱에서 값이 안 나가는 쪽이다.
+        if any(len(v) > 2 for v in preds.values()):
+            for cid, v in preds.items():
+                if len(v) > 2 and v[2] < REJECT_AT:
+                    reader_rejected.append(cid)
+                    if cid not in reader_note:
+                        reader_note[cid] = (f"거절대상(득표 {v[2]:.2f}) · "
+                                            f"판독 {v[0]} · GT {v[1]}")
+        for b in (reader_miss, reader_risky, reader_safe, reader_blank,
+                  reader_rejected):
             b.sort()
     # band_pilot — make_band_pilot.py 가 만든 시범 라벨링 작업 목록.
     # 사람이 "어느 장을 라벨링할지" 고르지 않아도 되게 미리 층화해 둔 것이다
@@ -289,7 +308,8 @@ def api_failures(qs):
     hold, _ = _queue("lcd_fix_holdout.json")
     return {"gm_miss": gm_miss, "reader_miss": reader_miss,
             "reader_risky": reader_risky, "reader_safe": reader_safe,
-            "reader_blank": reader_blank, "reader_note": reader_note,
+            "reader_blank": reader_blank, "reader_rejected": reader_rejected,
+            "reader_note": reader_note,
             "band_pilot": pilot, "band_pilot_note": pilot_note,
             "lcd_fix": lcdfix, "lcd_fix_note": lcdfix_note,
             "lcd_holdout": hold}
