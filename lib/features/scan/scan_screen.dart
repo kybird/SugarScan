@@ -14,6 +14,7 @@ import '../../ocr/ocr.dart';
 import 'camera_image_adapter.dart';
 import 'confirm_sheet.dart';
 import 'manual_entry_sheet.dart';
+import 'photo_align_screen.dart';
 import 'photo_import_sheet.dart';
 import 'photo_preprocessor.dart';
 import 'scan_entry.dart';
@@ -327,6 +328,33 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
     }
   }
 
+  /// 사진을 손으로 겨냥해 보는 디버그 화면을 연다.
+  ///
+  /// [_importPhoto] 와 다른 점은 **자동 정렬을 거치지 않는다**는 것이다.
+  /// 가이드 박스에 맞추는 일을 사람이 하므로, 정렬이 어긋났을 때 판독이
+  /// 어떻게 무너지는지를 실기기 없이 볼 수 있다.
+  Future<void> _alignTest() async {
+    _paused = true;
+    await _stopStream();
+    if (!mounted) return;
+
+    final file = await showPhotoImportSheet(context);
+    if (!mounted) return;
+    if (file != null) {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => PhotoAlignScreen(
+            imageBytes: file.readAsBytesSync(),
+            scanner: _scanner,
+            unit: _unit,
+          ),
+        ),
+      );
+      if (!mounted) return;
+    }
+    await _resumeScanning();
+  }
+
   /// 사진 경로에서 필요할 때 스캐너를 켠다.
   Future<bool> _ensureScannerStarted() async {
     if (_scannerStarted) return true;
@@ -460,6 +488,13 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
                           minimumSize: const Size(0, 48),
                         ),
                       ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      onPressed: _alignTest,
+                      icon: const Icon(Icons.crop_free),
+                      color: Colors.white,
+                      tooltip: '가이드 정렬 테스트 (디버그)',
                     ),
                   ],
                 ],
