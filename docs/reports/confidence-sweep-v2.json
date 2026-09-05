@@ -1,0 +1,71 @@
+{
+ "n": 1122,
+ "counts": {
+  "정답": 1064,
+  "무출력": 14,
+  "안전": 26,
+  "위험": 18
+ },
+ "sweep": [
+  {
+   "tau": 0.0,
+   "exact": 1064,
+   "risky": 18,
+   "rejected": 14
+  },
+  {
+   "tau": 0.5,
+   "exact": 1062,
+   "risky": 15,
+   "rejected": 20
+  },
+  {
+   "tau": 0.6,
+   "exact": 1016,
+   "risky": 11,
+   "rejected": 75
+  },
+  {
+   "tau": 0.7,
+   "exact": 964,
+   "risky": 9,
+   "rejected": 131
+  },
+  {
+   "tau": 0.8,
+   "exact": 907,
+   "risky": 8,
+   "rejected": 189
+  },
+  {
+   "tau": 0.85,
+   "exact": 868,
+   "risky": 7,
+   "rejected": 231
+  },
+  {
+   "tau": 0.9,
+   "exact": 820,
+   "risky": 7,
+   "rejected": 283
+  },
+  {
+   "tau": 0.95,
+   "exact": 706,
+   "risky": 6,
+   "rejected": 404
+  },
+  {
+   "tau": 0.97,
+   "exact": 634,
+   "risky": 3,
+   "rejected": 479
+  },
+  {
+   "tau": 0.99,
+   "exact": 489,
+   "risky": 1,
+   "rejected": 627
+  }
+ ]
+}
