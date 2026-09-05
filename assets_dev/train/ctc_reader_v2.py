@@ -86,8 +86,16 @@ def make_ds(X, y, lens, batch, shuffle=False, augment=False):
         ds = ds.shuffle(min(len(X), 10000), reshuffle_each_iteration=True)
 
     rot = tf.keras.layers.RandomRotation(0.03, fill_mode="constant")
-    tr = tf.keras.layers.RandomTranslation(0.05, 0.05, fill_mode="constant")
-    zm = tf.keras.layers.RandomZoom(0.1, fill_mode="constant")
+    # 프레이밍 흔들기 — 캐시가 박스+10% 여유로 잘려 있으므로, 그 여유 안에서
+    # 줌·이동을 크게 주면 리더가 **빡빡한 크롭과 헐거운 크롭을 모두** 보게 된다.
+    #
+    # 왜 필요한가(2026-09-04): 검출 박스의 오른쪽 오차가 p5 −6% ~ p95 +28% 로
+    # 넓게 퍼져 있는데, 리더는 지금까지 한 가지 프레이밍만 보고 학습했다.
+    # 그래서 마지막 자리가 잘린 크롭이 들어오면 읽지 못하고 **지어낸다**
+    # (949: 박스 밖 숫자를 0.993 확신으로 출력). 추론 시 고정 패딩으로는 못
+    # 고친다 — 편차가 평균보다 커서 하나의 값으로 맞출 수 없다.
+    tr = tf.keras.layers.RandomTranslation(0.08, 0.08, fill_mode="constant")
+    zm = tf.keras.layers.RandomZoom(0.18, fill_mode="constant")
     ct = tf.keras.layers.RandomContrast(0.35)
 
     def _map(img, lab, ln):

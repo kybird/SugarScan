@@ -16,6 +16,8 @@ CACHE = HERE / "data_cache_v2.npz"   # 학습셋 정본 — hold-out 은 여기�
 PREDS = HERE / "reader_preds.json"
 IN_H, IN_W = 160, 320
 NUM_CLASSES = 11
+# 학습 캐시와 같은 값이어야 한다. 정본은 build_cache_v2.BOX_MARGIN.
+from build_cache_v2 import BOX_MARGIN  # noqa: E402
 
 
 def main() -> int:
@@ -86,11 +88,18 @@ def main() -> int:
         except Exception:
             skipped += 1
             continue
+        # 프레이밍 규약은 학습 캐시와 **같아야 한다** — build_cache_v2.BOX_MARGIN.
+        # 갈리면 그 불일치 자체가 성능 저하로 나타나 원인을 오독하게 된다.
         q = np.array(quad, dtype=np.float32)
         xs, ys = q[:, 0], q[:, 1]
+        bx0, by0 = float(xs.min()), float(ys.min())
+        bx1, by1 = float(xs.max()), float(ys.max())
+        mw, mh = (bx1 - bx0) * BOX_MARGIN, (by1 - by0) * BOX_MARGIN
+        bx0, by0 = max(0.0, bx0 - mw), max(0.0, by0 - mh)
+        bx1 = min(float(img.shape[1] - 1), bx1 + mw)
+        by1 = min(float(img.shape[0] - 1), by1 + mh)
         src = np.array(
-            [[xs.min(), ys.min()], [xs.max(), ys.min()],
-             [xs.max(), ys.max()], [xs.min(), ys.max()]], dtype=np.float32)
+            [[bx0, by0], [bx1, by0], [bx1, by1], [bx0, by1]], dtype=np.float32)
         dst = np.array(
             [[0, 0], [IN_W - 1, 0], [IN_W - 1, IN_H - 1], [0, IN_H - 1]],
             dtype=np.float32)

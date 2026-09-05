@@ -14,6 +14,23 @@ IN_H, IN_W = 160, 320
 BLANK = 10
 MAX_LABEL = 3
 
+# 검출 박스를 사방으로 넓혀서 자른다.
+#
+# 근거(2026-09-04, 사람 라벨 396장 대조): GM 박스는 **오른쪽을 계통적으로 덜
+# 덮는다** — 사람 박스 폭 대비 중앙 +6%, p90 +19%, p95 +28%. 79%의 장이 덜
+# 덮이고 11%는 오히려 더 덮는다(p5 −6%). 혈당계 표시는 우측 정렬이라 잘리는
+# 것은 마지막 자리이고, 실제로 한 글자 오독 41건 중 24건이 마지막 자리다.
+#
+# **일률적으로 오른쪽만 늘리지 않는다.** 편차(σ=0.096)가 평균(0.072)보다 커서
+# 하나의 값으로는 못 맞춘다 — 이미 맞거나 넓게 잡은 25% 의 장에는 배경만
+# 들어온다(추론 시 +8% 패딩 실험이 순손실이었다). 대신 사방으로 여유를 주고
+# **학습 증강이 그 여유 안에서 프레이밍을 흔들게** 해서, 리더가 빡빡한 크롭과
+# 헐거운 크롭 양쪽에 둔감해지도록 만든다.
+#
+# 이 값을 바꾸면 추론 경로(eval_reader.py)도 같이 바꿔야 한다 — 학습과 추론의
+# 프레이밍 규약이 갈리면 그 자체가 성능 저하다.
+BOX_MARGIN = 0.10
+
 
 def encode_label(s: str):
     ids = [int(ch) for ch in s]
@@ -105,9 +122,14 @@ def main() -> int:
                 continue
             q = np.array(quad, dtype=np.float32)
             xs, ys_ = q[:, 0], q[:, 1]
+            x0, y0 = float(xs.min()), float(ys_.min())
+            x1, y1 = float(xs.max()), float(ys_.max())
+            mw, mh = (x1 - x0) * BOX_MARGIN, (y1 - y0) * BOX_MARGIN
+            x0, y0 = max(0.0, x0 - mw), max(0.0, y0 - mh)
+            x1 = min(float(g.shape[1] - 1), x1 + mw)
+            y1 = min(float(g.shape[0] - 1), y1 + mh)
             src = np.array(
-                [[xs.min(), ys_.min()], [xs.max(), ys_.min()],
-                 [xs.max(), ys_.max()], [xs.min(), ys_.max()]], dtype=np.float32)
+                [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], dtype=np.float32)
             dst = np.array(
                 [[0, 0], [IN_W - 1, 0], [IN_W - 1, IN_H - 1], [0, IN_H - 1]],
                 dtype=np.float32)
