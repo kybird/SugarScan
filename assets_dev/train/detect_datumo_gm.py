@@ -1,7 +1,11 @@
-# torch(YOLOX evaluator와 동일 전처리: 416 스트레치+BGR)로 Datumo 전량 추론.
+# torch(YOLOX evaluator와 동일 전처리: 스트레치+BGR)로 Datumo 전량 추론.
 # 인자(선택): --ckpt <pth>  체크포인트(기본: 운영 gmscreen/latest_ckpt.pth)
 #             --out <jsonl>  출력(기본: 운영 gmscreen_quads.jsonl)
 #             --exp <exp.py> exp 파일(기본: reading_exp.py — gmscreen 과 동일 구조)
+#             --imgsz <n>    추론 입력 변 크기(기본 416 — 기존 동작 보존).
+#                            resize 와 좌표 역산 **두 곳이 같은 값**을 써야 한다.
+#                            한쪽만 바꾸면 박스가 조용히 어긋나는데 검출은
+#                            성공한 것처럼 보인다.
 # 평가 실험은 --out 을 _diag 쪽으로 돌려 운영 쿼드(webtool 힌트·CTC 캐시 원료)를
 # 덮어쓰지 않게 한다.
 import json
@@ -40,6 +44,7 @@ def main() -> int:
     out_path = OUT
     ckpt_path = CKPT
     exp_file = EXP_FILE
+    imgsz = 416
     args = sys.argv[1:]
     for i, a in enumerate(args):
         if a == "--out" and i + 1 < len(args):
@@ -48,8 +53,11 @@ def main() -> int:
             ckpt_path = Path(args[i + 1])
         elif a == "--exp" and i + 1 < len(args):
             exp_file = args[i + 1]
-    print(f"ckpt: {ckpt_path}")
-    print(f"out:  {out_path}")
+        elif a == "--imgsz" and i + 1 < len(args):
+            imgsz = int(args[i + 1])
+    print(f"ckpt:  {ckpt_path}")
+    print(f"out:   {out_path}")
+    print(f"imgsz: {imgsz}")
 
     exp = get_exp(exp_file, "reading")
     model = exp.get_model()
@@ -71,7 +79,7 @@ def main() -> int:
             except Exception:
                 continue
             sh, sw = img0.shape[:2]
-            img = cv2.resize(img0, (416, 416))
+            img = cv2.resize(img0, (imgsz, imgsz))
             x = torch.from_numpy(img[..., ::-1].copy()).permute(2, 0, 1)[None].float().cuda()
             with torch.no_grad():
                 out_t = model(x)
@@ -79,7 +87,7 @@ def main() -> int:
             if dets is None or len(dets) == 0:
                 continue
             d = dets[0].cpu().numpy()
-            sx, sy = sw / 416.0, sh / 416.0
+            sx, sy = sw / float(imgsz), sh / float(imgsz)
             x0, y0, x1, y1 = float(d[0]) * sx, float(d[1]) * sy, float(d[2]) * sx, float(d[3]) * sy
             x0, x1 = sorted((max(0.0, min(sw, x0)), max(0.0, min(sw, x1))))
             y0, y1 = sorted((max(0.0, min(sh, y0)), max(0.0, min(sh, y1))))
