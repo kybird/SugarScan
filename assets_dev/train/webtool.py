@@ -241,14 +241,32 @@ def api_failures(qs):
     gm_ids = set(read_jsonl(GM_QUADS))
     all_ids = set(readings)
     gm_miss = sorted(all_ids - gm_ids)
-    reader_miss = []
+    # 판독 실패를 **성격별로 가른다.** 한 덩어리로 두면 쓸모가 적다 —
+    # 이 앱에서 위험한 것은 "값을 냈는데 틀린 것"이지 "못 읽은 것"이 아니다.
+    #   risky   자릿수가 GT 와 같은데 틀림 → 값이 그럴듯해 범위 검증기·프레임
+    #           합의를 통과한다. **실제로 위험한 유일한 부류다.**
+    #   safe    자릿수가 달라짐(늘거나 줄거나) → 범위 밖으로 걸러진다
+    #   blank   아무것도 못 냄
+    reader_miss, reader_risky, reader_safe, reader_blank = [], [], [], []
+    reader_note = {}
     if HOLDOUT.exists():
         preds = json.loads(HOLDOUT.read_text(encoding="utf-8"))
         for cid, v in preds.items():
             gt = str(corrections.get(cid, readings.get(cid, v[1] if len(v) > 1 else v[0])))
-            if str(v[0]) != gt:
-                reader_miss.append(cid)
-        reader_miss.sort()
+            pred = str(v[0])
+            if pred == gt:
+                continue
+            reader_miss.append(cid)
+            if not pred:
+                kind, bucket = "무출력", reader_blank
+            elif len(pred) == len(gt):
+                kind, bucket = "위험(자릿수 보존)", reader_risky
+            else:
+                kind, bucket = "안전(자릿수 변동)", reader_safe
+            bucket.append(cid)
+            reader_note[cid] = f"{kind} · {gt} -> {pred or '(없음)'}"
+        for b in (reader_miss, reader_risky, reader_safe, reader_blank):
+            b.sort()
     # band_pilot — make_band_pilot.py 가 만든 시범 라벨링 작업 목록.
     # 사람이 "어느 장을 라벨링할지" 고르지 않아도 되게 미리 층화해 둔 것이다
     # (가로 화면 / 위험군 오독 / 대조군). 없으면 빈 목록.
@@ -270,6 +288,8 @@ def api_failures(qs):
     # 부족하고(전체 큐로 들어올 수 있다) 화면에 경고를 띄운다.
     hold, _ = _queue("lcd_fix_holdout.json")
     return {"gm_miss": gm_miss, "reader_miss": reader_miss,
+            "reader_risky": reader_risky, "reader_safe": reader_safe,
+            "reader_blank": reader_blank, "reader_note": reader_note,
             "band_pilot": pilot, "band_pilot_note": pilot_note,
             "lcd_fix": lcdfix, "lcd_fix_note": lcdfix_note,
             "lcd_holdout": hold}

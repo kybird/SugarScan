@@ -171,7 +171,10 @@ tr.miss td.mono { color: var(--bad); }
       <select id="queue" title="실패 모아보기 — GM 미검출 / CTC 판독 오답만 큐로">
         <option value="all">전체 큐</option>
         <option value="gm">GM 미검출만</option>
-        <option value="reader">판독 오답만</option>
+        <option value="reader">판독 오답 전체</option>
+        <option value="risky">판독 오답 · 위험(자릿수 보존)</option>
+        <option value="safe">판독 오답 · 안전(자릿수 변동)</option>
+        <option value="blank">판독 무출력</option>
         <option value="pilot">밴드 시범 79장</option>
         <option value="lcdfix">LCD 재라벨 (GM 실패·가로)</option>
         <option value="unlabeled">라벨 없음만</option>
@@ -302,7 +305,9 @@ const lb = {
   drag: null, imgCache: new Map(),
   // 실패 모아보기 — allItems 는 큐 필터 적용 전(모드 정렬까지 끝낸) 원본 목록.
   allItems: null,
-  fail: { gm: new Set(), reader: new Set(), pilot: new Set(), lcdfix: new Set() },
+  fail: { gm: new Set(), reader: new Set(), pilot: new Set(), lcdfix: new Set(),
+          risky: new Set(), safe: new Set(), blank: new Set() },
+  readerNote: {},
   holdout: new Set(), pilotNote: {}, preds: null,
 };
 const cv = $("cv"), ctx = cv.getContext("2d");
@@ -329,6 +334,10 @@ async function boot() {
     lb.fail.gm = new Set(f.gm_miss);
     lb.fail.reader = new Set(f.reader_miss);
     lb.fail.pilot = new Set(f.band_pilot || []);
+    lb.fail.risky = new Set(f.reader_risky || []);
+    lb.fail.safe = new Set(f.reader_safe || []);
+    lb.fail.blank = new Set(f.reader_blank || []);
+    lb.readerNote = f.reader_note || {};
     lb.fail.lcdfix = new Set(f.lcd_fix || []);
     lb.holdout = new Set(f.lcd_holdout || []);
     lb.pilotNote = Object.assign({}, f.band_pilot_note || {}, f.lcd_fix_note || {});
@@ -373,6 +382,12 @@ function applyQueueFilter() {
     lb.meta.items = lb.meta.items.filter(it => lb.fail.gm.has(it.id));
   } else if (q === "reader" && lb.fail.reader.size) {
     lb.meta.items = lb.meta.items.filter(it => lb.fail.reader.has(it.id));
+  } else if (q === "risky" || q === "safe" || q === "blank") {
+    // 판독 실패를 성격별로. 위험(자릿수 보존)이 이 앱에서 유일하게 위험한 부류다 —
+    // 값이 그럴듯해 범위 검증기도 프레임 합의도 통과한다.
+    const set = lb.fail[q];
+    lb.meta.items = set && set.size
+      ? lb.meta.items.filter(it => set.has(it.id)) : [];
   } else if (q === "unlabeled") {
     // 현재 모드에서 아직 라벨이 없는 장. 스킵 표시한 장은 '처리했다'는 판단이
     // 들어간 것이라 남기지 않는다 — 남기면 스킵할 때마다 목록에 다시 뜬다.
@@ -482,10 +497,16 @@ async function show(idx) {
       pn.textContent = "⚠ 테스트용(holdout) — 라벨링하지 말 것";
       pn.style.color = "#e06c6c";
     } else {
-      const note = lb.pilotNote ? lb.pilotNote[it.id] : null;
       const q = $("queue") ? $("queue").value : "all";
-      pn.textContent = ((q === "pilot" || q === "lcdfix") && note) ? `· ${note}` : "";
-      pn.style.color = "#8ab4f8";
+      const rnote = lb.readerNote ? lb.readerNote[it.id] : null;
+      const note = lb.pilotNote ? lb.pilotNote[it.id] : null;
+      if (["reader", "risky", "safe", "blank"].includes(q) && rnote) {
+        pn.textContent = `· ${rnote}`;
+        pn.style.color = q === "risky" ? "#e06c6c" : "#d8a657";
+      } else {
+        pn.textContent = ((q === "pilot" || q === "lcdfix") && note) ? `· ${note}` : "";
+        pn.style.color = "#8ab4f8";
+      }
     }
   }
   updateCounts();
