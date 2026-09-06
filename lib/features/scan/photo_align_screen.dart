@@ -12,7 +12,7 @@ import '../../ocr/ocr.dart';
 /// 사진을 손으로 움직여 가이드 박스에 맞추는 **디버그 전용** 화면.
 ///
 /// 왜 필요한가: 앱의 판독 경로는 "사용자가 가이드 박스에 화면을 맞춘다" 를
-/// 전제로 하고, 엔진은 그 박스 안만 본다(`roi: defaultGuideBox`). 그런데
+/// 전제로 하고, 엔진은 그 박스 안만 본다(`roi: guideBoxFor`). 그런데
 /// 실기기 없이는 그 전제를 시험할 방법이 없었다. 기존 사진 불러오기는
 /// `preprocessPhotoForEngine` 로 **자동 정렬**을 거치므로, 정렬이 맞고 틀림에
 /// 따라 판독이 어떻게 달라지는지를 볼 수 없다.
@@ -110,7 +110,7 @@ class _PhotoAlignScreenState extends State<PhotoAlignScreen> {
   /// 화면에 보이는 그대로를 캡처해 엔진에 넘긴다.
   ///
   /// 자동 정렬을 거치지 않는 것이 이 화면의 핵심이다. 캡처본을 카메라와 같은
-  /// [NormalizedRect.defaultGuideBox] 로 잘라 읽으므로, 정렬이 어긋나면 어긋난
+  /// [NormalizedRect.guideBoxFor] 로 잘라 읽으므로, 정렬이 어긋나면 어긋난
   /// 대로 결과가 나온다 — 그것이 확인하려는 것이다.
   Future<void> _read() async {
     if (_busy) return;
@@ -140,7 +140,7 @@ class _PhotoAlignScreenState extends State<PhotoAlignScreen> {
         format: OcrImageFormat.png,
         width: width,
         height: height,
-        roi: NormalizedRect.defaultGuideBox,
+        roi: NormalizedRect.guideBoxFor(_frameAspect),
       );
 
       // 정지 사진이라 프레임이 한 종류다. 카메라와 같은 확정 조건(프레임 합의)
@@ -246,8 +246,10 @@ class _PhotoAlignScreenState extends State<PhotoAlignScreen> {
                                         // 캡처본에도 선이 함께 찍히지만 엔진은 이
                                         // 사각형 **안쪽**만 보므로 판독에 닿지 않는다.
                                         CustomPaint(
-                                          painter: const _GuidePainter(
-                                            NormalizedRect.defaultGuideBox,
+                                          painter: _GuidePainter(
+                                            NormalizedRect.guideBoxFor(
+                                              _frameAspect,
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -418,7 +420,7 @@ class _Controls extends StatelessWidget {
                 child: Text(
                   '회전 ${(rotation * 180 / math.pi).toStringAsFixed(1)}° · '
                   '배율 ${scale.toStringAsFixed(2)}× · 가이드 박스 '
-                  '${(0.80 / (0.20 / frameAspect)).toStringAsFixed(2)}:1 · '
+                  '${(NormalizedRect.digitCellAspect * NormalizedRect.guideDigitCount).toStringAsFixed(2)}:1 · '
                   '드래그 이동 · 휠 확대',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),

@@ -30,7 +30,7 @@ class ScanScreen extends StatefulWidget {
   /// 테스트에서 실제 부트스트랩 대신 다른 스캐너를 끼우는 구멍.
   /// 지정하지 않으면 [buildGlucoseScanner] 로 만든다.
   const ScanScreen({super.key, GlucoseScanner? scanner})
-      : _injectedScanner = scanner;
+    : _injectedScanner = scanner;
 
   final GlucoseScanner? _injectedScanner;
 
@@ -57,6 +57,12 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
 
   CameraController? _controller;
   int _rotationDegrees = 0;
+
+  /// 화면에 그리는 가이드 박스이자 엔진에 넘기는 ROI. **둘은 같은 값이어야
+  /// 한다** — 갈리면 "그냥 인식이 안 된다"로만 보인다.
+  ///
+  /// 프레임 비에 따라 모양이 달라지므로 컨트롤러가 준비된 뒤 다시 계산한다.
+  NormalizedRect _guideBox = NormalizedRect.defaultGuideBox;
   GlucoseUnit _unit = GlucoseUnit.mgdl;
 
   ScanOutcome _outcome = const ScanIdle();
@@ -75,9 +81,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
     // 세로로 고정한다. ROI 계산과 프레임 회전(`uprightRotationFor`)이 세로를
     // 전제하고 있어서, 가로로 돌리면 가이드 박스와 실제 판독 영역이 조용히
     // 어긋난다 — 값이 틀리게 읽히는 쪽이라 그냥 막는다.
-    SystemChrome.setPreferredOrientations(const [
-      DeviceOrientation.portraitUp,
-    ]);
+    SystemChrome.setPreferredOrientations(const [DeviceOrientation.portraitUp]);
     // 첫 프레임 이후로 미룬다. initState 시점에는 Localizations 같은 상속
     // 위젯을 읽을 수 없다.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -133,8 +137,9 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
         ResolutionPreset.high,
         enableAudio: false,
         // Android 는 Y 평면만 꺼내 쓰고, iOS 는 BGRA 를 휘도로 바꾼다.
-        imageFormatGroup:
-            Platform.isAndroid ? ImageFormatGroup.yuv420 : ImageFormatGroup.bgra8888,
+        imageFormatGroup: Platform.isAndroid
+            ? ImageFormatGroup.yuv420
+            : ImageFormatGroup.bgra8888,
       );
       await controller.initialize().timeout(_setupTimeout);
       if (!mounted) {
@@ -142,6 +147,9 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
         return;
       }
       _controller = controller;
+      // 세운 프레임의 가로/세로. `value.aspectRatio` 는 센서(가로) 기준이라
+      // 뒤집어야 한다 — 프리뷰 `AspectRatio` 와 같은 계산이다.
+      _guideBox = NormalizedRect.guideBoxFor(1 / controller.value.aspectRatio);
 
       final outcome = await _scanner.start(unit: _unit);
       if (!mounted) return;
@@ -198,7 +206,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
     final frame = ocrFrameFromCameraImage(
       image,
       rotationDegrees: _rotationDegrees,
-      roi: NormalizedRect.defaultGuideBox,
+      roi: _guideBox,
     );
     if (frame == null) return;
 
@@ -392,7 +400,8 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
         fit: StackFit.expand,
         children: [
           const ColoredBox(color: Color(0xFF101214)),
-          if (_blockedMessage == null || _importedPhoto != null) _buildPreview(),
+          if (_blockedMessage == null || _importedPhoto != null)
+            _buildPreview(),
           _buildFooter(l10n),
         ],
       ),
@@ -432,10 +441,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
           fit: StackFit.expand,
           children: [
             CameraPreview(controller),
-            _GuideBoxOverlay(
-              roi: NormalizedRect.defaultGuideBox,
-              outcome: _outcome,
-            ),
+            _GuideBoxOverlay(roi: _guideBox, outcome: _outcome),
           ],
         ),
       ),
@@ -515,17 +521,16 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
 
     return switch (_outcome) {
       ScanRejected(:final reason) => switch (reason) {
-          ScanRejectionReason.meterHigh => l10n.meterShowsHigh,
-          ScanRejectionReason.meterLow => l10n.meterShowsLow,
-        },
+        ScanRejectionReason.meterHigh => l10n.meterShowsHigh,
+        ScanRejectionReason.meterLow => l10n.meterShowsLow,
+      },
       ScanUnavailable() => l10n.scanUnavailable,
       ScanScanning(:final previewValue) when previewValue != null =>
         l10n.scanReading,
       // 사진 모드에는 가이드 박스가 없다 — 카메라용 안내가 새어 나가면
       // 사용자는 맞춰야 할 가이드를 찾게 된다. 사진용 안내로 바꾼다.
-      _ => _importedPhoto == null
-          ? l10n.scanGuideHint
-          : l10n.scanImportNoReading,
+      _ =>
+        _importedPhoto == null ? l10n.scanGuideHint : l10n.scanImportNoReading,
     };
   }
 }
@@ -546,14 +551,15 @@ class _GuideBoxOverlay extends StatelessWidget {
       ScanConfirmed() => (scheme.primary, 4.0),
       ScanRejected() => (scheme.error, 3.0),
       ScanScanning(:final previewValue) when previewValue != null => (
-          scheme.tertiary,
-          3.0,
-        ),
+        scheme.tertiary,
+        3.0,
+      ),
       _ => (Colors.white70, 2.0),
     };
 
-    final preview =
-        outcome is ScanScanning ? (outcome as ScanScanning).previewValue : null;
+    final preview = outcome is ScanScanning
+        ? (outcome as ScanScanning).previewValue
+        : null;
 
     return LayoutBuilder(
       builder: (context, constraints) {
