@@ -28,6 +28,8 @@ Future<File?> showPhotoImportSheet(
 /// 닿는다. 다른 폴더를 보려면 시트의 경로 칸을 고치면 된다.
 const String defaultSynthImageDirectory = 'assets_dev/synth/images';
 
+const List<String> _imageExtensions = ['.png', '.jpg', '.jpeg'];
+
 class _PhotoImportSheet extends StatefulWidget {
   const _PhotoImportSheet({required this.initialDirectory});
 
@@ -57,12 +59,15 @@ class _PhotoImportSheetState extends State<_PhotoImportSheet> {
 
   void _refresh() {
     try {
-      final files = Directory(_pathController.text)
-          .listSync()
-          .whereType<File>()
-          .where((f) => f.path.toLowerCase().endsWith('.png'))
-          .toList()
-        ..sort((a, b) => a.path.compareTo(b.path));
+      final files =
+          Directory(_pathController.text)
+              .listSync()
+              .whereType<File>()
+              // 합성 장면은 png, 실사진 데이터셋(`assets_dev/upstream/datumo`)은
+              // jpg 다. png 만 보면 실사진 폴더가 통째로 비어 보인다.
+              .where((f) => _imageExtensions.any(f.path.toLowerCase().endsWith))
+              .toList()
+            ..sort((a, b) => a.path.compareTo(b.path));
       setState(() {
         _files = files;
         _failed = false;
