@@ -51,6 +51,55 @@ def _jitter(img, s, tx, ty, c):
     return np.clip((out.astype(np.float32) - med) * c + med, 0, 255).astype(np.uint8)
 
 
+def load_gray(img_path):
+    """원본 jpg → 표시(EXIF 적용) 좌표계 회색조. 실패 시 None.
+
+    좌표 정본은 표시 이미지다. gmscreen_quads.jsonl 은 cv2.imread(EXIF 적용)로
+    만들어진 표시 좌표계인데 PIL 은 EXIF 를 무시한다 — 여기서 굽지 않으면 원본의
+    83.5%(orientation=6)에 옆으로 누운 이미지에 올바른 좌표를 물려 평가가 통째로
+    망가진다. 실측: 이 한 줄 유무로 완전일치 14.7% ↔ 90.7% (표본 300).
+    """
+    try:
+        with Image.open(img_path) as pil:
+            pil.load()
+            pil = ImageOps.exif_transpose(pil)
+            return cv2.cvtColor(
+                np.asarray(pil.convert("RGB")), cv2.COLOR_RGB2GRAY)
+    except Exception:
+        return None
+
+
+def framed_src_rect(gray, quad):
+    """GM 쿼드의 축정렬 박스를 BOX_MARGIN 만큼 넓힌 크롭 사각형(TL,TR,BR,BL).
+
+    프레이밍 규약은 학습 캐시와 **같아야 한다** — 정본은 build_cache_v2.BOX_MARGIN.
+    (왼, 오른, 위, 아래) 변마다 여유가 다르다. 기준 폭·높이는 **원본 박스** 것을
+    쓴다 — 좌측 여유로 x0 이 움직인 뒤의 폭을 쓰면 오른쪽 여유가 좌측 값에
+    영향을 받는다(순서 의존). 이미지 경계로 클램프한다.
+    """
+    q = np.array(quad, dtype=np.float32)
+    xs, ys = q[:, 0], q[:, 1]
+    bx0, by0 = float(xs.min()), float(ys.min())
+    bx1, by1 = float(xs.max()), float(ys.max())
+    w0, h0 = bx1 - bx0, by1 - by0
+    ml, mr, mt, mb = BOX_MARGIN
+    bx0, by0 = max(0.0, bx0 - w0 * ml), max(0.0, by0 - h0 * mt)
+    bx1 = min(float(gray.shape[1] - 1), bx1 + w0 * mr)
+    by1 = min(float(gray.shape[0] - 1), by1 + h0 * mb)
+    return np.array(
+        [[bx0, by0], [bx1, by0], [bx1, by1], [bx0, by1]], dtype=np.float32)
+
+
+def frame_crop(gray, quad):
+    """load_gray 결과 + GM 쿼드 → 리더 입력(320x160) 워프."""
+    src = framed_src_rect(gray, quad)
+    dst = np.array(
+        [[0, 0], [IN_W - 1, 0], [IN_W - 1, IN_H - 1], [0, IN_H - 1]],
+        dtype=np.float32)
+    return cv2.warpPerspective(
+        gray, cv2.getPerspectiveTransform(src, dst), (IN_W, IN_H))
+
+
 def main() -> int:
     model = tf.keras.models.load_model(MODEL)
     logits_model = tf.keras.Model(
@@ -105,39 +154,11 @@ def main() -> int:
         if not p.exists():
             skipped += 1
             continue
-        try:
-            with Image.open(p) as pil:
-                pil.load()
-                # 좌표 정본은 표시(EXIF 적용) 이미지다. gmscreen_quads.jsonl 은
-                # cv2.imread(EXIF 적용)로 만들어진 표시 좌표계인데 PIL 은 EXIF 를
-                # 무시한다 — 여기서 굽지 않으면 원본의 83.5%(orientation=6)에
-                # 옆으로 누운 이미지에 올바른 좌표를 물려 평가가 통째로 망가진다.
-                # 실측: 이 한 줄 유무로 완전일치 14.7% ↔ 90.7% (표본 300).
-                pil = ImageOps.exif_transpose(pil)
-                img = cv2.cvtColor(
-                    np.asarray(pil.convert("RGB")), cv2.COLOR_RGB2GRAY)
-        except Exception:
+        img = load_gray(p)
+        if img is None:
             skipped += 1
             continue
-        # 프레이밍 규약은 학습 캐시와 **같아야 한다** — build_cache_v2.BOX_MARGIN.
-        # 갈리면 그 불일치 자체가 성능 저하로 나타나 원인을 오독하게 된다.
-        # (왼, 오른, 위, 아래) — 변마다 여유가 다르다.
-        q = np.array(quad, dtype=np.float32)
-        xs, ys = q[:, 0], q[:, 1]
-        bx0, by0 = float(xs.min()), float(ys.min())
-        bx1, by1 = float(xs.max()), float(ys.max())
-        w0, h0 = bx1 - bx0, by1 - by0
-        ml, mr, mt, mb = BOX_MARGIN
-        bx0, by0 = max(0.0, bx0 - w0 * ml), max(0.0, by0 - h0 * mt)
-        bx1 = min(float(img.shape[1] - 1), bx1 + w0 * mr)
-        by1 = min(float(img.shape[0] - 1), by1 + h0 * mb)
-        src = np.array(
-            [[bx0, by0], [bx1, by0], [bx1, by1], [bx0, by1]], dtype=np.float32)
-        dst = np.array(
-            [[0, 0], [IN_W - 1, 0], [IN_W - 1, IN_H - 1], [0, IN_H - 1]],
-            dtype=np.float32)
-        rect = cv2.warpPerspective(
-            img, cv2.getPerspectiveTransform(src, dst), (IN_W, IN_H))
+        rect = frame_crop(img, quad)
         # 기본 판독 + TTA 흔들기 N회 → 다수결. 득표율을 함께 남긴다.
         variants = [rect]
         rng = np.random.RandomState(TTA_SEED + (hash(cid) & 0xFFFF))
