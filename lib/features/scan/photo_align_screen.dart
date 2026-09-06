@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:image/image.dart' as img;
 
 import '../../domain/models/glucose_unit.dart';
 import '../../ocr/ocr.dart';
@@ -51,6 +52,10 @@ class _PhotoAlignScreenState extends State<PhotoAlignScreen> {
   double _frameAspect = 9 / 16;
   ScanOutcome? _outcome;
   bool _busy = false;
+
+  /// 엔진이 실제로 본 것. 결과만 보고는 겨냥이 틀렸는지 판독이 틀렸는지
+  /// 구분할 수 없어서, 잘라 넘긴 ROI 를 그대로 되돌려 그린다.
+  Uint8List? _roiPng;
 
   Offset _focalStart = Offset.zero;
   Offset _offsetStart = Offset.zero;
@@ -105,6 +110,7 @@ class _PhotoAlignScreenState extends State<PhotoAlignScreen> {
     _rotation = 0;
     _flipH = false;
     _outcome = null;
+    _roiPng = null;
   });
 
   /// 화면에 보이는 그대로를 캡처해 엔진에 넘긴다.
@@ -135,13 +141,40 @@ class _PhotoAlignScreenState extends State<PhotoAlignScreen> {
         return;
       }
 
+      final png = data.buffer.asUint8List();
+      final roi = NormalizedRect.guideBoxFor(_frameAspect);
       final frame = OcrFrame(
-        bytes: data.buffer.asUint8List(),
+        bytes: png,
         format: OcrImageFormat.png,
         width: width,
         height: height,
-        roi: NormalizedRect.guideBoxFor(_frameAspect),
+        roi: roi,
       );
+
+      // 엔진과 **같은 반올림**으로 자른다(`_cropRoi`). 다르게 자르면 여기
+      // 보이는 것이 엔진이 본 것이 아니게 되어, 진단 도구가 거짓말을 한다.
+      final decoded = img.decodeImage(png);
+      if (decoded != null) {
+        final left = (roi.left * decoded.width).round().clamp(
+          0,
+          decoded.width - 1,
+        );
+        final top = (roi.top * decoded.height).round().clamp(
+          0,
+          decoded.height - 1,
+        );
+        final w = (roi.width * decoded.width).round().clamp(
+          1,
+          decoded.width - left,
+        );
+        final h = (roi.height * decoded.height).round().clamp(
+          1,
+          decoded.height - top,
+        );
+        _roiPng = img.encodePng(
+          img.copyCrop(decoded, x: left, y: top, width: w, height: h),
+        );
+      }
 
       // 정지 사진이라 프레임이 한 종류다. 카메라와 같은 확정 조건(프레임 합의)
       // 을 지나게 하려고 같은 프레임을 반복해 넣는다.
@@ -276,6 +309,7 @@ class _PhotoAlignScreenState extends State<PhotoAlignScreen> {
                   onZoom: (f) =>
                       setState(() => _scale = (_scale * f).clamp(0.1, 8.0)),
                 ),
+                if (_roiPng != null) _RoiStrip(png: _roiPng!),
                 _OutcomeBar(outcome: _outcome, busy: _busy),
               ],
             ),
@@ -307,6 +341,55 @@ class _GuidePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _GuidePainter oldDelegate) =>
       oldDelegate.roi != roi;
+}
+
+/// 엔진에 넘어간 ROI 를 셀 경계선과 함께 보여준다.
+///
+/// 엔진은 이 띠를 [NormalizedRect.guideDigitCount] 개로 **등폭 분할**하고
+/// 셀마다 숫자 하나를 기대한다. 숫자가 칸을 걸치고 있으면 판독기가 아니라
+/// 겨냥이 원인이다 — 결과 문자열만 봐서는 그 둘이 구분되지 않는다.
+class _RoiStrip extends StatelessWidget {
+  const _RoiStrip({required this.png});
+
+  final Uint8List png;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 96,
+      color: Colors.black,
+      padding: const EdgeInsets.all(4),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.memory(
+            png,
+            fit: BoxFit.contain,
+            filterQuality: FilterQuality.none,
+          ),
+          CustomPaint(painter: const _CellDividerPainter()),
+        ],
+      ),
+    );
+  }
+}
+
+class _CellDividerPainter extends CustomPainter {
+  const _CellDividerPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0x88FF3B30)
+      ..strokeWidth = 1;
+    for (var i = 1; i < NormalizedRect.guideDigitCount; i++) {
+      final x = size.width * i / NormalizedRect.guideDigitCount;
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _CellDividerPainter oldDelegate) => false;
 }
 
 class _Controls extends StatelessWidget {
@@ -473,7 +556,7 @@ class _OutcomeBar extends StatelessWidget {
         '엔진 없음: ${reason.name}',
         scheme.errorContainer,
       ),
-      ScanScanning(:final previewValue) => (
+      ScanScanning(:final previewValue, :final progress) => (
         '읽는 중 — 확정 안 됨${previewValue == null ? '' : ' (미리보기 $previewValue)'}',
         scheme.surfaceContainerHighest,
       ),
