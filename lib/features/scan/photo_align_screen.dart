@@ -57,6 +57,10 @@ class _PhotoAlignScreenState extends State<PhotoAlignScreen> {
   /// 구분할 수 없어서, 잘라 넘긴 ROI 를 그대로 되돌려 그린다.
   Uint8List? _roiPng;
 
+  /// [_roiPng] 의 실제 픽셀 크기. 셀 경계선을 **이미지 위**에 그리려면
+  /// 필요하다 — 컨테이너 기준으로 그리면 레터박스만큼 어긋난다.
+  Size? _roiSize;
+
   Offset _focalStart = Offset.zero;
   Offset _offsetStart = Offset.zero;
   double _scaleStart = 1;
@@ -111,6 +115,7 @@ class _PhotoAlignScreenState extends State<PhotoAlignScreen> {
     _flipH = false;
     _outcome = null;
     _roiPng = null;
+    _roiSize = null;
   });
 
   /// 화면에 보이는 그대로를 캡처해 엔진에 넘긴다.
@@ -174,6 +179,7 @@ class _PhotoAlignScreenState extends State<PhotoAlignScreen> {
         _roiPng = img.encodePng(
           img.copyCrop(decoded, x: left, y: top, width: w, height: h),
         );
+        _roiSize = Size(w.toDouble(), h.toDouble());
       }
 
       // 정지 사진이라 프레임이 한 종류다. 카메라와 같은 확정 조건(프레임 합의)
@@ -309,7 +315,8 @@ class _PhotoAlignScreenState extends State<PhotoAlignScreen> {
                   onZoom: (f) =>
                       setState(() => _scale = (_scale * f).clamp(0.1, 8.0)),
                 ),
-                if (_roiPng != null) _RoiStrip(png: _roiPng!),
+                if (_roiPng != null && _roiSize != null)
+                  _RoiStrip(png: _roiPng!, size: _roiSize!),
                 _OutcomeBar(outcome: _outcome, busy: _busy),
               ],
             ),
@@ -349,26 +356,38 @@ class _GuidePainter extends CustomPainter {
 /// 셀마다 숫자 하나를 기대한다. 숫자가 칸을 걸치고 있으면 판독기가 아니라
 /// 겨냥이 원인이다 — 결과 문자열만 봐서는 그 둘이 구분되지 않는다.
 class _RoiStrip extends StatelessWidget {
-  const _RoiStrip({required this.png});
+  const _RoiStrip({required this.png, required this.size});
 
   final Uint8List png;
+
+  /// 잘린 ROI 의 픽셀 크기. 경계선을 이미지에 맞추는 데 쓴다.
+  final Size size;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 96,
+      height: 120,
+      width: double.infinity,
       color: Colors.black,
       padding: const EdgeInsets.all(4),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.memory(
-            png,
-            fit: BoxFit.contain,
-            filterQuality: FilterQuality.none,
+      // **이미지 상자에 맞춰 그린다.** 컨테이너에 그리면 `BoxFit.contain` 이
+      // 남긴 레터박스만큼 선이 밀려, 숫자를 하나도 안 가르는 자리에 찍힌다.
+      // 그 상태로는 진단 도구가 겨냥 문제를 자기 그리기 오류로 보고한다.
+      child: Center(
+        child: AspectRatio(
+          aspectRatio: size.width / size.height,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.memory(
+                png,
+                fit: BoxFit.fill,
+                filterQuality: FilterQuality.none,
+              ),
+              const CustomPaint(painter: _CellDividerPainter()),
+            ],
           ),
-          CustomPaint(painter: const _CellDividerPainter()),
-        ],
+        ),
       ),
     );
   }
@@ -380,7 +399,7 @@ class _CellDividerPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0x88FF3B30)
+      ..color = const Color(0xCCFF3B30)
       ..strokeWidth = 1;
     for (var i = 1; i < NormalizedRect.guideDigitCount; i++) {
       final x = size.width * i / NormalizedRect.guideDigitCount;
