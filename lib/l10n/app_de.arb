@@ -11,7 +11,7 @@
   "manualEntryCta": "Manuell eingeben",
   "scanImportPhotoCta": "Foto laden",
   "scanImportPickTitle": "Bild auswählen",
-  "scanImportNoImages": "Keine PNG-Dateien in diesem Ordner.",
+  "scanImportNoImages": "Keine Bilddateien in diesem Ordner (png, jpg).",
   "scanImportNoReading": "Aus diesem Bild konnte kein Wert gelesen werden. Versuchen Sie ein anderes.",
   "ea1cLabel": "Geschätzter A1c-Wert",
   "ea1cEstimateBadge": "Schätzwert",

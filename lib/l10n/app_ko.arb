@@ -11,7 +11,7 @@
   "manualEntryCta": "직접 입력",
   "scanImportPhotoCta": "사진 불러오기",
   "scanImportPickTitle": "이미지 고르기",
-  "scanImportNoImages": "이 폴더에 PNG 파일이 없습니다.",
+  "scanImportNoImages": "이 폴더에 이미지 파일이 없습니다 (png, jpg).",
   "scanImportNoReading": "이 사진에서 값을 읽지 못했습니다. 다른 사진을 골라 보세요.",
   "ea1cLabel": "추정 당화혈색소",
   "ea1cEstimateBadge": "추정치",

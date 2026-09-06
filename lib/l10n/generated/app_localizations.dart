@@ -175,7 +175,7 @@ abstract class AppLocalizations {
   /// No description provided for @scanImportNoImages.
   ///
   /// In en, this message translates to:
-  /// **'No PNG files in this folder.'**
+  /// **'No image files in this folder (png, jpg).'**
   String get scanImportNoImages;
 
   /// No description provided for @scanImportNoReading.

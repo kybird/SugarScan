@@ -55,7 +55,7 @@ void main() {
         home: child,
       );
 
-  testWidgets('시트: 폴더의 PNG 목록을 보여 주고 고르면 파일을 돌려준다', (
+  testWidgets('시트: 폴더의 이미지 목록을 보여 주고 고르면 파일을 돌려준다', (
     tester,
   ) async {
     writePng('a.png');
@@ -91,7 +91,7 @@ void main() {
     expect(picked?.path, endsWith('b.png'));
   });
 
-  testWidgets('시트: PNG 가 없는 폴더는 안내 문구를 보여 준다', (tester) async {
+  testWidgets('시트: 이미지도 하위 폴더도 없는 폴더는 안내 문구를 보여 준다', (tester) async {
     await tester.pumpWidget(
       host(
         Builder(
@@ -110,7 +110,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('No PNG files in this folder.'), findsOneWidget);
+    expect(
+      find.text('No image files in this folder (png, jpg).'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('사진을 고르면 카메라 없이도 판독을 마쳐 확인 시트가 뜬다', (

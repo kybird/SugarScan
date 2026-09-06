@@ -17,7 +17,7 @@
   "manualEntryCta": "Enter manually",
   "scanImportPhotoCta": "Load photo",
   "scanImportPickTitle": "Choose an image",
-  "scanImportNoImages": "No PNG files in this folder.",
+  "scanImportNoImages": "No image files in this folder (png, jpg).",
   "scanImportNoReading": "Couldn't read a value from this image. Try another one.",
   "ea1cLabel": "Estimated A1c",
   "ea1cEstimateBadge": "Estimate",

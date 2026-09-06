@@ -42,6 +42,10 @@ class _PhotoImportSheet extends StatefulWidget {
 class _PhotoImportSheetState extends State<_PhotoImportSheet> {
   late final TextEditingController _pathController;
   List<File> _files = const [];
+
+  /// 하위 폴더. 데이터셋은 `TILDE/glucose_batch1/…` 처럼 한 단계 더 들어가
+  /// 있어서, 파일만 보여주면 중간 폴더에서 길이 끊긴다.
+  List<Directory> _dirs = const [];
   bool _failed = false;
 
   @override
@@ -59,26 +63,40 @@ class _PhotoImportSheetState extends State<_PhotoImportSheet> {
 
   void _refresh() {
     try {
+      final entries = Directory(_pathController.text).listSync();
+      // 합성 장면은 png, 실사진 데이터셋(`assets_dev/upstream/datumo`)은
+      // jpg 다. png 만 보면 실사진 폴더가 통째로 비어 보인다.
       final files =
-          Directory(_pathController.text)
-              .listSync()
+          entries
               .whereType<File>()
-              // 합성 장면은 png, 실사진 데이터셋(`assets_dev/upstream/datumo`)은
-              // jpg 다. png 만 보면 실사진 폴더가 통째로 비어 보인다.
               .where((f) => _imageExtensions.any(f.path.toLowerCase().endsWith))
               .toList()
-            ..sort((a, b) => a.path.compareTo(b.path));
+            ..sort(_byName);
+      final dirs = entries.whereType<Directory>().toList()..sort(_byName);
       setState(() {
         _files = files;
+        _dirs = dirs;
         _failed = false;
       });
     } on Object {
       setState(() {
         _files = const [];
+        _dirs = const [];
         _failed = true;
       });
     }
   }
+
+  void _enter(String path) {
+    _pathController.text = path;
+    _refresh();
+  }
+
+  static int _byName(FileSystemEntity a, FileSystemEntity b) =>
+      a.path.compareTo(b.path);
+
+  static String _name(FileSystemEntity e) =>
+      e.path.split(RegExp(r'[\\/]')).where((s) => s.isNotEmpty).last;
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +134,7 @@ class _PhotoImportSheetState extends State<_PhotoImportSheet> {
               ],
             ),
             const SizedBox(height: 8),
-            if (_failed || _files.isEmpty)
+            if (_failed || (_files.isEmpty && _dirs.isEmpty))
               Padding(
                 padding: const EdgeInsets.only(top: 24),
                 child: Text(
@@ -128,13 +146,35 @@ class _PhotoImportSheetState extends State<_PhotoImportSheet> {
             else
               Expanded(
                 child: ListView.builder(
-                  itemCount: _files.length,
+                  // 상위로 한 칸 + 하위 폴더 + 이미지.
+                  itemCount: 1 + _dirs.length + _files.length,
                   itemBuilder: (context, index) {
-                    final file = _files[index];
-                    final name = file.path.split(RegExp(r'[\\/]')).last;
+                    if (index == 0) {
+                      final parent = Directory(
+                        _pathController.text,
+                      ).parent.path;
+                      return ListTile(
+                        dense: true,
+                        leading: const Icon(Icons.arrow_upward),
+                        title: const Text('..'),
+                        onTap: () => _enter(parent),
+                      );
+                    }
+                    final i = index - 1;
+                    if (i < _dirs.length) {
+                      final dir = _dirs[i];
+                      return ListTile(
+                        dense: true,
+                        leading: const Icon(Icons.folder),
+                        title: Text(_name(dir)),
+                        onTap: () => _enter(dir.path),
+                      );
+                    }
+                    final file = _files[i - _dirs.length];
                     return ListTile(
                       dense: true,
-                      title: Text(name),
+                      leading: const Icon(Icons.image_outlined),
+                      title: Text(_name(file)),
                       onTap: () => Navigator.of(context).pop(file),
                     );
                   },

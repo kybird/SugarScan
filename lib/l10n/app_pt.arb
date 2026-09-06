@@ -11,7 +11,7 @@
   "manualEntryCta": "Digitar manualmente",
   "scanImportPhotoCta": "Carregar foto",
   "scanImportPickTitle": "Escolher uma imagem",
-  "scanImportNoImages": "Não há arquivos PNG nesta pasta.",
+  "scanImportNoImages": "Não há arquivos de imagem nesta pasta (png, jpg).",
   "scanImportNoReading": "Não foi possível ler um valor desta imagem. Tente outra.",
   "ea1cLabel": "A1c estimada",
   "ea1cEstimateBadge": "Estimativa",

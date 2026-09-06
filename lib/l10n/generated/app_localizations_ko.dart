@@ -42,7 +42,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get scanImportPickTitle => '이미지 고르기';
 
   @override
-  String get scanImportNoImages => '이 폴더에 PNG 파일이 없습니다.';
+  String get scanImportNoImages => '이 폴더에 이미지 파일이 없습니다 (png, jpg).';
 
   @override
   String get scanImportNoReading => '이 사진에서 값을 읽지 못했습니다. 다른 사진을 골라 보세요.';

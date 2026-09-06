@@ -43,7 +43,8 @@ class AppLocalizationsEs extends AppLocalizations {
   String get scanImportPickTitle => 'Elegir una imagen';
 
   @override
-  String get scanImportNoImages => 'No hay archivos PNG en esta carpeta.';
+  String get scanImportNoImages =>
+      'No hay archivos de imagen en esta carpeta (png, jpg).';
 
   @override
   String get scanImportNoReading =>
