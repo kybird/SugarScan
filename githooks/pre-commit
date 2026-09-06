@@ -5,7 +5,7 @@
 set -uo pipefail
 
 canon="CLAUDE.md"
-mirrors=("agents.md" "GEMINI.md")
+mirrors=("AGENTS.md" "GEMINI.md")
 
 staged_canon=$(git diff --cached --name-only -- "$canon" | wc -l)
 
