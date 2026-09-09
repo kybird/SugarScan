@@ -179,6 +179,7 @@ tr.miss td.mono { color: var(--bad); }
         <option value="pilot">밴드 시범 79장</option>
         <option value="lcdfix">LCD 재라벨 (GM 실패·가로)</option>
         <option value="wideband">밴드 · 가로형 LCD</option>
+        <option value="labelaudit">밴드 라벨 감사 (빈 여백 큰 순)</option>
         <option value="unlabeled">라벨 없음만</option>
       </select>
     </label>
@@ -344,9 +345,10 @@ async function boot() {
     lb.readerNote = f.reader_note || {};
     lb.fail.lcdfix = new Set(f.lcd_fix || []);
     lb.fail.wideband = new Set(f.wide_band || []);
+    lb.fail.labelaudit = new Set(f.label_audit || []);
     lb.holdout = new Set(f.lcd_holdout || []);
     lb.pilotNote = Object.assign({}, f.band_pilot_note || {}, f.lcd_fix_note || {},
-                                 f.wide_band_note || {});
+                                 f.wide_band_note || {}, f.label_audit_note || {});
   } catch (e) { /* /api/failures 없는 구형 서버 */ }
   try {
     const p = await api("/api/preds_holdout");
@@ -400,6 +402,13 @@ function applyQueueFilter() {
     lb.meta.items = lb.meta.items.filter(it => !isLabeled(it));
   } else if (q === "lcdfix" && lb.fail.lcdfix && lb.fail.lcdfix.size) {
     const order = [...lb.fail.lcdfix];
+    const rank = new Map(order.map((id, i) => [id, i]));
+    lb.meta.items = lb.meta.items
+      .filter(it => rank.has(it.id))
+      .sort((a, b) => rank.get(a.id) - rank.get(b.id));
+  } else if (q === "labelaudit" && lb.fail.labelaudit && lb.fail.labelaudit.size) {
+    // 여백이 큰 순서를 유지한다. 관례가 갈리는지 보려는 것이라 순서가 곧 증거다.
+    const order = [...lb.fail.labelaudit];
     const rank = new Map(order.map((id, i) => [id, i]));
     lb.meta.items = lb.meta.items
       .filter(it => rank.has(it.id))
@@ -517,8 +526,8 @@ async function show(idx) {
         pn.textContent = `· ${rnote}`;
         pn.style.color = q === "risky" ? "#e06c6c" : "#d8a657";
       } else {
-        pn.textContent = ((q === "pilot" || q === "lcdfix" || q === "wideband")
-                        && note) ? `· ${note}` : "";
+        pn.textContent = ((q === "pilot" || q === "lcdfix" || q === "wideband"
+                         || q === "labelaudit") && note) ? `· ${note}` : "";
         pn.style.color = "#8ab4f8";
       }
     }
@@ -990,6 +999,16 @@ async function saveBox() {
 async function skip() {
   const it = curItem();
   if (!it) return;
+  // 스킵은 quad 를 null 로 **덮어쓴다.** 이미 사람이 찍은 라벨이 있으면
+  // 그것이 지워진다 — 2026-09-09 에 감사 목적으로 큐를 넘겨 보다가 30장이
+  // 이렇게 날아갔다(git 에 커밋돼 있어 복구). 확인 없이 지우지 않는다.
+  const prev = lb.labels[it.id];
+  if (prev && prev.quad && prev.source !== "skipped") {
+    if (!confirm(`${it.id} 에는 이미 라벨이 있다.
+스킵하면 그 라벨이 지워진다. 계속?`)) {
+      return;
+    }
+  }
   const r = await post("/api/label", { mode: lb.mode, id: it.id, source: "skipped" });
   if (r.error) { toast("스킵 실패: " + r.error); return; }
   lb.labels[it.id] = { quad: null, source: "skipped" };
