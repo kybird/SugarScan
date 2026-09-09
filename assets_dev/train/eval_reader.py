@@ -6,8 +6,15 @@
 # 위험군 1.60 → 1.07%. `agree` 는 그 답의 득표율로, **거절 신호**로도 쓴다 —
 # 정답의 득표율 중앙은 1.000, 위험군은 0.556 이라 잘 갈린다.
 #
-# 세 번째 원소 `agree` 는 뒤에 덧붙인 것이라 옛 소비자(`v[0]`·`v[1]`)와 호환된다.
+# 세 번째 원소 `agree` 는 뒤에 덧붙은 것이라 옛 소비자(`v[0]`·`v[1]`)와 호환된다.
+#
+# TTA 시드는 cid 를 crc32 로 해시한다(2026-09-08, G29-A). 예전의 파이썬 hash() 는
+# 프로세스마다 솔트가 달라 같은 이미지가 실행마다 다른 변형을 받아 수치가 재현
+# 되지 않았다(failure-atlas §7.1). 위의 96.88/1.07 은 불안정한 시드로 잰 옛 값 —
+# crc32 기준선은 docs/reports/G29-letterbox-warp.md 에 있다.
+import argparse
 import json
+import zlib
 from collections import Counter
 from pathlib import Path
 
@@ -17,11 +24,9 @@ import tensorflow as tf
 from PIL import Image, ImageOps
 
 HERE = Path(__file__).resolve().parent
-MODEL = HERE / "reader_model"
-DATUMO = HERE.parent / "upstream" / "datumo"
-GM_QUADS = HERE / "gmscreen_quads.jsonl"
-CACHE = HERE / "data_cache_v2.npz"   # 학습셋 정본 — hold-out 은 여기서 정의된다
-PREDS = HERE / "reader_preds.json"
+MODEL_NAME = "reader_model"
+CACHE_NAME = "data_cache_v2.npz"   # 학습셋 정본 — hold-out 은 여기서 정의된다
+PREDS_NAME = "reader_preds.json"
 IN_H, IN_W = 160, 320
 NUM_CLASSES = 11
 TTA_N = 8            # 추론 N+1 회. 0 이면 TTA 없이 기본 판독만
@@ -100,8 +105,33 @@ def frame_crop(gray, quad):
         gray, cv2.getPerspectiveTransform(src, dst), (IN_W, IN_H))
 
 
+def parse_args():
+    """평가 대상을 갈아 끼울 수 있는 CLI. 인자 없이 돌리면 종래 동작 그대로다.
+
+    워크트리에서 실행할 때는 --data-root 로 메인 트리의 assets_dev/train 을
+    지정한다 — npz·모델·원본 이미지는 전부 gitignored 라 워크트리에 없다.
+    """
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--data-root", type=Path, default=None,
+                    help="데이터 루트(기본: 스크립트 폴더)")
+    ap.add_argument("--model", default=MODEL_NAME,
+                    help="data_root 기준 모델 디렉터리명")
+    ap.add_argument("--cache", default=CACHE_NAME,
+                    help="hold-out 정의의 정본 캐시")
+    ap.add_argument("--out", default=PREDS_NAME,
+                    help="판독 결과 json(data_root 기준 경로)")
+    return ap.parse_args()
+
+
 def main() -> int:
-    model = tf.keras.models.load_model(MODEL)
+    args = parse_args()
+    data = args.data_root if args.data_root else HERE
+    model_dir = data / args.model
+    datumo = data.parent / "upstream" / "datumo"
+    gm_quads = data / "gmscreen_quads.jsonl"
+    cache_path = data / args.cache
+    preds_path = data / args.out
+    model = tf.keras.models.load_model(model_dir)
     logits_model = tf.keras.Model(
         model.get_layer("img").input,
         model.get_layer("logits").output)
@@ -116,27 +146,26 @@ def main() -> int:
     # 칸이 비어 보였고, **진짜 학습셋 1,372장 중 1,169장이 평가에 섞여** 있어
     # 표시된 성적이 실제보다 좋았다.
     trained = set()
-    if CACHE.exists():
-        import numpy as np
-        trained = {str(v) for v in np.load(str(CACHE))["real_train_ids"]}
+    if cache_path.exists():
+        trained = {str(v) for v in np.load(str(cache_path))["real_train_ids"]}
         print(f"학습셋 {len(trained)}장을 평가에서 제외한다 (캐시 기준)")
     else:
-        print(f"경고: {CACHE.name} 이 없어 학습셋을 제외하지 못한다 — "
+        print(f"경고: {cache_path.name} 이 없어 학습셋을 제외하지 못한다 — "
               "이 수치는 학습한 장을 포함한다")
 
     quads = {}
-    for l in GM_QUADS.read_text(encoding="utf-8").splitlines():
+    for l in gm_quads.read_text(encoding="utf-8").splitlines():
         if l.strip():
             j = json.loads(l)
             quads[j["id"]] = j["quad"]
 
     readings = {}
-    for l in (DATUMO / "labels.jsonl").read_text(encoding="utf-8").splitlines():
+    for l in (datumo / "labels.jsonl").read_text(encoding="utf-8").splitlines():
         if l.strip():
             j = json.loads(l)
             readings[j["id"]] = j["reading"]
     corrections = {}
-    corr = HERE / "gt_corrections.jsonl"
+    corr = data / "gt_corrections.jsonl"
     if corr.exists():
         for l in corr.read_text(encoding="utf-8").splitlines():
             if l.strip():
@@ -150,7 +179,7 @@ def main() -> int:
         if cid in trained:
             continue
         gt = corrections.get(cid) or str(readings.get(cid))
-        p = DATUMO / "extracted" / "TILDE" / f"{cid}.jpg"
+        p = datumo / "extracted" / "TILDE" / f"{cid}.jpg"
         if not p.exists():
             skipped += 1
             continue
@@ -160,8 +189,11 @@ def main() -> int:
             continue
         rect = frame_crop(img, quad)
         # 기본 판독 + TTA 흔들기 N회 → 다수결. 득표율을 함께 남긴다.
+        # 시드의 cid 해시는 crc32 — 파이썬 hash() 는 프로세스마다 솔트가 달라
+        # 같은 장이 실행마다 다른 변형을 받아 결과가 재현되지 않았다(G29-A).
         variants = [rect]
-        rng = np.random.RandomState(TTA_SEED + (hash(cid) & 0xFFFF))
+        rng = np.random.RandomState(
+            TTA_SEED + (zlib.crc32(cid.encode("utf-8")) & 0xFFFF))
         for _ in range(TTA_N):
             variants.append(_jitter(
                 rect, rng.uniform(0.92, 1.08), rng.uniform(-0.03, 0.03),
@@ -177,7 +209,7 @@ def main() -> int:
             wrong += 1
             misses.append((cid, gt, reading))
 
-    PREDS.write_text(json.dumps(preds_out, ensure_ascii=False), encoding="utf-8")
+    preds_path.write_text(json.dumps(preds_out, ensure_ascii=False), encoding="utf-8")
     total = exact + wrong
     print(f"hold-out total={total} (skipped {skipped})")
     print(f"exact={exact} ({100 * exact / max(total, 1):.1f}%) wrong={wrong}")
