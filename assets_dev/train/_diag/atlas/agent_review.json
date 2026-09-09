@@ -1,0 +1,79 @@
+{
+ "glucose_batch1/1614": {
+  "det": "cut",
+  "note": "사람 확인: 숫자 잘림",
+  "by": "human",
+  "checked": true,
+  "ts": "2026-09-09T05:06:15+00:00"
+ },
+ "glucose_batch1/1610": {
+  "det": "cut",
+  "note": "사람 확인: 숫자 잘림",
+  "by": "human",
+  "checked": true,
+  "ts": "2026-09-09T05:06:15+00:00"
+ },
+ "glucose_batch1/1564": {
+  "det": "orient",
+  "note": "사람 확인: 가로형 기기를 눕혀 촬영, 숫자 머리 오른쪽. 잘림도 있으나 방향이 근본 원인",
+  "by": "human",
+  "checked": true,
+  "ts": "2026-09-09T05:06:15+00:00"
+ },
+ "glucose_batch1/1565": {
+  "det": "cut",
+  "note": "사람 확인: 숫자 잘림",
+  "by": "human",
+  "checked": true,
+  "ts": "2026-09-09T05:06:15+00:00"
+ },
+ "glucose_batch1/1593": {
+  "det": "cut",
+  "note": "사람 확인: 숫자 잘림",
+  "by": "human",
+  "checked": true,
+  "ts": "2026-09-09T05:06:15+00:00"
+ },
+ "glucose_batch1/1598": {
+  "det": "cut",
+  "note": "사람 확인: 숫자 잘림",
+  "by": "human",
+  "checked": true,
+  "ts": "2026-09-09T05:06:15+00:00"
+ },
+ "glucose_batch1/606": {
+  "det": "ok",
+  "note": "사람 확인: 숫자 안 잘림. GLM 의 cut 판정을 뒤집는다",
+  "by": "human",
+  "checked": true,
+  "ts": "2026-09-09T05:06:15+00:00"
+ },
+ "glucose_batch1/283": {
+  "det": "orient",
+  "note": "사람 확인: 눕혀 촬영, 숫자 머리 오른쪽. 전혀 인식 못함",
+  "by": "human",
+  "checked": true,
+  "ts": "2026-09-09T05:06:15+00:00"
+ },
+ "glucose_batch1/1226": {
+  "det": "orient",
+  "note": "사람 확인: 눕혀 촬영, 숫자 머리 왼쪽. 전혀 인식 못함",
+  "by": "human",
+  "checked": true,
+  "ts": "2026-09-09T05:06:15+00:00"
+ },
+ "glucose_batch1/61": {
+  "det": "ok",
+  "note": "사람 확인: 정사각형에 가까움. 숫자가 LCD 의 40% 점유, 폰트 얇음, 리더 입력이 눌림. 반사광으로 끝자리 오독",
+  "by": "human",
+  "checked": true,
+  "ts": "2026-09-09T05:06:15+00:00"
+ },
+ "glucose_batch2/2618": {
+  "det": "ok",
+  "note": "사람 확인: 가로형 아님. 숫자 옆에 1 로 오독할 문양이 있고 BOX_MARGIN 확대가 그것까지 편입 → 자릿수 추가(1711/171)",
+  "by": "human",
+  "checked": true,
+  "ts": "2026-09-09T05:06:15+00:00"
+ }
+}
