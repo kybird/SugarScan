@@ -439,6 +439,29 @@ def _stretch_html(c):
     return f"늘림 <b{cls}>{txt}</b>"
 
 
+def _rgb(bgr):
+    """cv2 BGR 튜플 → CSS rgb() 인자."""
+    return ",".join(str(v) for v in bgr[::-1])
+
+
+def _legend_entry(bgr, text):
+    """범례 한 항목 — 글자색을 스와치(오버레이 박스) 색과 같게 한다.
+    색이 곧 의미이므로 범례에서 색·뜻이 시각적으로 붙어 있어야 한다."""
+    return (f'<span style="color:rgb({_rgb(bgr)})">'
+            f'<i class="sw" style="background:rgb({_rgb(bgr)})"></i>{text}</span>')
+
+
+def _lab_html(lab_txt):
+    """행 캡션의 라벨 존재 표기에 오버레이 색을 물들인다('없음'은 회색 그대로).
+    내용은 서버가 만든 숫자·고정 문구라 이스케이프 후 토큰만 치환한다."""
+    out = html_escape(lab_txt)
+    out = out.replace(
+        "LCD라벨 있음", f'<span style="color:rgb({_rgb(C_LCD)})">LCD라벨 있음</span>')
+    out = out.replace(
+        "밴드라벨 있음", f'<span style="color:rgb({_rgb(C_BAND)})">밴드라벨 있음</span>')
+    return out
+
+
 def _tta_mismatch_html(c, seed_crc32):
     """TTA 표의 다수결과 공식 예측이 다를 때의 경고.
 
@@ -466,12 +489,12 @@ def build_html(cases, meta, review, seed_crc32):
         "<div class=meta>" + html_escape(meta["blurb"]) + "</div>")
 
     parts.append(
-        "<div class=meta legend><b>범례</b> — "
-        f"<span><i class=sw style=background:rgb{C_GM[::-1]}></i>GM 예측 쿼드(gmscreen_quads)</span>"
-        f"<span><i class=sw style=background:rgb{C_CROP[::-1]}></i>BOX_MARGIN 크롭 박스(리더 입력)</span>"
-        f"<span><i class=sw style=background:rgb{C_LCD[::-1]}></i>사람 LCD 라벨(screen_boxes)</span>"
-        f"<span><i class=sw style=background:rgb{C_BAND[::-1]}></i>사람 밴드 라벨(band_boxes)</span>"
-        "<br><b>읽는 순서</b>: 왼쪽 원본에서 박스가 숫자줄을 감쌌는지 먼저 보고, "
+        '<div class="meta legend"><b>범례</b> — '
+        + _legend_entry(C_GM, "GM 예측 쿼드(gmscreen_quads)")
+        + _legend_entry(C_CROP, "BOX_MARGIN 크롭 박스(리더 입력)")
+        + _legend_entry(C_LCD, "사람 LCD 라벨(screen_boxes)")
+        + _legend_entry(C_BAND, "사람 밴드 라벨(band_boxes)")
+        + "<br><b>읽는 순서</b>: 왼쪽 원본에서 박스가 숫자줄을 감쌌는지 먼저 보고, "
         "가운데 워프가 리더가 실제 본 것이며, 오른쪽 띠·표가 리더의 확신이다."
         "</div>")
 
@@ -550,7 +573,7 @@ def build_html(cases, meta, review, seed_crc32):
             f"<a href=\"imgs/{c['sid']}_full.jpg\" target=_blank>[원본 해상도]</a>"
             f"</div>"
             f"<div class=cap><span class=mono>GM박스({c['gm_box']}) "
-            f"크롭({c['crop_box']}) · {html_escape(c['lab_txt'])}</span></div>"
+            f"크롭({c['crop_box']}) · {_lab_html(c['lab_txt'])}</span></div>"
             f"<div class=panels>")
 
         # (1) 원본 오버레이(표시용 축소본)
@@ -696,7 +719,10 @@ function rowEl(c){var el=document.createElement('div');
  el.innerHTML='<div class="head"><span class="id">'+esc(c.id)+'</span>'
   +badges(c)+nums(c)+controls(c)+'</div>'
   +'<div class="cap"><span class="mono">GM박스('+c.gm_box+') 크롭('
-  +c.crop_box+') · '+esc(c.lab_txt)+'</span></div>'
+  +c.crop_box+') · '+esc(c.lab_txt)
+  .replace('LCD라벨 있음','<span style="color:rgb(__C_LCD__)">LCD라벨 있음</span>')
+  .replace('밴드라벨 있음','<span style="color:rgb(__C_BAND__)">밴드라벨 있음</span>')
+  +'</span></div>'
   +'<div class="panels">'
   +'<div><div class="cap">(1) 원본(EXIF 표시 좌표계) + 박스들</div>'
   +'<a href="/imgs/'+c.sid+'_full.jpg" target="_blank">'
@@ -852,19 +878,21 @@ def build_serve_html(meta, review, seed_crc32):
         "#save{white-space:nowrap}\n")
     js = (SERVE_JS
           .replace("__COMPARE__", "true" if compare_mode else "false")
-          .replace("__SEEDCRC__", "true" if seed_crc32 else "false"))
+          .replace("__SEEDCRC__", "true" if seed_crc32 else "false")
+          .replace("__C_LCD__", _rgb(C_LCD))
+          .replace("__C_BAND__", _rgb(C_BAND)))
     return (
         "<!DOCTYPE html><html lang=ko><head><meta charset=utf-8>"
         "<title>판독 실패 아틀라스 — 검토</title>"
         f"<style>{BASE_CSS}{extra_css}</style></head>"
         "<body><h1>판독 실패 아틀라스 — 검토 서버</h1>"
         "<div class=meta id=blurb>불러오는 중…</div>"
-        "<div class=meta legend><b>범례</b> — "
-        f"<span><i class=sw style=background:rgb{C_GM[::-1]}></i>GM 예측 쿼드</span>"
-        f"<span><i class=sw style=background:rgb{C_CROP[::-1]}></i>BOX_MARGIN 크롭 박스(리더 입력)</span>"
-        f"<span><i class=sw style=background:rgb{C_LCD[::-1]}></i>사람 LCD 라벨</span>"
-        f"<span><i class=sw style=background:rgb{C_BAND[::-1]}></i>사람 밴드 라벨</span>"
-        "<br><b>det 판정 클래스</b> — " + det_legend +
+        '<div class="meta legend"><b>범례</b> — '
+        + _legend_entry(C_GM, "GM 예측 쿼드")
+        + _legend_entry(C_CROP, "BOX_MARGIN 크롭 박스(리더 입력)")
+        + _legend_entry(C_LCD, "사람 LCD 라벨")
+        + _legend_entry(C_BAND, "사람 밴드 라벨")
+        + "<br><b>det 판정 클래스</b> — " + det_legend +
         "<br><b>단축키</b> — j/k 다음·이전 행 · 1~5 det 지정(ok cut "
         "wrong_area orient ambiguous) · 0 미판정 · x 확인함 토글. "
         "드롭다운을 고른 뒤에도 단축키는 곧바로 먹는다(포커스를 본문으로 "
