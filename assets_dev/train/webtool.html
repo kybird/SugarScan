@@ -178,6 +178,7 @@ tr.miss td.mono { color: var(--bad); }
         <option value="rejected">거절 대상(득표율 낮음)</option>
         <option value="pilot">밴드 시범 79장</option>
         <option value="lcdfix">LCD 재라벨 (GM 실패·가로)</option>
+        <option value="wideband">밴드 · 가로형 LCD</option>
         <option value="unlabeled">라벨 없음만</option>
       </select>
     </label>
@@ -342,8 +343,10 @@ async function boot() {
     lb.fail.rejected = new Set(f.reader_rejected || []);
     lb.readerNote = f.reader_note || {};
     lb.fail.lcdfix = new Set(f.lcd_fix || []);
+    lb.fail.wideband = new Set(f.wide_band || []);
     lb.holdout = new Set(f.lcd_holdout || []);
-    lb.pilotNote = Object.assign({}, f.band_pilot_note || {}, f.lcd_fix_note || {});
+    lb.pilotNote = Object.assign({}, f.band_pilot_note || {}, f.lcd_fix_note || {},
+                                 f.wide_band_note || {});
   } catch (e) { /* /api/failures 없는 구형 서버 */ }
   try {
     const p = await api("/api/preds_holdout");
@@ -397,6 +400,13 @@ function applyQueueFilter() {
     lb.meta.items = lb.meta.items.filter(it => !isLabeled(it));
   } else if (q === "lcdfix" && lb.fail.lcdfix && lb.fail.lcdfix.size) {
     const order = [...lb.fail.lcdfix];
+    const rank = new Map(order.map((id, i) => [id, i]));
+    lb.meta.items = lb.meta.items
+      .filter(it => rank.has(it.id))
+      .sort((a, b) => rank.get(a.id) - rank.get(b.id));
+  } else if (q === "wideband" && lb.fail.wideband && lb.fail.wideband.size) {
+    // 학습셋 → 검증 순서를 유지한다. 중간에 멈춰도 검증셋이 통째로 비지 않는다.
+    const order = [...lb.fail.wideband];
     const rank = new Map(order.map((id, i) => [id, i]));
     lb.meta.items = lb.meta.items
       .filter(it => rank.has(it.id))
@@ -507,7 +517,8 @@ async function show(idx) {
         pn.textContent = `· ${rnote}`;
         pn.style.color = q === "risky" ? "#e06c6c" : "#d8a657";
       } else {
-        pn.textContent = ((q === "pilot" || q === "lcdfix") && note) ? `· ${note}` : "";
+        pn.textContent = ((q === "pilot" || q === "lcdfix" || q === "wideband")
+                        && note) ? `· ${note}` : "";
         pn.style.color = "#8ab4f8";
       }
     }
