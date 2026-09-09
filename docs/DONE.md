@@ -167,3 +167,43 @@ G15 가 남긴 숫자가 이후 OCR 작업의 기준선이다 — 치명적 오�
 - 버그는 **증상 · 원인 · 무엇이 다시 막는가** 셋을 적는다. 셋째 칸이 비어 있으면
   그 버그는 다시 난다.
 - 여기에 문단을 쓰고 싶어지면 그건 §15 에 갈 내용이다. 링크만 남길 것.
+
+## G28 — CTC 리더 tflite 내보내기 (2026-09-08, **중단이 결론**)
+
+`reader_model` 의 `Bidirectional(LSTM)` 이 `tf.TensorListReserve` 로 내려가
+`TFLITE_BUILTINS` 만으로는 변환되지 않는다. 변환기가 `SELECT_TF_OPS`(Flex)를
+권고하는데, Flex 는 안드로이드 바이너리에 TF 런타임을 통째로 싣는다.
+
+검토에서 두 가설을 더 기각했다(→ [`G28-tflite-parity.md`](reports/G28-tflite-parity.md)):
+- **동적 배치가 원인이 아니다.** 배치를 1로 고정하면 에러 대신 네이티브
+  크래시(`0xC0000409`)로 바뀔 뿐 tflite 는 안 나온다.
+- **TF 버전 문제가 아니다.** TF 2.15.1(변환기 5년치 최신)에서 **같은 에러**가
+  글자 하나까지 동일하게 났다.
+
+**결정: 이 리더는 tflite 로 가지 않는다. ONNX 로 간다.**
+`flutter_onnxruntime` 이 이미 `pubspec.yaml` 에 있고, `IMPLEMENTATION_PLAN.md`
+의 원래 설계가 ONNX 였다(W4). ONNX Runtime 은 MIT 로 라이선스 확인도 끝났고
+(`LICENSES.md`), LSTM 을 그대로 소화한다. 변환은 리더가 확정된 뒤 한 번만 한다.
+
+**`assets/models/7seg_classifier.tflite` 와 `tflite_flutter` 는 그대로 둔다** —
+그건 남의 사전학습 모델(Kazuhito00, Apache-2.0)이 tflite 포맷으로 배포돼서
+들인 별개 엔진이다. CTC 리더가 앱에 들어가면 그때 은퇴 여부를 정한다.
+
+## G29 — TTA 시드 고정 + letterbox 워프 A/B (2026-09-08)
+
+**A(채택)**: `eval_reader.py` 의 TTA 시드를 `hash(cid)` → `zlib.crc32` 로.
+파이썬 `hash()` 는 프로세스마다 솔트가 달라 같은 이미지가 실행마다 다른 변형을
+받았다. **새 기준선 97.06% / 위험군 0.98%** (2회 실행 1,122건 전부 0차이로
+재현 확정). 옛 96.88%/1.07% 은 폐기한다.
+
+**B(기각)**: letterbox 워프. 완전일치 97.06 → 94.74%, 위험군 0.98 → 3.48%.
+McNemar p=0.0001. 동기였던 배율 양극단 층에서도 나빠졌다.
+
+**왜 졌는지**: 타임스텝은 가로에서만 나온다(Reshape 가 세로를 특징 차원으로
+접는다). letterbox 는 내용 폭을 320 → 125px 로 줄여 유효 타임스텝을 40 → 15.6
+으로 깎았다(숫자당 13.3 → 5.2). CTC 가 숫자 사이 blank 를 찍을 여유를 잃는다.
+**왜곡이 아니라 가로 해상도가 지배 항이었다.**
+
+부수 발견: `cv2.warpPerspective` 는 dst 캔버스를 넘겨도 통째로 다시 써서 쿼드
+바깥 픽셀이 여백으로 흘러든다. 평탄 이미지 테스트로는 안 잡히고 난수 이미지로만
+잡힌다. → [`G29-letterbox-warp.md`](reports/G29-letterbox-warp.md)
