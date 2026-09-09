@@ -305,6 +305,8 @@ def api_failures(qs):
     lcdfix, lcdfix_note = _queue("lcd_fix_queue.json")
     # 가로형 밴드 — make_wide_band_queue.py. 학습셋 먼저, 검증 나중 순서다.
     wideband, wideband_note = _queue("wide_band_queue.json")
+    # 라벨 감사 — make_label_audit_queue.py. 라벨 안 빈 여백이 큰 순서다.
+    audit, audit_note = _queue("label_audit_queue.json")
     # 테스트 holdout — 라벨링하면 개선을 잴 데가 없어진다. 큐에서 빼는 것으로는
     # 부족하고(전체 큐로 들어올 수 있다) 화면에 경고를 띄운다.
     hold, _ = _queue("lcd_fix_holdout.json")
@@ -315,6 +317,7 @@ def api_failures(qs):
             "band_pilot": pilot, "band_pilot_note": pilot_note,
             "lcd_fix": lcdfix, "lcd_fix_note": lcdfix_note,
             "wide_band": wideband, "wide_band_note": wideband_note,
+            "label_audit": audit, "label_audit_note": audit_note,
             "lcd_holdout": hold}
 
 
