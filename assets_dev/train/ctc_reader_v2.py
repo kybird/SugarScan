@@ -4,11 +4,16 @@
 #   python ctc_reader_v2.py            처음부터 (사전학습 40 → 파인튜닝 12)
 #   python ctc_reader_v2.py resume     끊긴 지점부터 이어서
 #   python ctc_reader_v2.py ft [N]     사전학습 best 에서 파인튜닝만 N 에폭
+#   python ctc_reader_v2.py --bandcrop [--data-root DIR]  G30 — 세로형 밴드
+#     크롭 캐시(data_cache_v2_bandcrop.npz)를 학습해 reader_model_bandcrop 로
+#     낸다. 구조·에폭 수 불변. 바뀌는 것은 입력 프레이밍과 파인튜닝 증강의
+#     세로 이동 RandomTranslation 0.08 → 0.15 (크롭 어긋남 내성. 가로 성분과
+#     그 밖의 하이퍼파라미터는 불변)뿐이다.
 # 모델 구조와 4입력+add_loss fit 패턴은 v1(ctc_reader.py)에서 검증된 것 그대로.
 # 파인튜닝은 라벨 240장(화면 전체 rect), hold-out 평가는 eval_reader.py가 별도 수행
 # (미라벨 1,767장 — 파인튜닝과 무겹침, 2026-08-30 리뷰에서 지적된 누수 구조의 수정판).
+import argparse
 import json
-import sys
 import time
 from pathlib import Path
 
@@ -37,6 +42,12 @@ EPOCHS_FT = 12   # 웹툴 진행 표시(TOTAL_EPOCHS=52)가 40+12 를 전제한�
 SEED = 7
 np.random.seed(SEED)
 tf.random.set_seed(SEED)
+
+# 파인튜닝 증강 RandomTranslation 의 세로(높이) 성분. 가로 성분은 0.08 고정.
+# G30 --bandcrop 팔에서만 0.15 로 올린다 — 크롭 구간이 장마다 약간씩 어긋나도
+# 견디게 하는 지터 넓히기(지시서 지정). 기본 경로(기준선 재현)는 0.08 을
+# 유지한다. 이 값 외의 하이퍼파라미터는 어느 팔에서도 바꾸지 않는다.
+TRANS_Y = 0.08
 
 
 class CTCLayer(tf.keras.layers.Layer):
@@ -94,7 +105,7 @@ def make_ds(X, y, lens, batch, shuffle=False, augment=False):
     # 그래서 마지막 자리가 잘린 크롭이 들어오면 읽지 못하고 **지어낸다**
     # (949: 박스 밖 숫자를 0.993 확신으로 출력). 추론 시 고정 패딩으로는 못
     # 고친다 — 편차가 평균보다 커서 하나의 값으로 맞출 수 없다.
-    tr = tf.keras.layers.RandomTranslation(0.08, 0.08, fill_mode="constant")
+    tr = tf.keras.layers.RandomTranslation(TRANS_Y, 0.08, fill_mode="constant")
     zm = tf.keras.layers.RandomZoom(0.18, fill_mode="constant")
     ct = tf.keras.layers.RandomContrast(0.35)
 
@@ -116,6 +127,31 @@ def make_ds(X, y, lens, batch, shuffle=False, augment=False):
 
 
 OUT_PREDS = HERE / "reader_preds.json"
+
+
+def _resolve_paths(bandcrop: bool, data_root):
+    """--bandcrop/--data-root 로 데이터·산물 경로를 갈아 낀다(전역 재할당).
+
+    플래그 없이 돌리면 종래 경로 그대로다. bandcrop 팔은 캐시·체크포인트·
+    CSV 로그·모델·판독 json 전부 *_bandcrop 이름으로 나간다 — 기존 reader_model/
+    data_cache_v2.npz/checkpoints_v2 를 덮어쓰는 일을 우연이 아니라 구조적으로
+    막는다(G29 와 같은 규약. 2026-09-04 에 합성 라벨을 덮어써 복구에 시간을 쓴
+    전례). 세로 지터 TRANS_Y 도 이 팔에서만 0.15 로 올린다.
+    """
+    global CACHE, CKPT_DIR, RESUME_PRE, RESUME_FT, RESUME_STATE
+    global CSV_LOG, OUT_DIR, OUT_PREDS, TRANS_Y
+    data = Path(data_root) if data_root else HERE
+    sfx = "_bandcrop" if bandcrop else ""
+    CACHE = data / f"data_cache_v2{sfx}.npz"
+    CKPT_DIR = data / f"checkpoints_v2{sfx}"
+    RESUME_PRE = CKPT_DIR / "resume_pre"
+    RESUME_FT = CKPT_DIR / "resume_ft"
+    RESUME_STATE = CKPT_DIR / "resume_state.json"
+    CSV_LOG = data / f"training_log{sfx}.csv"
+    OUT_DIR = data / f"reader_model{sfx}"
+    OUT_PREDS = data / f"reader_preds{sfx}.json"
+    if bandcrop:
+        TRANS_Y = 0.15
 
 
 def cache_signature():
@@ -179,13 +215,29 @@ def greedy_decode(logits):
 
 
 def main() -> int:
-    mode = sys.argv[1] if len(sys.argv) > 1 else "fresh"
-    if mode not in ("fresh", "resume", "ft"):
-        print(f"모르는 모드: {mode} (fresh | resume | ft)", flush=True)
-        return 2
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("mode", nargs="?", default="fresh",
+                    choices=("fresh", "resume", "ft"))
+    ap.add_argument("epochs", nargs="?", type=int, default=None,
+                    help="ft 모드의 에폭 수(기본 EPOCHS_FT)")
+    ap.add_argument("--bandcrop", action="store_true",
+                    help="bandcrop 캐시를 학습해 reader_model_bandcrop 로 낸다"
+                         "(G30). 프레이밍과 세로 지터 0.15 외의 설정은 전부 불변")
+    ap.add_argument("--data-root", type=Path, default=None,
+                    help="데이터 루트(기본: 스크립트 폴더). 워크트리 실행 시 "
+                         "메인 트리의 assets_dev/train 을 지정한다")
+    args = ap.parse_args()
+    _resolve_paths(args.bandcrop, args.data_root)
+    print(f"cache={CACHE.name} → model={OUT_DIR.name} "
+          f"(data root: {CACHE.parent})", flush=True)
+    if args.bandcrop:
+        print(f"RandomTranslation 세로 성분 = {TRANS_Y} (기준선 0.08)",
+              flush=True)
+
+    mode = args.mode
     # "ft": 사전학습 best 체크포인트에서 파인튜닝만 재실행 (ft [에폭수])
     ft_only = mode == "ft"
-    ft_epochs = int(sys.argv[2]) if len(sys.argv) > 2 else EPOCHS_FT
+    ft_epochs = args.epochs if args.epochs is not None else EPOCHS_FT
 
     sig = cache_signature()
     state = load_resume_state() if mode == "resume" else None

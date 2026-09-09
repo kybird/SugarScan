@@ -32,7 +32,9 @@ NUM_CLASSES = 11
 TTA_N = 8            # 추론 N+1 회. 0 이면 TTA 없이 기본 판독만
 TTA_SEED = 7
 # 학습 캐시와 같은 값이어야 한다. 정본은 build_cache_v2.BOX_MARGIN.
-from build_cache_v2 import BOX_MARGIN  # noqa: E402
+# band_crop_box 도 마찬가지 — G30 세로형 크롭의 유일한 구현은 build_cache_v2 에
+# 있고 학습·추론이 같은 함수를 써야 프레이밍이 갈라지지 않는다.
+from build_cache_v2 import BOX_MARGIN, band_crop_box, load_rotated_ids  # noqa: E402
 
 
 def _decode(logits):
@@ -74,18 +76,24 @@ def load_gray(img_path):
         return None
 
 
-def framed_src_rect(gray, quad):
+def framed_src_rect(gray, quad, cid=None, bandcrop=False, rotated_ids=None):
     """GM 쿼드의 축정렬 박스를 BOX_MARGIN 만큼 넓힌 크롭 사각형(TL,TR,BR,BL).
 
     프레이밍 규약은 학습 캐시와 **같아야 한다** — 정본은 build_cache_v2.BOX_MARGIN.
     (왼, 오른, 위, 아래) 변마다 여유가 다르다. 기준 폭·높이는 **원본 박스** 것을
     쓴다 — 좌측 여유로 x0 이 움직인 뒤의 폭을 쓰면 오른쪽 여유가 좌측 값에
     영향을 받는다(순서 의존). 이미지 경계로 클램프한다.
+
+    bandcrop=True 면 마진 **전에** G30 세로형 크롭을 먼저 적용한다(build_cache_v2
+    와 같은 순서·같은 함수). 기본(False)이면 크롭 없이 종래 프레이밍 그대로다.
     """
     q = np.array(quad, dtype=np.float32)
     xs, ys = q[:, 0], q[:, 1]
     bx0, by0 = float(xs.min()), float(ys.min())
     bx1, by1 = float(xs.max()), float(ys.max())
+    if bandcrop:
+        bx0, by0, bx1, by1 = band_crop_box(
+            bx0, by0, bx1, by1, cid, rotated_ids or frozenset())
     w0, h0 = bx1 - bx0, by1 - by0
     ml, mr, mt, mb = BOX_MARGIN
     bx0, by0 = max(0.0, bx0 - w0 * ml), max(0.0, by0 - h0 * mt)
@@ -95,9 +103,9 @@ def framed_src_rect(gray, quad):
         [[bx0, by0], [bx1, by0], [bx1, by1], [bx0, by1]], dtype=np.float32)
 
 
-def frame_crop(gray, quad):
+def frame_crop(gray, quad, cid=None, bandcrop=False, rotated_ids=None):
     """load_gray 결과 + GM 쿼드 → 리더 입력(320x160) 워프."""
-    src = framed_src_rect(gray, quad)
+    src = framed_src_rect(gray, quad, cid, bandcrop, rotated_ids)
     dst = np.array(
         [[0, 0], [IN_W - 1, 0], [IN_W - 1, IN_H - 1], [0, IN_H - 1]],
         dtype=np.float32)
@@ -118,9 +126,18 @@ def parse_args():
                     help="data_root 기준 모델 디렉터리명")
     ap.add_argument("--cache", default=CACHE_NAME,
                     help="hold-out 정의의 정본 캐시")
-    ap.add_argument("--out", default=PREDS_NAME,
-                    help="판독 결과 json(data_root 기준 경로)")
-    return ap.parse_args()
+    ap.add_argument("--out", default=None,
+                    help="판독 결과 json(data_root 기준 경로). 기본: "
+                         "reader_preds.json (--bandcrop 면 reader_preds_bandcrop"
+                         ".json)")
+    ap.add_argument("--bandcrop", action="store_true",
+                    help="G30 세로형 크롭(세로 [0.00, 0.72])을 추론 프레이밍에도 "
+                         "적용한다 — 학습 캐시와 같은 band_crop_box 를 쓴다")
+    args = ap.parse_args()
+    if args.out is None:
+        args.out = ("reader_preds_bandcrop.json" if args.bandcrop
+                    else PREDS_NAME)
+    return args
 
 
 def main() -> int:
@@ -158,6 +175,10 @@ def main() -> int:
         if l.strip():
             j = json.loads(l)
             quads[j["id"]] = j["quad"]
+    rotated_ids = load_rotated_ids(data) if args.bandcrop else frozenset()
+    if args.bandcrop:
+        print(f"bandcrop 켜짐 — 세로형만 세로 [0.00, 0.72] 크롭 "
+              f"(rotated 제외 {len(rotated_ids)}장)")
 
     readings = {}
     for l in (datumo / "labels.jsonl").read_text(encoding="utf-8").splitlines():
@@ -187,7 +208,7 @@ def main() -> int:
         if img is None:
             skipped += 1
             continue
-        rect = frame_crop(img, quad)
+        rect = frame_crop(img, quad, cid, args.bandcrop, rotated_ids)
         # 기본 판독 + TTA 흔들기 N회 → 다수결. 득표율을 함께 남긴다.
         # 시드의 cid 해시는 crc32 — 파이썬 hash() 는 프로세스마다 솔트가 달라
         # 같은 장이 실행마다 다른 변형을 받아 결과가 재현되지 않았다(G29-A).

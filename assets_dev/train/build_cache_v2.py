@@ -1,5 +1,7 @@
 # 데이터 캐시 구축 v2 — 라벨 정렬 수정 + val 분할 + 정수 라벨 배열.
 # 산출: assets_dev/train/data_cache_v2.npz
+#       python build_cache_v2.py --bandcrop → data_cache_v2_bandcrop.npz (G30)
+import argparse
 import json
 from pathlib import Path
 
@@ -8,8 +10,6 @@ import numpy as np
 from PIL import Image, ImageOps
 
 HERE = Path(__file__).resolve().parent
-DATUMO = HERE.parent / "upstream" / "datumo"
-SYNTH_DIR = HERE / "synth_screens" / "images"
 IN_H, IN_W = 160, 320
 BLANK = 10
 MAX_LABEL = 3
@@ -37,6 +37,53 @@ MAX_LABEL = 3
 # 순서: (왼, 오른, 위, 아래).
 BOX_MARGIN = (0.10, 0.10, 0.10, 0.10)
 
+# G30 세로형 밴드 크롭 — 세로 [0.00, 0.72] 를 남기고 아래(날짜·아이콘)를 자른다.
+# 근거(2026-09-08, 밴드 라벨 86장 실측 — 사람 LCD 라벨 안의 상대 위치):
+# 세로형은 숫자줄이 위쪽 절반에 있고 아랫변 p95 = 0.658, 윗변 p5 = 0.077 이다.
+# 0.72 는 p95 에 여유를 준 값이고, 위를 0.00 에서 움직이지 않는 것은 p5 가
+# 0.077 이라 5% 의 장에서 숫자 윗획이 잘리기 때문이다. **두 값 다 바꾸지 않는다.**
+BAND_CROP_BOTTOM = 0.72
+# 원본 GM 박스(마진 적용 전)의 w/h > 이 값이면 가로형. 가로형은 크롭하지
+# 않는다 — GM 박스가 밴드를 담고 있지 않다(46장 중 14장에서 밴드가 박스 왼쪽
+# 바깥, 2026-09-08 실측). 가로형은 크롭 문제가 아니라 검출 문제다(별도 작업).
+WIDE_RATIO = 1.2
+
+
+def load_rotated_ids(data):
+    """band_rotation.jsonl 의 id 집합 — 가로형 기기를 눕혀 찍은 장들.
+
+    이 장들은 밴드가 세로로 길어 보여 형태 판정에 넣으면 숫자를 자른다.
+    크롭에서 제외하고 원본 박스를 그대로 쓴다.
+    """
+    ids = set()
+    f = Path(data) / "band_rotation.jsonl"
+    if f.exists():
+        for l in f.read_text(encoding="utf-8").splitlines():
+            if l.strip():
+                ids.add(json.loads(l)["id"])
+    return ids
+
+
+def band_crop_box(x0, y0, x1, y1, cid, rotated_ids):
+    """원본 GM 박스(마진 전)에서 세로형만 아래쪽 숫자 없는 구간을 잘라낸다.
+
+    G30 실험의 **유일한** 크롭 구현이다. 학습 캐시(이 파일)와 추론
+    (eval_reader.framed_src_rect)이 이 함수를 공유한다 — 두 곳에 따로
+    구현하면 크롭이 어긋나고 그 차이가 성능 차이로 위장된다
+    (antipatterns/duplicated-geometry-implementation).
+
+    - 비율의 기준은 BOX_MARGIN 적용 **전**의 원본 박스다. 순서는
+      ①이 함수로 구간을 잘라 새 박스를 만들고 ②마진을 적용하는 것.
+      뒤집으면 크롭이 밀리고 그 밀림이 "효과 없다"로 보인다.
+    - 가로형(w/h > WIDE_RATIO)과 rotated_ids 의 장은 입력 그대로 돌려준다.
+    """
+    w0, h0 = x1 - x0, y1 - y0
+    if cid in rotated_ids:
+        return x0, y0, x1, y1
+    if w0 > WIDE_RATIO * h0:
+        return x0, y0, x1, y1
+    return x0, y0, x1, y0 + BAND_CROP_BOTTOM * h0
+
 
 def encode_label(s: str):
     ids = [int(ch) for ch in s]
@@ -45,12 +92,30 @@ def encode_label(s: str):
 
 
 def main() -> int:
-    OUT = HERE / "data_cache_v2.npz"
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--bandcrop", action="store_true",
+                    help="세로형(GM 박스 w/h<=1.2)만 세로 [0.00, 0.72] 를 남겨 "
+                         "크롭한 data_cache_v2_bandcrop.npz 를 만든다(G30). "
+                         "가로형·회전 장·합성은 프레이밍 불변")
+    ap.add_argument("--data-root", type=Path, default=None,
+                    help="데이터 루트(기본: 스크립트 폴더). 워크트리 실행 시 메인 "
+                         "트리의 assets_dev/train — 원본·합성 화면은 gitignored 다")
+    args = ap.parse_args()
+
+    data = args.data_root if args.data_root else HERE
+    # 분할 시드(123/42)·풀 필터·BOX_MARGIN 은 bandcrop 과 무관하게 동일해야
+    # 한다 — bandcrop 캐시의 train/holdout 이 기존 캐시와 같은 장들을 담아야
+    # A/B 가 짝지은 비교가 된다(빌드 후 g30_check_cache.py 로 검증한다).
+    OUT = data / ("data_cache_v2_bandcrop.npz" if args.bandcrop
+                  else "data_cache_v2.npz")
+    DATUMO = data.parent / "upstream" / "datumo"
+    SYNTH_DIR = data / "synth_screens" / "images"
+    rotated_ids = load_rotated_ids(data)
 
     # ===== 합성 =====
     synth_labels = {}
     for seed in (1, 2, 3):
-        f = HERE / "synth_screens" / f"labels_{seed}.json"
+        f = data / "synth_screens" / f"labels_{seed}.json"
         if f.exists():
             synth_labels.update(json.loads(f.read_text(encoding="utf-8")))
     keys = sorted(synth_labels.keys())
@@ -78,7 +143,7 @@ def main() -> int:
     # GM 쿼드 있는 전체 풀(2,007) × GT 값 → 시드 분할 train/holdout.
     # 밴드 라벨 304장에 한정하면 실데이터가 너무 적어 암기만 한다(실측).
     quads = {}
-    for l in (HERE / "gmscreen_quads.jsonl").read_text(encoding="utf-8").splitlines():
+    for l in (data / "gmscreen_quads.jsonl").read_text(encoding="utf-8").splitlines():
         if l.strip():
             j = json.loads(l)
             quads[j["id"]] = j["quad"]
@@ -88,7 +153,7 @@ def main() -> int:
             j = json.loads(l)
             readings[j["id"]] = j["reading"]
     corrections = {}
-    corr = HERE / "gt_corrections.jsonl"
+    corr = data / "gt_corrections.jsonl"
     if corr.exists():
         for l in corr.read_text(encoding="utf-8").splitlines():
             if l.strip():
@@ -111,6 +176,8 @@ def main() -> int:
     train_pool = pool[n_hold:]
     print(f"실사진 풀: {len(pool)} → train {len(train_pool)} / holdout {len(hold_pool)}")
 
+    crop_tally = {"tall_cropped": 0, "wide_kept": 0, "rotated_kept": 0}
+
     def build_real(rows):
         Xs, ys, ls, ids = [], [], [], []
         for cid, quad, val in rows:
@@ -130,9 +197,22 @@ def main() -> int:
             xs, ys_ = q[:, 0], q[:, 1]
             x0, y0 = float(xs.min()), float(ys_.min())
             x1, y1 = float(xs.max()), float(ys_.max())
-            # 여유는 변마다 따로. 기준 폭·높이는 **원본 박스** 것을 쓴다 —
-            # 좌측 여유로 x0 이 움직인 뒤의 폭을 쓰면 오른쪽 여유가 좌측 값에
-            # 영향을 받는다(순서 의존).
+            # G30 세로형 크롭 — ①원본 박스에서 구간을 잘라 새 박스을 만들고
+            # ②(아래에서) 그 새 박스에 BOX_MARGIN 을 적용한다. 이 순서가
+            # 지시서의 규격이다. 뒤집으면 크롭이 마진만큼 밀린다.
+            if args.bandcrop:
+                w_pre, h_pre = x1 - x0, y1 - y0
+                if cid in rotated_ids:
+                    crop_tally["rotated_kept"] += 1
+                elif w_pre > WIDE_RATIO * h_pre:
+                    crop_tally["wide_kept"] += 1
+                else:
+                    crop_tally["tall_cropped"] += 1
+                x0, y0, x1, y1 = band_crop_box(
+                    x0, y0, x1, y1, cid, rotated_ids)
+            # 여유는 변마다 따로. 기준 폭·높이는 **마진 적용 전의 박스**(크롭이
+            # 켜졌다면 크롭된 새 박스) 것을 쓴다 — 좌측 여유로 x0 이 움직인 뒤의
+            # 폭을 쓰면 오른쪽 여유가 좌측 값에 영향을 받는다(순서 의존).
             w0, h0 = x1 - x0, y1 - y0
             ml, mr, mt, mb = BOX_MARGIN
             x0, y0 = max(0.0, x0 - w0 * ml), max(0.0, y0 - h0 * mt)
@@ -156,6 +236,8 @@ def main() -> int:
     X_rt, y_rt, l_rt, id_rt = build_real(train_pool)
     X_rh, y_rh, l_rh, id_rh = build_real(hold_pool)
     print(f"실사진 rect: train {len(X_rt)} / holdout {len(X_rh)}")
+    if args.bandcrop:
+        print(f"G30 크롭 집계(실사진 train+holdout): {crop_tally}")
 
     # ===== 무결성 =====
     assert X_synth.shape[0] == kept
