@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sugarscan/domain/models/glucose_unit.dart';
+import 'package:sugarscan/domain/services/glucose_validator.dart';
 import 'package:sugarscan/ocr/testing.dart';
 
 void main() {
@@ -77,6 +79,53 @@ void main() {
       expect(range('HIGH'), MeterRangeKind.high);
       // H 가 세그먼트 손실로 I 만 남는 변형.
       expect(range('H1'), MeterRangeKind.high);
+    });
+  });
+
+  group('혈당계 에러 표시', () {
+    test('E-1 · ER · ERR-5 · ERROR2 를 값으로 만들지 않는다', () {
+      // 에러 표시는 혈당 정보가 아니고 뜻이 제조사마다 다르다. E 가 떨어져
+      // 나가 '1' 이 되는 순간 mmol/L 하한(0.6)을 통과하는 혈당값이 된다.
+      const codes = [
+        'E-1', 'E-2', 'E-3', 'E-4', 'E-5', 'E-6', 'E-7', 'E-8', 'E-9',
+        'ER', 'ERR', 'ERR-5', 'ERROR2',
+        'E1', 'err-5', 'error 2',
+      ];
+      for (final raw in codes) {
+        expect(normalizer.normalize(raw), isA<UnreadableReading>(),
+            reason: 'normalize("$raw") 가 에러 표시를 값으로 정리했다');
+      }
+    });
+
+    test('mmol/L 로도 검증기를 통과하지 않는다', () {
+      // mg/dL 하한(10)은 '1' 을 우연히 막는다. mmol/L 하한(0.6)은 못 막는다 —
+      // 그래서 mg/dL 로만 테스트하면 이 구멍이 보이지 않는다.
+      const validator = GlucoseValidator();
+      for (final raw in ['E-1', 'E-5', 'ERR-5', 'ERROR2']) {
+        final normalized = normalizer.normalize(raw);
+        // 스캐너와 같은 흐름: 숫자로 나와야만 검증기에 도달할 수 있다.
+        if (normalized is NormalizedNumber) {
+          expect(validator.parse(normalized.text, GlucoseUnit.mmoll).isOk,
+              isFalse,
+              reason: 'normalize("$raw") → "${normalized.text}" 이 '
+                  'mmol/L 검증을 통과했다');
+        } else {
+          expect(normalized, isA<UnreadableReading>(),
+              reason: 'normalize("$raw") 가 예상 밖의 결과: $normalized');
+        }
+      }
+      // 검증기만으로는 못 막는다 — mmol/L 에서 '1' 은 물리 범위 안이다.
+      // 그래서 이 판정은 정규화 안에 있어야 한다.
+      expect(validator.parse('1', GlucoseUnit.mmoll).isOk, isTrue);
+    });
+
+    test('숫자 뒤에 붙은 E 는 에러로 보지 않는다', () {
+      expect(number('123E'), '123');
+    });
+
+    test('E 단독 · E- 는 읽을 수 없다', () {
+      expect(normalizer.normalize('E'), isA<UnreadableReading>());
+      expect(normalizer.normalize('E-'), isA<UnreadableReading>());
     });
   });
 
