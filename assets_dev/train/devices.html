@@ -18,6 +18,8 @@
   .pill.agent { background: #41411f; color: #e3e37a; }
   .pill.mixed { background: #4a2340; color: #f0a2dd; }
   .pill.unknown { background: #3a3320; color: #d8c48a; }
+  .pill.click { cursor: pointer; }
+  .pill.click:hover { outline: 1px solid #7ab0ff; }
   button { background: #2c5c9e; color: #fff; border: 0; border-radius: 4px;
            padding: 5px 10px; cursor: pointer; font-size: 13px; }
   button.ghost { background: #2a2f37; color: #c6ccd6; }
@@ -109,7 +111,7 @@
   <button class="ghost f" data-f="mixed">섞인 성분</button>
   <button class="ghost f" data-f="done">끝난 성분</button>
   <button class="ghost f" data-f="all">전체</button>
-  <input type="text" id="q" placeholder="c123 / CareSens" style="width:150px">
+  <input type="text" id="q" placeholder="검색: c003 / CareSens (필터 무시)" style="width:200px">
   <button class="ghost" id="helpBtn">?</button>
 </header>
 <div id="prog"><i style="width:0"></i></div>
@@ -201,8 +203,10 @@
         <div class="k"><kbd>?</kbd></div><div class="d">도움말 (설계 이유까지)</div>
       </div>
       <p class="muted" style="margin:8px 0 0;font-size:11.5px">
-        성분에 라벨 없는 사진이 남아 있으면 다음 성분으로 넘어가지 않는다.
-        전부 지정되면 자동으로 넘어간다.</p>
+        성분은 자동으로 넘어가지 않는다 — 전부 한 기기로 찍어 두고 그 안에서
+        다른 기기를 골라내는 것이 정상 흐름이라서다. 라벨은 몇 번이든 덮어쓸 수 있고,
+        성분 헤더의 기기 배지를 누르면 그 기기로 찍힌 사진만 다시 선택된다.
+        다음 성분은 <kbd>j</kbd>.</p>
     </section>
   </aside>
 </main>
@@ -211,8 +215,8 @@
   <p class="muted">성분(dhash 연결요소)은 오염될 수 있다 — 한 성분에 다른 기기가
   섞여 있는 경우가 실제로 있다. 그래서 정본은 <b>사진 단위</b>이고, 성분은
   "한 번에 여러 장을 고르기 좋은 묶음"일 뿐이다. 성분이 순수하면
-  <kbd>a</kbd> → 숫자키 두 번으로 끝나고, 섞였으면 섞인 장만 골라 따로 지정한다.
-  전부 지정되기 전에는 다음 성분으로 넘어가지 않는다.</p>
+  <kbd>a</kbd> → 숫자키 한 번으로 끝나고, 섞였으면 그다음에 섞인 장만 골라 덮어쓴다.
+  라벨은 몇 번이든 다시 지정할 수 있고, 성분은 저절로 넘어가지 않는다 — 다음은 <kbd>j</kbd>.</p>
   <table>
     <tr><td><kbd>a</kbd> / <kbd>r</kbd> / <kbd>Esc</kbd></td><td>전체 선택 / 아직 라벨 없는 것만 / 선택 해제</td></tr>
     <tr><td>클릭 · <kbd>Shift</kbd>+클릭</td><td>선택 토글 · 범위 선택</td></tr>
@@ -236,7 +240,7 @@
 'use strict';
 const $ = s => document.querySelector(s);
 let ROWS = [], BY_ID = {}, MEMBERS = {}, LABELS = {}, VOCAB = [], NEAR = {}, PRIO = {};
-let filter = 'todo', idx = 0, stripPage = 0, heroId = null, lastDevice = null;
+let filter = 'todo', curId = null, stripPage = 0, heroId = null, lastDevice = null;
 let sel = new Set(), lastClick = null;
 const PER_STRIP = 60;
 
@@ -258,9 +262,9 @@ async function boot() {
   LABELS = j.labels || {}; NEAR = j.near || {}; PRIO = j.review_priority || {};
   ROWS.forEach(r => BY_ID[r.component] = r);
   document.querySelectorAll('.f').forEach(b => b.onclick = () => {
-    filter = b.dataset.f; idx = 0; enter();
+    filter = b.dataset.f; curId = null; enter();
   });
-  $('#q').oninput = () => { idx = 0; enter(); };
+  $('#q').oninput = () => { curId = null; enter(); };
   $('#next').onclick = () => move(1);
   $('#prev').onclick = () => move(-1);
   $('#save').onclick = saveTyped;
@@ -282,19 +286,43 @@ function unlabeled(r) { return memberOf(r).filter(i => !LABELS[i]); }
 function list() {
   const q = $('#q').value.trim().toLowerCase();
   let out = ROWS;
-  if (filter === 'todo') out = out.filter(r => unlabeled(r).length);
-  if (filter === 'done') out = out.filter(r => !unlabeled(r).length && r.status !== 'mixed');
-  if (filter === 'mixed') out = out.filter(r => r.status === 'mixed');
-  if (q) out = out.filter(r => (r.component + ' ' + r.rep + ' ' + (r.brand || '') +
-                                ' ' + (r.model || '')).toLowerCase().includes(q));
+  // 검색은 필터를 무시한다. 이미 끝낸 성분을 다시 찾는 일이 잦은데(그 안에서
+  // 다른 기기를 골라내려고), 검색에까지 '남은 성분' 필터가 걸리면 방금 끝낸
+  // 성분이 검색해도 안 나온다.
+  if (!q) {
+    if (filter === 'todo') out = out.filter(r => unlabeled(r).length);
+    if (filter === 'done') out = out.filter(r => !unlabeled(r).length && r.status !== 'mixed');
+    if (filter === 'mixed') out = out.filter(r => r.status === 'mixed');
+  } else {
+    out = out.filter(r => (r.component + ' ' + r.rep + ' ' + (r.brand || '') +
+                           ' ' + (r.model || '')).toLowerCase().includes(q));
+  }
   // 큰 성분부터 — 한 번의 판정이 가장 많은 사진을 덮는다.
-  return out.slice().sort((a, b) => b.size - a.size);
+  out = out.slice().sort((a, b) => b.size - a.size);
+  // 지금 보고 있는 성분은 필터 조건에서 벗어나도 목록에 남긴다. 전부 라벨한
+  // 순간 화면에서 사라지면, 그 안에서 다른 기기를 골라내려던 작업이 끊긴다.
+  if (curId && BY_ID[curId] && !out.some(r => r.component === curId)) {
+    out.push(BY_ID[curId]);
+    out.sort((a, b) => b.size - a.size);
+  }
+  return out;
 }
 
-function cur() { const l = list(); return l[Math.min(idx, l.length - 1)] || null; }
+function cur() {
+  const l = list();
+  if (curId && BY_ID[curId]) return BY_ID[curId];
+  return l[0] || null;
+}
+
+function idxOf(l) {
+  const i = l.findIndex(r => r.component === curId);
+  return i < 0 ? 0 : i;
+}
 
 /** 성분에 들어설 때: 아직 라벨 없는 사진을 기본 선택으로 둔다. */
 function enter() {
+  const r = cur();
+  curId = r ? r.component : null;
   stripPage = 0; heroId = null; lastClick = null;
   selectRest();
   render();
@@ -307,7 +335,9 @@ function selectAll() { const r = cur(); sel = new Set(r ? memberOf(r) : []); }
 
 function move(d) {
   const l = list();
-  idx = Math.max(0, Math.min(l.length - 1, idx + d));
+  if (!l.length) return;
+  const ni = Math.max(0, Math.min(l.length - 1, idxOf(l) + d));
+  curId = l[ni].component;
   enter();
 }
 
@@ -318,7 +348,7 @@ function render() {
   const compDone = ROWS.filter(x => !unlabeled(x).length).length;
   $('#counts').innerHTML = `사진 <b>${doneImg}</b>/${totImg} ` +
     `(${(doneImg / totImg * 100).toFixed(1)}%) · 성분 <b>${compDone}</b>/${ROWS.length}` +
-    ` · 목록 ${l.length}건 중 ${l.length ? idx + 1 : 0}번째`;
+    ` · 목록 ${l.length}건 중 ${l.length ? idxOf(l) + 1 : 0}번째`;
   $('#prog > i').style.width = (doneImg / totImg * 100) + '%';
   document.querySelectorAll('.f').forEach(b =>
     b.classList.toggle('on', b.dataset.f === filter));
@@ -339,7 +369,8 @@ function render() {
   mem.forEach(i => { const t = labelText(LABELS[i]); if (t) devs[t] = (devs[t] || 0) + 1; });
   const dl = Object.entries(devs).sort((a, b) => b[1] - a[1]);
   $('#state').innerHTML = dl.length
-    ? dl.map(([t, n]) => `<span class="pill ${t === '식별 불가' ? 'unknown' : 'human'}">${t} ${n}장</span>`).join(' ') +
+    ? dl.map(([t, n]) => `<span class="pill click ${t === '식별 불가' ? 'unknown' : 'human'}" ` +
+        `data-dev="${t.replace(/"/g, '&quot;')}" title="이 기기로 찍힌 ${n}장만 선택">${t} ${n}장</span>`).join(' ') +
       (dl.filter(d => d[0] !== '식별 불가').length > 1
         ? ' <span class="pill mixed">섞인 성분</span>' : '') +
       (rest.length ? ` <span class="muted">· ${rest.length}장 남음</span>` : '')
@@ -348,6 +379,14 @@ function render() {
     ? `선택 <b>${sel.size}</b>장 — 숫자키·Enter 로 이 선택에만 지정된다.` +
       (sel.size < mem.length ? ` <span class="muted">(성분 ${mem.length}장 중)</span>` : '')
     : '<span class="muted">선택 없음 — 썸네일을 클릭하거나 a(전체) / r(남은 것만).</span>';
+  // 배지 클릭 = 그 기기로 찍힌 사진만 선택. 잘못 찍은 묶음을 통째로 다시
+  // 고르거나, 한 기기로 다 찍어 둔 뒤 나머지를 골라낼 때 쓴다.
+  $('#state').querySelectorAll('.pill.click').forEach(el => el.onclick = () => {
+    const want = el.dataset.dev;
+    sel = new Set(mem.filter(i => labelText(LABELS[i]) === want));
+    heroId = [...sel][0] || heroId;
+    render();
+  });
   renderPalette(); renderStrip(); renderSugg();
 }
 
@@ -493,10 +532,14 @@ async function save(opt) {
   const rest = unlabeled(r);
   $('#msg').innerHTML = `<span style="color:#7ae394">${ids.length}장 지정</span> ` +
     (status === 'identified' ? `${opt.brand} ${opt.model}` : status) +
-    (rest.length ? ` · <b>${rest.length}장 남음</b>` : ' · 이 성분 완료');
-  // 남은 장이 있으면 이 성분에 머문다. 섞인 성분을 한 번에 넘기지 않기 위해서다.
-  if (rest.length) { selectRest(); render(); }
-  else { render(); setTimeout(() => move(1), 250); }
+    (rest.length ? ` · <b>${rest.length}장 남음</b>`
+                 : ' · 이 성분 완료 — 그대로 두고 골라내도 되고, 다음은 <kbd>j</kbd>');
+  // 자동으로 넘어가지 않는다. 전부 한 기기로 찍어 두고 그 안에서 다른 기기를
+  // 골라내는 것이 정상 흐름이고, 다 찍자마자 화면이 넘어가면 그 작업을 할 수
+  // 없다. 다음 성분으로는 j 로 직접 간다.
+  if (rest.length) selectRest();
+  else sel.clear();
+  render();
 }
 
 function onKey(e) {
