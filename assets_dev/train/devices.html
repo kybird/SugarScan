@@ -73,6 +73,21 @@
   .sugg figure:hover img { border-color: #7ab0ff; }
   .sugg figcaption { font-size: 11px; color: #8b929d; text-align: center; }
   #selInfo { background: #1f2b3a; color: #a8c8ef; padding: 6px 12px; font-size: 12px; }
+  #legend { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; padding: 5px 8px;
+            background: #16181c; border-top: 1px solid #2c313a; font-size: 11.5px; color: #8b929d; }
+  #legend span.sw { display: inline-block; width: 13px; height: 13px; border-radius: 3px;
+                    border: 2px solid #2c313a; background: #0d0f12; vertical-align: -3px;
+                    margin-right: 4px; }
+  #legend .sw.sel { border-color: #7ab0ff; box-shadow: 0 0 0 2px #2c5c9e88; }
+  #legend .sw.done { border-color: #3f8f5a; }
+  #legend .sw.unk { border-color: #8a7a3a; }
+  .keys { display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; font-size: 12px;
+          align-items: baseline; }
+  .keys .k { text-align: right; white-space: nowrap; }
+  .keys .d { color: #8b929d; }
+  .keys .hd { grid-column: 1 / -1; color: #6f7681; margin-top: 6px; font-size: 11px;
+              text-transform: uppercase; letter-spacing: .05em; }
+  .keys .hd:first-child { margin-top: 0; }
   #warn { background: #4a2a1f; color: #ffb99a; padding: 8px 12px; font-size: 12px; display: none; }
   #warn b { color: #fff; }
   #msg { font-size: 12px; }
@@ -114,7 +129,13 @@
       <button class="ghost" id="selNone">선택 해제 (Esc)</button>
       <button class="ghost" id="sPrev">◀</button>
       <button class="ghost" id="sNext">▶</button>
-      <span class="muted">썸네일 클릭=선택 토글 · Shift+클릭=범위</span>
+    </div>
+    <div id="legend">
+      <span><span class="sw"></span>라벨 없음</span>
+      <span><span class="sw sel"></span>선택됨 — 지정이 여기에만 적용</span>
+      <span><span class="sw done"></span>기기 지정됨</span>
+      <span><span class="sw unk"></span>식별 불가</span>
+      <span>썸네일 <b>클릭</b>=선택 토글 · <b>Shift+클릭</b>=범위 · 아래 라벨은 그 장에 붙은 기기</span>
     </div>
     <div id="strip"></div>
   </div>
@@ -153,6 +174,35 @@
     <section>
       <h2>같은 기기로 보이는 후보 <span class="muted">— 제안일 뿐</span></h2>
       <div class="sugg" id="sugg"></div>
+    </section>
+    <section>
+      <h2>키보드 <span class="muted">— 전부</span></h2>
+      <div class="keys">
+        <div class="hd">선택</div>
+        <div class="k"><kbd>클릭</kbd></div><div class="d">그 사진 선택 토글</div>
+        <div class="k"><kbd>Shift</kbd>+<kbd>클릭</kbd></div><div class="d">직전 클릭부터 범위 선택</div>
+        <div class="k"><kbd>Space</kbd></div><div class="d">크게 보는 사진 선택 토글</div>
+        <div class="k"><kbd>a</kbd></div><div class="d">이 성분 전체 선택</div>
+        <div class="k"><kbd>r</kbd></div><div class="d">아직 라벨 없는 것만 선택</div>
+        <div class="k"><kbd>Esc</kbd></div><div class="d">선택 해제</div>
+
+        <div class="hd">지정 — 선택한 사진에만 적용된다</div>
+        <div class="k"><kbd>1</kbd>..<kbd>9</kbd></div><div class="d">팔레트의 기기로 지정</div>
+        <div class="k"><kbd>Enter</kbd></div><div class="d">입력한 브랜드·모델로 지정</div>
+        <div class="k"><kbd>d</kbd></div><div class="d">직전에 지정한 기기로</div>
+        <div class="k"><kbd>u</kbd></div><div class="d">식별 불가 — 봤지만 기종 못 정함</div>
+        <div class="k"><kbd>x</kbd></div><div class="d">선택한 사진의 라벨 지우기</div>
+
+        <div class="hd">이동</div>
+        <div class="k"><kbd>←</kbd> <kbd>→</kbd></div><div class="d">크게 볼 사진 이동</div>
+        <div class="k"><kbd>[</kbd> <kbd>]</kbd></div><div class="d">사진 페이지 (60장 단위)</div>
+        <div class="k"><kbd>j</kbd> <kbd>k</kbd></div><div class="d">다음 / 이전 성분</div>
+        <div class="k"><kbd>/</kbd></div><div class="d">검색</div>
+        <div class="k"><kbd>?</kbd></div><div class="d">도움말 (설계 이유까지)</div>
+      </div>
+      <p class="muted" style="margin:8px 0 0;font-size:11.5px">
+        성분에 라벨 없는 사진이 남아 있으면 다음 성분으로 넘어가지 않는다.
+        전부 지정되면 자동으로 넘어간다.</p>
     </section>
   </aside>
 </main>
