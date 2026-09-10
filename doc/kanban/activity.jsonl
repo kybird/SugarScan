@@ -18,3 +18,6 @@
 {"ts":"2026-09-10T07:15:33.003Z","action":"done","title":"스캔 글레어 게이트"}
 {"ts":"2026-09-10T07:15:42.812Z","action":"claimed","title":"CTC 리더 ONNX 내보내기 파리티","actor":"unnamed-agent"}
 {"ts":"2026-09-10T07:31:46.251Z","action":"done","title":"CTC 리더 ONNX 내보내기 파리티"}
+{"ts":"2026-09-10T07:33:03.012Z","action":"created","title":"mmol/L 실츬 데이터 확보"}
+{"ts":"2026-09-10T07:33:03.517Z","action":"handoff","title":"mmol/L 실츬 데이터 확보","detail":"mmol/L 소수점 판독은 현재 측정도 학습도 불가능하다(코퍼스에 소수점 표본 0건·리더 charset 0~9 전용). mmol/L 표시 기기 실츬 사진을 어떤 기기·몇 장 기준으로 확보할지 결정이 필요하다. 확보 전까지 mmol/L 경로는 앱의 규칙 엔진(소수점 채널 직접 검출)만이 유일한 경로다."}
+{"ts":"2026-09-10T07:33:26.047Z","action":"done","title":"dot·unit 지표 추가"}
