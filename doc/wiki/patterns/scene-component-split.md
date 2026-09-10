@@ -1,0 +1,65 @@
+---
+status: active
+version_context: "sugarScan assets_dev/train (Datumo 코퍼스, dhash)"
+tags: [ml, data, pattern]
+aliases: [장면 성분 분할, 그룹 분할, 연결요소 분할, scene split, session-aware split, grouped split]
+created: 2026-09-10
+confidence: 4
+---
+# 촬영 세션은 장면 성분으로 정의하고 분할 무결성을 assert 한다
+
+세션 메타데이터(촬영 시각·기기 id)가 없는 코퍼스에서는 **픽셀 유사도의 연결요소**를
+세션 프록시로 삼고, 그 성분이 train/holdout 을 가로지르지 않음을 스크립트로
+검증한다.
+
+## The Rule
+
+1. **세션 정의**: 64비트 dhash(EXIF 정규화 후)의 근접쌍(해밍 ≤ 임계)을 union-find
+   로 묶은 연결요소 = 장면 세션. 무작위쌍 평균 해밍(예: 32)과의 격차가 임계의
+   근거다.
+2. **임계 민감도**: 재분할 전에 임계를 하나 더(예: ≤6 vs ≤8) 계수해 구조가
+   같은지(거대 성분의 존재 등) 확인한다.
+3. **분할**: 성분을 결정적 순서(예: batch·최소번호)로 정렬해 목표 비율만큼
+   통째로 한쪽에 쌓는다. 한 성분이 양쪽에 걸칠 방법이 구조적으로 없어야 한다.
+4. **무결성 assert**: 교차 성분 수 == 0 을 코드로 검사, 실패 시 중단.
+5. **균형 sanity**: 값 분포(범위·평균·자릿수)가 한쪽으로 몰리지 않았는지 출력.
+6. **재측정 순서**: 재학습 전에 기존 예측을 새 층으로 재집계해 누수 서명(단조
+   기울기)부터 확인한다 — 비용 없이 방향을 확정한 뒤 재학습·기준선 교체.
+
+## Why it works
+
+포착하고 싶은 것은 "모델이 학습에서 본 **장면**이 시험에 다시 나오는 것"이다.
+장면은 촬영자의 물리적 행동(같은 구도 유지)이므로 픽셀 구조에 남는다 — 파일명
+순서·촬영 시각 같은 메타데이터 프록시는 그 행동과 정렬되지 않는다(실측: 세션
+내 id 거리 3~25, 값은 상이). dhash 는 국소 글자 몇 개 바뀜에는 둔감해서 "같은
+장면, 다른 값"을 잡고, 연결요소는 세션의 이행적 폐쇄를 담는다.
+
+## Trade-offs
+
+- **임계 의존**: dhash 는 90° 회전에 약해 회전 근접쌍은 못 잡는다 → 누수
+  **과소**추정 방향(보수적). 회전이 실질 비중이면 회전 불변 해시 병용.
+- **거대 성분**: 한 세팅을 수백 장 찍은 덩어리(실측 최대 723장)가 목표 비율을
+  넘겨 쌓일 수 있다 — 홀드아웃이 커지는 것은 평가 강화, 학습 데이터 감소는
+  조건으로 명시한다.
+- **비용**: O(N²) 쌍 비교 — 2,500장×64비트면 넘파이로 수 초, 수만 장이면
+  근사 최근접(LSH) 필요.
+
+## Anti-Pattern
+
+- [[image-level-split-on-session-corpus]] — 이 패턴이 없을 때의 실패와
+  "프록시로도 확인했다"는 오답 검사의 두 사례.
+- 임계를 눈검증 없이 정하는 것 — 경계 해밍(임계 바로 아래)쌍 몽타주로 실제
+  같은 장면인지 확인한다(실측: h7쌍도 같은 CareSens 장면).
+
+## Related
+
+- [[measure-the-premise-not-just-the-claim]] — 세션 정의 자체가 프레미스다
+- [[aggregate-hides-stratified-failure]] — 6단계 층별 재집계의 근거
+- [[experiment-budget-parity]] — 재학습 시 기준선과 같은 예산·같은 사전학습
+
+## Grounding (References)
+
+- `doc/raw/2026-09-09.md` Case 7·8
+- `assets_dev/train/audit_split_leakage.py`(계측) · `build_grouped_split.py`(재분할)
+- `docs/reports/split-leakage-audit-2026-09-09.md` ·
+  `docs/reports/grouped-split-rebaseline-2026-09-10.md`

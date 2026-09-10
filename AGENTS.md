@@ -219,6 +219,8 @@ llm-wiki lint                   # 링크·근거 무결성
 | `_pull` · 델타 커서 · 페이지네이션 | `antipatterns/poison-row-blocks-pipeline` · `patterns/cursor-holdback-for-skipped-rows` |
 | `warpQuadToRect` · `warpQuadToEngineFrame` | `antipatterns/duplicated-geometry-implementation` |
 | "대기 n건" 같은 개수 표시 | `antipatterns/count-rows-not-entities` |
+| `build_cache_v2` · train/holdout 분할 | `antipatterns/image-level-split-on-session-corpus` · `patterns/scene-component-split` |
+| sugartrain 환경 pip 설치 | `antipatterns/unpinned-pip-in-frozen-training-env` |
 
 버그를 고쳤거나 결정을 내렸으면 `wiki-log` 로 Case 를 남기고, 쌓이면
 `wiki-compile` 로 승격한다. **에러 문구는 한 글자도 바꾸지 말고 그대로 인용한다** —

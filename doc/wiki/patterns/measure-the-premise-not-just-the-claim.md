@@ -49,3 +49,7 @@ confidence: 5
 
 - `doc/raw/2026-09-05.md#case-7` (`hash:8ca74e3`) — EasyOCR 실측 9.3%/1.3% vs 98.0%
 - `docs/reports/G17-scene-bench-baseline.md` — 규칙 엔진 실촬 완전일치 0%
+- `doc/raw/2026-09-10.md#case-2` — dot 지표를 설계하기 전에 표본 존재부터 세니
+  측정 불가(라벨 2,512장 전부 정수)였다 — 지표의 프레미스는 측정 가능성 자체
+- `doc/raw/2026-09-09.md#case-7` — "세션=연속번호" 전제를 픽셀 유사도로 대체하자
+  누수 0.6%→73.7% 로 뒤집힘 → [[scene-component-split]]

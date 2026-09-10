@@ -34,6 +34,7 @@ tags: [index]
 | [[open-upper-bound-for-live-window]] | "최근 N일" 같은 살아 있는 기간 질의는 **위쪽 경계를 열어 둔다.** 상한에 "지금"을 넣지 않는다. | 열린 상한, 기간 질의, statsReadingsProvider, watchBetween, refreshStatsProvider |
 | [[push-over-pull-for-prevention]] | **검색은 pull 이다 — 물어볼 줄 알아야 걸린다.** 예방이 목적이라면 검색에 기대면 안 된다. | 푸시 우선, 트리거 표, CLAUDE.md 표, AGENTS.md, 예방은 검색으로 안 된다 |
 | [[row-level-decode-tolerance]] | 배치에서 행 하나를 해석하지 못했다고 배치 전체를 실패시키지 않는다. **관용의 단위는 행이다.** | 행 단위 관용, poison-row 방어, ReadingPage, fetchUpdatedSince, fetchedRows, malformed, ReadingDto.fromJson |
+| [[scene-component-split]] | 세션 메타데이터(촬영 시각·기기 id)가 없는 코퍼스에서는 **픽셀 유사도의 연결요소**를 | 장면 성분 분할, 그룹 분할, 연결요소 분할, scene split, session-aware split, grouped split |
 | [[server-side-write-verification]] | 클라이언트가 "무엇을 기준으로 만든 값인지"를 함께 보내게 하고, **서버가 정본에서 직접 재확인한 뒤에만** 기록한다. | 저장 검문, 쓰기 검증, 409 거부, _verify_frame, /api/label, webtool.py, 409 |
 | [[tolerant-decode-with-preservation]] | 모르는 값을 만나면 **관용하되 보존한다.** 기본값으로 치환하고 그대로 되돌려 쓰면, 관용이 곧 데이터 파괴가 된다. | 관용 디코드, unknown 보존, additive-only, fromWireName, orElse, MeasurementTag, ReadingSource, GlucoseUnit |
 | [[verify-premises-before-executing]] | 지시서를 받으면 **적힌 대로 하기 전에 전제가 사실인지 먼저 잰다.** 지시서를 쓴 | 전제 실측, 지시서 검증, 요약 먼저, 위임 안전장치 |
@@ -53,6 +54,7 @@ tags: [index]
 | [[duplicated-geometry-implementation]] | 거의 같은 100줄(디코드 → 회색 변환 → 호모그래피 역샘플링)이 두 함수에 복사돼 있는 것. | 좌표 변환 중복, 워프 두 벌, warpQuadToRect, warpQuadToEngineFrame, _warpQuad, photo_preprocessor.dart, _homography |
 | [[frozen-now-in-live-query]] | ```dart | 굳은 now, 기간 상한 고정, statsReadingsProvider, watchBetween, StreamProvider, DateTime.now(), providers.dart |
 | [[global-transform-on-heterogeneous-input]] | 측정해서 중앙값을 얻은 뒤 **그 값을 전체에 똑같이** 적용하는 것. | 전역 변환, 일률 적용, 중앙값으로 처방, 고정 패딩, CLAHE, 여유, margin, 분포가 넓다, 표준편차가 평균보다 |
+| [[image-level-split-on-session-corpus]] | 같은 촬영 세션(같은 기기·구도·조명)의 사진이 여러 장 있는 코퍼스를 이미지 단위로 | 이미지 단위 분할, 랜덤 분할 누수, 세션 누수, data leakage, near-duplicate leakage, burst corpus split, 그룹 분할 안 함 |
 | [[label-without-visual-ground-truth]] | 좌표만 저장하고, 저장된 좌표를 **다시 이미지에 그려 확인하는 경로 없이** 계속 진행하는 것. | 눈검증 없는 라벨링, 좌표만 저장, screen_boxes.jsonl, labeled.jsonl, /api/selftest, audit_oob.py |
 | [[metric-path-not-under-test]] | 측정값이 나쁘면 **측정 대상**(모델·기하·데이터)에 대한 가설만 세우고, **측정하는 코드**(채점 스크립트·전처리 로더·GT 조립)는 옳다고 전제하는 것. | 계측 경로, 채점 스크립트, 평가 스크립트, eval_reader, 지표가 낮다, 모델이 나쁘다, 기준선 저평가, measurement bug, harness bug |
 | [[mixed-image-decode-conventions]] | `cv2.imread` 는 EXIF orientation 을 **자동 적용**하고, `PIL.Image.open` 은 **무시**한다. | EXIF 관례 불일치, cv2 vs PIL, exif_transpose, cv2.imread, getexif, orientation, build_cache_v2, golden_bench |
@@ -63,7 +65,9 @@ tags: [index]
 | [[reset-clears-in-flight-lock]] | ```dart | reset 이 잠금을 푸는 것, _busy = false, FrameThrottler, frame_throttler.dart, _busy, reset(), isBusy |
 | [[stale-client-writes]] | 브라우저에 어느 버전의 JS 가 떠 있는지 **아무도 모르는 상태**로 저장 요청을 받는 것. | 낡은 탭 쓰기, stale build, Cache-Control, no-store, webtool.html, /api/build |
 | [[tolerance-without-preservation]] | `values.firstWhere(..., orElse: () => SomeDefault)` — 관용처럼 보이지만, 그 값을 나중에 서버로 되돌려 쓰는 순간 **다른 기기의 데이터를 파괴한다.** | 모르는 값 치환, orElse 기본값, silent-normalization, fromWireName, orElse, firstWhere, MeasurementTag, ReadingSource, measurement_tag.dart |
+| [[uncontrolled-budget-in-ab-comparison]] | 바꾼 변인(크롭·워프·증강)과 **함께 움직이지 않은 변인**(에폭 수·사전학습 체크포인트· | 예산 불일치 A/B, 에폭 예산, 학습 예산 비교, budget parity, epoch-mismatch, unfair A/B |
 | [[unnamed-coordinate-frame]] | 좌표 배열만 저장하고, **그 좌표가 어느 프레임에서 만들어졌는지**는 저장하지 않는 것. | 이름 없는 좌표계, 프레임 미기록, lb.ow, lb.frameId, applyImage, screen_boxes.jsonl, labeled.jsonl |
+| [[unpinned-pip-in-frozen-training-env]] | pip 의존성 해결기는 **요구를 만족하는 조합**을 찾을 뿐 **기존 워크로드가 돌아가는 | 고정 환경 pip, 의존성 상승 파손, numpy 2 충돌, TF_bfloat16 TypeError, dependency drift, pip resolver |
 | [[verification-record-without-subject]] | `눈검증: glucose_batch1/10 쿼드가 표시 이미지에서 유리 정확히 감쌈` | 무엇을 검증했는지 안 적기, 눈검증 기록, 검증 주어 누락 |
 | [[wiki-unreachable-by-identifier]] | 개념어와 산문으로만 쓰인 페이지. | 식별자로 안 걸리는 위키, aliases 누락, FrameThrottler, statsReadingsProvider |
 
@@ -79,7 +83,7 @@ tags: [index]
 ## Statistics
 
 - Total concepts: 6
-- Total patterns: 13
-- Total anti-patterns: 22
+- Total patterns: 14
+- Total anti-patterns: 25
 - Total answers: 0
 - Last updated: 2026-09-10
