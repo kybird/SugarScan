@@ -3,7 +3,7 @@
 이 디렉터리의 `.tflite` / `.onnx` 파일은 저장소에 커밋된다(라이선스가 허용하고
 크기가 작은 경우에 한함). 학습 중간 산출물(`.pth`, 체크포인트)은 커밋하지 않는다.
 
-## 7seg_classifier.tflite (아직 없음)
+## 7seg_classifier.tflite (커밋됨 · `f10074a`)
 
 | | |
 |---|---|
@@ -14,7 +14,7 @@
 | 출력 | `[1, N]` 클래스 점수 — 0~9 는 숫자, 그 이상은 "표시 없음" |
 | 사용처 | `SevenSegCnnEngine` (mg/dL 전용) |
 
-내려받기:
+출처(이미 커밋돼 있으므로 받을 필요 없다 — 재취득용):
 
 ```bash
 curl -L -o assets/models/7seg_classifier.tflite "https://github.com/Kazuhito00/7segment-display-reader/raw/main/02.model/7seg_classifier.tflite"

@@ -338,8 +338,16 @@ Play 스토어 등록에도 개인정보처리방침 URL 과 Data safety 양식�
 언어를 늘리는 것과는 무관한, 출시의 전제 조건이다. 자세한 내용은
 `docs/IMPLEMENTATION_PLAN.md` 의 해당 절 참조.
 
-`assets/models/7seg_classifier.tflite` 는 아직 저장소에 없다. 없어도 앱은 정상
-동작하며(`ScanUnavailable` → 수동 입력), 받는 방법은 `assets/models/README.md` 참조.
+`assets/models/7seg_classifier.tflite` 는 저장소에 있다(`f10074a`, 609,904 바이트,
+Kazuhito00/7segment-display-reader, Apache-2.0). **그래도 없는 경우가 정상 경로다** —
+`TfliteDigitClassifier.tryLoad()` 가 null 을 돌려주면 `ScanUnavailable` → 수동 입력으로
+떨어진다. 이 폴백을 지우지 말 것. 상세는 `assets/models/README.md`.
+
+**CTC 리더(`assets_dev/train/reader_model`)는 아직 앱에 없다.** 홀드아웃
+완전일치 97.06% 는 PC 측 수치이고, 단말에서는 한 번도 돈 적이 없다.
+`ocr_bootstrap.dart` 에 등록된 엔진은 `SegmentRuleEngine`(기본)과 7-세그먼트
+CNN 둘뿐이다. 온디바이스 경로는 ONNX 로 가기로 했고(G28) 아직 열리지 않았다 —
+`docs/DONE.md` G28·G31 참조.
 
 **참고한 저장소의 코드를 붙여 넣지 말 것.** 7-세그먼트 판독을 다루는 공개 구현
 중 상당수가 GPL-3.0(SSOCR)·AGPL-3.0(lcd-digit-recognition)이다. 그래서
