@@ -52,6 +52,9 @@
   .th img { height: 90px; width: 74px; object-fit: cover; border: 2px solid #2c313a;
             border-radius: 3px; background: #0d0f12; display: block; }
   .th.sel img { border-color: #7ab0ff; box-shadow: 0 0 0 2px #2c5c9e88; }
+  .th .cb { position: absolute; left: 3px; top: 3px; width: 18px; height: 18px; margin: 0;
+            cursor: pointer; accent-color: #2c5c9e; z-index: 2; }
+  .th.cur img { outline: 2px solid #e8c98a; outline-offset: -2px; }
   .th .tag { position: absolute; left: 0; right: 0; bottom: 0; font-size: 10px; text-align: center;
              background: #000a; padding: 1px 2px; overflow: hidden; white-space: nowrap;
              text-overflow: ellipsis; }
@@ -102,6 +105,14 @@
           border-radius: 8px; padding: 18px 22px; display: none; z-index: 10; overflow-y: auto; }
   #help table { border-collapse: collapse; }
   #help td { padding: 3px 10px 3px 0; vertical-align: top; }
+  /* 창이 좁으면 사이드바 380px 가 뷰어를 짓눌러 글자가 한 자씩 끊긴다.
+     그럴 때는 위아래로 쌓는다. */
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
+    #viewer { border-right: 0; border-bottom: 1px solid #2c313a; }
+    aside { max-height: 46vh; }
+    #legend { font-size: 11px; gap: 8px; }
+  }
 </style>
 </head>
 <body>
@@ -139,10 +150,11 @@
     </div>
     <div id="legend">
       <span><span class="sw"></span>라벨 없음</span>
-      <span><span class="sw sel"></span>선택됨 — 지정이 여기에만 적용</span>
+      <span><span class="sw sel"></span>선택됨(체크) — 지정이 여기에만 적용</span>
       <span><span class="sw done"></span>기기 지정됨</span>
       <span><span class="sw unk"></span>식별 불가</span>
-      <span>썸네일 <b>클릭</b>=선택 토글 · <b>Shift+클릭</b>=범위 · 아래 라벨은 그 장에 붙은 기기</span>
+      <span>사진 <b>클릭</b>=크게 보기 · 왼쪽 위 <b>체크박스</b>=선택 (<b>Shift+체크</b>=범위) ·
+        <b>Space</b>=지금 보는 사진 선택</span>
     </div>
     <div id="strip"></div>
   </div>
@@ -186,8 +198,9 @@
       <h2>키보드 <span class="muted">— 전부</span></h2>
       <div class="keys">
         <div class="hd">선택</div>
-        <div class="k"><kbd>클릭</kbd></div><div class="d">그 사진 선택 토글</div>
-        <div class="k"><kbd>Shift</kbd>+<kbd>클릭</kbd></div><div class="d">직전 클릭부터 범위 선택</div>
+        <div class="k"><kbd>클릭</kbd></div><div class="d">그 사진을 크게 보기 (선택 아님)</div>
+        <div class="k"><kbd>체크박스</kbd></div><div class="d">선택 토글 — 사진 왼쪽 위</div>
+        <div class="k"><kbd>Shift</kbd>+<kbd>체크</kbd></div><div class="d">직전 체크부터 범위 선택</div>
         <div class="k"><kbd>Space</kbd></div><div class="d">크게 보는 사진 선택 토글</div>
         <div class="k"><kbd>a</kbd></div><div class="d">이 그룹 전체 선택</div>
         <div class="k"><kbd>r</kbd></div><div class="d">아직 라벨 없는 것만 선택</div>
@@ -228,7 +241,8 @@
   라벨은 몇 번이든 다시 지정할 수 있고, 그룹은 저절로 넘어가지 않는다 — 다음은 <kbd>j</kbd>.</p>
   <table>
     <tr><td><kbd>a</kbd> / <kbd>r</kbd> / <kbd>Esc</kbd></td><td>전체 선택 / 아직 라벨 없는 것만 / 선택 해제</td></tr>
-    <tr><td>클릭 · <kbd>Shift</kbd>+클릭</td><td>선택 토글 · 범위 선택</td></tr>
+    <tr><td>사진 클릭</td><td>크게 보기 — 선택되지 않는다</td></tr>
+    <tr><td>체크박스 · <kbd>Shift</kbd>+체크</td><td>선택 토글 · 범위 선택</td></tr>
     <tr><td><kbd>Space</kbd></td><td>지금 크게 보는 사진 선택 토글</td></tr>
     <tr><td><kbd>←</kbd> / <kbd>→</kbd></td><td>크게 볼 사진 이동</td></tr>
     <tr><td><kbd>1</kbd>..<kbd>9</kbd></td><td>선택한 사진에 팔레트의 기기 지정</td></tr>
@@ -445,7 +459,7 @@ function render() {
   $('#selInfo').innerHTML = qTag + (sel.size
     ? `선택 <b>${sel.size}</b>장 — 숫자키·Enter 로 이 선택에만 지정된다.` +
       (sel.size < mem.length ? ` <span class="muted">(그룹 ${mem.length}장 중)</span>` : '')
-    : '<span class="muted">선택 없음 — 썸네일 클릭 · <b>a</b> 전체 · <b>r</b> 라벨 없는 것만. ' +
+    : '<span class="muted">선택 없음 — 체크박스 · <b>a</b> 전체 · <b>r</b> 라벨 없는 것만. ' +
       '선택된 사진에만 지정된다.</span>');
   // 배지 클릭 = 그 기기로 찍힌 사진만 선택. 잘못 찍은 묶음을 통째로 다시
   // 고르거나, 한 기기로 다 찍어 둔 뒤 나머지를 골라낼 때 쓴다.
@@ -497,20 +511,27 @@ function renderStrip() {
   slice.forEach((id, k) => {
     const j = LABELS[id];
     const d = document.createElement('div');
-    d.className = 'th' + (sel.has(id) ? ' sel' : '') +
+    d.className = 'th' + (sel.has(id) ? ' sel' : '') + (id === heroId ? ' cur' : '') +
       (j ? (j.status === 'unknown' ? ' unk' : ' done') : '');
-    d.innerHTML = `<img loading="lazy" src="/photo?id=${encodeURIComponent(id)}&w=160" title="${id}">` +
+    d.innerHTML = `<input type="checkbox" class="cb"${sel.has(id) ? ' checked' : ''} ` +
+      `title="선택 (Shift+클릭: 범위)">` +
+      `<img loading="lazy" src="/photo?id=${encodeURIComponent(id)}&w=160" title="${id}">` +
       (j ? `<span class="tag">${labelText(j)}</span>` : '');
-    d.onclick = e => {
+    // 사진 클릭은 '크게 보기'일 뿐이다. 선택은 체크박스로만 — 한 장씩 넘겨 보는
+    // 동안 클릭이 곧 선택이면, 훑어본 사진이 전부 선택된 채로 지정 대상이 된다.
+    d.onclick = () => { heroId = id; render(); };
+    const cb = d.querySelector('.cb');
+    cb.onclick = e => {
+      e.stopPropagation();
       const gi = stripPage * PER_STRIP + k;
       if (e.shiftKey && lastClick !== null) {
         const [a, b] = [Math.min(lastClick, gi), Math.max(lastClick, gi)];
         for (let x = a; x <= b; x++) sel.add(mem[x]);
       } else {
         sel.has(id) ? sel.delete(id) : sel.add(id);
-        lastClick = gi;
       }
-      heroId = id; render();
+      lastClick = gi;
+      render();
     };
     s.appendChild(d);
     if (id === heroId) requestAnimationFrame(() => d.scrollIntoView({ block: 'nearest' }));
