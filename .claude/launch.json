@@ -1,0 +1,35 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "webtool",
+      "runtimeExecutable": "conda",
+      "runtimeArgs": [
+        "run",
+        "--no-capture-output",
+        "-n",
+        "sugartrain",
+        "python",
+        "assets_dev/train/webtool.py"
+      ],
+      "port": 8777
+    },
+    {
+      "name": "atlas",
+      "runtimeExecutable": "conda",
+      "runtimeArgs": [
+        "run",
+        "--no-capture-output",
+        "-n",
+        "sugartrain",
+        "python",
+        "make_failure_atlas.py",
+        "--serve",
+        "--data-root",
+        "D:/Project/sugarScan/assets_dev/train"
+      ],
+      "cwd": "assets_dev/train",
+      "port": 8790
+    }
+  ]
+}
