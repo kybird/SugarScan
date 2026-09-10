@@ -214,8 +214,8 @@ def resummarize_components(labels):
             r["by"] = "agent"
             r["confidence"] = "high" if r["brand"] else "low"
             continue
-        devices = {(g.get("brand", ""), g.get("model", "")) for g in got
-                   if g.get("status") == "identified"}
+        devices = {(g.get("brand", ""), g.get("model", ""), g.get("variant", ""))
+                   for g in got if g.get("status") == "identified"}
         unknown = any(g.get("status") == "unknown" for g in got)
         r["by"] = "human"
         r["checked"] = len(got) == len(ids)
@@ -224,7 +224,7 @@ def resummarize_components(labels):
             r["brand"] = r["model"] = ""
         elif len(devices) == 1:
             r["status"] = "identified"
-            (r["brand"], r["model"]) = list(devices)[0]
+            (r["brand"], r["model"], r["variant"]) = list(devices)[0]
         else:
             r["status"] = "unknown" if unknown else ""
             r["brand"] = r["model"] = ""
@@ -239,10 +239,12 @@ def label_vocab(labels):
     for j in labels.values():
         if j.get("status") != "identified":
             continue
-        key = (j.get("brand", "").strip(), j.get("model", "").strip())
+        key = (j.get("brand", "").strip(), j.get("model", "").strip(),
+               j.get("variant", "").strip())
         if not key[0] and not key[1]:
             continue
-        agg = tally.setdefault(key, {"brand": key[0], "model": key[1], "images": 0})
+        agg = tally.setdefault(key, {"brand": key[0], "model": key[1],
+                                     "variant": key[2], "images": 0})
         agg["images"] += 1
     return sorted(tally.values(), key=lambda a: -a["images"])
 
@@ -278,10 +280,11 @@ def palette_vocab(rows, labels):
     타이핑하게 되어 표기가 갈린다 — 없는 기종이 생기는 바로 그 경로다.
     """
     vocab = label_vocab(labels)
-    have = {(v["brand"], v["model"]) for v in vocab}
+    have = {(v["brand"], v["model"], v.get("variant", "")) for v in vocab}
     for v in device_vocab(rows):
-        if (v["brand"], v["model"]) not in have:
-            vocab.append({"brand": v["brand"], "model": v["model"], "images": 0})
+        if (v["brand"], v["model"], "") not in have:
+            vocab.append({"brand": v["brand"], "model": v["model"],
+                          "variant": "", "images": 0})
     return vocab
 
 
@@ -1168,6 +1171,10 @@ class Handler(BaseHTTPRequestHandler):
                 return
             brand = str(body.get("brand", "")).strip()
             model = str(body.get("model", "")).strip()
+            # 같은 모델명으로 팔리는 다른 외형이 실제로 있다(ACCU-CHEK Performa
+            # 은색 각진 버튼 / 빨강 둥근 버튼). 기기 단절 평가는 개체가 갈려야
+            # 성립하므로 외형을 정체성의 일부로 저장한다.
+            variant = str(body.get("variant", "")).strip()
             if status == "identified" and not brand and not model:
                 self._json({"error": "브랜드가 비었다"}, 400)
                 return
@@ -1184,6 +1191,7 @@ class Handler(BaseHTTPRequestHandler):
                     labels[i] = {"id": i,
                                  "brand": brand if status == "identified" else "",
                                  "model": model if status == "identified" else "",
+                                 "variant": variant if status == "identified" else "",
                                  "status": status, "by": "human", "ts": stamp}
             save_device_labels(labels)
             rows = resummarize_components(labels)

@@ -179,8 +179,11 @@
       <div class="fields">
         <input type="text" id="brand" placeholder="브랜드 (예: ACCU-CHEK)" list="brands">
         <input type="text" id="model" placeholder="모델 (예: Performa Nano)" list="models">
+        <input type="text" id="variant" placeholder="외형 구분 (예: 은색 각진버튼 · 빨강 둥근버튼)"
+               list="variants">
         <datalist id="brands"></datalist>
         <datalist id="models"></datalist>
+        <datalist id="variants"></datalist>
       </div>
       <div class="acts">
         <button id="save">선택에 지정 (Enter)</button>
@@ -308,8 +311,12 @@ function viewOf(r) {
     return pos[a] - pos[b];
   });
 }
+/** 화면·검색·정렬에 쓰는 기기 이름. 외형(variant)까지가 한 기기다 —
+ *  같은 모델명으로 팔린 다른 외형을 한 덩어리로 세면 기기 단절 평가가 무너진다. */
 const labelText = j => !j ? '' : j.status === 'unknown' ? '식별 불가'
-                                                        : (j.brand + ' ' + j.model).trim();
+  : [j.brand, j.model, j.variant ? '· ' + j.variant : ''].join(' ').replace(/\s+/g, ' ').trim();
+const vocabText = v => [v.brand, v.model, v.variant ? '· ' + v.variant : '']
+  .join(' ').replace(/\s+/g, ' ').trim();
 
 async function boot() {
   const j = await (await fetch('/api/devicetags')).json();
@@ -480,15 +487,17 @@ function renderPalette() {
   VOCAB.forEach((v, i) => {
     const b = document.createElement('button');
     b.innerHTML = `<span class="key">${i < 9 ? i + 1 : ''}</span>` +
-      `<span>${(v.brand + ' ' + v.model).trim()}</span>` +
+      `<span>${vocabText(v)}</span>` +
       `<span class="cnt">${v.images}장</span>`;
-    b.onclick = () => save({ brand: v.brand, model: v.model });
+    b.onclick = () => save({ brand: v.brand, model: v.model, variant: v.variant || '' });
     p.appendChild(b);
   });
   $('#brands').innerHTML = [...new Set(VOCAB.map(v => v.brand))]
     .map(b => `<option value="${b}">`).join('');
   $('#models').innerHTML = [...new Set(VOCAB.map(v => v.model))]
     .map(m => `<option value="${m}">`).join('');
+  $('#variants').innerHTML = [...new Set(VOCAB.map(v => v.variant).filter(Boolean))]
+    .map(v => `<option value="${v}">`).join('');
 }
 
 function renderStrip() {
@@ -557,7 +566,10 @@ function renderSugg() {
       `<figcaption>${cid} · h${dist}<br>${lbl}</figcaption>`;
     f.onclick = () => {
       const j = LABELS[o.rep];
-      if (j && j.status === 'identified') { $('#brand').value = j.brand; $('#model').value = j.model; }
+      if (j && j.status === 'identified') {
+        $('#brand').value = j.brand; $('#model').value = j.model;
+        $('#variant').value = j.variant || '';
+      }
       heroId = o.rep;
       $('#heroImg').src = '/photo?id=' + encodeURIComponent(o.rep) + '&w=1100';
       $('#heroCap').textContent = cid + ' (후보)';
@@ -574,6 +586,7 @@ function warn(html) {
 
 function saveTyped() {
   const brand = $('#brand').value.trim(), model = $('#model').value.trim();
+  const variant = $('#variant').value.trim();
   if (!brand && !model) { $('#msg').textContent = '브랜드가 비었다 — 식별 불가면 u'; return; }
   // 모델만 적으면 팔레트에 "· Performa Nano" 로 쌓인다. 나중에 같은 기기에
   // 브랜드까지 적는 순간 "· Performa Nano" 와 "ACCU-CHEK · Performa Nano" 가
@@ -584,24 +597,27 @@ function saveTyped() {
          `<button id="goBrand">브랜드 입력으로</button> ` +
          `<button class="ghost" id="modelOnly">그래도 모델만 저장</button>`);
     $('#goBrand').onclick = () => { warn(''); $('#brand').focus(); };
-    $('#modelOnly').onclick = () => { warn(''); save({ brand, model }); };
+    $('#modelOnly').onclick = () => { warn(''); save({ brand, model, variant }); };
     return;
   }
-  const k = keyOf(brand, model);
-  if (!VOCAB.find(v => v.brand === brand && v.model === model)) {
-    const twin = VOCAB.find(v => keyOf(v.brand, v.model) === k);
+  const k = keyOf(brand, model) + '|' + norm(variant);
+  if (!VOCAB.find(v => v.brand === brand && v.model === model &&
+                       (v.variant || '') === variant)) {
+    const twin = VOCAB.find(v => keyOf(v.brand, v.model) + '|' + norm(v.variant || '') === k);
     if (twin) {
       warn(`<b>표기가 갈린다.</b> 이미 <b>${twin.brand} ${twin.model}</b> 로 ` +
            `${twin.images}장이 저장돼 있다. 같은 기기면 기존 표기를 쓰자 — 표기가 둘로 ` +
            `갈리면 없는 기종이 생기고 기기 단절 평가가 무효가 된다. ` +
            `<button id="useTwin">기존 표기로</button> ` +
            `<button class="ghost" id="forceNew">그래도 새 이름으로</button>`);
-      $('#useTwin').onclick = () => { warn(''); save({ brand: twin.brand, model: twin.model }); };
-      $('#forceNew').onclick = () => { warn(''); save({ brand, model }); };
+      $('#useTwin').onclick = () => {
+        warn(''); save({ brand: twin.brand, model: twin.model, variant: twin.variant || '' });
+      };
+      $('#forceNew').onclick = () => { warn(''); save({ brand, model, variant }); };
       return;
     }
   }
-  save({ brand, model });
+  save({ brand, model, variant });
 }
 
 function saveSame() {
@@ -629,7 +645,8 @@ async function save(opt) {
   $('#msg').textContent = `${ids.length}장 저장 중…`;
   const res = await fetch('/api/devicelabel', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids, status, brand: opt.brand || '', model: opt.model || '' })
+    body: JSON.stringify({ ids, status, brand: opt.brand || '', model: opt.model || '',
+                           variant: opt.variant || '' })
   });
   const j = await res.json();
   if (!j.ok) { $('#msg').textContent = '실패: ' + (j.error || res.status); return; }
@@ -637,12 +654,15 @@ async function save(opt) {
   (j.removed || []).forEach(i => delete LABELS[i]);
   if (j.vocab) VOCAB = j.vocab;
   if (j.rows) { ROWS = j.rows; ROWS.forEach(x => BY_ID[x.component] = x); }
-  if (status === 'identified') lastDevice = { brand: opt.brand, model: opt.model };
+  if (status === 'identified') {
+    lastDevice = { brand: opt.brand, model: opt.model, variant: opt.variant || '' };
+  }
   warn('');
   const rest = unlabeled(r);
   $('#msg').innerHTML = `<span style="color:#7ae394">${ids.length}장 ` +
     `${status === 'reset' ? '라벨 지움' : '지정'}</span> ` +
-    (status === 'identified' ? `${opt.brand} ${opt.model}` : '') +
+    (status === 'identified'
+       ? vocabText({ brand: opt.brand, model: opt.model, variant: opt.variant }) : '') +
     ` · 선택 해제됨 (<kbd>z</kbd> 로 방금 ${ids.length}장 다시 선택)` +
     (rest.length ? ` · <b>라벨 없는 사진 ${rest.length}장</b>`
                  : ' · 이 그룹 완료 — 다음은 <kbd>j</kbd>');
@@ -712,7 +732,7 @@ function onKey(e) {
   else if (e.key === '?') $('#help').style.display = 'block';
   else if (/^[1-9]$/.test(e.key)) {
     const v = VOCAB[+e.key - 1];
-    if (v) save({ brand: v.brand, model: v.model });
+    if (v) save({ brand: v.brand, model: v.model, variant: v.variant || '' });
   }
 }
 boot();
