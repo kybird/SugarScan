@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>기종 태그 검토 — G34</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 13px/1.45 "Segoe UI", sans-serif; background: #17191d; color: #d7dae0; }
+  header { position: sticky; top: 0; z-index: 5; background: #1d2025; padding: 10px 14px;
+           border-bottom: 1px solid #2c313a; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  header h1 { font-size: 15px; margin: 0 12px 0 0; }
+  header a { color: #7ab0ff; text-decoration: none; }
+  .muted { color: #8b929d; }
+  .pill { padding: 2px 8px; border-radius: 10px; font-size: 12px; background: #2a2f37; }
+  .pill.agent { background: #41411f; color: #e3e37a; }
+  .pill.human { background: #1f4128; color: #7ae394; }
+  .pill.prio { background: #41261f; color: #ff9a7a; }
+  button { background: #2c5c9e; color: #fff; border: 0; border-radius: 4px;
+           padding: 6px 12px; cursor: pointer; font-size: 13px; }
+  button.ghost { background: #2a2f37; color: #c6ccd6; }
+  button:disabled { opacity: .45; cursor: default; }
+  input[type=text] { background: #101216; color: #d7dae0; border: 1px solid #333a45;
+                     border-radius: 4px; padding: 5px 8px; font-size: 13px; width: 100%; }
+  #bar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(410px, 1fr));
+          gap: 12px; padding: 14px; }
+  .card { background: #1d2025; border: 1px solid #2c313a; border-radius: 8px; overflow: hidden; }
+  .card.done { border-color: #2f5c3c; }
+  .card .top { display: flex; gap: 10px; padding: 8px 10px; align-items: center; flex-wrap: wrap; }
+  .card .cid { font-family: Consolas, monospace; color: #7ab0ff; font-size: 14px; }
+  .card img { width: 100%; height: 240px; object-fit: contain; background: #0d0f12; display: block; }
+  .card .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px 10px; }
+  .card .note { padding: 0 10px 4px; color: #8b929d; font-size: 12px; }
+  .card .actions { display: flex; gap: 8px; padding: 8px 10px; align-items: center; }
+  .saved { color: #7ae394; }
+  #pager { display: flex; gap: 8px; align-items: center; justify-content: center; padding: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>기종 태그 검토 <span class="muted">(G34 · by: agent → human)</span></h1>
+  <a href="/">← 라벨링 툴</a>
+  <div id="counts" class="muted"></div>
+  <div style="flex:1"></div>
+  <div id="bar">
+    <input type="text" id="q" placeholder="검색: c123 / b1/1707 / CareSens" style="width:210px">
+    <button class="ghost f" data-f="prio">우선순위</button>
+    <button class="ghost f" data-f="todo">미확인</button>
+    <button class="ghost f" data-f="done">확인됨</button>
+    <button class="ghost f" data-f="all">전체</button>
+  </div>
+</header>
+<div id="list"></div>
+<div id="pager">
+  <button class="ghost" id="prev">← 이전</button>
+  <span id="pg" class="muted"></span>
+  <button class="ghost" id="next">다음 →</button>
+</div>
+<script>
+'use strict';
+let ROWS = [], PRIO = {}, filter = 'todo', page = 0, per = 40;
+const $ = s => document.querySelector(s);
+
+async function boot() {
+  const r = await fetch('/api/devicetags');
+  const j = await r.json();
+  ROWS = j.rows; PRIO = j.review_priority || {};
+  ROWS.forEach(rw => { rw._prio = PRIO[rw.component] || null; });
+  document.querySelectorAll('.f').forEach(b => b.onclick = () => {
+    filter = b.dataset.f; page = 0; render();
+  });
+  $('#q').oninput = () => { page = 0; render(); };
+  $('#prev').onclick = () => { if (page > 0) { page--; render(); } };
+  $('#next').onclick = () => { page++; render(); };
+  render();
+}
+
+function rows() {
+  const q = $('#q').value.trim().toLowerCase();
+  let out = ROWS;
+  if (filter === 'todo') out = out.filter(r => !r.checked);
+  if (filter === 'done') out = out.filter(r => r.checked);
+  if (filter === 'prio') out = out.filter(r => r._prio && !r.checked);
+  if (q) out = out.filter(r =>
+    (r.component + ' ' + r.rep + ' ' + (r.brand || '') + ' ' + (r.model || ''))
+      .toLowerCase().includes(q));
+  return out;
+}
+
+function render() {
+  const rs = rows();
+  const pages = Math.max(1, Math.ceil(rs.length / per));
+  if (page >= pages) page = pages - 1;
+  const slice = rs.slice(page * per, (page + 1) * per);
+  const done = ROWS.filter(r => r.checked).length;
+  const prioN = ROWS.filter(r => r._prio && !r.checked).length;
+  $('#counts').innerHTML =
+    `전체 <b>${ROWS.length}</b> · 확인 <b>${done}</b> · 미확인 <b>${ROWS.length - done}</b>` +
+    ` · 검토 우선 <b>${prioN}</b>`;
+  $('#pg').textContent = `${page + 1} / ${pages} 페이지 (${rs.length}건)`;
+  const list = $('#list');
+  list.innerHTML = '';
+  for (const r of slice) {
+    const card = document.createElement('div');
+    card.className = 'card' + (r.checked ? ' done' : '');
+    const pr = r._prio ? `<span class="pill prio">후보 ${r._prio.map(p => p[0] + '(' + p[1] + ')').join(' ')}</span>` : '';
+    card.innerHTML = `
+      <div class="top">
+        <span class="cid">${r.component}</span>
+        <span class="pill">${r.size}장</span>
+        <span class="pill">시트 ${r.sheet}·셀 ${r.cell + 1}</span>
+        <span class="pill ${r.by}">by: ${r.by}</span>
+        ${r.checked ? '<span class="pill human">✓ 확인됨</span>' : ''}
+        ${pr}
+        <span class="muted" style="margin-left:auto;font-family:Consolas">${r.rep}</span>
+      </div>
+      <img loading="lazy" src="/api/image?id=${encodeURIComponent(r.rep)}&w=420" alt="">
+      <div class="note">${r.note || ''}</div>
+      <div class="fields">
+        <input type="text" data-k="brand" placeholder="브랜드 (예: CareSens)" value="${(r.brand || '').replace(/"/g, '&quot;')}">
+        <input type="text" data-k="model" placeholder="모델 (예: N · II · Ultra)" value="${(r.model || '').replace(/"/g, '&quot;')}">
+      </div>
+      <div class="actions">
+        <button>저장 (사람 확인)</button>
+        <span class="msg muted"></span>
+      </div>`;
+    const btn = card.querySelector('button');
+    const msg = card.querySelector('.msg');
+    const save = async () => {
+      btn.disabled = true;
+      const brand = card.querySelector('[data-k=brand]').value;
+      const model = card.querySelector('[data-k=model]').value;
+      const res = await fetch('/api/devicetag', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ component: r.component, brand, model,
+                               note: '사람 확인 ' + new Date().toISOString().slice(0, 10) })
+      });
+      const j = await res.json();
+      btn.disabled = false;
+      if (j.ok) {
+        Object.assign(r, j.row); r.checked = true;
+        msg.textContent = '저장됨'; msg.className = 'msg saved';
+        card.classList.add('done');
+        card.querySelector('.top').innerHTML += '<span class="pill human">✓ 확인됨</span>';
+      } else msg.textContent = '실패: ' + (j.error || res.status);
+    };
+    btn.onclick = save;
+    card.querySelectorAll('input').forEach(i => i.onkeydown = e => {
+      if (e.key === 'Enter') save();
+    });
+    list.appendChild(card);
+  }
+}
+boot();
+</script>
+</body>
+</html>
