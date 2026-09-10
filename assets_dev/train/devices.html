@@ -515,6 +515,17 @@ async function save(opt) {
   const r = cur(); if (!r) return;
   if (!sel.size) { $('#msg').textContent = '선택된 사진이 없다 — a(전체) / r(남은 것만)'; return; }
   const status = opt.status || 'identified';
+  // 라벨 지우기는 되돌릴 수 없다. 선택이 많으면 한 번 묻는다 — 배지 클릭이나
+  // a 로 선택이 커진 것을 모르고 x 를 누르면 통째로 날아간다.
+  if (status === 'reset' && sel.size > 5 && !opt.confirmed) {
+    warn(`<b>${sel.size}장</b>의 라벨을 지운다. 선택이 그만큼 커져 있다 — ` +
+         `지금 선택된 것만 지워진다. ` +
+         `<button id="doWipe">${sel.size}장 지우기</button> ` +
+         `<button class="ghost" id="noWipe">취소</button>`);
+    $('#doWipe').onclick = () => { warn(''); save({ status: 'reset', confirmed: true }); };
+    $('#noWipe').onclick = () => warn('');
+    return;
+  }
   const ids = [...sel];
   $('#msg').textContent = `${ids.length}장 저장 중…`;
   const res = await fetch('/api/devicelabel', {
@@ -530,15 +541,15 @@ async function save(opt) {
   if (status === 'identified') lastDevice = { brand: opt.brand, model: opt.model };
   warn('');
   const rest = unlabeled(r);
-  $('#msg').innerHTML = `<span style="color:#7ae394">${ids.length}장 지정</span> ` +
-    (status === 'identified' ? `${opt.brand} ${opt.model}` : status) +
+  $('#msg').innerHTML = `<span style="color:#7ae394">${ids.length}장 ` +
+    `${status === 'reset' ? '라벨 지움' : '지정'}</span> ` +
+    (status === 'identified' ? `${opt.brand} ${opt.model}` : '') +
     (rest.length ? ` · <b>${rest.length}장 남음</b>`
                  : ' · 이 성분 완료 — 그대로 두고 골라내도 되고, 다음은 <kbd>j</kbd>');
-  // 자동으로 넘어가지 않는다. 전부 한 기기로 찍어 두고 그 안에서 다른 기기를
-  // 골라내는 것이 정상 흐름이고, 다 찍자마자 화면이 넘어가면 그 작업을 할 수
-  // 없다. 다음 성분으로는 j 로 직접 간다.
-  if (rest.length) selectRest();
-  else sel.clear();
+  // 선택은 저장 뒤에도 그대로 둔다. 여기서 선택을 갈아치우면(예: '아직 라벨
+  // 없는 사진 전부'로) 사용자가 고른 적 없는 사진이 조용히 선택되고, 바로
+  // 다음에 누른 키가 그 전부에 적용된다. 선택은 오직 사용자의 행동으로만
+  // 바뀐다 — 클릭 · a · r · Esc · Space, 그리고 다른 성분으로 이동할 때.
   render();
 }
 
