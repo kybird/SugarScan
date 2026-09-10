@@ -306,8 +306,15 @@ function list() {
       !unlabeled(r).length && r.status !== 'mixed' && !heldCount(r));
     if (filter === 'mixed') out = out.filter(r => r.status === 'mixed');
   } else {
-    out = out.filter(r => (r.component + ' ' + r.rep + ' ' + (r.brand || '') +
-                           ' ' + (r.model || '')).toLowerCase().includes(q));
+    // 사진에 붙은 기기명으로도 찾는다. 성분 요약은 섞인 성분에서 비어 있어서,
+    // 그 안의 한 장에 붙인 기기로는 찾을 수 없으면 다시 가 볼 방법이 없다.
+    out = out.filter(r => {
+      const head = (r.component + ' ' + r.rep + ' ' + (r.brand || '') +
+                    ' ' + (r.model || '')).toLowerCase();
+      if (head.includes(q)) return true;
+      return memberOf(r).some(i => LABELS[i] &&
+        labelText(LABELS[i]).toLowerCase().includes(q));
+    });
   }
   // 큰 성분부터 — 한 번의 판정이 가장 많은 사진을 덮는다.
   out = out.slice().sort((a, b) => b.size - a.size);
