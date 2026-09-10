@@ -156,41 +156,50 @@ class _SummaryCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            // G9: Row 였다. 건수 문구가 언어에 따라 길면("2 Messwerte")
+            // Expanded 가 평균 영역을 몰아세워 값+단위 행이 넘친다(실측 —
+            // en 0.5px, de 15px). Wrap 으로 바꿔 평균 블록을 자연 폭으로 두고
+            // 건수가 길면 다음 줄로 흘려 보낸다 — 값·단위는 자르지 않는다.
+            Wrap(
+              spacing: 12,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(l10n.statsMean, style: theme.textTheme.titleSmall),
-                      const SizedBox(height: 4),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                        textBaseline: TextBaseline.alphabetic,
-                        children: [
-                          Text(
-                            show(summary.meanMgdl),
-                            style: theme.textTheme.displaySmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              fontFeatures: const [FontFeature.tabularFigures()],
-                            ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(l10n.statsMean, style: theme.textTheme.titleSmall),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text(
+                          show(summary.meanMgdl),
+                          style: theme.textTheme.displaySmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            fontFeatures: const [FontFeature.tabularFigures()],
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            unit.symbol,
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(color: scheme.onSurfaceVariant),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          unit.symbol,
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(color: scheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                Text(
-                  l10n.statsReadingCount(summary.count),
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: scheme.onSurfaceVariant),
+                Padding(
+                  padding: const EdgeInsets.only(top: 22),
+                  child: Text(
+                    l10n.statsReadingCount(summary.count),
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(color: scheme.onSurfaceVariant),
+                  ),
                 ),
               ],
             ),

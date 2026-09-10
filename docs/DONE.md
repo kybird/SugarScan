@@ -338,3 +338,17 @@ GM 박스가 화면에 밀착해 있다는 전제 위에 서 있는데, 이 13�
 (`patterns/frame-provenance-binding`) — ow/oh 없는 `gmscreen_quads.jsonl` 을
 있는 `band_boxes.jsonl` 위에 그냥 얹으면 2431 같은 가로 사진이 조용히 깨진다.
 ②상자 수치를 인용할 때 **어느 라벨 파일인지 같이 적는다.**
+
+## G9 — 6개 언어 글자 넘침 점검 (2026-09-10)
+
+무인 세션이라 Windows 빌드+눈 대신 **RenderFlex overflow=테스트 실패** 신호로
+8화면×6언어×390×844=48케이스 하네스. → [`G9-locale-overflow.md`](reports/G9-locale-overflow.md)
+
+**실제 넘침 1건 발견·수정**: 통계 요약 카드 — 건수 문구("2 Messwerte")가
+Expanded 를 몰아 값+단위 행을 넘침(en 0.5px~de 15px, ko·fr 는 통과). 바깥
+Row→Wrap(방식③)+값 Row mainAxisSize.min. 값·단위 절단 없음. Flexible(방식②)
+첫 시도는 flex 이등분으로 악화(17px) — 방식 선택은 실측으로.
+
+**다시 나지 않게 하는 것**: 언어별 넘침은 이제 게이트다 — locale_overflow_test
+에 화면·언어를 추가하기만 하면 된다. Wrap 안의 Row 는 mainAxisSize.min 필수
+(무제한 폭에서 max 는 무한 확장).
