@@ -338,3 +338,18 @@ GM 박스가 화면에 밀착해 있다는 전제 위에 서 있는데, 이 13�
 (`patterns/frame-provenance-binding`) — ow/oh 없는 `gmscreen_quads.jsonl` 을
 있는 `band_boxes.jsonl` 위에 그냥 얹으면 2431 같은 가로 사진이 조용히 깨진다.
 ②상자 수치를 인용할 때 **어느 라벨 파일인지 같이 적는다.**
+
+## G10 — 접근성 라벨 나머지 화면 요소 (2026-09-10)
+
+G6 이 남긴 네 대상 중 세 곳 완료. → [`G10-accessibility-rest.md`](reports/G10-accessibility-rest.md)
+
+태그별 평균 행(한 문장 낭독·reading_tile 관용구)·설정 라디오 그룹 두 곳(보이는
+섹션 제목 = 그룹 라벨, 제목 노드는 중복 낭독 제외)·스와이프 삭제의 커스텀
+액션("삭제" — 스와이프 배경과 같은 문구·같은 _delete 경로). 새 l10n 키 0개.
+기간 SegmentedButton 은 그룹 라벨로 쓸 **보이는 문구가 없어** 키 추가 없이는
+불가 — 보고만(사람 결정 대기).
+
+**다시 나지 않게 하는 것**: 커스텀 의미론 액션은 게터가 없어 위젯 트리 검증이
+안 된다 — 뷰 owner 의 의미론 루트 덤프(customActions 문자열)로 검증하는 관용구를
+`history_screen_test` 에 남겼다. 노드 라벨은 병합되므로 `bySemanticsLabel` 은
+정확 일치가 아니라 RegExp 로.

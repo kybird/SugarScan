@@ -250,4 +250,28 @@ void main() {
     handle.dispose();
     await unmount(tester);
   });
+
+  // G10 — 태그별 평균 행도 요약 카드와 같은 관용구로 한 문장 낭독.
+  // 라벨은 행에 보이는 내용(태그, 평균 값·단위)과 같다.
+  testWidgets('태그별 평균 행이 한 문장으로 읽힌다', (tester) async {
+    final handle = tester.ensureSemantics();
+
+    await add(100, tag: MeasurementTag.fasting);
+    await pumpStats(tester);
+
+    // 목록은 화면 아래쪽이다 — 뷰포트 밖 ListView 자식은 만들어지지 않는다.
+    await tester.scrollUntilVisible(
+      find.bySemanticsLabel(RegExp('Fasting, 100 mg/dL')),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    expect(
+      find.bySemanticsLabel(RegExp('Fasting, 100 mg/dL')),
+      findsOneWidget,
+    );
+
+    handle.dispose();
+    await unmount(tester);
+  });
 }

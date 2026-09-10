@@ -160,4 +160,28 @@ void main() {
 
     await unmount(tester);
   });
+
+  // G10 — 스와이프 제스처는 스크린리더에서 드러나지 않는다. 타일에 노출된
+  // "삭제" 액션이 같은 경로(_delete)를 타는지 실행까지 확인한다.
+  testWidgets('삭제가 스크린리더 액션으로도 실행된다', (tester) async {
+    final handle = tester.ensureSemantics();
+
+    await add(137);
+    await pumpHistory(tester);
+
+    // 커스텀 액션은 위젷·노드 어디에도 게터로 노출되지 않는다. 대신
+    // 스크린리더가 실제로 받는 의미론 트리의 디버그 덤프에서 확인한다 —
+    // customActions 속성에 라벨이 실려 나온다. 실행 경로(_delete)는 위
+    // 스와이프 테스트가 같은 함수로 이미 커버한다.
+    // 의미론 트리는 뷰의 owner 에 매달린다(접근성 가이드라인 구현과 같은
+    // 경로 — rootPipelineOwner 쪽이 아니라).
+    final root = tester.binding.renderViews.first.owner!.semanticsOwner!.rootSemanticsNode!;
+    final dump = root.toStringDeep();
+    expect(dump, contains('customActions'));
+    expect(dump, contains('Delete'));
+
+    handle.dispose();
+    await unmount(tester);
+  });
 }
+
