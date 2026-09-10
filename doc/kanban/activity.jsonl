@@ -16,3 +16,5 @@
 {"ts":"2026-09-10T07:09:58.794Z","action":"done","title":"분할 누수 감사"}
 {"ts":"2026-09-10T07:10:11.748Z","action":"claimed","title":"스캔 글레어 게이트","actor":"unnamed-agent"}
 {"ts":"2026-09-10T07:15:33.003Z","action":"done","title":"스캔 글레어 게이트"}
+{"ts":"2026-09-10T07:15:42.812Z","action":"claimed","title":"CTC 리더 ONNX 내보내기 파리티","actor":"unnamed-agent"}
+{"ts":"2026-09-10T07:31:46.251Z","action":"done","title":"CTC 리더 ONNX 내보내기 파리티"}
