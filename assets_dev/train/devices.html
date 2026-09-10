@@ -191,6 +191,7 @@
         <div class="k"><kbd>a</kbd></div><div class="d">이 그룹 전체 선택</div>
         <div class="k"><kbd>r</kbd></div><div class="d">아직 라벨 없는 것만 선택</div>
         <div class="k"><kbd>h</kbd></div><div class="d">보류(식별 불가)로 남긴 것만 선택</div>
+        <div class="k"><kbd>z</kbd></div><div class="d">방금 지정한 사진을 다시 선택 (고쳐 찍을 때)</div>
         <div class="k"><kbd>Esc</kbd></div><div class="d">선택 해제</div>
 
         <div class="hd">지정 — 선택한 사진에만 적용된다</div>
@@ -234,6 +235,8 @@
     <tr><td><kbd>u</kbd></td><td>식별 불가(보류) — 봤지만 기종을 못 정함.
       기록이 남아 '보류' 필터·<kbd>h</kbd> 로 다시 찾아온다</td></tr>
     <tr><td><kbd>h</kbd></td><td>이 그룹의 보류 사진만 선택</td></tr>
+    <tr><td><kbd>z</kbd></td><td>방금 지정한 사진을 다시 선택 — 지정하면 선택은 해제되므로,
+      바로 고쳐 찍을 때 쓴다</td></tr>
     <tr><td><kbd>x</kbd></td><td>선택한 사진의 라벨 지우기 — 라벨이 없는 상태로
       되돌아가므로 아직 안 본 사진과 구별되지 않는다. 6장 이상이면 한 번 묻는다</td></tr>
     <tr><td><kbd>j</kbd> / <kbd>k</kbd></td><td>다음 / 이전 그룹</td></tr>
@@ -250,7 +253,7 @@
 const $ = s => document.querySelector(s);
 let ROWS = [], BY_ID = {}, MEMBERS = {}, LABELS = {}, VOCAB = [], NEAR = {}, PRIO = {};
 let filter = 'todo', curId = null, stripPage = 0, heroId = null, lastDevice = null;
-let sel = new Set(), lastClick = null;
+let sel = new Set(), lastClick = null, lastSel = null;
 const PER_STRIP = 60;
 
 /** 표기 흔들림 탐지용 정규화 — 대소문자·공백·구분자·로마숫자를 지운다. */
@@ -574,12 +577,15 @@ async function save(opt) {
   $('#msg').innerHTML = `<span style="color:#7ae394">${ids.length}장 ` +
     `${status === 'reset' ? '라벨 지움' : '지정'}</span> ` +
     (status === 'identified' ? `${opt.brand} ${opt.model}` : '') +
-    (rest.length ? ` · <b>${rest.length}장 남음</b>`
-                 : ' · 이 그룹 완료 — 그대로 두고 골라내도 되고, 다음은 <kbd>j</kbd>');
-  // 선택은 저장 뒤에도 그대로 둔다. 여기서 선택을 갈아치우면(예: '아직 라벨
-  // 없는 사진 전부'로) 사용자가 고른 적 없는 사진이 조용히 선택되고, 바로
-  // 다음에 누른 키가 그 전부에 적용된다. 선택은 오직 사용자의 행동으로만
-  // 바뀐다 — 클릭 · a · r · Esc · Space, 그리고 다른 성분으로 이동할 때.
+    ` · 선택 해제됨 (<kbd>z</kbd> 로 방금 ${ids.length}장 다시 선택)` +
+    (rest.length ? ` · <b>라벨 없는 사진 ${rest.length}장</b>`
+                 : ' · 이 그룹 완료 — 다음은 <kbd>j</kbd>');
+  // 지정이 끝나면 선택을 비운다. 남겨 두면 방금 처리한 사진이 계속 선택된
+  // 채라 다음 키가 어디에 적용될지 헷갈리고, 잘못 누르면 그대로 덮어쓴다.
+  // 다른 것으로 갈아치우지는 않는다 — 고른 적 없는 사진이 선택되는 쪽이
+  // 훨씬 위험하다(그 버그로 라벨이 지워졌었다). 방금 것은 z 로 되잡는다.
+  lastSel = new Set(ids);
+  sel.clear();
   render();
 }
 
@@ -608,6 +614,13 @@ function onKey(e) {
   else if (e.key === 'k') { e.preventDefault(); move(-1); }
   else if (e.key === 'a') { selectAll(); render(); }
   else if (e.key === 'r') { selectRest(); render(); }
+  else if (e.key === 'z') {  // 방금 지정한 사진을 다시 선택 — 고쳐 찍을 때
+    if (lastSel && lastSel.size) {
+      const c = cur(); const m = c ? memberOf(c) : [];
+      sel = new Set([...lastSel].filter(i => m.includes(i)));
+      heroId = [...sel][0] || heroId; render();
+    } else $('#msg').textContent = '방금 지정한 것이 없다';
+  }
   else if (e.key === 'h') {  // 이 그룹의 보류(식별 불가)만 선택 — 다시 판정할 때
     const c = cur(); if (c) { sel = new Set(held(c)); heroId = [...sel][0] || heroId; render(); }
   }
