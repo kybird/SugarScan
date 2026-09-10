@@ -69,7 +69,7 @@ void main(List<String> args) async {
 
   stdout.writeln('${labels.length}장 …');
 
-  final engine = SegmentRuleEngine();
+  final engine = SegmentRuleEngine(normalizeToInk: opts.normalizeInk);
   await engine.initialize(const OcrEngineConfig());
 
   final report = _Report();
@@ -106,6 +106,7 @@ void main(List<String> args) async {
     datasetPath: opts.datasetPath,
     dumpFailures: opts.dumpFailures,
     wall: wall,
+    normalizeInk: opts.normalizeInk,
   );
 
   stdout
@@ -333,6 +334,7 @@ class _Report {
     required String datasetPath,
     required int dumpFailures,
     required Stopwatch wall,
+    required bool normalizeInk,
   }) {
     final b = StringBuffer();
 
@@ -341,6 +343,7 @@ class _Report {
       ..writeln()
       ..writeln('- 데이터셋: `$datasetPath` (G16 합성 장면)')
       ..writeln('- 실행: ${DateTime.now().toIso8601String()}')
+      ..writeln('- 잉크 정규화(G19): ${normalizeInk ? "켬" : "끔"}')
       ..writeln(
         '- 대상: `SegmentRuleEngine.recognize()` 전체 경로 — 품질 게이트 → '
         '이진화 → 자릿수 분할 → 조립',
@@ -520,6 +523,7 @@ class _Options {
     required this.outPath,
     required this.limit,
     required this.dumpFailures,
+    required this.normalizeInk,
   });
 
   final String datasetPath;
@@ -527,11 +531,15 @@ class _Options {
   final int limit;
   final int dumpFailures;
 
+  /// G19 — 세그먼트 기하를 셀이 아니라 셀 안 잉크 경계 상자에 맞춘다.
+  final bool normalizeInk;
+
   static _Options? parse(List<String> args) {
     String? dataset;
     String? out;
     var limit = 0;
     var dump = 12;
+    var normalizeInk = false;
 
     for (var i = 0; i < args.length; i++) {
       switch (args[i]) {
@@ -543,6 +551,8 @@ class _Options {
           limit = int.tryParse(_next(args, i++) ?? '') ?? 0;
         case '--dump-failures':
           dump = int.tryParse(_next(args, i++) ?? '') ?? 12;
+        case '--normalize-ink':
+          normalizeInk = true;
         case '-h':
         case '--help':
           _usage();
@@ -559,6 +569,7 @@ class _Options {
       outPath: out,
       limit: limit,
       dumpFailures: dump,
+      normalizeInk: normalizeInk,
     );
   }
 
@@ -575,6 +586,7 @@ class _Options {
   --out <파일>           리포트를 마크다운으로 적는다
   --limit N              일정 간격으로 N 장만 (빠른 확인용)
   --dump-failures N      오독 사례 N 건을 표로 적는다 (기본 12)
+  --normalize-ink        세그먼트 기하를 잉크 경계 상자에 맞춘다 (G19, 기본 끔)
 ''');
   }
 }
