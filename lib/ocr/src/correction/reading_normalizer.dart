@@ -46,6 +46,11 @@ class ReadingNormalizer {
   static final RegExp _high = RegExp(r'^(HI|HIGH|H1)$');
   static final RegExp _low = RegExp(r'^(LO|LOW)$');
 
+  /// 혈당계 에러 표시(`E-1` · `ERR-5` · `ERROR2` 계열). `^$` 가 없으면
+  /// `123E` 같은 정상 판독의 일부를 삼켜 버린다.
+  static final RegExp _errorCode =
+      RegExp(r'^(E-?\d{1,2}|ER{1,2}-?\d{0,2}|ERROR\d{0,2})$');
+
   /// 7-세그먼트에서 흔한 글자 오인식.
   static const Map<String, String> _confusions = {
     'O': '0',
@@ -77,6 +82,16 @@ class ReadingNormalizer {
     }
     if (_high.hasMatch(compact)) {
       return const MeterRangeReading(MeterRangeKind.high);
+    }
+
+    // 에러 표시도 같은 구간(글자 교정 앞)에서 가려낸다. `E-1` 을 교정까지
+    // 흘려 보내면 E 가 떨어져 나가 `1` 이 되고, mmol/L 하한(0.6)을 통과해
+    // 멀쩡한 혈당값으로 저장된다. mg/dL 하한(10)이 우연히 막아 주는 것과
+    // 달리 단위에 따라 구멍이 열리니 검증기가 아니라 여기서 막아야 한다.
+    // 상태로 기록하지도 않는다 — 에러 코드는 혈당 정보가 없고 뜻이
+    // 제조사마다 다르다.
+    if (_errorCode.hasMatch(compact)) {
+      return const UnreadableReading();
     }
 
     // ③ 이제 글자를 숫자로 교정한다.
