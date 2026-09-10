@@ -67,8 +67,14 @@
   aside h2 { font-size: 12px; margin: 0 0 8px; color: #8b929d; text-transform: uppercase;
              letter-spacing: .05em; }
   .palette { display: flex; flex-direction: column; gap: 3px; max-height: 260px; overflow-y: auto; }
+  .palette { max-height: 320px; }
   .palette button { display: flex; gap: 8px; align-items: center; text-align: left;
-                    background: #23272e; color: #d7dae0; padding: 5px 8px; }
+                    background: #23272e; color: #d7dae0; padding: 4px 8px 4px 4px; }
+  .palette img { width: 38px; height: 46px; object-fit: cover; border-radius: 3px;
+                 background: #0d0f12; flex: none; }
+  .palette .nm { line-height: 1.25; }
+  .palette .nm i { font-style: normal; color: #8b929d; display: block; font-size: 11px; }
+  .palette .warnv { color: #ffb99a; }
   .palette button:hover { background: #2c5c9e; color: #fff; }
   .palette .key { font-family: Consolas, monospace; color: #7ab0ff; width: 14px; flex: none; }
   .palette .cnt { margin-left: auto; color: #8b929d; font-size: 11px; }
@@ -484,11 +490,32 @@ function renderPalette() {
   if (!VOCAB.length) {
     p.innerHTML = '<span class="muted">아직 쓴 이름이 없다 — 아래에 직접 입력하면 여기 쌓인다.</span>';
   }
+  // 같은 브랜드+모델이 외형만 다른 채로 여럿 있으면 글자로는 구별이 안 된다.
+  // 대표 사진을 붙이고, 외형이 비어 있는 항목은 눈에 띄게 표시한다.
+  const rep = {};
+  for (const [id, j] of Object.entries(LABELS)) {
+    if (j.status !== 'identified') continue;
+    const k = vocabText(j);
+    if (!(k in rep)) rep[k] = id;
+  }
+  const sameName = {};
+  VOCAB.forEach(v => {
+    const nm = (v.brand + ' ' + v.model).trim();
+    sameName[nm] = (sameName[nm] || 0) + 1;
+  });
   VOCAB.forEach((v, i) => {
+    const k = vocabText(v);
+    const nm = (v.brand + ' ' + v.model).trim();
+    const ambiguous = !v.variant && sameName[nm] > 1;
     const b = document.createElement('button');
     b.innerHTML = `<span class="key">${i < 9 ? i + 1 : ''}</span>` +
-      `<span>${vocabText(v)}</span>` +
-      `<span class="cnt">${v.images}장</span>`;
+      (rep[k] ? `<img loading="lazy" src="/photo?id=${encodeURIComponent(rep[k])}&w=120">`
+              : '<span style="width:38px;flex:none"></span>') +
+      `<span class="nm">${(v.brand + ' ' + v.model).trim()}` +
+      (v.variant ? `<i>· ${v.variant}</i>`
+                 : ambiguous ? '<i class="warnv">· 외형 미지정 — 갈라야 함</i>' : '') +
+      `</span><span class="cnt">${v.images}장</span>`;
+    b.title = k;
     b.onclick = () => save({ brand: v.brand, model: v.model, variant: v.variant || '' });
     p.appendChild(b);
   });
