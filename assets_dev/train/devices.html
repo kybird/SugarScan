@@ -44,7 +44,10 @@
              border-radius: 4px; font-size: 12px; }
   #strip { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px; overflow-y: auto;
            background: #1a1d22; border-top: 1px solid #2c313a; max-height: 42vh;
-           align-content: flex-start; }
+           /* 창이 좁으면 hero 가 공간을 다 먹고 스트립이 13px 까지 눌렸다.
+              그러면 ←/→ 로 이동해도 썸네일이 화면에 없어 안 움직이는 것처럼 보인다. */
+           min-height: 190px; flex: 0 0 auto; align-content: flex-start; }
+  #hero { min-height: 120px; }
   .th { position: relative; width: 74px; flex: none; cursor: pointer; }
   .th img { height: 90px; width: 74px; object-fit: cover; border: 2px solid #2c313a;
             border-radius: 3px; background: #0d0f12; display: block; }
@@ -442,7 +445,7 @@ function renderStrip() {
   const slice = mem.slice(stripPage * PER_STRIP, (stripPage + 1) * PER_STRIP);
   if (!heroId || !mem.includes(heroId)) heroId = slice[0];
   $('#heroImg').src = '/photo?id=' + encodeURIComponent(heroId) + '&w=1100';
-  $('#heroCap').textContent = heroId;
+  $('#heroCap').textContent = `${mem.indexOf(heroId) + 1} / ${mem.length}   ${heroId}`;
   const hj = LABELS[heroId];
   $('#heroLbl').innerHTML = hj ? `<span class="pill ${hj.status === 'unknown' ? 'unknown' : 'human'}">` +
     `${labelText(hj)}</span>` : '<span class="pill">라벨 없음</span>';
@@ -469,6 +472,7 @@ function renderStrip() {
       heroId = id; render();
     };
     s.appendChild(d);
+    if (id === heroId) requestAnimationFrame(() => d.scrollIntoView({ block: 'nearest' }));
   });
 }
 
