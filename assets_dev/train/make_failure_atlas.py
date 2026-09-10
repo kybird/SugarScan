@@ -324,6 +324,9 @@ class ReviewStore:
         self.known = set(known_ids)
         self.lock = threading.Lock()
         self.review = review_load(self.path)
+        # 이 실행에서 사람이 실제로 고친 id — 디스크와 병합할 때 이것만
+        # 메모리 값을 우선한다(위 apply 주석 참조).
+        self.touched = set()
 
     def get(self):
         with self.lock:
@@ -343,7 +346,18 @@ class ReviewStore:
             rec.update(note=note, by="human", checked=bool(checked),
                        ts=datetime.now(timezone.utc).isoformat(
                            timespec="seconds"))
-            self.review[rid] = rec
+            # 저장 직전에 디스크를 다시 읽어 병합한다. 시작 시 한 번 읽은
+            # 메모리 사본을 그대로 덮어쓰면, 서버가 뜬 뒤 파일에 들어온 판정이
+            # **다음 저장 한 번에 통째로 사라진다.** 2026-09-09 에 실제로
+            # 11건이 1건으로 덮였고 .bak 이 아니었으면 복구 못 했다
+            # (.bak 은 `not bak.exists()` 라 평생 한 번만 쓰인다).
+            # 이 서버가 이 실행 중에 쓴 판정만 디스크보다 우선한다.
+            disk = review_load(self.path)
+            disk.update({k: v for k, v in self.review.items()
+                         if k in self.touched})
+            disk[rid] = rec
+            self.review = disk
+            self.touched.add(rid)
             review_save_atomic(self.path, self.review)
             return dict(rec)
 

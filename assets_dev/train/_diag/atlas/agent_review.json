@@ -24,12 +24,11 @@
   "cause": "detection"
  },
  "glucose_batch1/1565": {
-  "det": "cut",
-  "note": "사람 확인: 숫자 잘림",
+  "det": "orient",
+  "note": "사람 확인 2026-09-09: 1564 와 같은 OneTouch UltraMini·같은 배경, 표시 내용 90° 회전 숫자 머리 오른쪽. 잘림도 있으나 방향이 먼저다(1564 와 동일 판단). 어제 판정 cut 에서 변경.",
   "by": "human",
   "checked": true,
-  "ts": "2026-09-09T05:12:09+00:00",
-  "cause": "detection"
+  "ts": "2026-09-10T03:30:54+00:00"
  },
  "glucose_batch1/1593": {
   "det": "cut",
