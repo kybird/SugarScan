@@ -161,6 +161,27 @@ def save_device_tags(rows):
     tmp.replace(DEVICE_TAGS)
 
 
+def device_vocab(rows):
+    """이미 쓴 (브랜드, 모델) 목록 — 사용 빈도 순.
+
+    자유 입력만 두면 같은 기기가 CareSens II / Caresens 2 / 케어센스 II 로
+    갈려 없는 기종이 생기고, 기기 단절 평가(LODO)가 조용히 무효가 된다.
+    그래서 화면의 기본 경로는 '이미 쓴 이름 고르기'이고, 이 목록이 그 원천이다.
+    """
+    tally = {}
+    for r in rows:
+        if not r.get("brand") and not r.get("model"):
+            continue
+        key = (r.get("brand", "").strip(), r.get("model", "").strip())
+        agg = tally.setdefault(key, {"brand": key[0], "model": key[1],
+                                     "components": 0, "images": 0, "human": 0})
+        agg["components"] += 1
+        agg["images"] += int(r.get("size", 0))
+        if r.get("by") == "human":
+            agg["human"] += 1
+    return sorted(tally.values(), key=lambda a: (-a["human"], -a["images"]))
+
+
 @route("/api/devicetags")
 def api_devicetags(qs):
     rows = load_device_tags()
@@ -168,7 +189,25 @@ def api_devicetags(qs):
     sp = HERE / "_diag" / "device_tags" / "summary.json"
     if sp.exists():
         summary = json.loads(sp.read_text(encoding="utf-8"))
+    # 성분 구성원 — 대표 1장으로는 성분이 순수한지 알 수 없다. 723장짜리
+    # 성분도 넘겨 볼 수 있게 전부 넘긴다(2,494개 문자열, 수십 KB).
+    members = {}
+    mp = HERE / "_diag" / "scene_components.json"
+    if mp.exists():
+        members = json.loads(mp.read_text(encoding="utf-8"))
+    # 같은 기기 후보는 '제안'으로만 쓴다. 임계 9 에서도 11% 가 다른 기기를
+    # 섞었다(docs/reports/premerge-device-components.md) — 절대 자동 적용하지 않는다.
+    near = {}
+    for pair in summary.get("near_pairs", []):
+        if pair.get("dist", 99) <= 11:
+            near.setdefault(pair["a"], []).append([pair["b"], pair["dist"]])
+            near.setdefault(pair["b"], []).append([pair["a"], pair["dist"]])
+    for k in near:
+        near[k].sort(key=lambda x: x[1])
     return {"rows": rows,
+            "members": members,
+            "vocab": device_vocab(rows),
+            "near": near,
             "review_priority": summary.get("review_priority", {})}
 
 
@@ -879,6 +918,21 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 self._send(404, "devices.html 없음".encode(), "text/plain")
             return
+        if u.path == "/photo":
+            # <img src> 가 한 번에 쓸 수 있는 이진 응답. /api/image 는 JSON 으로
+            # {url: /cache/...} 를 주는 라우트라 img 태그에 직접 물리면 깨진다
+            # (G34 devices.html 이 그렇게 깨져 있었다). 캐시 생성 로직은
+            # api_image 를 그대로 재사용한다 — 리사이즈 규약이 갈리면 안 된다.
+            meta = api_image(qs)
+            if "error" in meta:
+                self._send(404, str(meta["error"]).encode(), "text/plain; charset=utf-8")
+                return
+            f = CACHE / Path(meta["url"]).name
+            if not f.exists():
+                self._send(404, b"cache miss", "text/plain")
+                return
+            self._send(200, f.read_bytes(), "image/jpeg")
+            return
         if u.path.startswith("/api/"):
             fn = ROUTES.get(u.path)
             if fn is None:
@@ -1001,20 +1055,43 @@ class Handler(BaseHTTPRequestHandler):
             if not (comp.startswith("c") and comp[1:].isdigit()):
                 self._json({"error": "bad component"}, 400)
                 return
+            # status: identified(기종 확정) · unknown(확인했지만 식별 불가)
+            #         · mixed(성분 안에 여러 기기) · reset(확인 되돌리기)
+            status = str(body.get("status", "identified"))
+            if status not in ("identified", "unknown", "mixed", "reset"):
+                self._json({"error": "bad status"}, 400)
+                return
             rows = load_device_tags()
             for r in rows:
                 if r["component"] == comp:
-                    # 사람이 저장하는 순간 판정 주체는 human(아틀라스 규약).
-                    # 빈 브랜드로 저장하면 "확인했지만 식별 불가"로 남는다.
-                    r["brand"] = str(body.get("brand", r.get("brand", ""))).strip()
-                    r["model"] = str(body.get("model", r.get("model", ""))).strip()
-                    if body.get("note") is not None:
-                        r["note"] = str(body["note"])
-                    r["confidence"] = "high"
-                    r["by"] = "human"
-                    r["checked"] = True
+                    if status == "reset":
+                        # 잘못 저장한 것을 되돌린다. 라벨은 지우고 미확인으로.
+                        r["brand"] = ""
+                        r["model"] = ""
+                        r["status"] = ""
+                        r["confidence"] = "low"
+                        r["by"] = "human"
+                        r["checked"] = False
+                        r["note"] = "사람이 확인 취소 " + time.strftime("%Y-%m-%d")
+                    else:
+                        # 사람이 저장하는 순간 판정 주체는 human(아틀라스 규약).
+                        # identified 가 아니면 브랜드를 비워 둔다 — 억지로 한
+                        # 기종을 고르게 만들면 그 순간 라벨이 거짓이 된다.
+                        if status == "identified":
+                            r["brand"] = str(body.get("brand", "")).strip()
+                            r["model"] = str(body.get("model", "")).strip()
+                        else:
+                            r["brand"] = ""
+                            r["model"] = ""
+                        r["status"] = status
+                        r["confidence"] = "high"
+                        r["by"] = "human"
+                        r["checked"] = True
+                        if body.get("note") is not None:
+                            r["note"] = str(body["note"])
                     save_device_tags(rows)
-                    self._json({"ok": True, "row": r})
+                    self._json({"ok": True, "row": r,
+                                "vocab": device_vocab(rows)})
                     return
             self._json({"error": "no such component"}, 404)
             return

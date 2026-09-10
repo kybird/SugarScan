@@ -2,154 +2,403 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<title>기종 태그 검토 — G34</title>
+<title>기종 라벨링 — 성분 전량 검토</title>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
-  body { margin: 0; font: 13px/1.45 "Segoe UI", sans-serif; background: #17191d; color: #d7dae0; }
-  header { position: sticky; top: 0; z-index: 5; background: #1d2025; padding: 10px 14px;
-           border-bottom: 1px solid #2c313a; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-  header h1 { font-size: 15px; margin: 0 12px 0 0; }
-  header a { color: #7ab0ff; text-decoration: none; }
+  body { margin: 0; font: 13px/1.45 "Segoe UI", sans-serif; background: #17191d; color: #d7dae0;
+         height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+  header { background: #1d2025; padding: 8px 12px; border-bottom: 1px solid #2c313a;
+           display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  header h1 { font-size: 14px; margin: 0 6px 0 0; }
+  a { color: #7ab0ff; text-decoration: none; }
   .muted { color: #8b929d; }
   .pill { padding: 2px 8px; border-radius: 10px; font-size: 12px; background: #2a2f37; }
-  .pill.agent { background: #41411f; color: #e3e37a; }
   .pill.human { background: #1f4128; color: #7ae394; }
-  .pill.prio { background: #41261f; color: #ff9a7a; }
+  .pill.agent { background: #41411f; color: #e3e37a; }
+  .pill.mixed { background: #4a2340; color: #f0a2dd; }
+  .pill.unknown { background: #3a3320; color: #d8c48a; }
   button { background: #2c5c9e; color: #fff; border: 0; border-radius: 4px;
-           padding: 6px 12px; cursor: pointer; font-size: 13px; }
+           padding: 5px 10px; cursor: pointer; font-size: 13px; }
   button.ghost { background: #2a2f37; color: #c6ccd6; }
+  button.ghost.on { background: #2c5c9e; color: #fff; }
+  button.warn { background: #7a3b2c; }
   button:disabled { opacity: .45; cursor: default; }
   input[type=text] { background: #101216; color: #d7dae0; border: 1px solid #333a45;
                      border-radius: 4px; padding: 5px 8px; font-size: 13px; width: 100%; }
-  #bar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-  #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(410px, 1fr));
-          gap: 12px; padding: 14px; }
-  .card { background: #1d2025; border: 1px solid #2c313a; border-radius: 8px; overflow: hidden; }
-  .card.done { border-color: #2f5c3c; }
-  .card .top { display: flex; gap: 10px; padding: 8px 10px; align-items: center; flex-wrap: wrap; }
-  .card .cid { font-family: Consolas, monospace; color: #7ab0ff; font-size: 14px; }
-  .card img { width: 100%; height: 240px; object-fit: contain; background: #0d0f12; display: block; }
-  .card .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px 10px; }
-  .card .note { padding: 0 10px 4px; color: #8b929d; font-size: 12px; }
-  .card .actions { display: flex; gap: 8px; padding: 8px 10px; align-items: center; }
-  .saved { color: #7ae394; }
-  #pager { display: flex; gap: 8px; align-items: center; justify-content: center; padding: 12px; }
+  #prog { height: 4px; background: #2a2f37; }
+  #prog > i { display: block; height: 100%; background: #3f8f5a; }
+  main { flex: 1; display: grid; grid-template-columns: 1fr 380px; min-height: 0; }
+  /* 그리드 자식의 기본 min-height 는 auto 라, 이걸 0 으로 내리지 않으면
+     큰 사진 한 장이 뷰어를 뷰포트 밖까지 늘려 필름스트립이 화면 밖으로 밀린다. */
+  #viewer { display: flex; flex-direction: column; min-width: 0; min-height: 0;
+            border-right: 1px solid #2c313a; }
+  #hero { flex: 1; min-height: 0; background: #0d0f12; display: flex; align-items: center;
+          justify-content: center; position: relative; }
+  #hero img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  #heroCap { position: absolute; left: 8px; bottom: 8px; background: #0009; padding: 3px 8px;
+             border-radius: 4px; font-family: Consolas, monospace; font-size: 12px; }
+  #strip { display: flex; gap: 4px; padding: 6px; overflow-x: auto; background: #1a1d22;
+           border-top: 1px solid #2c313a; min-height: 92px; align-items: center; }
+  #strip img { height: 78px; width: 58px; object-fit: cover; border: 2px solid transparent;
+               border-radius: 3px; cursor: pointer; background: #0d0f12; }
+  #strip img.sel { border-color: #7ab0ff; }
+  #stripBar { display: flex; gap: 8px; align-items: center; padding: 4px 8px; background: #1a1d22;
+              border-top: 1px solid #2c313a; font-size: 12px; }
+  aside { display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
+  aside section { padding: 10px 12px; border-bottom: 1px solid #2c313a; }
+  aside h2 { font-size: 12px; margin: 0 0 8px; color: #8b929d; text-transform: uppercase;
+             letter-spacing: .05em; }
+  .palette { display: flex; flex-direction: column; gap: 3px; max-height: 300px; overflow-y: auto; }
+  .palette button { display: flex; gap: 8px; align-items: center; text-align: left;
+                    background: #23272e; color: #d7dae0; padding: 5px 8px; }
+  .palette button:hover { background: #2c5c9e; color: #fff; }
+  .palette .key { font-family: Consolas, monospace; color: #7ab0ff; width: 14px; flex: none; }
+  .palette .cnt { margin-left: auto; color: #8b929d; font-size: 11px; }
+  .fields { display: grid; gap: 6px; }
+  .acts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .sugg { display: flex; gap: 6px; overflow-x: auto; }
+  .sugg figure { margin: 0; width: 92px; flex: none; cursor: pointer; }
+  .sugg img { width: 92px; height: 92px; object-fit: cover; border-radius: 3px; background: #0d0f12;
+              border: 2px solid transparent; }
+  .sugg figure:hover img { border-color: #7ab0ff; }
+  .sugg figcaption { font-size: 11px; color: #8b929d; text-align: center; }
+  #warn { background: #4a2a1f; color: #ffb99a; padding: 8px 12px; font-size: 12px; display: none; }
+  #warn b { color: #fff; }
+  #msg { font-size: 12px; }
+  kbd { background: #2a2f37; border: 1px solid #3a414c; border-bottom-width: 2px; border-radius: 3px;
+        padding: 0 5px; font-family: Consolas, monospace; font-size: 11px; }
+  #help { position: fixed; inset: 10% 25%; background: #1d2025; border: 1px solid #3a414c;
+          border-radius: 8px; padding: 18px 22px; display: none; z-index: 10; overflow-y: auto; }
+  #help table { border-collapse: collapse; }
+  #help td { padding: 3px 10px 3px 0; }
 </style>
 </head>
 <body>
 <header>
-  <h1>기종 태그 검토 <span class="muted">(G34 · by: agent → human)</span></h1>
+  <h1>기종 라벨링</h1>
   <a href="/">← 라벨링 툴</a>
-  <div id="counts" class="muted"></div>
+  <span id="counts" class="muted"></span>
   <div style="flex:1"></div>
-  <div id="bar">
-    <input type="text" id="q" placeholder="검색: c123 / b1/1707 / CareSens" style="width:210px">
-    <button class="ghost f" data-f="prio">우선순위</button>
-    <button class="ghost f" data-f="todo">미확인</button>
-    <button class="ghost f" data-f="done">확인됨</button>
-    <button class="ghost f" data-f="all">전체</button>
-  </div>
+  <button class="ghost f" data-f="todo">미확인</button>
+  <button class="ghost f" data-f="done">확인됨</button>
+  <button class="ghost f" data-f="mixed">섞임</button>
+  <button class="ghost f" data-f="all">전체</button>
+  <input type="text" id="q" placeholder="c123 / CareSens" style="width:150px">
+  <button class="ghost" id="helpBtn">?</button>
 </header>
-<div id="list"></div>
-<div id="pager">
-  <button class="ghost" id="prev">← 이전</button>
-  <span id="pg" class="muted"></span>
-  <button class="ghost" id="next">다음 →</button>
+<div id="prog"><i style="width:0"></i></div>
+<div id="warn"></div>
+<main>
+  <div id="viewer">
+    <div id="hero"><img id="heroImg" alt=""><span id="heroCap" class="muted"></span></div>
+    <div id="stripBar">
+      <span id="stripInfo" class="muted"></span>
+      <button class="ghost" id="sPrev">◀ 이전 24장</button>
+      <button class="ghost" id="sNext">다음 24장 ▶</button>
+      <span class="muted">성분 안에 다른 기기가 보이면 <kbd>m</kbd> 섞임</span>
+    </div>
+    <div id="strip"></div>
+  </div>
+  <aside>
+    <section>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span id="cid" style="font:15px Consolas,monospace;color:#7ab0ff"></span>
+        <span id="meta" class="muted"></span>
+      </div>
+      <div id="state" style="margin-top:6px"></div>
+      <div class="acts">
+        <button class="ghost" id="prev">◀ 이전 (k)</button>
+        <button class="ghost" id="next">다음 (j)</button>
+      </div>
+    </section>
+    <section>
+      <h2>이미 쓴 기기 — 숫자키로 선택·저장</h2>
+      <div class="palette" id="palette"></div>
+    </section>
+    <section>
+      <h2>새 이름 / 직접 입력</h2>
+      <div class="fields">
+        <input type="text" id="brand" placeholder="브랜드 (예: CareSens)" list="brands">
+        <input type="text" id="model" placeholder="모델 (예: N · II · Dual)" list="models">
+        <datalist id="brands"></datalist>
+        <datalist id="models"></datalist>
+      </div>
+      <div class="acts">
+        <button id="save">저장 (Enter)</button>
+        <button class="ghost" id="same">이전과 같음 (d)</button>
+        <button class="ghost" id="unk">식별 불가 (u)</button>
+        <button class="ghost" id="mix">섞임 (m)</button>
+        <button class="warn" id="reset">확인 취소 (x)</button>
+      </div>
+      <div id="msg" class="muted" style="margin-top:6px"></div>
+    </section>
+    <section>
+      <h2>같은 기기로 보이는 후보 <span class="muted">— 제안일 뿐, 자동 적용 안 함</span></h2>
+      <div class="sugg" id="sugg"></div>
+    </section>
+  </aside>
+</main>
+<div id="help">
+  <h2 style="margin-top:0">키보드</h2>
+  <table>
+    <tr><td><kbd>j</kbd> / <kbd>k</kbd></td><td>다음 / 이전 성분</td></tr>
+    <tr><td><kbd>1</kbd>..<kbd>9</kbd></td><td>팔레트의 기기로 즉시 저장</td></tr>
+    <tr><td><kbd>d</kbd></td><td>직전에 저장한 기기와 같음</td></tr>
+    <tr><td><kbd>Enter</kbd></td><td>입력한 브랜드·모델로 저장</td></tr>
+    <tr><td><kbd>u</kbd></td><td>식별 불가 — 확인했지만 기종을 못 정함</td></tr>
+    <tr><td><kbd>m</kbd></td><td>섞임 — 이 성분에 다른 기기가 함께 있다</td></tr>
+    <tr><td><kbd>x</kbd></td><td>확인 취소 (되돌리기)</td></tr>
+    <tr><td><kbd>[</kbd> / <kbd>]</kbd></td><td>성분 사진 페이지 넘기기</td></tr>
+    <tr><td><kbd>/</kbd></td><td>검색</td></tr>
+    <tr><td><kbd>?</kbd> / <kbd>Esc</kbd></td><td>이 도움말 열기 / 닫기</td></tr>
+  </table>
+  <p class="muted">저장은 전부 <code>by: human</code> · <code>checked: true</code> 로 남고
+  device_tags.jsonl 에 원자적으로 쓰인다. 표기가 흔들리면 없는 기종이 생기므로,
+  기존 이름과 철자만 다른 새 이름은 저장 전에 막는다.</p>
 </div>
 <script>
 'use strict';
-let ROWS = [], PRIO = {}, filter = 'todo', page = 0, per = 40;
 const $ = s => document.querySelector(s);
+let ROWS = [], BY_ID = {}, MEMBERS = {}, VOCAB = [], NEAR = {}, PRIO = {};
+let filter = 'todo', idx = 0, stripPage = 0, heroId = null, lastDevice = null;
+const PER_STRIP = 24;
+
+/** 표기 흔들림 탐지용 정규화 — 대소문자·공백·구분자·로마숫자를 지운다.
+ *  CareSens II 와 caresens-2 와 케어센스 II 를 같은 것으로 본다. */
+function norm(s) {
+  return (s || '').toLowerCase()
+    .replace(/[\s._\-+()]/g, '')
+    .replace(/\biii\b/g, '3').replace(/\bii\b/g, '2').replace(/\bi\b/g, '1')
+    .replace(/iii/g, '3').replace(/ii/g, '2');
+}
+const keyOf = (b, m) => norm(b) + '|' + norm(m);
 
 async function boot() {
-  const r = await fetch('/api/devicetags');
-  const j = await r.json();
-  ROWS = j.rows; PRIO = j.review_priority || {};
-  ROWS.forEach(rw => { rw._prio = PRIO[rw.component] || null; });
+  const j = await (await fetch('/api/devicetags')).json();
+  ROWS = j.rows; MEMBERS = j.members || {}; VOCAB = j.vocab || [];
+  NEAR = j.near || {}; PRIO = j.review_priority || {};
+  ROWS.forEach(r => BY_ID[r.component] = r);
   document.querySelectorAll('.f').forEach(b => b.onclick = () => {
-    filter = b.dataset.f; page = 0; render();
+    filter = b.dataset.f; idx = 0; show();
   });
-  $('#q').oninput = () => { page = 0; render(); };
-  $('#prev').onclick = () => { if (page > 0) { page--; render(); } };
-  $('#next').onclick = () => { page++; render(); };
-  render();
+  $('#q').oninput = () => { idx = 0; show(); };
+  $('#next').onclick = () => move(1);
+  $('#prev').onclick = () => move(-1);
+  $('#save').onclick = () => saveTyped();
+  $('#same').onclick = () => saveSame();
+  $('#unk').onclick = () => save({ status: 'unknown' });
+  $('#mix').onclick = () => save({ status: 'mixed' });
+  $('#reset').onclick = () => save({ status: 'reset' });
+  $('#sPrev').onclick = () => { stripPage = Math.max(0, stripPage - 1); renderStrip(); };
+  $('#sNext').onclick = () => { stripPage++; renderStrip(); };
+  $('#helpBtn').onclick = () => $('#help').style.display = 'block';
+  document.addEventListener('keydown', onKey);
+  show();
 }
 
-function rows() {
+function list() {
   const q = $('#q').value.trim().toLowerCase();
   let out = ROWS;
   if (filter === 'todo') out = out.filter(r => !r.checked);
-  if (filter === 'done') out = out.filter(r => r.checked);
-  if (filter === 'prio') out = out.filter(r => r._prio && !r.checked);
-  if (q) out = out.filter(r =>
-    (r.component + ' ' + r.rep + ' ' + (r.brand || '') + ' ' + (r.model || ''))
-      .toLowerCase().includes(q));
-  return out;
+  if (filter === 'done') out = out.filter(r => r.checked && r.status !== 'mixed');
+  if (filter === 'mixed') out = out.filter(r => r.status === 'mixed');
+  if (q) out = out.filter(r => (r.component + ' ' + r.rep + ' ' + (r.brand || '') +
+                                ' ' + (r.model || '')).toLowerCase().includes(q));
+  // 큰 성분부터 — 한 번의 판정이 가장 많은 사진을 덮는다.
+  return out.slice().sort((a, b) => b.size - a.size);
 }
 
-function render() {
-  const rs = rows();
-  const pages = Math.max(1, Math.ceil(rs.length / per));
-  if (page >= pages) page = pages - 1;
-  const slice = rs.slice(page * per, (page + 1) * per);
-  const done = ROWS.filter(r => r.checked).length;
-  const prioN = ROWS.filter(r => r._prio && !r.checked).length;
-  $('#counts').innerHTML =
-    `전체 <b>${ROWS.length}</b> · 확인 <b>${done}</b> · 미확인 <b>${ROWS.length - done}</b>` +
-    ` · 검토 우선 <b>${prioN}</b>`;
-  $('#pg').textContent = `${page + 1} / ${pages} 페이지 (${rs.length}건)`;
-  const list = $('#list');
-  list.innerHTML = '';
-  for (const r of slice) {
-    const card = document.createElement('div');
-    card.className = 'card' + (r.checked ? ' done' : '');
-    const pr = r._prio ? `<span class="pill prio">후보 ${r._prio.map(p => p[0] + '(' + p[1] + ')').join(' ')}</span>` : '';
-    card.innerHTML = `
-      <div class="top">
-        <span class="cid">${r.component}</span>
-        <span class="pill">${r.size}장</span>
-        <span class="pill">시트 ${r.sheet}·셀 ${r.cell + 1}</span>
-        <span class="pill ${r.by}">by: ${r.by}</span>
-        ${r.checked ? '<span class="pill human">✓ 확인됨</span>' : ''}
-        ${pr}
-        <span class="muted" style="margin-left:auto;font-family:Consolas">${r.rep}</span>
-      </div>
-      <img loading="lazy" src="/api/image?id=${encodeURIComponent(r.rep)}&w=420" alt="">
-      <div class="note">${r.note || ''}</div>
-      <div class="fields">
-        <input type="text" data-k="brand" placeholder="브랜드 (예: CareSens)" value="${(r.brand || '').replace(/"/g, '&quot;')}">
-        <input type="text" data-k="model" placeholder="모델 (예: N · II · Ultra)" value="${(r.model || '').replace(/"/g, '&quot;')}">
-      </div>
-      <div class="actions">
-        <button>저장 (사람 확인)</button>
-        <span class="msg muted"></span>
-      </div>`;
-    const btn = card.querySelector('button');
-    const msg = card.querySelector('.msg');
-    const save = async () => {
-      btn.disabled = true;
-      const brand = card.querySelector('[data-k=brand]').value;
-      const model = card.querySelector('[data-k=model]').value;
-      const res = await fetch('/api/devicetag', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ component: r.component, brand, model,
-                               note: '사람 확인 ' + new Date().toISOString().slice(0, 10) })
-      });
-      const j = await res.json();
-      btn.disabled = false;
-      if (j.ok) {
-        Object.assign(r, j.row); r.checked = true;
-        msg.textContent = '저장됨'; msg.className = 'msg saved';
-        card.classList.add('done');
-        card.querySelector('.top').innerHTML += '<span class="pill human">✓ 확인됨</span>';
-      } else msg.textContent = '실패: ' + (j.error || res.status);
+function cur() { const l = list(); return l[Math.min(idx, l.length - 1)] || null; }
+
+function move(d) {
+  const l = list();
+  idx = Math.max(0, Math.min(l.length - 1, idx + d));
+  stripPage = 0; heroId = null; show();
+}
+
+function show() {
+  const l = list(), r = cur();
+  const doneN = ROWS.filter(x => x.checked).length;
+  const doneImg = ROWS.filter(x => x.checked).reduce((s, x) => s + x.size, 0);
+  const totImg = ROWS.reduce((s, x) => s + x.size, 0);
+  $('#counts').innerHTML = `성분 <b>${doneN}</b>/${ROWS.length} · ` +
+    `장수 <b>${doneImg}</b>/${totImg} (${(doneImg / totImg * 100).toFixed(1)}%) · ` +
+    `목록 ${l.length}건 중 ${l.length ? idx + 1 : 0}번째`;
+  $('#prog > i').style.width = (doneImg / totImg * 100) + '%';
+  document.querySelectorAll('.f').forEach(b =>
+    b.classList.toggle('on', b.dataset.f === filter));
+  if (!r) {
+    $('#cid').textContent = '(없음)'; $('#meta').textContent = '';
+    $('#heroImg').removeAttribute('src'); $('#strip').innerHTML = '';
+    $('#state').innerHTML = '<span class="muted">이 필터에 남은 성분이 없다.</span>';
+    return;
+  }
+  $('#cid').textContent = r.component;
+  const prio = PRIO[r.component];
+  $('#meta').innerHTML = `<span class="pill">${r.size}장</span> ` +
+    `<span class="pill ${r.by}">by: ${r.by}</span> ` +
+    (prio ? `<span class="pill">근접: ${prio.map(p => p[0] + '(' + p[1] + ')').join(' ')}</span>` : '');
+  const st = r.status || (r.checked ? 'identified' : '');
+  $('#state').innerHTML = !r.checked
+    ? '<span class="muted">미확인</span>'
+    : st === 'mixed' ? '<span class="pill mixed">✓ 섞임 — 여러 기기</span>'
+    : st === 'unknown' ? '<span class="pill unknown">✓ 확인했으나 식별 불가</span>'
+    : `<span class="pill human">✓ ${r.brand} ${r.model}</span>`;
+  $('#brand').value = r.brand || '';
+  $('#model').value = r.model || '';
+  renderPalette(); renderStrip(); renderSugg();
+}
+
+function renderPalette() {
+  const p = $('#palette');
+  p.innerHTML = '';
+  VOCAB.slice(0, 9).forEach((v, i) => {
+    const b = document.createElement('button');
+    b.innerHTML = `<span class="key">${i + 1}</span><span>${v.brand} ${v.model}</span>` +
+      `<span class="cnt">${v.components}성분 ${v.images}장</span>`;
+    b.onclick = () => save({ brand: v.brand, model: v.model });
+    p.appendChild(b);
+  });
+  VOCAB.slice(9).forEach(v => {
+    const b = document.createElement('button');
+    b.innerHTML = `<span class="key"></span><span>${v.brand} ${v.model}</span>` +
+      `<span class="cnt">${v.components}성분 ${v.images}장</span>`;
+    b.onclick = () => save({ brand: v.brand, model: v.model });
+    p.appendChild(b);
+  });
+  $('#brands').innerHTML = [...new Set(VOCAB.map(v => v.brand))]
+    .map(b => `<option value="${b}">`).join('');
+  $('#models').innerHTML = [...new Set(VOCAB.map(v => v.model))]
+    .map(m => `<option value="${m}">`).join('');
+}
+
+function renderStrip() {
+  const r = cur(); if (!r) return;
+  const mem = MEMBERS[r.component] || [r.rep];
+  const pages = Math.max(1, Math.ceil(mem.length / PER_STRIP));
+  if (stripPage >= pages) stripPage = pages - 1;
+  const slice = mem.slice(stripPage * PER_STRIP, (stripPage + 1) * PER_STRIP);
+  if (!heroId || !mem.includes(heroId)) heroId = slice[0] || r.rep;
+  $('#heroImg').src = '/photo?id=' + encodeURIComponent(heroId) + '&w=1100';
+  $('#heroCap').textContent = heroId;
+  $('#stripInfo').textContent =
+    `${mem.length}장 중 ${stripPage * PER_STRIP + 1}–${stripPage * PER_STRIP + slice.length}` +
+    ` (${stripPage + 1}/${pages} 페이지)`;
+  const s = $('#strip'); s.innerHTML = '';
+  slice.forEach(id => {
+    const im = document.createElement('img');
+    im.loading = 'lazy';
+    im.src = '/photo?id=' + encodeURIComponent(id) + '&w=160';
+    im.className = id === heroId ? 'sel' : '';
+    im.title = id;
+    im.onclick = () => { heroId = id; renderStrip(); };
+    s.appendChild(im);
+  });
+}
+
+function renderSugg() {
+  const r = cur(); const box = $('#sugg'); box.innerHTML = '';
+  const near = (NEAR[r.component] || []).slice(0, 6);
+  if (!near.length) { box.innerHTML = '<span class="muted">후보 없음</span>'; return; }
+  near.forEach(([cid, dist]) => {
+    const o = BY_ID[cid]; if (!o) return;
+    const f = document.createElement('figure');
+    const lbl = o.brand ? `${o.brand} ${o.model}` : (o.status === 'mixed' ? '섞임' : '미확인');
+    f.innerHTML = `<img loading="lazy" src="/photo?id=${encodeURIComponent(o.rep)}&w=200">` +
+      `<figcaption>${cid} · h${dist}<br>${lbl}</figcaption>`;
+    f.onclick = () => {
+      // 제안은 입력만 채운다. 저장은 사람이 한 번 더 누른다.
+      if (o.brand) { $('#brand').value = o.brand; $('#model').value = o.model; }
+      heroId = o.rep; $('#heroImg').src = '/photo?id=' + encodeURIComponent(o.rep) + '&w=1100';
+      $('#heroCap').textContent = cid + ' (후보)';
     };
-    btn.onclick = save;
-    card.querySelectorAll('input').forEach(i => i.onkeydown = e => {
-      if (e.key === 'Enter') save();
-    });
-    list.appendChild(card);
+    box.appendChild(f);
+  });
+}
+
+function warn(html) {
+  const w = $('#warn');
+  if (!html) { w.style.display = 'none'; return; }
+  w.innerHTML = html; w.style.display = 'block';
+}
+
+function saveTyped() {
+  const brand = $('#brand').value.trim(), model = $('#model').value.trim();
+  if (!brand && !model) { $('#msg').textContent = '브랜드가 비었다 — 식별 불가면 u'; return; }
+  // 이미 쓴 이름과 철자만 다른가? 그러면 없는 기종이 하나 생긴다.
+  const k = keyOf(brand, model);
+  const exact = VOCAB.find(v => v.brand === brand && v.model === model);
+  if (!exact) {
+    const twin = VOCAB.find(v => keyOf(v.brand, v.model) === k);
+    if (twin) {
+      warn(`<b>표기가 갈린다.</b> 이미 <b>${twin.brand} ${twin.model}</b> 로 ` +
+           `${twin.components}성분이 저장돼 있다. 같은 기기면 기존 표기를 쓰자 — ` +
+           `표기가 둘로 갈리면 없는 기종이 생기고 기기 단절 평가가 무효가 된다. ` +
+           `<button id="useTwin">기존 표기로 저장</button> ` +
+           `<button class="ghost" id="forceNew">그래도 새 이름으로</button>`);
+      $('#useTwin').onclick = () => { warn(''); save({ brand: twin.brand, model: twin.model }); };
+      $('#forceNew').onclick = () => { warn(''); save({ brand, model, force: true }); };
+      return;
+    }
+  }
+  save({ brand, model });
+}
+
+function saveSame() {
+  if (!lastDevice) { $('#msg').textContent = '직전에 저장한 기기가 없다'; return; }
+  save({ brand: lastDevice.brand, model: lastDevice.model });
+}
+
+async function save(opt) {
+  const r = cur(); if (!r) return;
+  const status = opt.status || 'identified';
+  const body = { component: r.component, status };
+  if (status === 'identified') { body.brand = opt.brand || ''; body.model = opt.model || ''; }
+  body.note = '사람 확인 ' + new Date().toISOString().slice(0, 10);
+  $('#msg').textContent = '저장 중…';
+  const res = await fetch('/api/devicetag', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  const j = await res.json();
+  if (!j.ok) { $('#msg').textContent = '실패: ' + (j.error || res.status); return; }
+  Object.assign(r, j.row);
+  if (j.vocab) VOCAB = j.vocab;
+  if (status === 'identified' && body.brand) lastDevice = { brand: body.brand, model: body.model };
+  $('#msg').innerHTML = `<span style="color:#7ae394">저장됨</span> ` +
+    (status === 'identified' ? `${body.brand} ${body.model}` : status);
+  warn('');
+  // 미확인 필터에서는 방금 처리한 항목이 목록에서 빠지므로 idx 를 그대로 두면
+  // 자연히 다음 성분이 온다. 다른 필터에서는 한 칸 넘긴다.
+  if (filter === 'todo' && status !== 'reset') { stripPage = 0; heroId = null; show(); }
+  else move(1);
+}
+
+function onKey(e) {
+  if ($('#help').style.display === 'block' && (e.key === 'Escape' || e.key === '?')) {
+    $('#help').style.display = 'none'; return;
+  }
+  const typing = /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
+  if (typing) {
+    if (e.key === 'Enter' && document.activeElement.id !== 'q') { e.preventDefault(); saveTyped(); }
+    if (e.key === 'Escape') document.activeElement.blur();
+    return;
+  }
+  if (e.key === 'j' || e.key === 'ArrowDown') { e.preventDefault(); move(1); }
+  else if (e.key === 'k' || e.key === 'ArrowUp') { e.preventDefault(); move(-1); }
+  else if (e.key === ']') { stripPage++; renderStrip(); }
+  else if (e.key === '[') { stripPage = Math.max(0, stripPage - 1); renderStrip(); }
+  else if (e.key === 'd') saveSame();
+  else if (e.key === 'u') save({ status: 'unknown' });
+  else if (e.key === 'm') save({ status: 'mixed' });
+  else if (e.key === 'x') save({ status: 'reset' });
+  else if (e.key === 'Enter') saveTyped();
+  else if (e.key === '/') { e.preventDefault(); $('#q').focus(); }
+  else if (e.key === '?') $('#help').style.display = 'block';
+  else if (/^[1-9]$/.test(e.key)) {
+    const v = VOCAB[+e.key - 1];
+    if (v) save({ brand: v.brand, model: v.model });
   }
 }
 boot();
