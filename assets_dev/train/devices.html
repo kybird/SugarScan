@@ -108,6 +108,7 @@
   <span id="counts" class="muted"></span>
   <div style="flex:1"></div>
   <button class="ghost f" data-f="todo">남은 성분</button>
+  <button class="ghost f" data-f="unknown">보류(식별 불가)</button>
   <button class="ghost f" data-f="mixed">섞인 성분</button>
   <button class="ghost f" data-f="done">끝난 성분</button>
   <button class="ghost f" data-f="all">전체</button>
@@ -186,6 +187,7 @@
         <div class="k"><kbd>Space</kbd></div><div class="d">크게 보는 사진 선택 토글</div>
         <div class="k"><kbd>a</kbd></div><div class="d">이 성분 전체 선택</div>
         <div class="k"><kbd>r</kbd></div><div class="d">아직 라벨 없는 것만 선택</div>
+        <div class="k"><kbd>h</kbd></div><div class="d">보류(식별 불가)로 남긴 것만 선택</div>
         <div class="k"><kbd>Esc</kbd></div><div class="d">선택 해제</div>
 
         <div class="hd">지정 — 선택한 사진에만 적용된다</div>
@@ -193,7 +195,8 @@
         <div class="k"><kbd>Enter</kbd></div><div class="d">입력한 브랜드·모델로 지정</div>
         <div class="k"><kbd>d</kbd></div><div class="d">직전에 지정한 기기로</div>
         <div class="k"><kbd>u</kbd></div><div class="d">식별 불가 — 봤지만 기종 못 정함</div>
-        <div class="k"><kbd>x</kbd></div><div class="d">선택한 사진의 라벨 지우기</div>
+        <div class="k"><kbd>x</kbd></div><div class="d">선택한 사진의 라벨 지우기 —
+          '아직 안 본 사진'으로 되돌아간다(보류로 남기려면 u)</div>
 
         <div class="hd">이동</div>
         <div class="k"><kbd>←</kbd> <kbd>→</kbd></div><div class="d">크게 볼 사진 이동</div>
@@ -225,8 +228,11 @@
     <tr><td><kbd>1</kbd>..<kbd>9</kbd></td><td>선택한 사진에 팔레트의 기기 지정</td></tr>
     <tr><td><kbd>d</kbd></td><td>직전에 지정한 기기로</td></tr>
     <tr><td><kbd>Enter</kbd></td><td>입력한 브랜드·모델로 지정</td></tr>
-    <tr><td><kbd>u</kbd></td><td>식별 불가 — 봤지만 기종을 못 정함</td></tr>
-    <tr><td><kbd>x</kbd></td><td>선택한 사진의 라벨 지우기</td></tr>
+    <tr><td><kbd>u</kbd></td><td>식별 불가(보류) — 봤지만 기종을 못 정함.
+      기록이 남아 '보류' 필터·<kbd>h</kbd> 로 다시 찾아온다</td></tr>
+    <tr><td><kbd>h</kbd></td><td>이 성분의 보류 사진만 선택</td></tr>
+    <tr><td><kbd>x</kbd></td><td>선택한 사진의 라벨 지우기 — 라벨이 없는 상태로
+      되돌아가므로 아직 안 본 사진과 구별되지 않는다. 6장 이상이면 한 번 묻는다</td></tr>
     <tr><td><kbd>j</kbd> / <kbd>k</kbd></td><td>다음 / 이전 성분</td></tr>
     <tr><td><kbd>[</kbd> / <kbd>]</kbd></td><td>큰 성분의 사진 페이지</td></tr>
     <tr><td><kbd>/</kbd> · <kbd>?</kbd></td><td>검색 · 도움말</td></tr>
@@ -282,6 +288,10 @@ async function boot() {
 }
 
 function unlabeled(r) { return memberOf(r).filter(i => !LABELS[i]); }
+/** 보류(식별 불가)로 남긴 사진 수 — "봤지만 못 정함". 라벨을 지운 것과 달리
+ *  기록이 남아서 나중에 이 성분만 다시 찾아올 수 있다. */
+function held(r) { return memberOf(r).filter(i => LABELS[i] && LABELS[i].status === 'unknown'); }
+function heldCount(r) { return held(r).length; }
 
 function list() {
   const q = $('#q').value.trim().toLowerCase();
@@ -291,7 +301,9 @@ function list() {
   // 성분이 검색해도 안 나온다.
   if (!q) {
     if (filter === 'todo') out = out.filter(r => unlabeled(r).length);
-    if (filter === 'done') out = out.filter(r => !unlabeled(r).length && r.status !== 'mixed');
+    if (filter === 'unknown') out = out.filter(r => heldCount(r) > 0);
+    if (filter === 'done') out = out.filter(r =>
+      !unlabeled(r).length && r.status !== 'mixed' && !heldCount(r));
     if (filter === 'mixed') out = out.filter(r => r.status === 'mixed');
   } else {
     out = out.filter(r => (r.component + ' ' + r.rep + ' ' + (r.brand || '') +
@@ -346,8 +358,10 @@ function render() {
   const totImg = ROWS.reduce((s, x) => s + x.size, 0);
   const doneImg = Object.keys(LABELS).length;
   const compDone = ROWS.filter(x => !unlabeled(x).length).length;
+  const heldImg = Object.values(LABELS).filter(j => j.status === 'unknown').length;
   $('#counts').innerHTML = `사진 <b>${doneImg}</b>/${totImg} ` +
     `(${(doneImg / totImg * 100).toFixed(1)}%) · 성분 <b>${compDone}</b>/${ROWS.length}` +
+    (heldImg ? ` · 보류 <b>${heldImg}</b>장` : '') +
     ` · 목록 ${l.length}건 중 ${l.length ? idxOf(l) + 1 : 0}번째`;
   $('#prog > i').style.width = (doneImg / totImg * 100) + '%';
   document.querySelectorAll('.f').forEach(b =>
@@ -373,7 +387,7 @@ function render() {
         `data-dev="${t.replace(/"/g, '&quot;')}" title="이 기기로 찍힌 ${n}장만 선택">${t} ${n}장</span>`).join(' ') +
       (dl.filter(d => d[0] !== '식별 불가').length > 1
         ? ' <span class="pill mixed">섞인 성분</span>' : '') +
-      (rest.length ? ` <span class="muted">· ${rest.length}장 남음</span>` : '')
+      (rest.length ? ` <span class="muted">· ${rest.length}장 라벨 없음</span>` : '')
     : '<span class="muted">라벨 없음 — ' + mem.length + '장</span>';
   $('#selInfo').innerHTML = sel.size
     ? `선택 <b>${sel.size}</b>장 — 숫자키·Enter 로 이 선택에만 지정된다.` +
@@ -519,7 +533,8 @@ async function save(opt) {
   // a 로 선택이 커진 것을 모르고 x 를 누르면 통째로 날아간다.
   if (status === 'reset' && sel.size > 5 && !opt.confirmed) {
     warn(`<b>${sel.size}장</b>의 라벨을 지운다. 선택이 그만큼 커져 있다 — ` +
-         `지금 선택된 것만 지워진다. ` +
+         `지금 선택된 것만 지워진다. 판단이 어려운 것이라면 지우기(x)보다 ` +
+         `<b>식별 불가(u)</b>가 낫다 — 지우면 '아직 안 본 사진'과 구별되지 않는다. ` +
          `<button id="doWipe">${sel.size}장 지우기</button> ` +
          `<button class="ghost" id="noWipe">취소</button>`);
     $('#doWipe').onclick = () => { warn(''); save({ status: 'reset', confirmed: true }); };
@@ -568,6 +583,9 @@ function onKey(e) {
   else if (e.key === 'k') { e.preventDefault(); move(-1); }
   else if (e.key === 'a') { selectAll(); render(); }
   else if (e.key === 'r') { selectRest(); render(); }
+  else if (e.key === 'h') {  // 이 성분의 보류(식별 불가)만 선택 — 다시 판정할 때
+    const c = cur(); if (c) { sel = new Set(held(c)); heroId = [...sel][0] || heroId; render(); }
+  }
   else if (e.key === 'Escape') { sel.clear(); render(); }
   else if (e.key === ' ') {
     e.preventDefault();
