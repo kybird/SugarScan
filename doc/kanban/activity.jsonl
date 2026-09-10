@@ -11,3 +11,5 @@
 {"ts":"2026-09-10T06:51:59.024Z","action":"created","title":"에러 코드 상태 지원"}
 {"ts":"2026-09-10T06:51:59.996Z","action":"handoff","title":"에러 코드 상태 지원","detail":"혈당계가 E-1 같은 에러 코드를 표시할 때 앱은 (a) 상태로 기록(ScanRejectionReason 확장+UI 문구+l10n) (b) 인식 실패로 처리해 수동 입력 유도 — 어느 쪽인가. 현재 ReadingNormalizer 는 E 를 떼어내 '1' 로 만들 수 있어(reading_normalizer.dart:87 — 글자 교정 후 숫자 외 제거), CTC 리더 탑재 전에 결정이 필요하다. 강화 프롬프트 §12 는 ERROR 를 유효 상태로 다루라고 권고한다."}
 {"ts":"2026-09-10T06:52:30.771Z","action":"done","title":"상용 인식 강화 갭 분석"}
+{"ts":"2026-09-10T06:52:46.829Z","action":"claimed","title":"분할 누수 감사","actor":"unnamed-agent"}
+{"ts":"2026-09-10T07:08:14.679Z","action":"created","title":"장면 성분 분할 재학습"}
