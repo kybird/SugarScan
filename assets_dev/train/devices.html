@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<title>기종 라벨링 — 성분 전량 검토</title>
+<title>기종 라벨링 — 사진 단위 전량 검토</title>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -38,18 +38,27 @@
   #hero img { max-width: 100%; max-height: 100%; object-fit: contain; }
   #heroCap { position: absolute; left: 8px; bottom: 8px; background: #0009; padding: 3px 8px;
              border-radius: 4px; font-family: Consolas, monospace; font-size: 12px; }
-  #strip { display: flex; gap: 4px; padding: 6px; overflow-x: auto; background: #1a1d22;
-           border-top: 1px solid #2c313a; min-height: 92px; align-items: center; }
-  #strip img { height: 78px; width: 58px; object-fit: cover; border: 2px solid transparent;
-               border-radius: 3px; cursor: pointer; background: #0d0f12; }
-  #strip img.sel { border-color: #7ab0ff; }
-  #stripBar { display: flex; gap: 8px; align-items: center; padding: 4px 8px; background: #1a1d22;
-              border-top: 1px solid #2c313a; font-size: 12px; }
+  #heroLbl { position: absolute; right: 8px; top: 8px; background: #0009; padding: 3px 8px;
+             border-radius: 4px; font-size: 12px; }
+  #strip { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px; overflow-y: auto;
+           background: #1a1d22; border-top: 1px solid #2c313a; max-height: 42vh;
+           align-content: flex-start; }
+  .th { position: relative; width: 74px; flex: none; cursor: pointer; }
+  .th img { height: 90px; width: 74px; object-fit: cover; border: 2px solid #2c313a;
+            border-radius: 3px; background: #0d0f12; display: block; }
+  .th.sel img { border-color: #7ab0ff; box-shadow: 0 0 0 2px #2c5c9e88; }
+  .th .tag { position: absolute; left: 0; right: 0; bottom: 0; font-size: 10px; text-align: center;
+             background: #000a; padding: 1px 2px; overflow: hidden; white-space: nowrap;
+             text-overflow: ellipsis; }
+  .th.done img { border-color: #3f8f5a; }
+  .th.unk img { border-color: #8a7a3a; }
+  #stripBar { display: flex; gap: 8px; align-items: center; padding: 5px 8px; background: #1a1d22;
+              border-top: 1px solid #2c313a; font-size: 12px; flex-wrap: wrap; }
   aside { display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
   aside section { padding: 10px 12px; border-bottom: 1px solid #2c313a; }
   aside h2 { font-size: 12px; margin: 0 0 8px; color: #8b929d; text-transform: uppercase;
              letter-spacing: .05em; }
-  .palette { display: flex; flex-direction: column; gap: 3px; max-height: 300px; overflow-y: auto; }
+  .palette { display: flex; flex-direction: column; gap: 3px; max-height: 260px; overflow-y: auto; }
   .palette button { display: flex; gap: 8px; align-items: center; text-align: left;
                     background: #23272e; color: #d7dae0; padding: 5px 8px; }
   .palette button:hover { background: #2c5c9e; color: #fff; }
@@ -63,40 +72,49 @@
               border: 2px solid transparent; }
   .sugg figure:hover img { border-color: #7ab0ff; }
   .sugg figcaption { font-size: 11px; color: #8b929d; text-align: center; }
+  #selInfo { background: #1f2b3a; color: #a8c8ef; padding: 6px 12px; font-size: 12px; }
   #warn { background: #4a2a1f; color: #ffb99a; padding: 8px 12px; font-size: 12px; display: none; }
   #warn b { color: #fff; }
   #msg { font-size: 12px; }
   kbd { background: #2a2f37; border: 1px solid #3a414c; border-bottom-width: 2px; border-radius: 3px;
         padding: 0 5px; font-family: Consolas, monospace; font-size: 11px; }
-  #help { position: fixed; inset: 10% 25%; background: #1d2025; border: 1px solid #3a414c;
+  #help { position: fixed; inset: 8% 22%; background: #1d2025; border: 1px solid #3a414c;
           border-radius: 8px; padding: 18px 22px; display: none; z-index: 10; overflow-y: auto; }
   #help table { border-collapse: collapse; }
-  #help td { padding: 3px 10px 3px 0; }
+  #help td { padding: 3px 10px 3px 0; vertical-align: top; }
 </style>
 </head>
 <body>
 <header>
-  <h1>기종 라벨링</h1>
+  <h1>기종 라벨링 <span class="muted">사진 단위</span></h1>
   <a href="/">← 라벨링 툴</a>
   <span id="counts" class="muted"></span>
   <div style="flex:1"></div>
-  <button class="ghost f" data-f="todo">미확인</button>
-  <button class="ghost f" data-f="done">확인됨</button>
-  <button class="ghost f" data-f="mixed">섞임</button>
+  <button class="ghost f" data-f="todo">남은 성분</button>
+  <button class="ghost f" data-f="mixed">섞인 성분</button>
+  <button class="ghost f" data-f="done">끝난 성분</button>
   <button class="ghost f" data-f="all">전체</button>
   <input type="text" id="q" placeholder="c123 / CareSens" style="width:150px">
   <button class="ghost" id="helpBtn">?</button>
 </header>
 <div id="prog"><i style="width:0"></i></div>
+<div id="selInfo"></div>
 <div id="warn"></div>
 <main>
   <div id="viewer">
-    <div id="hero"><img id="heroImg" alt=""><span id="heroCap" class="muted"></span></div>
+    <div id="hero">
+      <img id="heroImg" alt="">
+      <span id="heroCap" class="muted"></span>
+      <span id="heroLbl"></span>
+    </div>
     <div id="stripBar">
       <span id="stripInfo" class="muted"></span>
-      <button class="ghost" id="sPrev">◀ 이전 24장</button>
-      <button class="ghost" id="sNext">다음 24장 ▶</button>
-      <span class="muted">성분 안에 다른 기기가 보이면 <kbd>m</kbd> 섞임</span>
+      <button class="ghost" id="selAll">전체 선택 (a)</button>
+      <button class="ghost" id="selRest">남은 것만 (r)</button>
+      <button class="ghost" id="selNone">선택 해제 (Esc)</button>
+      <button class="ghost" id="sPrev">◀</button>
+      <button class="ghost" id="sNext">▶</button>
+      <span class="muted">썸네일 클릭=선택 토글 · Shift+클릭=범위</span>
     </div>
     <div id="strip"></div>
   </div>
@@ -108,64 +126,71 @@
       </div>
       <div id="state" style="margin-top:6px"></div>
       <div class="acts">
-        <button class="ghost" id="prev">◀ 이전 (k)</button>
-        <button class="ghost" id="next">다음 (j)</button>
+        <button class="ghost" id="prev">◀ 이전 성분 (k)</button>
+        <button class="ghost" id="next">다음 성분 (j)</button>
       </div>
     </section>
     <section>
-      <h2>이미 쓴 기기 — 숫자키로 선택·저장</h2>
+      <h2>선택한 사진에 기기 지정 — 숫자키</h2>
       <div class="palette" id="palette"></div>
     </section>
     <section>
       <h2>새 이름 / 직접 입력</h2>
       <div class="fields">
-        <input type="text" id="brand" placeholder="브랜드 (예: CareSens)" list="brands">
-        <input type="text" id="model" placeholder="모델 (예: N · II · Dual)" list="models">
+        <input type="text" id="brand" placeholder="브랜드 (예: ACCU-CHEK)" list="brands">
+        <input type="text" id="model" placeholder="모델 (예: Performa Nano)" list="models">
         <datalist id="brands"></datalist>
         <datalist id="models"></datalist>
       </div>
       <div class="acts">
-        <button id="save">저장 (Enter)</button>
-        <button class="ghost" id="same">이전과 같음 (d)</button>
+        <button id="save">선택에 지정 (Enter)</button>
+        <button class="ghost" id="same">직전 기기 (d)</button>
         <button class="ghost" id="unk">식별 불가 (u)</button>
-        <button class="ghost" id="mix">섞임 (m)</button>
-        <button class="warn" id="reset">확인 취소 (x)</button>
+        <button class="warn" id="reset">라벨 지우기 (x)</button>
       </div>
       <div id="msg" class="muted" style="margin-top:6px"></div>
     </section>
     <section>
-      <h2>같은 기기로 보이는 후보 <span class="muted">— 제안일 뿐, 자동 적용 안 함</span></h2>
+      <h2>같은 기기로 보이는 후보 <span class="muted">— 제안일 뿐</span></h2>
       <div class="sugg" id="sugg"></div>
     </section>
   </aside>
 </main>
 <div id="help">
-  <h2 style="margin-top:0">키보드</h2>
+  <h2 style="margin-top:0">라벨은 사진마다 붙는다</h2>
+  <p class="muted">성분(dhash 연결요소)은 오염될 수 있다 — 한 성분에 다른 기기가
+  섞여 있는 경우가 실제로 있다. 그래서 정본은 <b>사진 단위</b>이고, 성분은
+  "한 번에 여러 장을 고르기 좋은 묶음"일 뿐이다. 성분이 순수하면
+  <kbd>a</kbd> → 숫자키 두 번으로 끝나고, 섞였으면 섞인 장만 골라 따로 지정한다.
+  전부 지정되기 전에는 다음 성분으로 넘어가지 않는다.</p>
   <table>
+    <tr><td><kbd>a</kbd> / <kbd>r</kbd> / <kbd>Esc</kbd></td><td>전체 선택 / 아직 라벨 없는 것만 / 선택 해제</td></tr>
+    <tr><td>클릭 · <kbd>Shift</kbd>+클릭</td><td>선택 토글 · 범위 선택</td></tr>
+    <tr><td><kbd>Space</kbd></td><td>지금 크게 보는 사진 선택 토글</td></tr>
+    <tr><td><kbd>←</kbd> / <kbd>→</kbd></td><td>크게 볼 사진 이동</td></tr>
+    <tr><td><kbd>1</kbd>..<kbd>9</kbd></td><td>선택한 사진에 팔레트의 기기 지정</td></tr>
+    <tr><td><kbd>d</kbd></td><td>직전에 지정한 기기로</td></tr>
+    <tr><td><kbd>Enter</kbd></td><td>입력한 브랜드·모델로 지정</td></tr>
+    <tr><td><kbd>u</kbd></td><td>식별 불가 — 봤지만 기종을 못 정함</td></tr>
+    <tr><td><kbd>x</kbd></td><td>선택한 사진의 라벨 지우기</td></tr>
     <tr><td><kbd>j</kbd> / <kbd>k</kbd></td><td>다음 / 이전 성분</td></tr>
-    <tr><td><kbd>1</kbd>..<kbd>9</kbd></td><td>팔레트의 기기로 즉시 저장</td></tr>
-    <tr><td><kbd>d</kbd></td><td>직전에 저장한 기기와 같음</td></tr>
-    <tr><td><kbd>Enter</kbd></td><td>입력한 브랜드·모델로 저장</td></tr>
-    <tr><td><kbd>u</kbd></td><td>식별 불가 — 확인했지만 기종을 못 정함</td></tr>
-    <tr><td><kbd>m</kbd></td><td>섞임 — 이 성분에 다른 기기가 함께 있다</td></tr>
-    <tr><td><kbd>x</kbd></td><td>확인 취소 (되돌리기)</td></tr>
-    <tr><td><kbd>[</kbd> / <kbd>]</kbd></td><td>성분 사진 페이지 넘기기</td></tr>
-    <tr><td><kbd>/</kbd></td><td>검색</td></tr>
-    <tr><td><kbd>?</kbd> / <kbd>Esc</kbd></td><td>이 도움말 열기 / 닫기</td></tr>
+    <tr><td><kbd>[</kbd> / <kbd>]</kbd></td><td>큰 성분의 사진 페이지</td></tr>
+    <tr><td><kbd>/</kbd> · <kbd>?</kbd></td><td>검색 · 도움말</td></tr>
   </table>
-  <p class="muted">저장은 전부 <code>by: human</code> · <code>checked: true</code> 로 남고
-  device_tags.jsonl 에 원자적으로 쓰인다. 표기가 흔들리면 없는 기종이 생기므로,
-  기존 이름과 철자만 다른 새 이름은 저장 전에 막는다.</p>
+  <p class="muted">저장은 <code>device_labels.jsonl</code> 에 사진 단위로 원자적으로 쓰인다.
+  <code>device_tags.jsonl</code> 의 성분 요약은 거기서 다시 계산된다 — 한 성분에 기기가
+  둘 이상이면 자동으로 <b>mixed</b> 가 된다. 표기가 갈리면 없는 기종이 생기므로 기존
+  이름과 철자만 다른 새 이름은 저장 전에 막는다.</p>
 </div>
 <script>
 'use strict';
 const $ = s => document.querySelector(s);
-let ROWS = [], BY_ID = {}, MEMBERS = {}, VOCAB = [], NEAR = {}, PRIO = {};
+let ROWS = [], BY_ID = {}, MEMBERS = {}, LABELS = {}, VOCAB = [], NEAR = {}, PRIO = {};
 let filter = 'todo', idx = 0, stripPage = 0, heroId = null, lastDevice = null;
-const PER_STRIP = 24;
+let sel = new Set(), lastClick = null;
+const PER_STRIP = 60;
 
-/** 표기 흔들림 탐지용 정규화 — 대소문자·공백·구분자·로마숫자를 지운다.
- *  CareSens II 와 caresens-2 와 케어센스 II 를 같은 것으로 본다. */
+/** 표기 흔들림 탐지용 정규화 — 대소문자·공백·구분자·로마숫자를 지운다. */
 function norm(s) {
   return (s || '').toLowerCase()
     .replace(/[\s._\-+()]/g, '')
@@ -173,35 +198,42 @@ function norm(s) {
     .replace(/iii/g, '3').replace(/ii/g, '2');
 }
 const keyOf = (b, m) => norm(b) + '|' + norm(m);
+const memberOf = r => MEMBERS[r.component] || [r.rep];
+const labelText = j => !j ? '' : j.status === 'unknown' ? '식별 불가'
+                                                        : (j.brand + ' ' + j.model).trim();
 
 async function boot() {
   const j = await (await fetch('/api/devicetags')).json();
   ROWS = j.rows; MEMBERS = j.members || {}; VOCAB = j.vocab || [];
-  NEAR = j.near || {}; PRIO = j.review_priority || {};
+  LABELS = j.labels || {}; NEAR = j.near || {}; PRIO = j.review_priority || {};
   ROWS.forEach(r => BY_ID[r.component] = r);
   document.querySelectorAll('.f').forEach(b => b.onclick = () => {
-    filter = b.dataset.f; idx = 0; show();
+    filter = b.dataset.f; idx = 0; enter();
   });
-  $('#q').oninput = () => { idx = 0; show(); };
+  $('#q').oninput = () => { idx = 0; enter(); };
   $('#next').onclick = () => move(1);
   $('#prev').onclick = () => move(-1);
-  $('#save').onclick = () => saveTyped();
-  $('#same').onclick = () => saveSame();
+  $('#save').onclick = saveTyped;
+  $('#same').onclick = saveSame;
   $('#unk').onclick = () => save({ status: 'unknown' });
-  $('#mix').onclick = () => save({ status: 'mixed' });
   $('#reset').onclick = () => save({ status: 'reset' });
-  $('#sPrev').onclick = () => { stripPage = Math.max(0, stripPage - 1); renderStrip(); };
-  $('#sNext').onclick = () => { stripPage++; renderStrip(); };
+  $('#selAll').onclick = () => { selectAll(); render(); };
+  $('#selRest').onclick = () => { selectRest(); render(); };
+  $('#selNone').onclick = () => { sel.clear(); render(); };
+  $('#sPrev').onclick = () => { stripPage = Math.max(0, stripPage - 1); render(); };
+  $('#sNext').onclick = () => { stripPage++; render(); };
   $('#helpBtn').onclick = () => $('#help').style.display = 'block';
   document.addEventListener('keydown', onKey);
-  show();
+  enter();
 }
+
+function unlabeled(r) { return memberOf(r).filter(i => !LABELS[i]); }
 
 function list() {
   const q = $('#q').value.trim().toLowerCase();
   let out = ROWS;
-  if (filter === 'todo') out = out.filter(r => !r.checked);
-  if (filter === 'done') out = out.filter(r => r.checked && r.status !== 'mixed');
+  if (filter === 'todo') out = out.filter(r => unlabeled(r).length);
+  if (filter === 'done') out = out.filter(r => !unlabeled(r).length && r.status !== 'mixed');
   if (filter === 'mixed') out = out.filter(r => r.status === 'mixed');
   if (q) out = out.filter(r => (r.component + ' ' + r.rep + ' ' + (r.brand || '') +
                                 ' ' + (r.model || '')).toLowerCase().includes(q));
@@ -211,59 +243,73 @@ function list() {
 
 function cur() { const l = list(); return l[Math.min(idx, l.length - 1)] || null; }
 
+/** 성분에 들어설 때: 아직 라벨 없는 사진을 기본 선택으로 둔다. */
+function enter() {
+  stripPage = 0; heroId = null; lastClick = null;
+  selectRest();
+  render();
+}
+function selectRest() {
+  const r = cur(); sel = new Set(r ? unlabeled(r) : []);
+  if (!heroId || !sel.has(heroId)) heroId = [...sel][0] || (r ? memberOf(r)[0] : null);
+}
+function selectAll() { const r = cur(); sel = new Set(r ? memberOf(r) : []); }
+
 function move(d) {
   const l = list();
   idx = Math.max(0, Math.min(l.length - 1, idx + d));
-  stripPage = 0; heroId = null; show();
+  enter();
 }
 
-function show() {
+function render() {
   const l = list(), r = cur();
-  const doneN = ROWS.filter(x => x.checked).length;
-  const doneImg = ROWS.filter(x => x.checked).reduce((s, x) => s + x.size, 0);
   const totImg = ROWS.reduce((s, x) => s + x.size, 0);
-  $('#counts').innerHTML = `성분 <b>${doneN}</b>/${ROWS.length} · ` +
-    `장수 <b>${doneImg}</b>/${totImg} (${(doneImg / totImg * 100).toFixed(1)}%) · ` +
-    `목록 ${l.length}건 중 ${l.length ? idx + 1 : 0}번째`;
+  const doneImg = Object.keys(LABELS).length;
+  const compDone = ROWS.filter(x => !unlabeled(x).length).length;
+  $('#counts').innerHTML = `사진 <b>${doneImg}</b>/${totImg} ` +
+    `(${(doneImg / totImg * 100).toFixed(1)}%) · 성분 <b>${compDone}</b>/${ROWS.length}` +
+    ` · 목록 ${l.length}건 중 ${l.length ? idx + 1 : 0}번째`;
   $('#prog > i').style.width = (doneImg / totImg * 100) + '%';
   document.querySelectorAll('.f').forEach(b =>
     b.classList.toggle('on', b.dataset.f === filter));
   if (!r) {
     $('#cid').textContent = '(없음)'; $('#meta').textContent = '';
     $('#heroImg').removeAttribute('src'); $('#strip').innerHTML = '';
+    $('#selInfo').textContent = '';
     $('#state').innerHTML = '<span class="muted">이 필터에 남은 성분이 없다.</span>';
     return;
   }
+  const mem = memberOf(r), rest = unlabeled(r);
   $('#cid').textContent = r.component;
   const prio = PRIO[r.component];
-  $('#meta').innerHTML = `<span class="pill">${r.size}장</span> ` +
-    `<span class="pill ${r.by}">by: ${r.by}</span> ` +
+  $('#meta').innerHTML = `<span class="pill">${mem.length}장</span> ` +
     (prio ? `<span class="pill">근접: ${prio.map(p => p[0] + '(' + p[1] + ')').join(' ')}</span>` : '');
-  const st = r.status || (r.checked ? 'identified' : '');
-  $('#state').innerHTML = !r.checked
-    ? '<span class="muted">미확인</span>'
-    : st === 'mixed' ? '<span class="pill mixed">✓ 섞임 — 여러 기기</span>'
-    : st === 'unknown' ? '<span class="pill unknown">✓ 확인했으나 식별 불가</span>'
-    : `<span class="pill human">✓ ${r.brand} ${r.model}</span>`;
-  $('#brand').value = r.brand || '';
-  $('#model').value = r.model || '';
+  // 이 성분에 실제로 붙은 기기들 — 섞여 있으면 여기서 바로 드러난다.
+  const devs = {};
+  mem.forEach(i => { const t = labelText(LABELS[i]); if (t) devs[t] = (devs[t] || 0) + 1; });
+  const dl = Object.entries(devs).sort((a, b) => b[1] - a[1]);
+  $('#state').innerHTML = dl.length
+    ? dl.map(([t, n]) => `<span class="pill ${t === '식별 불가' ? 'unknown' : 'human'}">${t} ${n}장</span>`).join(' ') +
+      (dl.filter(d => d[0] !== '식별 불가').length > 1
+        ? ' <span class="pill mixed">섞인 성분</span>' : '') +
+      (rest.length ? ` <span class="muted">· ${rest.length}장 남음</span>` : '')
+    : '<span class="muted">라벨 없음 — ' + mem.length + '장</span>';
+  $('#selInfo').innerHTML = sel.size
+    ? `선택 <b>${sel.size}</b>장 — 숫자키·Enter 로 이 선택에만 지정된다.` +
+      (sel.size < mem.length ? ` <span class="muted">(성분 ${mem.length}장 중)</span>` : '')
+    : '<span class="muted">선택 없음 — 썸네일을 클릭하거나 a(전체) / r(남은 것만).</span>';
   renderPalette(); renderStrip(); renderSugg();
 }
 
 function renderPalette() {
-  const p = $('#palette');
-  p.innerHTML = '';
-  VOCAB.slice(0, 9).forEach((v, i) => {
+  const p = $('#palette'); p.innerHTML = '';
+  if (!VOCAB.length) {
+    p.innerHTML = '<span class="muted">아직 쓴 이름이 없다 — 아래에 직접 입력하면 여기 쌓인다.</span>';
+  }
+  VOCAB.forEach((v, i) => {
     const b = document.createElement('button');
-    b.innerHTML = `<span class="key">${i + 1}</span><span>${v.brand} ${v.model}</span>` +
-      `<span class="cnt">${v.components}성분 ${v.images}장</span>`;
-    b.onclick = () => save({ brand: v.brand, model: v.model });
-    p.appendChild(b);
-  });
-  VOCAB.slice(9).forEach(v => {
-    const b = document.createElement('button');
-    b.innerHTML = `<span class="key"></span><span>${v.brand} ${v.model}</span>` +
-      `<span class="cnt">${v.components}성분 ${v.images}장</span>`;
+    b.innerHTML = `<span class="key">${i < 9 ? i + 1 : ''}</span>` +
+      `<span>${v.brand} ${v.model}</span><span class="cnt">${v.images}장</span>`;
     b.onclick = () => save({ brand: v.brand, model: v.model });
     p.appendChild(b);
   });
@@ -275,25 +321,39 @@ function renderPalette() {
 
 function renderStrip() {
   const r = cur(); if (!r) return;
-  const mem = MEMBERS[r.component] || [r.rep];
+  const mem = memberOf(r);
   const pages = Math.max(1, Math.ceil(mem.length / PER_STRIP));
   if (stripPage >= pages) stripPage = pages - 1;
   const slice = mem.slice(stripPage * PER_STRIP, (stripPage + 1) * PER_STRIP);
-  if (!heroId || !mem.includes(heroId)) heroId = slice[0] || r.rep;
+  if (!heroId || !mem.includes(heroId)) heroId = slice[0];
   $('#heroImg').src = '/photo?id=' + encodeURIComponent(heroId) + '&w=1100';
   $('#heroCap').textContent = heroId;
+  const hj = LABELS[heroId];
+  $('#heroLbl').innerHTML = hj ? `<span class="pill ${hj.status === 'unknown' ? 'unknown' : 'human'}">` +
+    `${labelText(hj)}</span>` : '<span class="pill">라벨 없음</span>';
   $('#stripInfo').textContent =
     `${mem.length}장 중 ${stripPage * PER_STRIP + 1}–${stripPage * PER_STRIP + slice.length}` +
-    ` (${stripPage + 1}/${pages} 페이지)`;
+    (pages > 1 ? ` (${stripPage + 1}/${pages})` : '');
   const s = $('#strip'); s.innerHTML = '';
-  slice.forEach(id => {
-    const im = document.createElement('img');
-    im.loading = 'lazy';
-    im.src = '/photo?id=' + encodeURIComponent(id) + '&w=160';
-    im.className = id === heroId ? 'sel' : '';
-    im.title = id;
-    im.onclick = () => { heroId = id; renderStrip(); };
-    s.appendChild(im);
+  slice.forEach((id, k) => {
+    const j = LABELS[id];
+    const d = document.createElement('div');
+    d.className = 'th' + (sel.has(id) ? ' sel' : '') +
+      (j ? (j.status === 'unknown' ? ' unk' : ' done') : '');
+    d.innerHTML = `<img loading="lazy" src="/photo?id=${encodeURIComponent(id)}&w=160" title="${id}">` +
+      (j ? `<span class="tag">${labelText(j)}</span>` : '');
+    d.onclick = e => {
+      const gi = stripPage * PER_STRIP + k;
+      if (e.shiftKey && lastClick !== null) {
+        const [a, b] = [Math.min(lastClick, gi), Math.max(lastClick, gi)];
+        for (let x = a; x <= b; x++) sel.add(mem[x]);
+      } else {
+        sel.has(id) ? sel.delete(id) : sel.add(id);
+        lastClick = gi;
+      }
+      heroId = id; render();
+    };
+    s.appendChild(d);
   });
 }
 
@@ -303,14 +363,15 @@ function renderSugg() {
   if (!near.length) { box.innerHTML = '<span class="muted">후보 없음</span>'; return; }
   near.forEach(([cid, dist]) => {
     const o = BY_ID[cid]; if (!o) return;
+    const lbl = labelText(LABELS[o.rep]) || '미확인';
     const f = document.createElement('figure');
-    const lbl = o.brand ? `${o.brand} ${o.model}` : (o.status === 'mixed' ? '섞임' : '미확인');
     f.innerHTML = `<img loading="lazy" src="/photo?id=${encodeURIComponent(o.rep)}&w=200">` +
       `<figcaption>${cid} · h${dist}<br>${lbl}</figcaption>`;
     f.onclick = () => {
-      // 제안은 입력만 채운다. 저장은 사람이 한 번 더 누른다.
-      if (o.brand) { $('#brand').value = o.brand; $('#model').value = o.model; }
-      heroId = o.rep; $('#heroImg').src = '/photo?id=' + encodeURIComponent(o.rep) + '&w=1100';
+      const j = LABELS[o.rep];
+      if (j && j.status === 'identified') { $('#brand').value = j.brand; $('#model').value = j.model; }
+      heroId = o.rep;
+      $('#heroImg').src = '/photo?id=' + encodeURIComponent(o.rep) + '&w=1100';
       $('#heroCap').textContent = cid + ' (후보)';
     };
     box.appendChild(f);
@@ -326,19 +387,17 @@ function warn(html) {
 function saveTyped() {
   const brand = $('#brand').value.trim(), model = $('#model').value.trim();
   if (!brand && !model) { $('#msg').textContent = '브랜드가 비었다 — 식별 불가면 u'; return; }
-  // 이미 쓴 이름과 철자만 다른가? 그러면 없는 기종이 하나 생긴다.
   const k = keyOf(brand, model);
-  const exact = VOCAB.find(v => v.brand === brand && v.model === model);
-  if (!exact) {
+  if (!VOCAB.find(v => v.brand === brand && v.model === model)) {
     const twin = VOCAB.find(v => keyOf(v.brand, v.model) === k);
     if (twin) {
       warn(`<b>표기가 갈린다.</b> 이미 <b>${twin.brand} ${twin.model}</b> 로 ` +
-           `${twin.components}성분이 저장돼 있다. 같은 기기면 기존 표기를 쓰자 — ` +
-           `표기가 둘로 갈리면 없는 기종이 생기고 기기 단절 평가가 무효가 된다. ` +
-           `<button id="useTwin">기존 표기로 저장</button> ` +
+           `${twin.images}장이 저장돼 있다. 같은 기기면 기존 표기를 쓰자 — 표기가 둘로 ` +
+           `갈리면 없는 기종이 생기고 기기 단절 평가가 무효가 된다. ` +
+           `<button id="useTwin">기존 표기로</button> ` +
            `<button class="ghost" id="forceNew">그래도 새 이름으로</button>`);
       $('#useTwin').onclick = () => { warn(''); save({ brand: twin.brand, model: twin.model }); };
-      $('#forceNew').onclick = () => { warn(''); save({ brand, model, force: true }); };
+      $('#forceNew').onclick = () => { warn(''); save({ brand, model }); };
       return;
     }
   }
@@ -346,33 +405,35 @@ function saveTyped() {
 }
 
 function saveSame() {
-  if (!lastDevice) { $('#msg').textContent = '직전에 저장한 기기가 없다'; return; }
-  save({ brand: lastDevice.brand, model: lastDevice.model });
+  if (!lastDevice) { $('#msg').textContent = '직전에 지정한 기기가 없다'; return; }
+  save(lastDevice);
 }
 
 async function save(opt) {
   const r = cur(); if (!r) return;
+  if (!sel.size) { $('#msg').textContent = '선택된 사진이 없다 — a(전체) / r(남은 것만)'; return; }
   const status = opt.status || 'identified';
-  const body = { component: r.component, status };
-  if (status === 'identified') { body.brand = opt.brand || ''; body.model = opt.model || ''; }
-  body.note = '사람 확인 ' + new Date().toISOString().slice(0, 10);
-  $('#msg').textContent = '저장 중…';
-  const res = await fetch('/api/devicetag', {
+  const ids = [...sel];
+  $('#msg').textContent = `${ids.length}장 저장 중…`;
+  const res = await fetch('/api/devicelabel', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+    body: JSON.stringify({ ids, status, brand: opt.brand || '', model: opt.model || '' })
   });
   const j = await res.json();
   if (!j.ok) { $('#msg').textContent = '실패: ' + (j.error || res.status); return; }
-  Object.assign(r, j.row);
+  Object.assign(LABELS, j.labels || {});
+  (j.removed || []).forEach(i => delete LABELS[i]);
   if (j.vocab) VOCAB = j.vocab;
-  if (status === 'identified' && body.brand) lastDevice = { brand: body.brand, model: body.model };
-  $('#msg').innerHTML = `<span style="color:#7ae394">저장됨</span> ` +
-    (status === 'identified' ? `${body.brand} ${body.model}` : status);
+  if (j.rows) { ROWS = j.rows; ROWS.forEach(x => BY_ID[x.component] = x); }
+  if (status === 'identified') lastDevice = { brand: opt.brand, model: opt.model };
   warn('');
-  // 미확인 필터에서는 방금 처리한 항목이 목록에서 빠지므로 idx 를 그대로 두면
-  // 자연히 다음 성분이 온다. 다른 필터에서는 한 칸 넘긴다.
-  if (filter === 'todo' && status !== 'reset') { stripPage = 0; heroId = null; show(); }
-  else move(1);
+  const rest = unlabeled(r);
+  $('#msg').innerHTML = `<span style="color:#7ae394">${ids.length}장 지정</span> ` +
+    (status === 'identified' ? `${opt.brand} ${opt.model}` : status) +
+    (rest.length ? ` · <b>${rest.length}장 남음</b>` : ' · 이 성분 완료');
+  // 남은 장이 있으면 이 성분에 머문다. 섞인 성분을 한 번에 넘기지 않기 위해서다.
+  if (rest.length) { selectRest(); render(); }
+  else { render(); setTimeout(() => move(1), 250); }
 }
 
 function onKey(e) {
@@ -385,13 +446,26 @@ function onKey(e) {
     if (e.key === 'Escape') document.activeElement.blur();
     return;
   }
-  if (e.key === 'j' || e.key === 'ArrowDown') { e.preventDefault(); move(1); }
-  else if (e.key === 'k' || e.key === 'ArrowUp') { e.preventDefault(); move(-1); }
-  else if (e.key === ']') { stripPage++; renderStrip(); }
-  else if (e.key === '[') { stripPage = Math.max(0, stripPage - 1); renderStrip(); }
+  const r = cur(); const mem = r ? memberOf(r) : [];
+  if (e.key === 'j') { e.preventDefault(); move(1); }
+  else if (e.key === 'k') { e.preventDefault(); move(-1); }
+  else if (e.key === 'a') { selectAll(); render(); }
+  else if (e.key === 'r') { selectRest(); render(); }
+  else if (e.key === 'Escape') { sel.clear(); render(); }
+  else if (e.key === ' ') {
+    e.preventDefault();
+    if (heroId) { sel.has(heroId) ? sel.delete(heroId) : sel.add(heroId); render(); }
+  }
+  else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+    e.preventDefault();
+    const i = mem.indexOf(heroId);
+    const n = Math.max(0, Math.min(mem.length - 1, i + (e.key === 'ArrowRight' ? 1 : -1)));
+    heroId = mem[n]; stripPage = Math.floor(n / PER_STRIP); render();
+  }
+  else if (e.key === ']') { stripPage++; render(); }
+  else if (e.key === '[') { stripPage = Math.max(0, stripPage - 1); render(); }
   else if (e.key === 'd') saveSame();
   else if (e.key === 'u') save({ status: 'unknown' });
-  else if (e.key === 'm') save({ status: 'mixed' });
   else if (e.key === 'x') save({ status: 'reset' });
   else if (e.key === 'Enter') saveTyped();
   else if (e.key === '/') { e.preventDefault(); $('#q').focus(); }

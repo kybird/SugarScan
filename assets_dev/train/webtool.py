@@ -51,6 +51,10 @@ HOLDOUT = HERE / "reader_preds.json"
 HTML = HERE / "webtool.html"
 DEVICES_HTML = HERE / "devices.html"
 DEVICE_TAGS = HERE / "device_tags.jsonl"
+# 사진 단위 라벨 — 라벨의 정본. 성분(dhash 연결요소)은 오염될 수 있어서
+# "성분 하나에 기기 하나"로는 정답을 적을 수 없는 경우가 실제로 있다.
+# device_tags.jsonl 은 여기서 파생되는 성분 요약으로 남는다.
+DEVICE_LABELS = HERE / "device_labels.jsonl"
 PID_FILE = HERE / "train_pid.json"
 DETACHED = 0x00000008 | 0x00000200  # DETACHED_PROCESS | NEW_PROCESS_GROUP
 
@@ -161,6 +165,88 @@ def save_device_tags(rows):
     tmp.replace(DEVICE_TAGS)
 
 
+def load_device_labels():
+    """사진 id → {brand, model, status}. 없으면 빈 dict."""
+    out = {}
+    if DEVICE_LABELS.exists():
+        for l in DEVICE_LABELS.read_text(encoding="utf-8").splitlines():
+            if l.strip():
+                j = json.loads(l)
+                out[j["id"]] = j
+    return out
+
+
+def save_device_labels(labels):
+    tmp = DEVICE_LABELS.with_suffix(".tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        for _id in sorted(labels):
+            f.write(json.dumps(labels[_id], ensure_ascii=False) + "\n")
+    tmp.replace(DEVICE_LABELS)
+
+
+def scene_members():
+    mp = HERE / "_diag" / "scene_components.json"
+    return json.loads(mp.read_text(encoding="utf-8")) if mp.exists() else {}
+
+
+def resummarize_components(labels):
+    """사진 라벨에서 성분 요약을 다시 만든다 — 정본은 언제나 사진 쪽이다.
+
+    한 성분의 사진이 전부 라벨되고 기기가 하나면 identified, 기기가 둘 이상이면
+    mixed(성분이 오염됐다는 사실 자체가 결과다), 아직 남았으면 checked=False.
+    """
+    members = scene_members()
+    rows = load_device_tags()
+    for r in rows:
+        ids = members.get(r["component"], [r["rep"]])
+        got = [labels[i] for i in ids if i in labels]
+        r["labeled"] = len(got)
+        # G34 에이전트가 남긴 원래 추정을 한 번 보관해 둔다. 사람 라벨을 전부
+        # 지웠을 때 돌아갈 자리가 없으면 그 추정이 영영 사라진다.
+        if "agent_brand" not in r:
+            r["agent_brand"] = r.get("brand", "")
+            r["agent_model"] = r.get("model", "")
+        if not got:
+            r["brand"] = r.get("agent_brand", "")
+            r["model"] = r.get("agent_model", "")
+            r["status"] = ""
+            r["checked"] = False
+            r["by"] = "agent"
+            r["confidence"] = "high" if r["brand"] else "low"
+            continue
+        devices = {(g.get("brand", ""), g.get("model", "")) for g in got
+                   if g.get("status") == "identified"}
+        unknown = any(g.get("status") == "unknown" for g in got)
+        r["by"] = "human"
+        r["checked"] = len(got) == len(ids)
+        if len(devices) > 1:
+            r["status"] = "mixed"
+            r["brand"] = r["model"] = ""
+        elif len(devices) == 1:
+            r["status"] = "identified"
+            (r["brand"], r["model"]) = list(devices)[0]
+        else:
+            r["status"] = "unknown" if unknown else ""
+            r["brand"] = r["model"] = ""
+        r["confidence"] = "high" if r["checked"] else "low"
+    save_device_tags(rows)
+    return rows
+
+
+def label_vocab(labels):
+    """이미 쓴 (브랜드, 모델) — 사진 수 기준 사용량 순."""
+    tally = {}
+    for j in labels.values():
+        if j.get("status") != "identified":
+            continue
+        key = (j.get("brand", "").strip(), j.get("model", "").strip())
+        if not key[0] and not key[1]:
+            continue
+        agg = tally.setdefault(key, {"brand": key[0], "model": key[1], "images": 0})
+        agg["images"] += 1
+    return sorted(tally.values(), key=lambda a: -a["images"])
+
+
 def device_vocab(rows):
     """이미 쓴 (브랜드, 모델) 목록 — 사용 빈도 순.
 
@@ -204,9 +290,14 @@ def api_devicetags(qs):
             near.setdefault(pair["b"], []).append([pair["a"], pair["dist"]])
     for k in near:
         near[k].sort(key=lambda x: x[1])
+    labels = load_device_labels()
+    vocab = label_vocab(labels) or [
+        {"brand": v["brand"], "model": v["model"], "images": 0}
+        for v in device_vocab(rows)]
     return {"rows": rows,
             "members": members,
-            "vocab": device_vocab(rows),
+            "labels": labels,
+            "vocab": vocab,
             "near": near,
             "review_priority": summary.get("review_priority", {})}
 
@@ -1049,6 +1140,42 @@ class Handler(BaseHTTPRequestHandler):
             rows[cid] = {"id": cid, "original": orig, "corrected": corrected}
             write_jsonl(GT_FIX, rows)
             self._json({"ok": True})
+            return
+        if u.path == "/api/devicelabel":
+            # 사진 단위 라벨 — 여러 장을 한 번에 찍는다(성분 전체 선택이 기본).
+            ids = body.get("ids") or []
+            if not isinstance(ids, list) or not ids:
+                self._json({"error": "ids 가 비었다"}, 400)
+                return
+            status = str(body.get("status", "identified"))
+            if status not in ("identified", "unknown", "reset"):
+                self._json({"error": "bad status"}, 400)
+                return
+            brand = str(body.get("brand", "")).strip()
+            model = str(body.get("model", "")).strip()
+            if status == "identified" and not brand and not model:
+                self._json({"error": "브랜드가 비었다"}, 400)
+                return
+            labels = load_device_labels()
+            stamp = time.strftime("%Y-%m-%dT%H:%M:%S")
+            for i in ids:
+                i = str(i)
+                if ".." in i or i.startswith("/"):
+                    self._json({"error": "bad id"}, 400)
+                    return
+                if status == "reset":
+                    labels.pop(i, None)
+                else:
+                    labels[i] = {"id": i,
+                                 "brand": brand if status == "identified" else "",
+                                 "model": model if status == "identified" else "",
+                                 "status": status, "by": "human", "ts": stamp}
+            save_device_labels(labels)
+            rows = resummarize_components(labels)
+            self._json({"ok": True, "n": len(ids),
+                        "labels": {i: labels[i] for i in ids if i in labels},
+                        "removed": [i for i in ids if i not in labels],
+                        "rows": rows, "vocab": label_vocab(labels)})
             return
         if u.path == "/api/devicetag":
             comp = str(body.get("component", ""))
