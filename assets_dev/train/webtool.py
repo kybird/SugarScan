@@ -256,16 +256,33 @@ def device_vocab(rows):
     """
     tally = {}
     for r in rows:
-        if not r.get("brand") and not r.get("model"):
+        # 사람 라벨이 성분 요약을 덮어쓴 뒤에도 에이전트 추정이 팔레트에서
+        # 사라지지 않도록, 보관해 둔 agent_* 를 우선 본다.
+        b = (r.get("agent_brand") if "agent_brand" in r else r.get("brand", "")) or ""
+        m = (r.get("agent_model") if "agent_brand" in r else r.get("model", "")) or ""
+        if not b and not m:
             continue
-        key = (r.get("brand", "").strip(), r.get("model", "").strip())
+        key = (b.strip(), m.strip())
         agg = tally.setdefault(key, {"brand": key[0], "model": key[1],
-                                     "components": 0, "images": 0, "human": 0})
+                                     "components": 0, "images": 0})
         agg["components"] += 1
         agg["images"] += int(r.get("size", 0))
-        if r.get("by") == "human":
-            agg["human"] += 1
-    return sorted(tally.values(), key=lambda a: (-a["human"], -a["images"]))
+    return sorted(tally.values(), key=lambda a: -a["images"])
+
+
+def palette_vocab(rows, labels):
+    """팔레트 = 사진 라벨 사용량 순 + G34 에이전트가 이미 알아낸 기기(0장).
+
+    에이전트 추정을 남기지 않으면, 사람이 첫 라벨을 찍는 순간 팔레트가 그 하나로
+    줄어든다. 예측이 지워진 것처럼 보일 뿐 아니라 같은 기기를 매번 다시
+    타이핑하게 되어 표기가 갈린다 — 없는 기종이 생기는 바로 그 경로다.
+    """
+    vocab = label_vocab(labels)
+    have = {(v["brand"], v["model"]) for v in vocab}
+    for v in device_vocab(rows):
+        if (v["brand"], v["model"]) not in have:
+            vocab.append({"brand": v["brand"], "model": v["model"], "images": 0})
+    return vocab
 
 
 @route("/api/devicetags")
@@ -291,9 +308,7 @@ def api_devicetags(qs):
     for k in near:
         near[k].sort(key=lambda x: x[1])
     labels = load_device_labels()
-    vocab = label_vocab(labels) or [
-        {"brand": v["brand"], "model": v["model"], "images": 0}
-        for v in device_vocab(rows)]
+    vocab = palette_vocab(rows, labels)
     return {"rows": rows,
             "members": members,
             "labels": labels,
@@ -1175,7 +1190,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"ok": True, "n": len(ids),
                         "labels": {i: labels[i] for i in ids if i in labels},
                         "removed": [i for i in ids if i not in labels],
-                        "rows": rows, "vocab": label_vocab(labels)})
+                        "rows": rows, "vocab": palette_vocab(rows, labels)})
             return
         if u.path == "/api/devicetag":
             comp = str(body.get("component", ""))

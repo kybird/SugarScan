@@ -359,7 +359,8 @@ function renderPalette() {
   VOCAB.forEach((v, i) => {
     const b = document.createElement('button');
     b.innerHTML = `<span class="key">${i < 9 ? i + 1 : ''}</span>` +
-      `<span>${v.brand} ${v.model}</span><span class="cnt">${v.images}장</span>`;
+      `<span>${(v.brand + ' ' + v.model).trim()}</span>` +
+      `<span class="cnt">${v.images}장</span>`;
     b.onclick = () => save({ brand: v.brand, model: v.model });
     p.appendChild(b);
   });
@@ -437,6 +438,18 @@ function warn(html) {
 function saveTyped() {
   const brand = $('#brand').value.trim(), model = $('#model').value.trim();
   if (!brand && !model) { $('#msg').textContent = '브랜드가 비었다 — 식별 불가면 u'; return; }
+  // 모델만 적으면 팔레트에 "· Performa Nano" 로 쌓인다. 나중에 같은 기기에
+  // 브랜드까지 적는 순간 "· Performa Nano" 와 "ACCU-CHEK · Performa Nano" 가
+  // 서로 다른 기종이 되어, 기기 단절 평가가 같은 기기를 두 종으로 센다.
+  if (!brand && model) {
+    warn(`<b>브랜드가 비었다.</b> 모델만 <b>${model}</b> 로 저장하면 나중에 같은 기기에 ` +
+         `브랜드를 채운 라벨과 서로 다른 기종이 된다. 브랜드 칸을 채우는 편이 안전하다. ` +
+         `<button id="goBrand">브랜드 입력으로</button> ` +
+         `<button class="ghost" id="modelOnly">그래도 모델만 저장</button>`);
+    $('#goBrand').onclick = () => { warn(''); $('#brand').focus(); };
+    $('#modelOnly').onclick = () => { warn(''); save({ brand, model }); };
+    return;
+  }
   const k = keyOf(brand, model);
   if (!VOCAB.find(v => v.brand === brand && v.model === model)) {
     const twin = VOCAB.find(v => keyOf(v.brand, v.model) === k);
