@@ -13,6 +13,7 @@ tags: [index]
 |------|------|------|
 | [[canonical-value]] | 한 사실을 두 군데에 적으면 언젠가 갈라진다. | 정본, single-source-of-truth, value_mgdl, valueMgdl, enteredValue, enteredUnit, valueIn, GlucoseReading |
 | [[coordinate-frame]] | 좌표 4개짜리 배열은 **그 자체로는 아무 의미가 없다.** `(559, 345)` 는 "어느 이미지의, 어느 크기·방향 공간에서" 잰 값인지가 붙어야 비로소 위치를 가리킨다. | 좌표계, frame, 표시 좌표계, cross-space-comparison, lb.ow, exif_transpose, quad, screen_boxes.jsonl, oriented |
+| [[experiment-budget-parity]] | A/B 로 **구조**(프레이밍·전처리·아키텍처)를 비교하려면 두 팔이 같은 만큼 | 학습 예산, 에폭 수, 예산 일치, budget parity, 대조군 예산, A/B 공정성, fair comparison, 수렴 부족, undertrained |
 | [[knowledge-retrieval-shape]] | 지식 베이스의 가치는 **쓰여 있는가**가 아니라 **필요한 순간에 그 사람이 던지는 질의 모양으로 걸리는가**로 정해진다. | 검색 질의 모양, llm-wiki search, grep 폴백, retrieval |
 | [[live-query]] | Drift 의 `watch()` 는 테이블이 바뀔 때마다 **처음 만든 SQL 을 그대로 다시 돌린다.** 파라미터를 다시 계산하지 않는다. | 살아 있는 질의, Drift watch, 스트림 질의, StreamProvider, watchBetween, autoDispose, Drift watch() |
 | [[wire-schema-evolution]] | 앱이 출시되는 순간부터 **여러 버전이 동시에 같은 서버를 읽고 쓴다.** 구버전 클라이언트는 이미 사용자 기기에 설치돼 있어 나중에 고칠 수 없다 — 이것이 이 주제의 모든 제약을 만든다. | 스키마 진화, 버전 공존, forward-compatibility, additive-only-wire-schema, fromWireName, wireName, ReadingDto, MeasurementTag, ReadingSource |
@@ -77,7 +78,7 @@ tags: [index]
 
 ## Statistics
 
-- Total concepts: 5
+- Total concepts: 6
 - Total patterns: 13
 - Total anti-patterns: 22
 - Total answers: 0
