@@ -49,6 +49,8 @@ TRAIN_LOG = HERE / "ctc_train_gpu.log"
 RESUME_STATE = HERE / "checkpoints_v2" / "resume_state.json"
 HOLDOUT = HERE / "reader_preds.json"
 HTML = HERE / "webtool.html"
+DEVICES_HTML = HERE / "devices.html"
+DEVICE_TAGS = HERE / "device_tags.jsonl"
 PID_FILE = HERE / "train_pid.json"
 DETACHED = 0x00000008 | 0x00000200  # DETACHED_PROCESS | NEW_PROCESS_GROUP
 
@@ -139,6 +141,35 @@ def api_labels(qs):
     for cid, j in rows.items():
         out[cid] = {"quad": j.get("quad"), "source": j.get("source")}
     return {"labels": out}
+
+
+def load_device_tags():
+    """device_tags.jsonl — 행 순서가 곧 성분 정렬이므로 list 로 보존한다."""
+    rows = []
+    if DEVICE_TAGS.exists():
+        for l in DEVICE_TAGS.read_text(encoding="utf-8").splitlines():
+            if l.strip():
+                rows.append(json.loads(l))
+    return rows
+
+
+def save_device_tags(rows):
+    tmp = DEVICE_TAGS.with_suffix(".tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        for j in rows:
+            f.write(json.dumps(j, ensure_ascii=False) + "\n")
+    tmp.replace(DEVICE_TAGS)
+
+
+@route("/api/devicetags")
+def api_devicetags(qs):
+    rows = load_device_tags()
+    summary = {}
+    sp = HERE / "_diag" / "device_tags" / "summary.json"
+    if sp.exists():
+        summary = json.loads(sp.read_text(encoding="utf-8"))
+    return {"rows": rows,
+            "review_priority": summary.get("review_priority", {})}
 
 
 @route("/api/quads")
@@ -841,6 +872,13 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 self._send(404, "webtool.html 없음 — 서버 옆에 만들 것".encode(), "text/plain")
             return
+        if u.path == "/devices":
+            if DEVICES_HTML.exists():
+                self._send(200, DEVICES_HTML.read_bytes(),
+                           "text/html; charset=utf-8")
+            else:
+                self._send(404, "devices.html 없음".encode(), "text/plain")
+            return
         if u.path.startswith("/api/"):
             fn = ROUTES.get(u.path)
             if fn is None:
@@ -957,6 +995,28 @@ class Handler(BaseHTTPRequestHandler):
             rows[cid] = {"id": cid, "original": orig, "corrected": corrected}
             write_jsonl(GT_FIX, rows)
             self._json({"ok": True})
+            return
+        if u.path == "/api/devicetag":
+            comp = str(body.get("component", ""))
+            if not (comp.startswith("c") and comp[1:].isdigit()):
+                self._json({"error": "bad component"}, 400)
+                return
+            rows = load_device_tags()
+            for r in rows:
+                if r["component"] == comp:
+                    # 사람이 저장하는 순간 판정 주체는 human(아틀라스 규약).
+                    # 빈 브랜드로 저장하면 "확인했지만 식별 불가"로 남는다.
+                    r["brand"] = str(body.get("brand", r.get("brand", ""))).strip()
+                    r["model"] = str(body.get("model", r.get("model", ""))).strip()
+                    if body.get("note") is not None:
+                        r["note"] = str(body["note"])
+                    r["confidence"] = "high"
+                    r["by"] = "human"
+                    r["checked"] = True
+                    save_device_tags(rows)
+                    self._json({"ok": True, "row": r})
+                    return
+            self._json({"error": "no such component"}, 404)
             return
         if u.path == "/api/train/start":
             if self._pid_alive(self._train_pid()):
