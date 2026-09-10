@@ -32,6 +32,7 @@ class SegmentRuleEngine implements OcrEngine {
   SegmentRuleEngine({
     MeterProfile? profile,
     this.blurThreshold = FrameQualityGate.minBlurScore,
+    this.glareMaxClusterRatio = FrameQualityGate.maxGlareClusterRatio,
     this.minSeparability = 0.25,
   }) : profile = profile ?? MeterProfile.uniform(digitCount: 4);
 
@@ -41,6 +42,9 @@ class SegmentRuleEngine implements OcrEngine {
 
   /// 초점 판정 기준. 실촬 골든셋 확보 후 재보정 대상.
   final double blurThreshold;
+
+  /// 반사광 판정 기준(포화 클러스터 최대 면적비). 재보정 대상은 위와 같다.
+  final double glareMaxClusterRatio;
 
   /// 전경/배경이 갈라지는 최소 정도. 낮으면 잡음에서 숫자가 만들어진다.
   final double minSeparability;
@@ -108,9 +112,13 @@ class SegmentRuleEngine implements OcrEngine {
 
     final roi = _cropRoi(gray, frame.roi);
 
-    // 흐릿한 프레임은 해독하지 않는다. 뭉개진 세그먼트에서 나온 그럴듯한
-    // 오답이 시간 투표에 섞이면 전체가 오염된다.
-    final quality = FrameQualityGate.evaluate(roi, blurThreshold: blurThreshold);
+    // 흐릿하거나 반사광이 큰 프레임은 해독하지 않는다. 뭉개진 세그먼트에서 나온
+    // 그럴듯한 오답이 시간 투표에 섞이면 전체가 오염된다.
+    final quality = FrameQualityGate.evaluate(
+      roi,
+      blurThreshold: blurThreshold,
+      glareThreshold: glareMaxClusterRatio,
+    );
     if (quality.rejected) {
       return OcrResult.failed(
         engineId: engineId,
