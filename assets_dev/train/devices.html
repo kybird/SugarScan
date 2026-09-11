@@ -75,6 +75,9 @@
   .palette .nm { line-height: 1.25; }
   .palette .nm i { font-style: normal; color: #8b929d; display: block; font-size: 11px; }
   .palette .warnv { color: #ffb99a; }
+  .palette .see { margin-left: 6px; padding: 2px 6px; border-radius: 4px; background: #33404f;
+                  color: #a8c8ef; font-size: 11px; flex: none; }
+  .palette .see:hover { background: #2c5c9e; color: #fff; }
   .palette button:hover { background: #2c5c9e; color: #fff; }
   .palette .key { font-family: Consolas, monospace; color: #7ab0ff; width: 14px; flex: none; }
   .palette .cnt { margin-left: auto; color: #8b929d; font-size: 11px; }
@@ -153,6 +156,7 @@
       <button class="ghost" id="selRest">남은 것만 (r)</button>
       <button class="ghost" id="selNone">선택 해제 (Esc)</button>
       <button class="ghost" id="flatTodoBtn" hidden>라벨 없는 것만: 끔</button>
+      <button class="ghost" id="flatLabelBtn" hidden></button>
       <button class="ghost" id="sortBtn">정렬: 원본 순 (s)</button>
       <button class="ghost" id="sPrev">◀</button>
       <button class="ghost" id="sNext">▶</button>
@@ -233,6 +237,8 @@
         <div class="k"><kbd>[</kbd> <kbd>]</kbd></div><div class="d">사진 페이지 (60장 단위)</div>
         <div class="k"><kbd>s</kbd></div><div class="d">그룹 안 정렬: 원본 순 → 라벨별 → 소수 먼저</div>
         <div class="k"><kbd>j</kbd> <kbd>k</kbd></div><div class="d">다음 / 이전 그룹</div>
+        <div class="k"><kbd>v</kbd></div><div class="d">지금 보는 사진과 같은 기기만 모아 보기
+          (팔레트의 '보기'와 같다)</div>
         <div class="k"><kbd>f</kbd></div><div class="d">전체 사진 모드 — 그룹 무시하고 2,494장 전부
           (스트립 바의 '라벨 없는 것만'으로 좁힐 수 있다)</div>
         <div class="k"><kbd>/</kbd></div><div class="d">검색</div>
@@ -289,6 +295,9 @@ let sortMode = 'orig';   // orig | label | minor
 // 그래서 그룹을 오가며 도는 것이 손해인 경우가 많다 — 전체 사진 모드는
 // 그룹 경계를 무시하고 라벨 없는 사진을 한 줄로 세운다.
 let flat = false, flatOnlyTodo = false;
+// 특정 기기 사진만 모아 보기. 이미 라벨한 묶음 안에서 외형이 갈리는 것을
+// 뒤늦게 발견했을 때, 그 기기 사진 전체를 코퍼스에서 꺼내 다시 가르는 데 쓴다.
+let flatLabel = null;
 const SORTS = { orig: '원본 순', label: '라벨별', minor: '소수 먼저' };
 const PER_STRIP = 60;
 
@@ -351,6 +360,7 @@ async function boot() {
   $('#selAll').onclick = () => { selectAll(); render(); };
   $('#selRest').onclick = () => { selectRest(); render(); };
   $('#selNone').onclick = () => { sel.clear(); render(); };
+  $('#flatLabelBtn').onclick = () => { flatLabel = null; stripPage = 0; render(); };
   $('#flatTodoBtn').onclick = () => {
     flatOnlyTodo = !flatOnlyTodo; stripPage = 0; heroId = null; render();
   };
@@ -466,7 +476,8 @@ function render() {
   $('#cid').textContent = flat ? '전체 사진 모드' : r.component;
   const prio = flat ? null : PRIO[r.component];
   $('#meta').innerHTML = (flat
-      ? `<span class="pill">${flatOnlyTodo ? '라벨 없는 사진' : '전체 사진'} ` +
+      ? `<span class="pill">${flatLabel ? flatLabel
+            : flatOnlyTodo ? '라벨 없는 사진' : '전체 사진'} ` +
         `${flatPhotos().length}장 — 그룹 무시</span> `
       : `<span class="pill">${mem.length}장</span> `) +
     (prio ? `<span class="pill">근접: ${prio.map(p => p[0] + '(' + p[1] + ')').join(' ')}</span>` : '');
@@ -535,8 +546,11 @@ function renderPalette() {
       `<span class="nm">${(v.brand + ' ' + v.model).trim()}` +
       (v.variant ? `<i>· ${v.variant}</i>`
                  : ambiguous ? '<i class="warnv">· 외형 미지정 — 갈라야 함</i>' : '') +
-      `</span><span class="cnt">${v.images}장</span>`;
+      `</span><span class="cnt">${v.images}장</span>` +
+      (v.images ? `<span class="see" title="이 기기 사진만 모아 보기">보기</span>` : '');
     b.title = k;
+    const see = b.querySelector('.see');
+    if (see) see.onclick = e => { e.stopPropagation(); viewDevice(k); };
     b.onclick = () => save({ brand: v.brand, model: v.model, variant: v.variant || '' });
     p.appendChild(b);
   });
@@ -551,7 +565,9 @@ function renderPalette() {
 function renderStrip() {
   const r = cur(); if (!r) return;
   const mem = viewOf(r);
-  $('#flatTodoBtn').hidden = !flat;
+  $('#flatTodoBtn').hidden = !flat || !!flatLabel;
+  $('#flatLabelBtn').hidden = !flatLabel;
+  if (flatLabel) $('#flatLabelBtn').textContent = '이 기기만: ' + flatLabel + '  ✕';
   $('#flatTodoBtn').textContent = '라벨 없는 것만: ' + (flatOnlyTodo ? '켬' : '끔');
   $('#flatTodoBtn').classList.toggle('on', flatOnlyTodo);
   $('#sortBtn').textContent = '정렬: ' + SORTS[sortMode] + ' (s)';
@@ -600,6 +616,7 @@ function renderStrip() {
 
 function toggleFlat() {
   flat = !flat;
+  flatLabel = null;
   $('#flatBtn').classList.toggle('on', flat);
   sel.clear(); stripPage = 0; heroId = null; lastClick = null;
   render();
@@ -611,9 +628,18 @@ function toggleFlat() {
 function flatPhotos() {
   const out = [];
   for (const r of ROWS) for (const i of memberOf(r)) {
-    if (!flatOnlyTodo || !LABELS[i]) out.push(i);
+    if (flatLabel) { if (labelText(LABELS[i]) === flatLabel) out.push(i); }
+    else if (!flatOnlyTodo || !LABELS[i]) out.push(i);
   }
   return out;
+}
+
+/** 이 기기 사진만 코퍼스 전체에서 모아 본다. */
+function viewDevice(key) {
+  flat = true; flatLabel = key; flatOnlyTodo = false;
+  sel.clear(); stripPage = 0; heroId = null; lastClick = null;
+  $('#flatBtn').classList.add('on');
+  render();
 }
 
 function cycleSort() {
@@ -771,6 +797,10 @@ function onKey(e) {
   else if (e.key === 'r') { selectRest(); render(); }
   else if (e.key === 's') cycleSort();
   else if (e.key === 'f') toggleFlat();
+  else if (e.key === 'v') {   // 지금 보는 사진과 같은 기기만 모아 보기
+    const t = labelText(LABELS[heroId]);
+    if (t) viewDevice(t); else $('#msg').textContent = '이 사진은 아직 라벨이 없다';
+  }
   else if (e.key === 'z') {  // 방금 지정한 사진을 다시 선택 — 고쳐 찍을 때
     if (lastSel && lastSel.size) {
       const c = cur(); const m = c ? memberOf(c) : [];
