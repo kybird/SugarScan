@@ -535,7 +535,7 @@
 {"id": "glucose_batch1/1491", "brand": "CareSens", "model": "N", "variant": "", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
 {"id": "glucose_batch1/1492", "brand": "GluNEO plus", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T19:26:33"}
 {"id": "glucose_batch1/1493", "brand": "GluNEO plus", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T19:28:36"}
-{"id": "glucose_batch1/1494", "brand": "NOCODING ONE PLUS", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-11T01:11:52"}
+{"id": "glucose_batch1/1494", "brand": "Auto-chek plus", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-11T01:26:51"}
 {"id": "glucose_batch1/1495", "brand": "CareSens", "model": "N", "variant": "", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
 {"id": "glucose_batch1/1496", "brand": "GluNEO plus", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T19:28:36"}
 {"id": "glucose_batch1/1497", "brand": "HANDOK", "model": "BAROZEN II", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T20:13:01"}
@@ -690,7 +690,7 @@
 {"id": "glucose_batch1/164", "brand": "ACCU-CHEK", "model": "Performa", "variant": "빨강 둥근버튼", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
 {"id": "glucose_batch1/1640", "brand": "On Call Extra", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-11T01:10:09"}
 {"id": "glucose_batch1/1641", "brand": "On Call Extra", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-11T01:10:09"}
-{"id": "glucose_batch1/1642", "brand": "이름모를 가로형모델", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-11T01:05:40"}
+{"id": "glucose_batch1/1642", "brand": "On Call Extra", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-11T01:24:10"}
 {"id": "glucose_batch1/1643", "brand": "On Call Extra", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-11T01:10:09"}
 {"id": "glucose_batch1/1644", "brand": "On Call Extra", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-11T01:10:09"}
 {"id": "glucose_batch1/1645", "brand": "On Call Extra", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-11T01:10:09"}
