@@ -237,6 +237,9 @@
         <div class="k"><kbd>[</kbd> <kbd>]</kbd></div><div class="d">사진 페이지 (60장 단위)</div>
         <div class="k"><kbd>s</kbd></div><div class="d">그룹 안 정렬: 원본 순 → 라벨별 → 소수 먼저</div>
         <div class="k"><kbd>j</kbd> <kbd>k</kbd></div><div class="d">다음 / 이전 그룹</div>
+        <div class="k">인쇄 꼬리표</div><div class="d">썸네일의 <b>[ko]</b>/<b>[en]</b> 은
+          기기에 인쇄된 언어. 기기 정체성이 아니라 기록용이며, 검색창에
+          <b>print:en</b> 으로 찾는다</div>
         <div class="k"><kbd>v</kbd></div><div class="d">지금 보는 사진과 같은 기기만 모아 보기
           (팔레트의 '보기'와 같다)</div>
         <div class="k"><kbd>f</kbd></div><div class="d">전체 사진 모드 — 그룹 무시하고 2,494장 전부
@@ -339,6 +342,9 @@ function viewOf(r) {
  *  같은 모델명으로 팔린 다른 외형을 한 덩어리로 세면 기기 단절 평가가 무너진다. */
 const labelText = j => !j ? '' : j.status === 'unknown' ? '식별 불가'
   : [j.brand, j.model, j.variant ? '· ' + j.variant : ''].join(' ').replace(/\s+/g, ' ').trim();
+/** 화면에만 붙는 꼬리표. 기기 정체성(브랜드+모델+외형)에는 들어가지 않는다 —
+ *  인쇄 언어가 달라도 화면이 같으면 같은 기기다. 무엇을 합쳤는지 보이게 하는 용도. */
+const printTag = j => (j && j.print) ? ' [' + j.print + ']' : '';
 const vocabText = v => [v.brand, v.model, v.variant ? '· ' + v.variant : '']
   .join(' ').replace(/\s+/g, ' ').trim();
 
@@ -398,8 +404,12 @@ function list() {
       const head = (r.component + ' ' + r.rep + ' ' + (r.brand || '') +
                     ' ' + (r.model || '')).toLowerCase();
       if (head.includes(q)) return true;
-      return memberOf(r).some(i => LABELS[i] &&
-        labelText(LABELS[i]).toLowerCase().includes(q));
+      const pq = q.startsWith('print:') ? q.slice(6) : null;
+      return memberOf(r).some(i => {
+        const j = LABELS[i]; if (!j) return false;
+        if (pq) return (j.print || '') === pq;
+        return labelText(j).toLowerCase().includes(q);
+      });
     });
   }
   // 큰 성분부터 — 한 번의 판정이 가장 많은 사진을 덮는다.
@@ -485,8 +495,13 @@ function render() {
       : `<span class="pill">${mem.length}장</span> `) +
     (prio ? `<span class="pill">근접: ${prio.map(p => p[0] + '(' + p[1] + ')').join(' ')}</span>` : '');
   // 이 성분에 실제로 붙은 기기들 — 섞여 있으면 여기서 바로 드러난다.
-  const devs = {};
-  mem.forEach(i => { const t = labelText(LABELS[i]); if (t) devs[t] = (devs[t] || 0) + 1; });
+  const devs = {}, prints = {};
+  mem.forEach(i => {
+    const t = labelText(LABELS[i]); if (!t) return;
+    devs[t] = (devs[t] || 0) + 1;
+    const pr = LABELS[i].print;
+    if (pr) { prints[t] = prints[t] || {}; prints[t][pr] = (prints[t][pr] || 0) + 1; }
+  });
   const dl = Object.entries(devs).sort((a, b) => b[1] - a[1]);
   if (flat) {
     $('#state').innerHTML =
@@ -494,8 +509,13 @@ function render() {
       '<b>s</b> 로 라벨별·소수 먼저 정렬하면 같은 기기가 모이고 잘못 찍은 것이 드러난다. ' +
       '라벨 붙은 것도 다시 찍어 덮어쓸 수 있다. <b>f</b> 로 그룹 모드로 돌아간다.</span>';
   } else $('#state').innerHTML = dl.length
-    ? dl.map(([t, n]) => `<span class="pill click ${t === '식별 불가' ? 'unknown' : 'human'}" ` +
-        `data-dev="${t.replace(/"/g, '&quot;')}" title="이 기기로 찍힌 ${n}장만 선택">${t} ${n}장</span>`).join(' ') +
+    ? dl.map(([t, n]) => {
+        const pr = prints[t]
+          ? ' <span class="muted">(' + Object.entries(prints[t])
+              .map(([k, v]) => k + ' ' + v).join(' · ') + ')</span>' : '';
+        return `<span class="pill click ${t === '식별 불가' ? 'unknown' : 'human'}" ` +
+          `data-dev="${t.replace(/"/g, '&quot;')}" title="이 기기로 찍힌 ${n}장만 선택">${t} ${n}장</span>` + pr;
+      }).join(' ') +
       (dl.filter(d => d[0] !== '식별 불가').length > 1
         ? ' <span class="pill mixed">섞인 그룹</span>' : '') +
       (rest.length ? ` <span class="muted">· ${rest.length}장 라벨 없음</span>` : '')
@@ -582,7 +602,7 @@ function renderStrip() {
   $('#heroCap').textContent = `${mem.indexOf(heroId) + 1} / ${mem.length}   ${heroId}`;
   const hj = LABELS[heroId];
   $('#heroLbl').innerHTML = hj ? `<span class="pill ${hj.status === 'unknown' ? 'unknown' : 'human'}">` +
-    `${labelText(hj)}</span>` : '<span class="pill">라벨 없음</span>';
+    `${labelText(hj)}${printTag(hj)}</span>` : '<span class="pill">라벨 없음</span>';
   $('#stripInfo').textContent =
     `${mem.length}장 중 ${stripPage * PER_STRIP + 1}–${stripPage * PER_STRIP + slice.length}` +
     (pages > 1 ? ` (${stripPage + 1}/${pages})` : '');
@@ -595,7 +615,7 @@ function renderStrip() {
     d.innerHTML = `<input type="checkbox" class="cb"${sel.has(id) ? ' checked' : ''} ` +
       `title="선택 (Shift+클릭: 범위)">` +
       `<img loading="lazy" src="/photo?id=${encodeURIComponent(id)}&w=160" title="${id}">` +
-      (j ? `<span class="tag">${labelText(j)}</span>` : '');
+      (j ? `<span class="tag">${labelText(j)}${printTag(j)}</span>` : '');
     // 사진 클릭은 '크게 보기'일 뿐이다. 선택은 체크박스로만 — 한 장씩 넘겨 보는
     // 동안 클릭이 곧 선택이면, 훑어본 사진이 전부 선택된 채로 지정 대상이 된다.
     d.onclick = () => { heroId = id; render(); };

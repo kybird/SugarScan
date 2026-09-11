@@ -1207,11 +1207,18 @@ class Handler(BaseHTTPRequestHandler):
                 if status == "reset":
                     labels.pop(i, None)
                 else:
-                    labels[i] = {"id": i,
-                                 "brand": brand if status == "identified" else "",
-                                 "model": model if status == "identified" else "",
-                                 "variant": variant if status == "identified" else "",
-                                 "status": status, "by": "human", "ts": stamp}
+                    # 인쇄 언어(print)는 기기 정체성이 아니라 관찰 기록이다.
+                    # 같은 기기를 다시 지정해도 지워지면 안 된다.
+                    prev = labels.get(i, {})
+                    row = {"id": i,
+                           "brand": brand if status == "identified" else "",
+                           "model": model if status == "identified" else "",
+                           "variant": variant if status == "identified" else "",
+                           "status": status, "by": "human", "ts": stamp}
+                    keep = body.get("print", prev.get("print"))
+                    if keep:
+                        row["print"] = str(keep)
+                    labels[i] = row
             save_device_labels(labels)
             rows = resummarize_components(labels)
             self._json({"ok": True, "n": len(ids),
