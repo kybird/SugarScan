@@ -132,6 +132,8 @@
   <button class="ghost f" data-f="mixed">섞인 그룹</button>
   <button class="ghost f" data-f="done">끝난 그룹</button>
   <button class="ghost f" data-f="all">전체</button>
+  <button class="ghost" id="flatBtn" title="그룹을 무시하고 라벨 없는 사진을 한 화면에 쭉 깐다 (f)">
+    전체 사진 모드 (f)</button>
   <input type="text" id="q" placeholder="검색: c003 / CareSens (필터 무시)" style="width:200px">
   <button class="ghost" id="helpBtn">?</button>
 </header>
@@ -230,6 +232,7 @@
         <div class="k"><kbd>[</kbd> <kbd>]</kbd></div><div class="d">사진 페이지 (60장 단위)</div>
         <div class="k"><kbd>s</kbd></div><div class="d">그룹 안 정렬: 원본 순 → 라벨별 → 소수 먼저</div>
         <div class="k"><kbd>j</kbd> <kbd>k</kbd></div><div class="d">다음 / 이전 그룹</div>
+        <div class="k"><kbd>f</kbd></div><div class="d">전체 사진 모드 — 그룹 무시, 라벨 없는 사진 전부</div>
         <div class="k"><kbd>/</kbd></div><div class="d">검색</div>
         <div class="k"><kbd>?</kbd></div><div class="d">도움말 (설계 이유까지)</div>
       </div>
@@ -280,6 +283,10 @@ let ROWS = [], BY_ID = {}, MEMBERS = {}, LABELS = {}, VOCAB = [], NEAR = {}, PRI
 let filter = 'todo', curId = null, stripPage = 0, heroId = null, lastDevice = null;
 let sel = new Set(), lastClick = null, lastSel = null;
 let sortMode = 'orig';   // orig | label | minor
+// 그룹은 기기 그룹이 아니라 촬영 배경 그룹이다(c003 723장에 기기 21종).
+// 그래서 그룹을 오가며 도는 것이 손해인 경우가 많다 — 전체 사진 모드는
+// 그룹 경계를 무시하고 라벨 없는 사진을 한 줄로 세운다.
+let flat = false;
 const SORTS = { orig: '원본 순', label: '라벨별', minor: '소수 먼저' };
 const PER_STRIP = 60;
 
@@ -298,7 +305,7 @@ const memberOf = r => MEMBERS[r.component] || [r.rep];
  *  - minor: 장수가 적은 라벨부터 (723장에 섞인 15장 같은 소수가 맨 앞으로)
  *  둘 다 그룹 안에서만 정렬한다 — 원본 파일 순서는 건드리지 않는다. */
 function viewOf(r) {
-  const mem = memberOf(r);
+  const mem = flat ? flatPhotos() : memberOf(r);
   if (sortMode === 'orig') return mem;
   const key = i => labelText(LABELS[i]) || '';
   const tally = {};
@@ -345,6 +352,7 @@ async function boot() {
   $('#sortBtn').onclick = cycleSort;
   $('#sPrev').onclick = () => { stripPage = Math.max(0, stripPage - 1); render(); };
   $('#sNext').onclick = () => { stripPage++; render(); };
+  $('#flatBtn').onclick = toggleFlat;
   $('#helpBtn').onclick = () => $('#help').style.display = 'block';
   document.addEventListener('keydown', onKey);
   enter();
@@ -450,15 +458,21 @@ function render() {
     return;
   }
   const mem = memberOf(r), rest = unlabeled(r);
-  $('#cid').textContent = r.component;
-  const prio = PRIO[r.component];
-  $('#meta').innerHTML = `<span class="pill">${mem.length}장</span> ` +
+  $('#cid').textContent = flat ? '전체 사진 모드' : r.component;
+  const prio = flat ? null : PRIO[r.component];
+  $('#meta').innerHTML = (flat
+      ? `<span class="pill">라벨 없는 사진 ${flatPhotos().length}장 — 그룹 무시</span> `
+      : `<span class="pill">${mem.length}장</span> `) +
     (prio ? `<span class="pill">근접: ${prio.map(p => p[0] + '(' + p[1] + ')').join(' ')}</span>` : '');
   // 이 성분에 실제로 붙은 기기들 — 섞여 있으면 여기서 바로 드러난다.
   const devs = {};
   mem.forEach(i => { const t = labelText(LABELS[i]); if (t) devs[t] = (devs[t] || 0) + 1; });
   const dl = Object.entries(devs).sort((a, b) => b[1] - a[1]);
-  $('#state').innerHTML = dl.length
+  if (flat) {
+    $('#state').innerHTML =
+      '<span class="muted">그룹 경계를 무시하고 라벨 없는 사진만 깔았다. ' +
+      '비슷한 것끼리 체크해 한 번에 지정하면 된다. <b>f</b> 로 그룹 모드로 돌아간다.</span>';
+  } else $('#state').innerHTML = dl.length
     ? dl.map(([t, n]) => `<span class="pill click ${t === '식별 불가' ? 'unknown' : 'human'}" ` +
         `data-dev="${t.replace(/"/g, '&quot;')}" title="이 기기로 찍힌 ${n}장만 선택">${t} ${n}장</span>`).join(' ') +
       (dl.filter(d => d[0] !== '식별 불가').length > 1
@@ -572,6 +586,20 @@ function renderStrip() {
     s.appendChild(d);
     if (id === heroId) requestAnimationFrame(() => d.scrollIntoView({ block: 'nearest' }));
   });
+}
+
+function toggleFlat() {
+  flat = !flat;
+  $('#flatBtn').classList.toggle('on', flat);
+  sel.clear(); stripPage = 0; heroId = null; lastClick = null;
+  render();
+}
+
+/** 전체 사진 모드에서 화면에 깔 사진 — 라벨 없는 것 전부(그룹 무관). */
+function flatPhotos() {
+  const out = [];
+  for (const r of ROWS) for (const i of memberOf(r)) if (!LABELS[i]) out.push(i);
+  return out;
 }
 
 function cycleSort() {
@@ -728,6 +756,7 @@ function onKey(e) {
   else if (e.key === 'a') { selectAll(); render(); }
   else if (e.key === 'r') { selectRest(); render(); }
   else if (e.key === 's') cycleSort();
+  else if (e.key === 'f') toggleFlat();
   else if (e.key === 'z') {  // 방금 지정한 사진을 다시 선택 — 고쳐 찍을 때
     if (lastSel && lastSel.size) {
       const c = cur(); const m = c ? memberOf(c) : [];
