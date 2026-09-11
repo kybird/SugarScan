@@ -201,14 +201,14 @@
       </div>
       <div class="acts" style="border-top:1px solid #2c313a;padding-top:8px">
         <span class="muted" style="width:100%;font-size:11.5px">숫자 방향 — 기본은 위,
-          예외만 찍는다 (<kbd>t</kbd> 로 순환)</span>
+          예외만 찍는다 (<kbd>t</kbd> 로 순환). <b>누르면 바로 저장된다 — Enter 불필요.</b></span>
         <button class="ghost" data-rot="up">↑ 위(기본)</button>
         <button class="ghost" data-rot="right">⟳ 오른쪽</button>
         <button class="ghost" data-rot="left">⟲ 왼쪽</button>
         <button class="ghost" data-rot="down">↓ 뒤집힘</button>
       </div>
       <div class="acts">
-        <button id="save">선택에 지정 (Enter)</button>
+        <button id="save">입력한 기기로 지정 (Enter)</button>
         <button class="ghost" id="same">직전 기기 (d)</button>
         <button class="ghost" id="unk">식별 불가 (u)</button>
         <button class="warn" id="reset">라벨 지우기 (x)</button>
@@ -838,6 +838,11 @@ async function save(opt) {
   // 훨씬 위험하다(그 버그로 라벨이 지워졌었다). 방금 것은 z 로 되잡는다.
   lastSel = new Set(ids);
   sel.clear();
+  // 입력칸을 비운다. 남아 있는 기기명이 다음 Enter 로 엉뚱한 사진을 덮는다 —
+  // 반복 지정은 d(직전 기기)나 팔레트 숫자키를 쓴다.
+  if (status === 'identified') {
+    $('#brand').value = ''; $('#model').value = ''; $('#variant').value = '';
+  }
   render();
 }
 
