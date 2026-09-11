@@ -152,6 +152,7 @@
       <button class="ghost" id="selAll">전체 선택 (a)</button>
       <button class="ghost" id="selRest">남은 것만 (r)</button>
       <button class="ghost" id="selNone">선택 해제 (Esc)</button>
+      <button class="ghost" id="flatTodoBtn" hidden>라벨 없는 것만: 끔</button>
       <button class="ghost" id="sortBtn">정렬: 원본 순 (s)</button>
       <button class="ghost" id="sPrev">◀</button>
       <button class="ghost" id="sNext">▶</button>
@@ -232,7 +233,8 @@
         <div class="k"><kbd>[</kbd> <kbd>]</kbd></div><div class="d">사진 페이지 (60장 단위)</div>
         <div class="k"><kbd>s</kbd></div><div class="d">그룹 안 정렬: 원본 순 → 라벨별 → 소수 먼저</div>
         <div class="k"><kbd>j</kbd> <kbd>k</kbd></div><div class="d">다음 / 이전 그룹</div>
-        <div class="k"><kbd>f</kbd></div><div class="d">전체 사진 모드 — 그룹 무시, 라벨 없는 사진 전부</div>
+        <div class="k"><kbd>f</kbd></div><div class="d">전체 사진 모드 — 그룹 무시하고 2,494장 전부
+          (스트립 바의 '라벨 없는 것만'으로 좁힐 수 있다)</div>
         <div class="k"><kbd>/</kbd></div><div class="d">검색</div>
         <div class="k"><kbd>?</kbd></div><div class="d">도움말 (설계 이유까지)</div>
       </div>
@@ -286,7 +288,7 @@ let sortMode = 'orig';   // orig | label | minor
 // 그룹은 기기 그룹이 아니라 촬영 배경 그룹이다(c003 723장에 기기 21종).
 // 그래서 그룹을 오가며 도는 것이 손해인 경우가 많다 — 전체 사진 모드는
 // 그룹 경계를 무시하고 라벨 없는 사진을 한 줄로 세운다.
-let flat = false;
+let flat = false, flatOnlyTodo = false;
 const SORTS = { orig: '원본 순', label: '라벨별', minor: '소수 먼저' };
 const PER_STRIP = 60;
 
@@ -349,6 +351,9 @@ async function boot() {
   $('#selAll').onclick = () => { selectAll(); render(); };
   $('#selRest').onclick = () => { selectRest(); render(); };
   $('#selNone').onclick = () => { sel.clear(); render(); };
+  $('#flatTodoBtn').onclick = () => {
+    flatOnlyTodo = !flatOnlyTodo; stripPage = 0; heroId = null; render();
+  };
   $('#sortBtn').onclick = cycleSort;
   $('#sPrev').onclick = () => { stripPage = Math.max(0, stripPage - 1); render(); };
   $('#sNext').onclick = () => { stripPage++; render(); };
@@ -461,7 +466,8 @@ function render() {
   $('#cid').textContent = flat ? '전체 사진 모드' : r.component;
   const prio = flat ? null : PRIO[r.component];
   $('#meta').innerHTML = (flat
-      ? `<span class="pill">라벨 없는 사진 ${flatPhotos().length}장 — 그룹 무시</span> `
+      ? `<span class="pill">${flatOnlyTodo ? '라벨 없는 사진' : '전체 사진'} ` +
+        `${flatPhotos().length}장 — 그룹 무시</span> `
       : `<span class="pill">${mem.length}장</span> `) +
     (prio ? `<span class="pill">근접: ${prio.map(p => p[0] + '(' + p[1] + ')').join(' ')}</span>` : '');
   // 이 성분에 실제로 붙은 기기들 — 섞여 있으면 여기서 바로 드러난다.
@@ -470,8 +476,9 @@ function render() {
   const dl = Object.entries(devs).sort((a, b) => b[1] - a[1]);
   if (flat) {
     $('#state').innerHTML =
-      '<span class="muted">그룹 경계를 무시하고 라벨 없는 사진만 깔았다. ' +
-      '비슷한 것끼리 체크해 한 번에 지정하면 된다. <b>f</b> 로 그룹 모드로 돌아간다.</span>';
+      '<span class="muted">그룹 경계를 무시하고 사진을 한 줄로 깔았다. ' +
+      '<b>s</b> 로 라벨별·소수 먼저 정렬하면 같은 기기가 모이고 잘못 찍은 것이 드러난다. ' +
+      '라벨 붙은 것도 다시 찍어 덮어쓸 수 있다. <b>f</b> 로 그룹 모드로 돌아간다.</span>';
   } else $('#state').innerHTML = dl.length
     ? dl.map(([t, n]) => `<span class="pill click ${t === '식별 불가' ? 'unknown' : 'human'}" ` +
         `data-dev="${t.replace(/"/g, '&quot;')}" title="이 기기로 찍힌 ${n}장만 선택">${t} ${n}장</span>`).join(' ') +
@@ -544,6 +551,9 @@ function renderPalette() {
 function renderStrip() {
   const r = cur(); if (!r) return;
   const mem = viewOf(r);
+  $('#flatTodoBtn').hidden = !flat;
+  $('#flatTodoBtn').textContent = '라벨 없는 것만: ' + (flatOnlyTodo ? '켬' : '끔');
+  $('#flatTodoBtn').classList.toggle('on', flatOnlyTodo);
   $('#sortBtn').textContent = '정렬: ' + SORTS[sortMode] + ' (s)';
   const pages = Math.max(1, Math.ceil(mem.length / PER_STRIP));
   if (stripPage >= pages) stripPage = pages - 1;
@@ -595,10 +605,14 @@ function toggleFlat() {
   render();
 }
 
-/** 전체 사진 모드에서 화면에 깔 사진 — 라벨 없는 것 전부(그룹 무관). */
+/** 전체 사진 모드에서 화면에 깔 사진 — 그룹 무관.
+ *  기본은 라벨 붙은 것까지 전부다. 이미 찍은 것을 함께 봐야 같은 기기를
+ *  모아 보고, 잘못 찍은 것을 찾아 덮어쓸 수 있다(정렬 s 와 함께 쓴다). */
 function flatPhotos() {
   const out = [];
-  for (const r of ROWS) for (const i of memberOf(r)) if (!LABELS[i]) out.push(i);
+  for (const r of ROWS) for (const i of memberOf(r)) {
+    if (!flatOnlyTodo || !LABELS[i]) out.push(i);
+  }
   return out;
 }
 
