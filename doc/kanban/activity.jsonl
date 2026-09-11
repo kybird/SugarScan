@@ -56,3 +56,5 @@
 {"ts":"2026-09-11T18:16:28.909Z","action":"created","title":"mmol/L 소수점 합성 생성기와 리더 charset 확장"}
 {"ts":"2026-09-11T18:16:38.563Z","action":"created","title":"Flutter ONNX 런타임 후보 스파이크 벤치"}
 {"ts":"2026-09-11T18:16:47.124Z","action":"done","title":"에러 코드 상태 지원"}
+{"ts":"2026-09-11T18:29:22.259Z","action":"created","title":"공개 mmol/L 혈당계 화면 데이터셋 조사"}
+{"ts":"2026-09-11T18:29:33.242Z","action":"created","title":"합성 7-세그먼트 글리프 형상 개선과 효과 측정"}
