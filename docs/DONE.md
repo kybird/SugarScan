@@ -439,3 +439,17 @@ findsWidgets 로 뒤집어 Found 0 확인)을 신규 테스트 리뷰에도 쓴�
 
 **다시 나지 않게 하는 것**: "N 건을 뽑는다"를 고칠 때 저장 단계의 상한·
 필터부터 의심할 것 — 선택 로직이 옳아도 저장이 잘리면 소용없다.
+
+## G9 — 6개 언어 글자 넘침 점검 (2026-09-10)
+
+무인 세션이라 Windows 빌드+눈 대신 **RenderFlex overflow=테스트 실패** 신호로
+8화면×6언어×390×844=48케이스 하네스. → [`G9-locale-overflow.md`](reports/G9-locale-overflow.md)
+
+**실제 넘침 1건 발견·수정**: 통계 요약 카드 — 건수 문구("2 Messwerte")가
+Expanded 를 몰아 값+단위 행을 넘침(en 0.5px~de 15px, ko·fr 는 통과). 바깥
+Row→Wrap(방식③)+값 Row mainAxisSize.min. 값·단위 절단 없음. Flexible(방식②)
+첫 시도는 flex 이등분으로 악화(17px) — 방식 선택은 실측으로.
+
+**다시 나지 않게 하는 것**: 언어별 넘침은 이제 게이트다 — locale_overflow_test
+에 화면·언어를 추가하기만 하면 된다. Wrap 안의 Row 는 mainAxisSize.min 필수
+(무제한 폭에서 max 는 무한 확장).

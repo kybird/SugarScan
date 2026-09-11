@@ -232,50 +232,6 @@ flutter test     → All tests passed! (NNN tests)
 
 ## 4. 작업 목록
 
-### G9 — 6개 언어 글자 넘침 점검
-
-**상태**: 대기
-
-G8 이 4개 언어를 넣었지만 **화면에서 본 적이 없다.** 독일어는 영어보다 30% 가까이
-길어 버튼과 칩이 깨지기 쉽다. G8 시점에는 볼 방법이 없었는데 지금은 있다 —
-Windows 데스크톱 빌드가 통과한다(2026-08-22 확인).
-
-```bash
-flutter config --enable-windows-desktop
-flutter create --platforms=windows .
-flutter build windows --debug
-```
-
-**`flutter create` 가 남기는 부작용 둘을 반드시 되돌릴 것:**
-1. `test/widget_test.dart` 를 새로 만든다 — 존재하지 않는 `MyApp` 을 쓰는 카운터
-   템플릿이라 그대로 두면 테스트가 깨진다. **지운다.**
-2. `.metadata` 의 `migration.platforms` 를 windows 로 갈아치운다.
-   **`git checkout -- .metadata` 로 되돌린다.**
-3. `windows/` 는 **커밋하지 않는다**(`.gitignore` 에 이미 있다).
-
-할 일
-1. 6개 언어(en·ko·es·pt·de·fr)로 앱을 띄워 모든 화면을 돌아본다. 로케일은
-   기기 언어를 바꾸거나 `MaterialApp` 의 `locale` 을 임시로 고정해서 본다
-   (임시 변경은 커밋하지 않는다).
-2. **넘침을 전부 표로 적는다** — 언어 / 화면 / 위젯 / 문구. 스크린샷을 붙이면 더 좋다.
-3. 수정은 **아래 셋만** 한다. 그 밖의 레이아웃 변경은 하지 말고 보고서에 적을 것.
-   - `Text` 에 `maxLines` + `overflow: TextOverflow.ellipsis` 추가
-   - 넘치는 자식을 `Flexible` / `Expanded` 로 감싸기
-   - `Row` 가 넘칠 때 `Wrap` 으로 교체
-
-주의
-- **번역문을 줄이지 말 것.** 의료 문구 21개는 역번역 교차검증을 거친 것이라
-  단어 하나가 의미를 바꾼다. 문구가 길면 문구가 아니라 그릇을 고친다.
-- 스캔·로그인 화면은 Windows 에서 플러그인이 없어 동작하지 않는다
-  (`ScanUnavailable`, `RemoteDisabled`). 그 상태의 화면은 볼 수 있으니 그대로 본다.
-- 잘림(ellipsis)이 **숫자나 단위**를 자르는 자리가 있으면 고치지 말고 **크게 적을 것.**
-  `137 mg/dL` 이 `137 mg...` 로 잘리는 것은 레이아웃 문제가 아니라 안전 문제다.
-
-완료 기준: 6개 언어 전 화면을 돌아본 표가 있고, 지정한 세 가지 방식으로 고칠 수
-있는 넘침이 사라진다. `flutter analyze` · `flutter test` 통과.
-
-**보고서**: `docs/reports/G9-locale-overflow.md`
-
 ---
 
 ### G10 — 접근성 라벨 나머지 화면 요소
