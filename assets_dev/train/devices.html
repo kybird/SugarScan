@@ -369,6 +369,9 @@ async function boot() {
   LABELS = j.labels || {}; NEAR = j.near || {}; PRIO = j.review_priority || {};
   ROWS.forEach(r => BY_ID[r.component] = r);
   document.querySelectorAll('.f').forEach(b => b.onclick = () => {
+    // 검색어가 남아 있으면 검색이 필터를 덮어써서(의도된 동작) 필터를 눌러도
+    // 목록이 안 바뀐 것처럼 보인다. 필터를 고르는 것은 '검색을 끝낸다'는 뜻이다.
+    $('#q').value = '';
     filter = b.dataset.f; curId = null; enter();
   });
   $('#q').oninput = () => { curId = null; enter(); };
