@@ -495,9 +495,12 @@ function render() {
   const heldImg = Object.values(LABELS).filter(j => j.status === 'unknown').length;
   $('#counts').innerHTML = `사진 <b>${doneImg}</b>/${totImg} ` +
     `(${(doneImg / totImg * 100).toFixed(1)}%) · 그룹 <b>${compDone}</b>/${ROWS.length}` +
-    (heldImg ? ` · 보류 <b>${heldImg}</b>장` : '') +
+    (heldImg ? ` · <a href="#" id="heldLink" title="보류 사진만 한 화면에 모아 본다">` +
+      `보류 <b>${heldImg}</b>장</a>` : '') +
     ` · 목록 ${l.length}건 중 ${l.length ? idxOf(l) + 1 : 0}번째`;
   $('#prog > i').style.width = (doneImg / totImg * 100) + '%';
+  const hl = $('#heldLink');
+  if (hl) hl.onclick = e => { e.preventDefault(); viewDevice('식별 불가'); };
   document.querySelectorAll('.f').forEach(b =>
     b.classList.toggle('on', b.dataset.f === filter));
   if (!r) {
@@ -612,7 +615,8 @@ function renderStrip() {
   const mem = viewOf(r);
   $('#flatTodoBtn').hidden = !flat || !!flatLabel;
   $('#flatLabelBtn').hidden = !flatLabel;
-  if (flatLabel) $('#flatLabelBtn').textContent = '이 기기만: ' + flatLabel + '  ✕';
+  if (flatLabel) $('#flatLabelBtn').textContent =
+    (flatLabel === '식별 불가' ? '보류만: 식별 불가' : '이 기기만: ' + flatLabel) + '  ✕';
   $('#flatTodoBtn').textContent = '라벨 없는 것만: ' + (flatOnlyTodo ? '켬' : '끔');
   $('#flatTodoBtn').classList.toggle('on', flatOnlyTodo);
   $('#sortBtn').textContent = '정렬: ' + SORTS[sortMode] + ' (s)';
@@ -663,6 +667,7 @@ function renderStrip() {
 function toggleFlat() {
   flat = !flat;
   flatLabel = null;
+  if (flat) { filter = 'all'; $('#q').value = ''; curId = null; }
   $('#flatBtn').classList.toggle('on', flat);
   sel.clear(); stripPage = 0; heroId = null; lastClick = null;
   render();
@@ -683,6 +688,7 @@ function flatPhotos() {
 /** 이 기기 사진만 코퍼스 전체에서 모아 본다. */
 function viewDevice(key) {
   flat = true; flatLabel = key; flatOnlyTodo = false;
+  filter = 'all'; $('#q').value = ''; curId = null;
   sel.clear(); stripPage = 0; heroId = null; lastClick = null;
   $('#flatBtn').classList.add('on');
   render();
