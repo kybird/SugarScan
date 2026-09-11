@@ -110,6 +110,7 @@ void main(List<String> args) async {
         // 셀 이미지 전체가 곧 자릿수 하나다.
         const NormalizedRect(left: 0, top: 0, width: 1, height: 1),
         SegmentGeometry.standard,
+        normalizeToInk: opts.normalizeInk,
       );
       final glyph = SegmentPatternTable.match(sample.bits);
 
@@ -489,6 +490,7 @@ class _Options {
     required this.outPath,
     required this.limit,
     required this.dumpFailures,
+    required this.normalizeInk,
   });
 
   final String datasetPath;
@@ -496,11 +498,15 @@ class _Options {
   final int limit;
   final int dumpFailures;
 
+  /// G19 — 세그먼트 기하를 셀이 아니라 셀 안 잉크 경계 상자에 맞춘다.
+  final bool normalizeInk;
+
   static _Options? parse(List<String> args) {
     String? dataset;
     String? out;
     var limit = 0;
     var dump = 12;
+    var normalizeInk = false;
 
     for (var i = 0; i < args.length; i++) {
       switch (args[i]) {
@@ -512,6 +518,8 @@ class _Options {
           limit = int.tryParse(_next(args, i++) ?? '') ?? 0;
         case '--dump-failures':
           dump = int.tryParse(_next(args, i++) ?? '') ?? 12;
+        case '--normalize-ink':
+          normalizeInk = true;
         case '-h':
         case '--help':
           _usage();
@@ -528,6 +536,7 @@ class _Options {
       outPath: out,
       limit: limit,
       dumpFailures: dump,
+      normalizeInk: normalizeInk,
     );
   }
 
@@ -544,6 +553,7 @@ class _Options {
   --out <파일>           리포트를 마크다운으로 적는다
   --limit N              클래스당 N 장만 (빠른 확인용)
   --dump-failures N      실패 사례 N 건을 클래스별로 고르게 표로 적는다 (기본 12)
+  --normalize-ink        세그먼트 기하를 잉크 경계 상자에 맞춘다 (G19, 기본 끔)
 ''');
   }
 }

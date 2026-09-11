@@ -34,6 +34,7 @@ class SegmentRuleEngine implements OcrEngine {
     this.blurThreshold = FrameQualityGate.minBlurScore,
     this.glareMaxClusterRatio = FrameQualityGate.maxGlareClusterRatio,
     this.minSeparability = 0.25,
+    this.normalizeToInk = false,
   }) : profile = profile ?? MeterProfile.uniform(digitCount: 4);
 
   static const String engineId = 'segment_rule_v1';
@@ -48,6 +49,11 @@ class SegmentRuleEngine implements OcrEngine {
 
   /// 전경/배경이 갈라지는 최소 정도. 낮으면 잡음에서 숫자가 만들어진다.
   final double minSeparability;
+
+  /// 세그먼트 기하를 셀이 아니라 셀 안 잉크 경계 상자에 맞춘다(G19).
+  /// **기본값 false** — 앱 부트스트랩은 이 값을 건드리지 않는다. 벤치의
+  /// `--normalize-ink` 가 잰 뒤 사람이 켤지 정한다.
+  final bool normalizeToInk;
 
   bool _initialized = false;
 
@@ -145,8 +151,12 @@ class SegmentRuleEngine implements OcrEngine {
 
     final cells = <CellReading>[];
     for (final cellRect in profile.digitCells) {
-      final sample =
-          SegmentSampler.sample(binary, cellRect, profile.geometry);
+      final sample = SegmentSampler.sample(
+        binary,
+        cellRect,
+        profile.geometry,
+        normalizeToInk: normalizeToInk,
+      );
       cells.add(
         CellReading(
           glyph: SegmentPatternTable.match(sample.bits),
