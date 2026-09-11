@@ -1178,6 +1178,31 @@ class Handler(BaseHTTPRequestHandler):
             write_jsonl(GT_FIX, rows)
             self._json({"ok": True})
             return
+        if u.path == "/api/devicerotation":
+            # 사진 속 숫자가 향하는 방향. up 이 기본이고 예외만 기록한다.
+            # 기기 정체성과 무관한 축이라 지정 경로를 따로 둔다.
+            ids = body.get("ids") or []
+            rot = str(body.get("rotation", "up"))
+            if rot not in ("up", "right", "left", "down"):
+                self._json({"error": "bad rotation"}, 400)
+                return
+            if not isinstance(ids, list) or not ids:
+                self._json({"error": "ids 가 비었다"}, 400)
+                return
+            labels = load_device_labels()
+            missing = [i for i in ids if i not in labels]
+            if missing:
+                self._json({"error": "라벨이 없는 사진: %d장" % len(missing)}, 400)
+                return
+            for i in ids:
+                if rot == "up":
+                    labels[i].pop("rotation", None)
+                else:
+                    labels[i]["rotation"] = rot
+            save_device_labels(labels)
+            self._json({"ok": True, "n": len(ids), "rotation": rot,
+                        "labels": {i: labels[i] for i in ids}})
+            return
         if u.path == "/api/devicelabel":
             # 사진 단위 라벨 — 여러 장을 한 번에 찍는다(성분 전체 선택이 기본).
             ids = body.get("ids") or []
@@ -1218,6 +1243,11 @@ class Handler(BaseHTTPRequestHandler):
                     keep = body.get("print", prev.get("print"))
                     if keep:
                         row["print"] = str(keep)
+                    # 회전도 기기 정체성이 아니다 — 촬영 사실이라 기기를 다시
+                    # 지정해도 남아야 한다.
+                    rot = prev.get("rotation")
+                    if rot and rot != "up":
+                        row["rotation"] = rot
                     labels[i] = row
             save_device_labels(labels)
             rows = resummarize_components(labels)

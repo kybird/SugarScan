@@ -60,6 +60,7 @@
              text-overflow: ellipsis; }
   .th.done img { border-color: #3f8f5a; }
   .th.unk img { border-color: #8a7a3a; }
+  .th.rot img { border-color: #b5643f; }
   #stripBar { display: flex; gap: 8px; align-items: center; padding: 5px 8px; background: #1a1d22;
               border-top: 1px solid #2c313a; font-size: 12px; flex-wrap: wrap; }
   aside { display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
@@ -198,6 +199,14 @@
         <datalist id="models"></datalist>
         <datalist id="variants"></datalist>
       </div>
+      <div class="acts" style="border-top:1px solid #2c313a;padding-top:8px">
+        <span class="muted" style="width:100%;font-size:11.5px">숫자 방향 — 기본은 위,
+          예외만 찍는다 (<kbd>t</kbd> 로 순환)</span>
+        <button class="ghost" data-rot="up">↑ 위(기본)</button>
+        <button class="ghost" data-rot="right">⟳ 오른쪽</button>
+        <button class="ghost" data-rot="left">⟲ 왼쪽</button>
+        <button class="ghost" data-rot="down">↓ 뒤집힘</button>
+      </div>
       <div class="acts">
         <button id="save">선택에 지정 (Enter)</button>
         <button class="ghost" id="same">직전 기기 (d)</button>
@@ -237,6 +246,8 @@
         <div class="k"><kbd>[</kbd> <kbd>]</kbd></div><div class="d">사진 페이지 (60장 단위)</div>
         <div class="k"><kbd>s</kbd></div><div class="d">그룹 안 정렬: 원본 순 → 라벨별 → 소수 먼저</div>
         <div class="k"><kbd>j</kbd> <kbd>k</kbd></div><div class="d">다음 / 이전 그룹</div>
+        <div class="k"><kbd>t</kbd></div><div class="d">숫자 방향 순환 (위→오른쪽→뒤집힘→왼쪽).
+          기본이 '위'라 예외만 찍는다. 검색은 <b>rot:right</b></div>
         <div class="k">인쇄 꼬리표</div><div class="d">썸네일의 <b>[ko]</b>/<b>[en]</b> 은
           기기에 인쇄된 언어. 기기 정체성이 아니라 기록용이며, 검색창에
           <b>print:en</b> 으로 찾는다</div>
@@ -345,6 +356,10 @@ const labelText = j => !j ? '' : j.status === 'unknown' ? '식별 불가'
 /** 화면에만 붙는 꼬리표. 기기 정체성(브랜드+모델+외형)에는 들어가지 않는다 —
  *  인쇄 언어가 달라도 화면이 같으면 같은 기기다. 무엇을 합쳤는지 보이게 하는 용도. */
 const printTag = j => (j && j.print) ? ' [' + j.print + ']' : '';
+/** 사진 속 숫자가 향하는 방향. up 이 기본이라 예외만 표시한다. */
+const ROT = { right: '⟳→', left: '⟲←', down: '↓뒤집힘' };
+const rotTag = j => (j && j.rotation && j.rotation !== 'up')
+  ? ' <b style="color:#ffb99a">' + (ROT[j.rotation] || j.rotation) + '</b>' : '';
 const vocabText = v => [v.brand, v.model, v.variant ? '· ' + v.variant : '']
   .join(' ').replace(/\s+/g, ' ').trim();
 
@@ -366,6 +381,8 @@ async function boot() {
   $('#selAll').onclick = () => { selectAll(); render(); };
   $('#selRest').onclick = () => { selectRest(); render(); };
   $('#selNone').onclick = () => { sel.clear(); render(); };
+  document.querySelectorAll('[data-rot]').forEach(b =>
+    b.onclick = () => saveRotation(b.dataset.rot));
   $('#flatLabelBtn').onclick = () => { flatLabel = null; stripPage = 0; render(); };
   $('#flatTodoBtn').onclick = () => {
     flatOnlyTodo = !flatOnlyTodo; stripPage = 0; heroId = null; render();
@@ -405,9 +422,11 @@ function list() {
                     ' ' + (r.model || '')).toLowerCase();
       if (head.includes(q)) return true;
       const pq = q.startsWith('print:') ? q.slice(6) : null;
+      const rq = q.startsWith('rot:') ? q.slice(4) : null;
       return memberOf(r).some(i => {
         const j = LABELS[i]; if (!j) return false;
         if (pq) return (j.print || '') === pq;
+        if (rq) return (j.rotation || 'up') === rq;
         return labelText(j).toLowerCase().includes(q);
       });
     });
@@ -602,7 +621,7 @@ function renderStrip() {
   $('#heroCap').textContent = `${mem.indexOf(heroId) + 1} / ${mem.length}   ${heroId}`;
   const hj = LABELS[heroId];
   $('#heroLbl').innerHTML = hj ? `<span class="pill ${hj.status === 'unknown' ? 'unknown' : 'human'}">` +
-    `${labelText(hj)}${printTag(hj)}</span>` : '<span class="pill">라벨 없음</span>';
+    `${labelText(hj)}${printTag(hj)}${rotTag(hj)}</span>` : '<span class="pill">라벨 없음</span>';
   $('#stripInfo').textContent =
     `${mem.length}장 중 ${stripPage * PER_STRIP + 1}–${stripPage * PER_STRIP + slice.length}` +
     (pages > 1 ? ` (${stripPage + 1}/${pages})` : '');
@@ -611,11 +630,12 @@ function renderStrip() {
     const j = LABELS[id];
     const d = document.createElement('div');
     d.className = 'th' + (sel.has(id) ? ' sel' : '') + (id === heroId ? ' cur' : '') +
+      (j && j.rotation && j.rotation !== 'up' ? ' rot' : '') +
       (j ? (j.status === 'unknown' ? ' unk' : ' done') : '');
     d.innerHTML = `<input type="checkbox" class="cb"${sel.has(id) ? ' checked' : ''} ` +
       `title="선택 (Shift+클릭: 범위)">` +
       `<img loading="lazy" src="/photo?id=${encodeURIComponent(id)}&w=160" title="${id}">` +
-      (j ? `<span class="tag">${labelText(j)}${printTag(j)}</span>` : '');
+      (j ? `<span class="tag">${labelText(j)}${printTag(j)}${rotTag(j)}</span>` : '');
     // 사진 클릭은 '크게 보기'일 뿐이다. 선택은 체크박스로만 — 한 장씩 넘겨 보는
     // 동안 클릭이 곧 선택이면, 훑어본 사진이 전부 선택된 채로 지정 대상이 된다.
     d.onclick = () => { heroId = id; render(); };
@@ -743,6 +763,22 @@ function saveSame() {
   save(lastDevice);
 }
 
+/** 회전은 기기 지정과 다른 축이라 저장 경로가 따로다. 선택을 바꾸지 않는다 —
+ *  같은 사진에 기기와 회전을 잇달아 찍는 일이 흔하다. */
+async function saveRotation(rot) {
+  if (!sel.size) { $('#msg').textContent = '선택된 사진이 없다'; return; }
+  const ids = [...sel];
+  const res = await fetch('/api/devicerotation', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids, rotation: rot })
+  });
+  const j = await res.json();
+  if (!j.ok) { $('#msg').textContent = '실패: ' + (j.error || res.status); return; }
+  Object.assign(LABELS, j.labels || {});
+  $('#msg').innerHTML = `<span style="color:#7ae394">${ids.length}장 숫자 방향 = ${rot}</span>`;
+  render();
+}
+
 async function save(opt) {
   const r = cur(); if (!r) return;
   if (!sel.size) { $('#msg').textContent = '선택된 사진이 없다 — a(전체) / r(남은 것만)'; return; }
@@ -832,6 +868,12 @@ function onKey(e) {
   else if (e.key === 'r') { selectRest(); render(); }
   else if (e.key === 's') cycleSort();
   else if (e.key === 'f') toggleFlat();
+  else if (e.key === 't') {   // 선택한 사진의 숫자 방향을 순환
+    const order = ['up', 'right', 'down', 'left'];
+    const first = [...sel][0];
+    const cur0 = (first && LABELS[first] && LABELS[first].rotation) || 'up';
+    saveRotation(order[(order.indexOf(cur0) + 1) % order.length]);
+  }
   else if (e.key === 'v') {   // 지금 보는 사진과 같은 기기만 모아 보기
     const t = labelText(LABELS[heroId]);
     if (t) viewDevice(t); else $('#msg').textContent = '이 사진은 아직 라벨이 없다';

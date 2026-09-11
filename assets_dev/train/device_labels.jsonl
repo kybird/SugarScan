@@ -174,7 +174,7 @@
 {"id": "glucose_batch1/1157", "brand": "HANDOK", "model": "BAROZEN II", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T19:17:51"}
 {"id": "glucose_batch1/1158", "brand": "CareSens II Plus", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T19:18:23"}
 {"id": "glucose_batch1/116", "brand": "Boryung", "model": "CareTouch", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T18:54:35"}
-{"id": "glucose_batch1/1160", "brand": "ACCU-CHEK", "model": "Performa", "variant": "빨강 둥근버튼", "status": "identified", "by": "human", "ts": "2026-09-10T19:18:54"}
+{"id": "glucose_batch1/1160", "brand": "ACCU-CHEK", "model": "Performa", "variant": "은색 각진버튼", "status": "identified", "by": "human", "ts": "2026-09-11T00:12:31"}
 {"id": "glucose_batch1/1161", "brand": "ACCU-CHEK", "model": "Performa", "variant": "은색 각진버튼", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
 {"id": "glucose_batch1/1162", "brand": "ACCU-CHEK", "model": "Performa", "variant": "은색 각진버튼", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
 {"id": "glucose_batch1/1163", "brand": "ACCU-CHEK", "model": "Performa", "variant": "은색 각진버튼", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
@@ -183,25 +183,25 @@
 {"id": "glucose_batch1/1167", "brand": "ACCU-CHEK", "model": "Performa", "variant": "은색 각진버튼", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
 {"id": "glucose_batch1/1169", "brand": "ACCU-CHEK", "model": "Performa", "variant": "은색 각진버튼", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
 {"id": "glucose_batch1/117", "brand": "Boryung", "model": "CareTouch", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T18:54:35"}
-{"id": "glucose_batch1/1170", "brand": "ACCU-CHEK", "model": "Performa", "variant": "빨강 둥근버튼", "status": "identified", "by": "human", "ts": "2026-09-10T19:18:54"}
+{"id": "glucose_batch1/1170", "brand": "ACCU-CHEK", "model": "Performa", "variant": "은색 각진버튼", "status": "identified", "by": "human", "ts": "2026-09-11T00:12:31"}
 {"id": "glucose_batch1/1171", "brand": "ACCU-CHEK", "model": "Performa", "variant": "은색 각진버튼", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
 {"id": "glucose_batch1/1172", "brand": "ACCU-CHEK", "model": "Performa", "variant": "은색 각진버튼", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
-{"id": "glucose_batch1/1173", "brand": "ACCU-CHEK", "model": "Performa", "variant": "빨강 둥근버튼", "status": "identified", "by": "human", "ts": "2026-09-10T19:18:54"}
+{"id": "glucose_batch1/1173", "brand": "ACCU-CHEK", "model": "Performa", "variant": "은색 각진버튼", "status": "identified", "by": "human", "ts": "2026-09-11T00:12:31"}
 {"id": "glucose_batch1/1174", "brand": "VERI-Q", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T23:00:40"}
-{"id": "glucose_batch1/1175", "brand": "ACCU-CHEK", "model": "Performa", "variant": "빨강 둥근버튼", "status": "identified", "by": "human", "ts": "2026-09-10T19:18:54"}
-{"id": "glucose_batch1/1176", "brand": "ACCU-CHEK", "model": "Performa", "variant": "빨강 둥근버튼", "status": "identified", "by": "human", "ts": "2026-09-10T19:18:54"}
+{"id": "glucose_batch1/1175", "brand": "ACCU-CHEK", "model": "Performa", "variant": "은색 각진버튼", "status": "identified", "by": "human", "ts": "2026-09-11T00:12:31"}
+{"id": "glucose_batch1/1176", "brand": "ACCU-CHEK", "model": "Performa", "variant": "은색 각진버튼", "status": "identified", "by": "human", "ts": "2026-09-11T00:12:31"}
 {"id": "glucose_batch1/1177", "brand": "ACCU-CHEK", "model": "Performa", "variant": "은색 각진버튼", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
 {"id": "glucose_batch1/1178", "brand": "ACCU-CHEK", "model": "Performa", "variant": "은색 각진버튼", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
-{"id": "glucose_batch1/1179", "brand": "ACCU-CHEK", "model": "Performa", "variant": "빨강 둥근버튼", "status": "identified", "by": "human", "ts": "2026-09-10T19:18:54"}
+{"id": "glucose_batch1/1179", "brand": "ACCU-CHEK", "model": "Performa", "variant": "은색 각진버튼", "status": "identified", "by": "human", "ts": "2026-09-11T00:12:38"}
 {"id": "glucose_batch1/118", "brand": "Boryung", "model": "CareTouch", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T18:54:35"}
-{"id": "glucose_batch1/1180", "brand": "ACCU-CHEK", "model": "Performa", "variant": "빨강 둥근버튼", "status": "identified", "by": "human", "ts": "2026-09-10T19:18:54"}
+{"id": "glucose_batch1/1180", "brand": "ACCU-CHEK", "model": "Performa", "variant": "은색 각진버튼", "status": "identified", "by": "human", "ts": "2026-09-11T00:12:38"}
 {"id": "glucose_batch1/1181", "brand": "HANDOK", "model": "BAROZEN II", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T19:17:51"}
 {"id": "glucose_batch1/1182", "brand": "ACCU-CHEK", "model": "Performa", "variant": "은색 각진버튼", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
-{"id": "glucose_batch1/1183", "brand": "ACCU-CHEK", "model": "Performa", "variant": "빨강 둥근버튼", "status": "identified", "by": "human", "ts": "2026-09-10T19:18:54"}
-{"id": "glucose_batch1/1184", "brand": "ACCU-CHEK", "model": "Performa", "variant": "빨강 둥근버튼", "status": "identified", "by": "human", "ts": "2026-09-10T19:18:54"}
-{"id": "glucose_batch1/1185", "brand": "ACCU-CHEK", "model": "Performa", "variant": "빨강 둥근버튼", "status": "identified", "by": "human", "ts": "2026-09-10T19:18:54"}
+{"id": "glucose_batch1/1183", "brand": "ACCU-CHEK", "model": "Performa", "variant": "은색 각진버튼", "status": "identified", "by": "human", "ts": "2026-09-11T00:12:38"}
+{"id": "glucose_batch1/1184", "brand": "ACCU-CHEK", "model": "Performa", "variant": "은색 각진버튼", "status": "identified", "by": "human", "ts": "2026-09-11T00:12:38"}
+{"id": "glucose_batch1/1185", "brand": "ACCU-CHEK", "model": "Performa", "variant": "은색 각진버튼", "status": "identified", "by": "human", "ts": "2026-09-11T00:12:38"}
 {"id": "glucose_batch1/1186", "brand": "ACCU-CHEK", "model": "Performa", "variant": "은색 각진버튼", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
-{"id": "glucose_batch1/1187", "brand": "ACCU-CHEK", "model": "Performa", "variant": "빨강 둥근버튼", "status": "identified", "by": "human", "ts": "2026-09-10T19:18:54"}
+{"id": "glucose_batch1/1187", "brand": "ACCU-CHEK", "model": "Performa", "variant": "은색 각진버튼", "status": "identified", "by": "human", "ts": "2026-09-11T00:12:42"}
 {"id": "glucose_batch1/1188", "brand": "ACCU-CHEK", "model": "Performa", "variant": "은색 각진버튼", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
 {"id": "glucose_batch1/119", "brand": "Boryung", "model": "CareTouch", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T18:54:35"}
 {"id": "glucose_batch1/1190", "brand": "ACCU-CHEK", "model": "Performa", "variant": "은색 각진버튼", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
@@ -613,8 +613,8 @@
 {"id": "glucose_batch1/1561", "brand": "GluNEO plus", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T19:27:31"}
 {"id": "glucose_batch1/1562", "brand": "GC 녹십자 MS ONE", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T20:13:38"}
 {"id": "glucose_batch1/1563", "brand": "GC 녹십자 MS ONE", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T20:13:38"}
-{"id": "glucose_batch1/1564", "brand": "OneTouch", "model": "UltraMini", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T20:23:58"}
-{"id": "glucose_batch1/1565", "brand": "OneTouch", "model": "UltraMini", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T20:23:58"}
+{"id": "glucose_batch1/1564", "brand": "OneTouch", "model": "UltraMini", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T20:23:58", "rotation": "right"}
+{"id": "glucose_batch1/1565", "brand": "OneTouch", "model": "UltraMini", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T20:23:58", "rotation": "right"}
 {"id": "glucose_batch1/1566", "brand": "GluNEO plus", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T19:56:15"}
 {"id": "glucose_batch1/1567", "brand": "GluNEO plus", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T19:56:15"}
 {"id": "glucose_batch1/1568", "brand": "GluNEO plus", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T19:56:15"}
