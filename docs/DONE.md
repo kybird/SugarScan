@@ -349,3 +349,16 @@ GM 박스가 화면에 밀착해 있다는 전제 위에 서 있는데, 이 13�
 (`patterns/frame-provenance-binding`) — ow/oh 없는 `gmscreen_quads.jsonl` 을
 있는 `band_boxes.jsonl` 위에 그냥 얹으면 2431 같은 가로 사진이 조용히 깨진다.
 ②상자 수치를 인용할 때 **어느 라벨 파일인지 같이 적는다.**
+
+## G11 — 남은 미지역화 문자열 감사 (2026-09-10, 대상 0건)
+
+grep 전량 + 한국어 리터럴 전수 + 소비 경로 실측. → [`G11-untranslated-audit.md`](reports/G11-untranslated-audit.md)
+
+**지역화 대상 0건 — 코드·ARB 변경 0줄.** 판정이 갈렸던 두 지점:
+①photo_align_screen(한국어 최다 화면)은 `kDebugMode` 게이트 뒤 디버그 전용 —
+출시 빌드에 없음. ②OCR 엔진 실패 문구("초점이 흐립니다" 등)는 `failure.reason`
+을 UI 어디서도 읽지 않는다(grep 실측 0건 — `_statusText` 는 l10n 키로만 매핑).
+모듈 경계상 l10n import 도 불가능한데 다행히 도달하지도 않는다.
+
+**다시 나지 않게 하는 것**: "UI 미도달"은 현재 사실이지 영구 면책이 아니다 —
+`failure.reason` 을 화면에 내보내는 수정이 들어오는 순간 이 표를 다시 본다.
