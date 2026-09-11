@@ -136,8 +136,10 @@
   <button class="ghost f" data-f="mixed">섞인 그룹</button>
   <button class="ghost f" data-f="done">끝난 그룹</button>
   <button class="ghost f" data-f="all">전체</button>
-  <button class="ghost" id="flatBtn" title="그룹을 무시하고 라벨 없는 사진을 한 화면에 쭉 깐다 (f)">
+  <button class="ghost" id="flatBtn" title="그룹을 무시하고 사진을 한 화면에 쭉 깐다 (f)">
     전체 사진 모드 (f)</button>
+  <button class="ghost" id="heldBtn" hidden
+          title="식별 불가(u)로 남긴 사진만 한 화면에 모아 본다"></button>
   <input type="text" id="q" placeholder="검색: c003 / CareSens (필터 무시)" style="width:200px">
   <button class="ghost" id="helpBtn">?</button>
 </header>
@@ -394,6 +396,7 @@ async function boot() {
   $('#sPrev').onclick = () => { stripPage = Math.max(0, stripPage - 1); render(); };
   $('#sNext').onclick = () => { stripPage++; render(); };
   $('#flatBtn').onclick = toggleFlat;
+  $('#heldBtn').onclick = () => viewDevice('식별 불가');
   $('#helpBtn').onclick = () => $('#help').style.display = 'block';
   document.addEventListener('keydown', onKey);
   enter();
@@ -493,14 +496,18 @@ function render() {
   const doneImg = Object.keys(LABELS).length;
   const compDone = ROWS.filter(x => !unlabeled(x).length).length;
   const heldImg = Object.values(LABELS).filter(j => j.status === 'unknown').length;
-  $('#counts').innerHTML = `사진 <b>${doneImg}</b>/${totImg} ` +
-    `(${(doneImg / totImg * 100).toFixed(1)}%) · 그룹 <b>${compDone}</b>/${ROWS.length}` +
-    (heldImg ? ` · <a href="#" id="heldLink" title="보류 사진만 한 화면에 모아 본다">` +
-      `보류 <b>${heldImg}</b>장</a>` : '') +
+  // u(식별 불가)도 '본 사진'이지만 기종은 정해지지 않았다. 둘을 한 숫자로
+  // 합치면 100% 로 보여 남은 판정이 가려진다.
+  const fixed = doneImg - heldImg;
+  $('#counts').innerHTML = `기종 확정 <b>${fixed}</b>/${totImg} ` +
+    `(${(fixed / totImg * 100).toFixed(1)}%)` +
+    (heldImg ? ` · <b style="color:#d8c48a">보류 ${heldImg}</b>` : '') +
+    ` · 그룹 <b>${compDone}</b>/${ROWS.length}` +
     ` · 목록 ${l.length}건 중 ${l.length ? idxOf(l) + 1 : 0}번째`;
-  $('#prog > i').style.width = (doneImg / totImg * 100) + '%';
-  const hl = $('#heldLink');
-  if (hl) hl.onclick = e => { e.preventDefault(); viewDevice('식별 불가'); };
+  $('#prog > i').style.width = ((doneImg - heldImg) / totImg * 100) + '%';
+  $('#heldBtn').hidden = !heldImg;
+  $('#heldBtn').textContent = `보류 모아보기 (${heldImg})`;
+  $('#heldBtn').classList.toggle('on', flat && flatLabel === '식별 불가');
   document.querySelectorAll('.f').forEach(b =>
     b.classList.toggle('on', b.dataset.f === filter));
   if (!r) {
