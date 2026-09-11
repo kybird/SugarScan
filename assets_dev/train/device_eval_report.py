@@ -25,23 +25,32 @@ def layers_of(pred, gt):
     return "risky" if len(pred) == len(gt) else "safe"
 
 
+_LABELS = None
+
+
+def device_of(cid):
+    """사진 id → 기기 정체성(brand+model+variant). 지연 적재·캐시."""
+    global _LABELS
+    if _LABELS is None:
+        _LABELS = {}
+        with open(HERE / "device_labels.jsonl", encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    r = json.loads(line)
+                    _LABELS[r["id"]] = (r["brand"].strip(), r["model"].strip(),
+                                        r["variant"].strip())
+    return _LABELS[cid]
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--preds", default=str(HERE.parent / "train_device"
                                            / "reader_preds_tta.json"))
-    ap.add_argument("--labels", default="device_labels.jsonl")
     ap.add_argument("--out", default=str(HERE / "_diag" / "device_split"
                                          / "eval_by_device.json"))
     args = ap.parse_args()
 
     preds = json.loads(Path(args.preds).read_text(encoding="utf-8"))
-    labels = {}
-    with open(HERE / args.labels, encoding="utf-8") as f:
-        for line in f:
-            if line.strip():
-                r = json.loads(line)
-                labels[r["id"]] = (r["brand"].strip(), r["model"].strip(),
-                                   r["variant"].strip())
 
     tally = defaultdict(lambda: defaultdict(int))   # device -> layer -> n
     reject = defaultdict(int)
@@ -49,7 +58,7 @@ def main() -> int:
     for cid, (pred, gt, agree) in preds.items():
         layer = layers_of(pred, gt)
         overall[layer] += 1
-        dev = labels.get(cid)
+        dev = device_of(cid)
         assert dev is not None, f"라벨 없는 홀드아웃 사진: {cid}"
         tally[dev][layer] += 1
         if agree < AGREE_REJECT:
