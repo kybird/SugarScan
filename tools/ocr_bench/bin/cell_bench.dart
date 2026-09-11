@@ -23,7 +23,8 @@
 //     --out docs/reports/G15-cell-bench-result.md
 //
 //   --limit N        클래스당 N 장만 (빠른 확인용, 기본: 전부)
-//   --dump-failures N 오독 사례 N 건의 비트열을 함께 적는다 (기본 12)
+//   --dump-failures N 오독 사례 N 건의 비트열을 함께 적는다 (기본 12).
+//                      클래스별로 고르게 나눠 실는다(한 클래스에 몰리지 않게).
 
 import 'dart:io';
 
@@ -289,11 +290,13 @@ class _Report {
       s.abstained++;
     }
 
-    if (failures.length < 2000) {
-      failures.add(
-        _Failure(path, className, outcome.label, bits, margin),
-      );
-    }
+    // 상한 없이 전부 쌓는다. 예전의 2000건 상한이 G18 의 원인이었다 — 앞쪽
+    // 클래스(00)의 실패만으로 2000 이 채워져 덤프가 한 클래스에 갇혔다.
+    // 최대 실패 수는 표본 수로 자연 상한이고(4만 장 기준 수 MB), 클래스별
+    // 고르게 뽑으려면 전체가 필요하다.
+    failures.add(
+      _Failure(path, className, outcome.label, bits, margin),
+    );
   }
 
   String render({required String datasetPath, required int dumpFailures}) {
@@ -391,7 +394,7 @@ class _Report {
         ..writeln()
         ..writeln('| 기대 | 나온 것 | bits(ABCDEFG) | margin | 파일 |')
         ..writeln('|---|---|---|---|---|');
-      for (final f in failures.take(dumpFailures)) {
+      for (final f in _stratified(dumpFailures)) {
         b.writeln(
           '| ${f.expected} | `${f.got}` | `${_bits(f.bits)}` | '
           '${f.margin.toStringAsFixed(2)} | `${f.path.split(RegExp(r"[\\/]")).last}` |',
@@ -400,6 +403,56 @@ class _Report {
     }
 
     return b.toString();
+  }
+
+  /// 덤프에 실을 실패 사례를 **클래스별로 고르게** 뽑는다.
+  ///
+  /// `failures` 는 클래스 순(00 부터)으로 쌓여 앞에서 자르면 전부 같은 클래스에서
+  /// 소진된다(G15 실측 — 100건이 전부 `00`). 클래스마다 `n / 클래스 수` 건씩
+  /// 할당하고, 실패가 할당량보다 적어 남는 몫은 아직 덜어내지 않은 클래스가
+  /// 클래스 순으로 하나씩 가져간다. 클래스 안에서는 일정 간격으로 고른다 —
+  /// 파일명이 촬영 순서라 연속 프레임 표본을 피하는 `--limit` 와 같은 이유다.
+  List<_Failure> _stratified(int n) {
+    if (n <= 0) return const [];
+    final byClass = <String, List<_Failure>>{};
+    for (final f in failures) {
+      byClass.putIfAbsent(f.expected, () => []).add(f);
+    }
+    final names = byClass.keys.toList()..sort();
+
+    final take = <String, int>{};
+    var assigned = 0;
+    final quota = n ~/ names.length;
+    for (final c in names) {
+      final k = quota < byClass[c]!.length ? quota : byClass[c]!.length;
+      take[c] = k;
+      assigned += k;
+    }
+    while (assigned < n) {
+      var progressed = false;
+      for (final c in names) {
+        if (assigned >= n) break;
+        if (take[c]! < byClass[c]!.length) {
+          take[c] = take[c]! + 1;
+          assigned++;
+          progressed = true;
+        }
+      }
+      // 전부 소진했는데도 n 에 못 미치는 경우 — 있는 것만이라도 낸다.
+      if (!progressed) break;
+    }
+
+    return [
+      for (final c in names) ..._stridePick(byClass[c]!, take[c]!),
+    ];
+  }
+
+  /// 목록에서 k 건을 일정 간격으로 고른다(앞쪽 몰림 방지).
+  static List<_Failure> _stridePick(List<_Failure> src, int k) {
+    if (k <= 0) return const [];
+    if (k >= src.length) return src;
+    final stride = src.length / k;
+    return [for (var i = 0; i < k; i++) src[(i * stride).floor()]];
   }
 }
 
@@ -490,7 +543,7 @@ class _Options {
   --dataset <경로>       클래스 폴더(00..09, 11)를 담은 디렉터리. 필수
   --out <파일>           리포트를 마크다운으로 적는다
   --limit N              클래스당 N 장만 (빠른 확인용)
-  --dump-failures N      실패 사례 N 건을 표로 적는다 (기본 12)
+  --dump-failures N      실패 사례 N 건을 클래스별로 고르게 표로 적는다 (기본 12)
 ''');
   }
 }
