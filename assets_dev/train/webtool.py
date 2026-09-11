@@ -176,7 +176,26 @@ def load_device_labels():
     return out
 
 
+def backup_device_labels():
+    """덮어쓰기 전에 직전 상태를 남긴다.
+
+    사람이 몇 시간 들여 붙인 라벨을 한 번의 잘못된 선택이 통째로 덮을 수 있다
+    (실제로 782장이 그렇게 날아갔다). 파일은 작고(수백 KB) 백업은 싸다.
+    """
+    if not DEVICE_LABELS.exists():
+        return
+    d = HERE / "_diag" / "device_tags" / "backups"
+    d.mkdir(parents=True, exist_ok=True)
+    dst = d / ("device_labels_" + time.strftime("%Y%m%d_%H%M%S") + ".jsonl")
+    if not dst.exists():
+        dst.write_bytes(DEVICE_LABELS.read_bytes())
+    keep = sorted(d.glob("device_labels_*.jsonl"))[:-200]
+    for old_file in keep:
+        old_file.unlink()
+
+
 def save_device_labels(labels):
+    backup_device_labels()
     tmp = DEVICE_LABELS.with_suffix(".tmp")
     with open(tmp, "w", encoding="utf-8") as f:
         for _id in sorted(labels):

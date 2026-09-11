@@ -439,10 +439,13 @@ function enter() {
   render();
 }
 function selectRest() {
-  const r = cur(); sel = new Set(r ? unlabeled(r) : []);
+  const r = cur();
+  // 반드시 '화면에 깔린 목록'에서 고른다. 그룹 구성원에서 고르면 전체/기기
+  // 보기 모드에서 보이지도 않는 사진이 선택된다(782장 오염 사고의 원인).
+  sel = new Set(r ? viewOf(r).filter(i => !LABELS[i]) : []);
   if (!heroId || !sel.has(heroId)) heroId = [...sel][0] || (r ? memberOf(r)[0] : null);
 }
-function selectAll() { const r = cur(); sel = new Set(r ? memberOf(r) : []); }
+function selectAll() { const r = cur(); sel = new Set(r ? viewOf(r) : []); }
 
 function move(d) {
   const l = list();
@@ -510,7 +513,7 @@ function render() {
   // 고르거나, 한 기기로 다 찍어 둔 뒤 나머지를 골라낼 때 쓴다.
   $('#state').querySelectorAll('.pill.click').forEach(el => el.onclick = () => {
     const want = el.dataset.dev;
-    sel = new Set(mem.filter(i => labelText(LABELS[i]) === want));
+    sel = new Set(viewOf(r).filter(i => labelText(LABELS[i]) === want));
     heroId = [...sel][0] || heroId;
     render();
   });
@@ -736,6 +739,18 @@ async function save(opt) {
     $('#noWipe').onclick = () => warn('');
     return;
   }
+  // 되돌릴 수 없는 대량 지정은 한 번 묻는다. 이미 라벨이 있는 사진을 덮어쓰는
+  // 경우에만 — 새로 붙이는 것은 되돌리기 쉽다.
+  const over = [...sel].filter(i => LABELS[i]).length;
+  if (status === 'identified' && over > 30 && !opt.confirmed) {
+    warn(`<b>${over}장</b>은 이미 다른 기기로 라벨돼 있다. 덮어쓰면 그 라벨은 사라진다. ` +
+         `지금 화면에 보이는 것만 선택됐는지 확인하자. ` +
+         `<button id="doOver">${sel.size}장 덮어쓰기</button> ` +
+         `<button class="ghost" id="noOver">취소</button>`);
+    $('#doOver').onclick = () => { warn(''); save({ ...opt, confirmed: true }); };
+    $('#noOver').onclick = () => warn('');
+    return;
+  }
   const ids = [...sel];
   $('#msg').textContent = `${ids.length}장 저장 중…`;
   const res = await fetch('/api/devicelabel', {
@@ -804,12 +819,17 @@ function onKey(e) {
   else if (e.key === 'z') {  // 방금 지정한 사진을 다시 선택 — 고쳐 찍을 때
     if (lastSel && lastSel.size) {
       const c = cur(); const m = c ? memberOf(c) : [];
-      sel = new Set([...lastSel].filter(i => m.includes(i)));
+      sel = new Set([...lastSel].filter(i => viewOf(c).includes(i)));
       heroId = [...sel][0] || heroId; render();
     } else $('#msg').textContent = '방금 지정한 것이 없다';
   }
   else if (e.key === 'h') {  // 이 그룹의 보류(식별 불가)만 선택 — 다시 판정할 때
-    const c = cur(); if (c) { sel = new Set(held(c)); heroId = [...sel][0] || heroId; render(); }
+    const c = cur();
+    if (c) {
+      const v = viewOf(c);
+      sel = new Set(held(c).filter(i => v.includes(i)));
+      heroId = [...sel][0] || heroId; render();
+    }
   }
   else if (e.key === 'Escape') { sel.clear(); render(); }
   else if (e.key === ' ') {
