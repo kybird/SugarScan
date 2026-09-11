@@ -23,27 +23,35 @@ class SettingsScreen extends ConsumerWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text(
-              l10n.settingsUnitSection,
-              style: theme.textTheme.titleSmall,
+            // 그룹 진입 시 이 제목이 라디오 그룹 라벨로 한 번만 읽히게 한다.
+            child: Semantics(
+              excludeSemantics: true,
+              child: Text(
+                l10n.settingsUnitSection,
+                style: theme.textTheme.titleSmall,
+              ),
             ),
           ),
-          RadioGroup<GlucoseUnit>(
-            groupValue: unit,
-            onChanged: (value) => _change(context, ref, value),
-            child: Column(
-              children: [
-                for (final option in GlucoseUnit.values)
-                  RadioListTile<GlucoseUnit>(
-                    value: option,
-                    title: Text(option.symbol),
-                    subtitle: Text(
-                      option == GlucoseUnit.mgdl
-                          ? l10n.unitExampleMgdl
-                          : l10n.unitExampleMmoll,
+          Semantics(
+            // 화면에 보이는 제목과 같은 내용 — 새 l10n 키를 만들지 않는다(G10).
+            label: l10n.settingsUnitSection,
+            child: RadioGroup<GlucoseUnit>(
+              groupValue: unit,
+              onChanged: (value) => _change(context, ref, value),
+              child: Column(
+                children: [
+                  for (final option in GlucoseUnit.values)
+                    RadioListTile<GlucoseUnit>(
+                      value: option,
+                      title: Text(option.symbol),
+                      subtitle: Text(
+                        option == GlucoseUnit.mgdl
+                            ? l10n.unitExampleMgdl
+                            : l10n.unitExampleMmoll,
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
           Padding(
@@ -206,28 +214,36 @@ class _TargetRangeSection extends ConsumerWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Text(
-            l10n.settingsTargetSection,
-            style: theme.textTheme.titleSmall,
+          // 그룹 진입 시 이 제목이 라디오 그룹 라벨로 한 번만 읽히게 한다.
+          child: Semantics(
+            excludeSemantics: true,
+            child: Text(
+              l10n.settingsTargetSection,
+              style: theme.textTheme.titleSmall,
+            ),
           ),
         ),
-        RadioGroup<TargetRangePreset>(
-          groupValue: selected,
-          onChanged: (value) => _change(context, ref, value, unit),
-          child: Column(
-            children: [
-              for (final preset in TargetRangePreset.values)
-                RadioListTile<TargetRangePreset>(
-                  value: preset,
-                  title: Text(
-                    // 범위 숫자를 이름과 함께 보여 준다. 이름만으로는 무엇을
-                    // 고르는지 알 수 없다.
-                    '${preset.label(l10n)}  ${preset.labelFor(unit)} '
-                    '${unit.symbol}',
+        Semantics(
+          // 화면에 보이는 제목과 같은 내용 — 새 l10n 키를 만들지 않는다(G10).
+          label: l10n.settingsTargetSection,
+          child: RadioGroup<TargetRangePreset>(
+            groupValue: selected,
+            onChanged: (value) => _change(context, ref, value, unit),
+            child: Column(
+              children: [
+                for (final preset in TargetRangePreset.values)
+                  RadioListTile<TargetRangePreset>(
+                    value: preset,
+                    title: Text(
+                      // 범위 숫자를 이름과 함께 보여 준다. 이름만으로는 무엇을
+                      // 고르는지 알 수 없다.
+                      '${preset.label(l10n)}  ${preset.labelFor(unit)} '
+                      '${unit.symbol}',
+                    ),
+                    subtitle: Text(preset.note(l10n)),
                   ),
-                  subtitle: Text(preset.note(l10n)),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
         Padding(

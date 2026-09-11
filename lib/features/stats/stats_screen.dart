@@ -474,14 +474,27 @@ class _ByTagList extends StatelessWidget {
         // 기록이 없는 태그는 아예 나오지 않는다. 0 으로 채우면 화면이
         // "공복 평균 0" 이라는 없는 사실을 그린다.
         for (final entry in summary.meanByTag.entries)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-            title: Text(entry.key.label(l10n)),
-            trailing: Text(
-              '${unit.format(unit.fromMgdl(entry.value))} ${unit.symbol}',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                fontFeatures: const [FontFeature.tabularFigures()],
+          Semantics(
+            // 행 전체를 한 문장으로 읽는다(reading_tile 과 같은 관용구).
+            // 라벨은 화면에 보이는 것 — 태그와 평균 값·단위 — 과 같은 내용이다.
+            label:
+                '${entry.key.label(l10n)}, '
+                '${unit.format(unit.fromMgdl(entry.value))} ${unit.symbol}',
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              title: Semantics(
+                excludeSemantics: true,
+                child: Text(entry.key.label(l10n)),
+              ),
+              trailing: Semantics(
+                excludeSemantics: true,
+                child: Text(
+                  '${unit.format(unit.fromMgdl(entry.value))} ${unit.symbol}',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
               ),
             ),
           ),

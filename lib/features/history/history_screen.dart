@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+// CustomSemanticsAction 은 rendering 계층 심볼이라 material 재수출에 없다.
+import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
@@ -48,10 +50,20 @@ class HistoryScreen extends ConsumerWidget {
                 direction: DismissDirection.endToStart,
                 background: _DeleteBackground(label: l10n.actionDelete),
                 onDismissed: (_) => _delete(context, ref, reading),
-                child: ReadingTile(
-                  reading: reading,
-                  unit: unit,
-                  onTap: () => _edit(context, ref, reading),
+                child: Semantics(
+                  // 스와이프 제스처는 스크린리더에서 드러나지 않는다. 타일에
+                  // "삭제" 액션을 함께 노출해 같은 경로에 접근하게 한다 —
+                  // 라벨은 스와이프 배경과 같은 actionDelete(보이는 문구와
+                  // 동일하며 실행도 같은 _delete 를 탄다).
+                  customSemanticsActions: {
+                    CustomSemanticsAction(label: l10n.actionDelete):
+                        () => _delete(context, ref, reading),
+                  },
+                  child: ReadingTile(
+                    reading: reading,
+                    unit: unit,
+                    onTap: () => _edit(context, ref, reading),
+                  ),
                 ),
               );
             },
