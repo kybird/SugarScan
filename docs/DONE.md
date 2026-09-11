@@ -362,3 +362,17 @@ grep 전량 + 한국어 리터럴 전수 + 소비 경로 실측. → [`G11-untra
 
 **다시 나지 않게 하는 것**: "UI 미도달"은 현재 사실이지 영구 면책이 아니다 —
 `failure.reason` 을 화면에 내보내는 수정이 들어오는 순간 이 표를 다시 본다.
+
+## G13 — 위젯 테스트 함정 전수 감사 (2026-09-10, 무의미 0건)
+
+네 신호(tap·findsNothing·pumpAndSettle·무인자 pump) 전수 + 뒤집기 검증.
+→ [`G13-widget-test-audit.md`](reports/G13-widget-test-audit.md)
+
+**무의미한 테스트 0건 — 코드 변경 0줄.** tap 13곳 화면 밖 경고 0건(저장 버튼
+ensureVisible 은 W12 수정분 그대로), findsNothing 11곳 전부 findsWidgets
+뒤집기로 "Found 0 widgets" 실패 확인(트리에 진짜 없음), 무인자 pump 16곳 전부
+"프레임+시간진행" 관용구, pumpAndSettle 0곳. 세 번째 사례는 없었다.
+
+**다시 나지 않게 하는 것**: 이 감사의 뒤집기 검증 방식(findNothing →
+findsWidgets 로 뒤집어 Found 0 확인)을 신규 테스트 리뷰에도 쓴다 — "통과하는
+부재 단정"은 그 자체로는 아무것도 증명하지 않는다.
