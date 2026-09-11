@@ -41,6 +41,13 @@ confidence: 4
 - **거대 성분**: 한 세팅을 수백 장 찍은 덩어리(실측 최대 723장)가 목표 비율을
   넘겨 쌓일 수 있다 — 홀드아웃이 커지는 것은 평가 강화, 학습 데이터 감소는
   조건으로 명시한다.
+- **연결요소가 잡는 것은 "촬영 배경의 연속성"이지 기기도 세션도 아니다**
+  (2026-09-10 실측). dhash 는 사진 전체를 보는데 프레임의 대부분은 배경이라,
+  같은 배경에서 찍은 **여러 기기**가 한 덩어리가 된다 — 최대 성분 723장에 기기
+  21종이 들어 있었다. 누수 방지용 분할 기준으로는 여전히 보수적으로 유효하지만
+  (같은 배경이 양쪽에 걸치지 않게 한다), **"같은 성분 = 같은 기기 = 같은 세션"
+  으로 읽으면 틀린다.** 기기 단절 평가(LODO)의 단위는 성분이 아니라 **사진 단위
+  기기 라벨**이어야 한다.
 - **비용**: O(N²) 쌍 비교 — 2,500장×64비트면 넘파이로 수 초, 수만 장이면
   근사 최근접(LSH) 필요.
 
@@ -54,6 +61,8 @@ confidence: 4
 ## Related
 
 - [[measure-the-premise-not-just-the-claim]] — 세션 정의 자체가 프레미스다
+- [[sampled-uniformity-as-proof]] — 거대 성분을 표본으로 "균일하다" 판정했다가
+  전량 라벨링으로 반증된 사례
 - [[aggregate-hides-stratified-failure]] — 6단계 층별 재집계의 근거
 - [[experiment-budget-parity]] — 재학습 시 기준선과 같은 예산·같은 사전학습
 
@@ -63,3 +72,5 @@ confidence: 4
 - `assets_dev/train/audit_split_leakage.py`(계측) · `build_grouped_split.py`(재분할)
 - `docs/reports/split-leakage-audit-2026-09-09.md` ·
   `docs/reports/grouped-split-rebaseline-2026-09-10.md`
+- `doc/raw/2026-09-10.md` Case 5 — 사람 전량 라벨링으로 "연결요소 = 배경 그룹"
+  확인(c003 723장에 기기 21종). `hash:60c7547`

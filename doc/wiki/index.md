@@ -50,11 +50,13 @@ tags: [index]
 | [[bounds-check-as-correctness-proof]] | 파손된 좌표를 보정할 때 **결과가 이미지 경계 안에 들어오는지**로 맞았는지 판정하는 것. | 경계 통과를 정답으로 오인, oob 검사 과신, audit_oob.py, oob, 경계 초과 |
 | [[contract-guard-too-narrow]] | "이 메서드는 예외를 던지지 않는다"고 문서에 적어 두고, `try` 는 **위험해 보이는 호출 하나만** 감싸는 것. | 좁은 try, 계약보다 좁은 방어, GlucoseScanner.offer, _recognizeSafely, glucose_scanner.dart |
 | [[count-rows-not-entities]] | 아웃박스는 변경마다 행을 쌓지만, 서버로는 **현재 상태 한 번**만 간다. | 대기 n건 오표시, 큐 행 세기, pendingSyncCountProvider, syncMaxAttemptsProvider, syncOutboxRows, blockedCount, providers.dart |
+| [[display-and-selection-from-different-sources]] | 목록을 보여 주는 코드와 "지금 선택된 것"을 만드는 코드가 **다른 배열을 읽으면**, | 화면과 선택 불일치, 표시 목록과 조작 대상 분리, selection off-screen, viewOf memberOf, a 전체선택 사고, 보이지 않는 선택 |
 | [[downscaled-view-as-evidence]] | 작게 줄인 이미지나 몇 장의 표본은 **판단이 가능해 보인다.** 틀렸다는 신호를 주지 않기 때문이다. | 축소본, 썸네일, 몽타주, 눈검, 해상도, resize, 미리보기로 판단, 표본이 작다 |
 | [[duplicated-geometry-implementation]] | 거의 같은 100줄(디코드 → 회색 변환 → 호모그래피 역샘플링)이 두 함수에 복사돼 있는 것. | 좌표 변환 중복, 워프 두 벌, warpQuadToRect, warpQuadToEngineFrame, _warpQuad, photo_preprocessor.dart, _homography |
 | [[frozen-now-in-live-query]] | ```dart | 굳은 now, 기간 상한 고정, statsReadingsProvider, watchBetween, StreamProvider, DateTime.now(), providers.dart |
 | [[global-transform-on-heterogeneous-input]] | 측정해서 중앙값을 얻은 뒤 **그 값을 전체에 똑같이** 적용하는 것. | 전역 변환, 일률 적용, 중앙값으로 처방, 고정 패딩, CLAHE, 여유, margin, 분포가 넓다, 표준편차가 평균보다 |
 | [[image-level-split-on-session-corpus]] | 같은 촬영 세션(같은 기기·구도·조명)의 사진이 여러 장 있는 코퍼스를 이미지 단위로 | 이미지 단위 분할, 랜덤 분할 누수, 세션 누수, data leakage, near-duplicate leakage, burst corpus split, 그룹 분할 안 함 |
+| [[irreversible-write-without-history]] | 원자적 저장(`.tmp` → `rename`)은 **쓰다 만 파일**을 막을 뿐, **틀린 내용으로 온전히 | 이력 없는 덮어쓰기, 원자적 저장의 함정, tmp rename, untracked 라벨, 백업 없는 사람 라벨, 재생 불가 자산 |
 | [[label-without-visual-ground-truth]] | 좌표만 저장하고, 저장된 좌표를 **다시 이미지에 그려 확인하는 경로 없이** 계속 진행하는 것. | 눈검증 없는 라벨링, 좌표만 저장, screen_boxes.jsonl, labeled.jsonl, /api/selftest, audit_oob.py |
 | [[metric-path-not-under-test]] | 측정값이 나쁘면 **측정 대상**(모델·기하·데이터)에 대한 가설만 세우고, **측정하는 코드**(채점 스크립트·전처리 로더·GT 조립)는 옳다고 전제하는 것. | 계측 경로, 채점 스크립트, 평가 스크립트, eval_reader, 지표가 낮다, 모델이 나쁘다, 기준선 저평가, measurement bug, harness bug |
 | [[mixed-image-decode-conventions]] | `cv2.imread` 는 EXIF orientation 을 **자동 적용**하고, `PIL.Image.open` 은 **무시**한다. | EXIF 관례 불일치, cv2 vs PIL, exif_transpose, cv2.imread, getexif, orientation, build_cache_v2, golden_bench |
@@ -63,6 +65,7 @@ tags: [index]
 | [[partial-update-desyncs-canonical]] | ```dart | 부분 수정, 정본 미갱신, GlucoseRepository.update, valueMgdl, enteredValue, Value.absent, glucose_repository.dart |
 | [[poison-row-blocks-pipeline]] | 관용의 단위가 **행이 아니라 배치**인 것. | 독행, 배치 단위 관용, 행 하나가 전체를 막음, ReadingDto.fromJson, _pull, syncOnce, fetchUpdatedSince, reading_dto.dart |
 | [[reset-clears-in-flight-lock]] | ```dart | reset 이 잠금을 푸는 것, _busy = false, FrameThrottler, frame_throttler.dart, _busy, reset(), isBusy |
+| [[sampled-uniformity-as-proof]] | 묶음이 균일한지 표본으로 확인하는 절차는 **반례를 못 찾았다**는 사실만 만든다. | 표본으로 균일성 확인, 사분위 표본, 거대 성분 점검, 반례 못 찾음, 4표본, spot check as proof |
 | [[stale-client-writes]] | 브라우저에 어느 버전의 JS 가 떠 있는지 **아무도 모르는 상태**로 저장 요청을 받는 것. | 낡은 탭 쓰기, stale build, Cache-Control, no-store, webtool.html, /api/build |
 | [[tolerance-without-preservation]] | `values.firstWhere(..., orElse: () => SomeDefault)` — 관용처럼 보이지만, 그 값을 나중에 서버로 되돌려 쓰는 순간 **다른 기기의 데이터를 파괴한다.** | 모르는 값 치환, orElse 기본값, silent-normalization, fromWireName, orElse, firstWhere, MeasurementTag, ReadingSource, measurement_tag.dart |
 | [[uncontrolled-budget-in-ab-comparison]] | 바꾼 변인(크롭·워프·증강)과 **함께 움직이지 않은 변인**(에폭 수·사전학습 체크포인트· | 예산 불일치 A/B, 에폭 예산, 학습 예산 비교, budget parity, epoch-mismatch, unfair A/B |
@@ -84,6 +87,6 @@ tags: [index]
 
 - Total concepts: 6
 - Total patterns: 14
-- Total anti-patterns: 25
+- Total anti-patterns: 28
 - Total answers: 0
 - Last updated: 2026-09-10
