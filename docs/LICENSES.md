@@ -109,7 +109,7 @@
 
 | 자산 | 용도 | 라이선스 | 앱에 반입되는가 |
 |---|---|---|---|
-| DSEG (7-세그먼트) | **합성 학습 데이터 생성 전용** | SIL OFL 1.1 | 아니오 |
+| DSEG v0.46 (keshikan, [github](https://github.com/keshikan/DSEG), 2026-09-11 확인) | **합성 학습 데이터 생성 전용** — 7세그 폰트로 글리프 렌더. `assets_dev/train/fonts/dseg/` 에 12개 ttf + 원문 `DSEG-LICENSE.txt` 동봉 | **SIL OFL 1.1** (RFN "DSEG" — 수정·재배포 안 함, 렌더만) | 아니오 |
 | Noto Sans KR / JP / SC | PDF 리포트 CJK 렌더링 | SIL OFL 1.1 | 예 |
 
 SIL OFL 은 상업적 사용·임베딩을 허용하지만 **폰트 자체를 판매할 수 없고**
