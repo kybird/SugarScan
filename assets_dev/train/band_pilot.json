@@ -1,400 +1,5 @@
 [
  {
-  "id": "glucose_batch1/1046",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=3.58"
- },
- {
-  "id": "glucose_batch1/1091",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=3.50"
- },
- {
-  "id": "glucose_batch1/1593",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.43"
- },
- {
-  "id": "glucose_batch1/1596",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.67"
- },
- {
-  "id": "glucose_batch1/1598",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.64"
- },
- {
-  "id": "glucose_batch1/1602",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.78"
- },
- {
-  "id": "glucose_batch1/1604",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.59"
- },
- {
-  "id": "glucose_batch1/1605",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.66"
- },
- {
-  "id": "glucose_batch1/1607",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.66"
- },
- {
-  "id": "glucose_batch1/1609",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.73"
- },
- {
-  "id": "glucose_batch1/1610",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.69"
- },
- {
-  "id": "glucose_batch1/1611",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.51"
- },
- {
-  "id": "glucose_batch1/1612",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.64"
- },
- {
-  "id": "glucose_batch1/1613",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.64"
- },
- {
-  "id": "glucose_batch1/1614",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.66"
- },
- {
-  "id": "glucose_batch1/1615",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.73"
- },
- {
-  "id": "glucose_batch1/1616",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.57"
- },
- {
-  "id": "glucose_batch1/1617",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.50"
- },
- {
-  "id": "glucose_batch1/1618",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.66"
- },
- {
-  "id": "glucose_batch1/1619",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.60"
- },
- {
-  "id": "glucose_batch1/1620",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.52"
- },
- {
-  "id": "glucose_batch1/1622",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.05"
- },
- {
-  "id": "glucose_batch1/1624",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.07"
- },
- {
-  "id": "glucose_batch1/1627",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=1.96"
- },
- {
-  "id": "glucose_batch1/1815",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.09"
- },
- {
-  "id": "glucose_batch1/1822",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=1.92"
- },
- {
-  "id": "glucose_batch1/1826",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=1.71"
- },
- {
-  "id": "glucose_batch1/606",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=3.53"
- },
- {
-  "id": "glucose_batch1/950",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.78"
- },
- {
-  "id": "glucose_batch1/951",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.57"
- },
- {
-  "id": "glucose_batch1/956",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.80"
- },
- {
-  "id": "glucose_batch1/1241",
-  "stratum": "misread",
-  "note": "오독 158->156"
- },
- {
-  "id": "glucose_batch1/1039",
-  "stratum": "misread",
-  "note": "오독 184->194"
- },
- {
-  "id": "glucose_batch1/312",
-  "stratum": "misread",
-  "note": "오독 85->89"
- },
- {
-  "id": "glucose_batch1/1719",
-  "stratum": "misread",
-  "note": "오독 233->239"
- },
- {
-  "id": "glucose_batch1/1694",
-  "stratum": "misread",
-  "note": "오독 179->175"
- },
- {
-  "id": "glucose_batch1/692",
-  "stratum": "misread",
-  "note": "오독 116->118"
- },
- {
-  "id": "glucose_batch1/1174",
-  "stratum": "misread",
-  "note": "오독 137->131"
- },
- {
-  "id": "glucose_batch1/1588",
-  "stratum": "misread",
-  "note": "오독 103->101"
- },
- {
-  "id": "glucose_batch1/40",
-  "stratum": "misread",
-  "note": "오독 113->213"
- },
- {
-  "id": "glucose_batch2/2518",
-  "stratum": "misread",
-  "note": "오독 444->144"
- },
- {
-  "id": "glucose_batch1/1541",
-  "stratum": "misread",
-  "note": "오독 120->128"
- },
- {
-  "id": "glucose_batch1/174",
-  "stratum": "misread",
-  "note": "오독 106->186"
- },
- {
-  "id": "glucose_batch1/1540",
-  "stratum": "misread",
-  "note": "오독 115->119"
- },
- {
-  "id": "glucose_batch1/720",
-  "stratum": "misread",
-  "note": "오독 86->88"
- },
- {
-  "id": "glucose_batch1/1324",
-  "stratum": "misread",
-  "note": "오독 439->139"
- },
- {
-  "id": "glucose_batch1/499",
-  "stratum": "misread",
-  "note": "오독 158->127"
- },
- {
-  "id": "glucose_batch1/32",
-  "stratum": "misread",
-  "note": "오독 229->225"
- },
- {
-  "id": "glucose_batch1/2336",
-  "stratum": "misread",
-  "note": "오독 74->79"
- },
- {
-  "id": "glucose_batch1/818",
-  "stratum": "misread",
-  "note": "오독 87->80"
- },
- {
-  "id": "glucose_batch1/1562",
-  "stratum": "misread",
-  "note": "오독 108->188"
- },
- {
-  "id": "glucose_batch1/136",
-  "stratum": "misread",
-  "note": "오독 98->92"
- },
- {
-  "id": "glucose_batch2/2624",
-  "stratum": "misread",
-  "note": "오독 157->127"
- },
- {
-  "id": "glucose_batch1/994",
-  "stratum": "misread",
-  "note": "오독 137->131"
- },
- {
-  "id": "glucose_batch1/1218",
-  "stratum": "misread",
-  "note": "오독 144->146"
- },
- {
-  "id": "glucose_batch2/2618",
-  "stratum": "misread",
-  "note": "오독 171->177"
- },
- {
-  "id": "glucose_batch1/1245",
-  "stratum": "misread",
-  "note": "오독 275->279"
- },
- {
-  "id": "glucose_batch1/2409",
-  "stratum": "misread",
-  "note": "오독 219->119"
- },
- {
-  "id": "glucose_batch1/45",
-  "stratum": "misread",
-  "note": "오독 58->56"
- },
- {
-  "id": "glucose_batch1/944",
-  "stratum": "control",
-  "note": "정답 장(대조군)"
- },
- {
-  "id": "glucose_batch1/661",
-  "stratum": "control",
-  "note": "정답 장(대조군)"
- },
- {
-  "id": "glucose_batch1/696",
-  "stratum": "control",
-  "note": "정답 장(대조군)"
- },
- {
-  "id": "glucose_batch2/2610",
-  "stratum": "control",
-  "note": "정답 장(대조군)"
- },
- {
-  "id": "glucose_batch1/2030",
-  "stratum": "control",
-  "note": "정답 장(대조군)"
- },
- {
-  "id": "glucose_batch2/2615",
-  "stratum": "control",
-  "note": "정답 장(대조군)"
- },
- {
-  "id": "glucose_batch1/1335",
-  "stratum": "control",
-  "note": "정답 장(대조군)"
- },
- {
-  "id": "glucose_batch2/2601",
-  "stratum": "control",
-  "note": "정답 장(대조군)"
- },
- {
-  "id": "glucose_batch1/1548",
-  "stratum": "control",
-  "note": "정답 장(대조군)"
- },
- {
-  "id": "glucose_batch1/2098",
-  "stratum": "control",
-  "note": "정답 장(대조군)"
- },
- {
-  "id": "glucose_batch1/1732",
-  "stratum": "control",
-  "note": "정답 장(대조군)"
- },
- {
-  "id": "glucose_batch1/1178",
-  "stratum": "control",
-  "note": "정답 장(대조군)"
- },
- {
-  "id": "glucose_batch1/749",
-  "stratum": "control",
-  "note": "정답 장(대조군)"
- },
- {
-  "id": "glucose_batch1/1058",
-  "stratum": "control",
-  "note": "정답 장(대조군)"
- },
- {
-  "id": "glucose_batch1/589",
-  "stratum": "control",
-  "note": "정답 장(대조군)"
- },
- {
-  "id": "glucose_batch1/860",
-  "stratum": "control",
-  "note": "정답 장(대조군)"
- },
- {
-  "id": "glucose_batch1/2255",
-  "stratum": "control",
-  "note": "정답 장(대조군)"
- },
- {
-  "id": "glucose_batch1/844",
-  "stratum": "control",
-  "note": "정답 장(대조군)"
- },
- {
-  "id": "glucose_batch1/15",
-  "stratum": "control",
-  "note": "정답 장(대조군)"
- },
- {
-  "id": "glucose_batch1/971",
-  "stratum": "control",
-  "note": "정답 장(대조군)"
- },
- {
   "id": "glucose_batch2/2502",
   "stratum": "band-p1-train",
   "note": "ACCU-CHEK Active 사각배젤 · 1단계(기기당 8장) · 1/8"
@@ -2123,5 +1728,400 @@
   "id": "glucose_batch1/1256",
   "stratum": "band-p1-holdout",
   "note": "오토-첵 · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/1046",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=3.58"
+ },
+ {
+  "id": "glucose_batch1/1091",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=3.50"
+ },
+ {
+  "id": "glucose_batch1/1593",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=2.43"
+ },
+ {
+  "id": "glucose_batch1/1596",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=2.67"
+ },
+ {
+  "id": "glucose_batch1/1598",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=2.64"
+ },
+ {
+  "id": "glucose_batch1/1602",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=2.78"
+ },
+ {
+  "id": "glucose_batch1/1604",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=2.59"
+ },
+ {
+  "id": "glucose_batch1/1605",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=2.66"
+ },
+ {
+  "id": "glucose_batch1/1607",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=2.66"
+ },
+ {
+  "id": "glucose_batch1/1609",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=2.73"
+ },
+ {
+  "id": "glucose_batch1/1610",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=2.69"
+ },
+ {
+  "id": "glucose_batch1/1611",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=2.51"
+ },
+ {
+  "id": "glucose_batch1/1612",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=2.64"
+ },
+ {
+  "id": "glucose_batch1/1613",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=2.64"
+ },
+ {
+  "id": "glucose_batch1/1614",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=2.66"
+ },
+ {
+  "id": "glucose_batch1/1615",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=2.73"
+ },
+ {
+  "id": "glucose_batch1/1616",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=2.57"
+ },
+ {
+  "id": "glucose_batch1/1617",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=2.50"
+ },
+ {
+  "id": "glucose_batch1/1618",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=2.66"
+ },
+ {
+  "id": "glucose_batch1/1619",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=2.60"
+ },
+ {
+  "id": "glucose_batch1/1620",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=2.52"
+ },
+ {
+  "id": "glucose_batch1/1622",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=2.05"
+ },
+ {
+  "id": "glucose_batch1/1624",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=2.07"
+ },
+ {
+  "id": "glucose_batch1/1627",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=1.96"
+ },
+ {
+  "id": "glucose_batch1/1815",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=2.09"
+ },
+ {
+  "id": "glucose_batch1/1822",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=1.92"
+ },
+ {
+  "id": "glucose_batch1/1826",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=1.71"
+ },
+ {
+  "id": "glucose_batch1/606",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=3.53"
+ },
+ {
+  "id": "glucose_batch1/950",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=2.78"
+ },
+ {
+  "id": "glucose_batch1/951",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=2.57"
+ },
+ {
+  "id": "glucose_batch1/956",
+  "stratum": "wide",
+  "note": "가로 화면 w/h=2.80"
+ },
+ {
+  "id": "glucose_batch1/1241",
+  "stratum": "misread",
+  "note": "오독 158->156"
+ },
+ {
+  "id": "glucose_batch1/1039",
+  "stratum": "misread",
+  "note": "오독 184->194"
+ },
+ {
+  "id": "glucose_batch1/312",
+  "stratum": "misread",
+  "note": "오독 85->89"
+ },
+ {
+  "id": "glucose_batch1/1719",
+  "stratum": "misread",
+  "note": "오독 233->239"
+ },
+ {
+  "id": "glucose_batch1/1694",
+  "stratum": "misread",
+  "note": "오독 179->175"
+ },
+ {
+  "id": "glucose_batch1/692",
+  "stratum": "misread",
+  "note": "오독 116->118"
+ },
+ {
+  "id": "glucose_batch1/1174",
+  "stratum": "misread",
+  "note": "오독 137->131"
+ },
+ {
+  "id": "glucose_batch1/1588",
+  "stratum": "misread",
+  "note": "오독 103->101"
+ },
+ {
+  "id": "glucose_batch1/40",
+  "stratum": "misread",
+  "note": "오독 113->213"
+ },
+ {
+  "id": "glucose_batch2/2518",
+  "stratum": "misread",
+  "note": "오독 444->144"
+ },
+ {
+  "id": "glucose_batch1/1541",
+  "stratum": "misread",
+  "note": "오독 120->128"
+ },
+ {
+  "id": "glucose_batch1/174",
+  "stratum": "misread",
+  "note": "오독 106->186"
+ },
+ {
+  "id": "glucose_batch1/1540",
+  "stratum": "misread",
+  "note": "오독 115->119"
+ },
+ {
+  "id": "glucose_batch1/720",
+  "stratum": "misread",
+  "note": "오독 86->88"
+ },
+ {
+  "id": "glucose_batch1/1324",
+  "stratum": "misread",
+  "note": "오독 439->139"
+ },
+ {
+  "id": "glucose_batch1/499",
+  "stratum": "misread",
+  "note": "오독 158->127"
+ },
+ {
+  "id": "glucose_batch1/32",
+  "stratum": "misread",
+  "note": "오독 229->225"
+ },
+ {
+  "id": "glucose_batch1/2336",
+  "stratum": "misread",
+  "note": "오독 74->79"
+ },
+ {
+  "id": "glucose_batch1/818",
+  "stratum": "misread",
+  "note": "오독 87->80"
+ },
+ {
+  "id": "glucose_batch1/1562",
+  "stratum": "misread",
+  "note": "오독 108->188"
+ },
+ {
+  "id": "glucose_batch1/136",
+  "stratum": "misread",
+  "note": "오독 98->92"
+ },
+ {
+  "id": "glucose_batch2/2624",
+  "stratum": "misread",
+  "note": "오독 157->127"
+ },
+ {
+  "id": "glucose_batch1/994",
+  "stratum": "misread",
+  "note": "오독 137->131"
+ },
+ {
+  "id": "glucose_batch1/1218",
+  "stratum": "misread",
+  "note": "오독 144->146"
+ },
+ {
+  "id": "glucose_batch2/2618",
+  "stratum": "misread",
+  "note": "오독 171->177"
+ },
+ {
+  "id": "glucose_batch1/1245",
+  "stratum": "misread",
+  "note": "오독 275->279"
+ },
+ {
+  "id": "glucose_batch1/2409",
+  "stratum": "misread",
+  "note": "오독 219->119"
+ },
+ {
+  "id": "glucose_batch1/45",
+  "stratum": "misread",
+  "note": "오독 58->56"
+ },
+ {
+  "id": "glucose_batch1/944",
+  "stratum": "control",
+  "note": "정답 장(대조군)"
+ },
+ {
+  "id": "glucose_batch1/661",
+  "stratum": "control",
+  "note": "정답 장(대조군)"
+ },
+ {
+  "id": "glucose_batch1/696",
+  "stratum": "control",
+  "note": "정답 장(대조군)"
+ },
+ {
+  "id": "glucose_batch2/2610",
+  "stratum": "control",
+  "note": "정답 장(대조군)"
+ },
+ {
+  "id": "glucose_batch1/2030",
+  "stratum": "control",
+  "note": "정답 장(대조군)"
+ },
+ {
+  "id": "glucose_batch2/2615",
+  "stratum": "control",
+  "note": "정답 장(대조군)"
+ },
+ {
+  "id": "glucose_batch1/1335",
+  "stratum": "control",
+  "note": "정답 장(대조군)"
+ },
+ {
+  "id": "glucose_batch2/2601",
+  "stratum": "control",
+  "note": "정답 장(대조군)"
+ },
+ {
+  "id": "glucose_batch1/1548",
+  "stratum": "control",
+  "note": "정답 장(대조군)"
+ },
+ {
+  "id": "glucose_batch1/2098",
+  "stratum": "control",
+  "note": "정답 장(대조군)"
+ },
+ {
+  "id": "glucose_batch1/1732",
+  "stratum": "control",
+  "note": "정답 장(대조군)"
+ },
+ {
+  "id": "glucose_batch1/1178",
+  "stratum": "control",
+  "note": "정답 장(대조군)"
+ },
+ {
+  "id": "glucose_batch1/749",
+  "stratum": "control",
+  "note": "정답 장(대조군)"
+ },
+ {
+  "id": "glucose_batch1/1058",
+  "stratum": "control",
+  "note": "정답 장(대조군)"
+ },
+ {
+  "id": "glucose_batch1/589",
+  "stratum": "control",
+  "note": "정답 장(대조군)"
+ },
+ {
+  "id": "glucose_batch1/860",
+  "stratum": "control",
+  "note": "정답 장(대조군)"
+ },
+ {
+  "id": "glucose_batch1/2255",
+  "stratum": "control",
+  "note": "정답 장(대조군)"
+ },
+ {
+  "id": "glucose_batch1/844",
+  "stratum": "control",
+  "note": "정답 장(대조군)"
+ },
+ {
+  "id": "glucose_batch1/15",
+  "stratum": "control",
+  "note": "정답 장(대조군)"
+ },
+ {
+  "id": "glucose_batch1/971",
+  "stratum": "control",
+  "note": "정답 장(대조군)"
  }
 ]
