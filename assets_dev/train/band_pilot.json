@@ -393,5 +393,1735 @@
   "id": "glucose_batch1/971",
   "stratum": "control",
   "note": "정답 장(대조군)"
+ },
+ {
+  "id": "glucose_batch2/2502",
+  "stratum": "band-p1-train",
+  "note": "ACCU-CHEK Active 사각배젤 · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/1199",
+  "stratum": "band-p1-train",
+  "note": "ACCU-CHEK Go · 1단계(기기당 8장) · 1/4"
+ },
+ {
+  "id": "glucose_batch1/140",
+  "stratum": "band-p1-train",
+  "note": "ACCU-CHEK Performa 빨강 둥근버튼 · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/1019",
+  "stratum": "band-p1-train",
+  "note": "ACCU-CHEK Performa Nano 검정 바디 · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/1205",
+  "stratum": "band-p1-train",
+  "note": "Auto-chek plus · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/102",
+  "stratum": "band-p1-train",
+  "note": "Boryung CareTouch 푸른LCD · 1단계(기기당 8장) · 1/6"
+ },
+ {
+  "id": "glucose_batch1/1214",
+  "stratum": "band-p1-train",
+  "note": "CareSens II · 1단계(기기당 8장) · 1/7"
+ },
+ {
+  "id": "glucose_batch1/11",
+  "stratum": "band-p1-train",
+  "note": "CareSens II Plus · 1단계(기기당 8장) · 1/7"
+ },
+ {
+  "id": "glucose_batch1/1348",
+  "stratum": "band-p1-train",
+  "note": "CareSens N Voice · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/123",
+  "stratum": "band-p1-train",
+  "note": "CareSens PRO · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/1713",
+  "stratum": "band-p1-train",
+  "note": "GC 녹십자 MS Green Check · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/1435",
+  "stratum": "band-p1-train",
+  "note": "GluNEO plus · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/1092",
+  "stratum": "band-p1-train",
+  "note": "Gluco Dr.TOP · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/380",
+  "stratum": "band-p1-train",
+  "note": "Gluco Navii GDH · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/122",
+  "stratum": "band-p1-train",
+  "note": "Gluco Navii NFC · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/1267",
+  "stratum": "band-p1-train",
+  "note": "GlucoDr. GOLD · 1단계(기기당 8장) · 1/1"
+ },
+ {
+  "id": "glucose_batch1/1030",
+  "stratum": "band-p1-train",
+  "note": "HANDOK BAROZEN II · 1단계(기기당 8장) · 1/6"
+ },
+ {
+  "id": "glucose_batch1/1998",
+  "stratum": "band-p1-train",
+  "note": "INFOPIA · 1단계(기기당 8장) · 1/5"
+ },
+ {
+  "id": "glucose_batch1/1591",
+  "stratum": "band-p1-train",
+  "note": "KOOKMIN Check · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/1224",
+  "stratum": "band-p1-train",
+  "note": "Link 0.3 · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/2283",
+  "stratum": "band-p1-train",
+  "note": "NOCODING ONE · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/2057",
+  "stratum": "band-p1-train",
+  "note": "NOCODING ONE PLUS · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/1152",
+  "stratum": "band-p1-train",
+  "note": "On Call Extra · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch2/2514",
+  "stratum": "band-p1-train",
+  "note": "SD CHECK GOLD · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/1203",
+  "stratum": "band-p1-train",
+  "note": "SD CHECK GOLD2 · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/957",
+  "stratum": "band-p1-train",
+  "note": "STANDARD CHECK GOLD PLUS · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/132",
+  "stratum": "band-p1-train",
+  "note": "글루코 1004 · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/30",
+  "stratum": "band-p1-train",
+  "note": "미레 3.3G + II · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/1329",
+  "stratum": "band-p1-holdout",
+  "note": "ACCU-CHEK Active 원형베젤 · 1단계(기기당 8장) · 1/3"
+ },
+ {
+  "id": "glucose_batch1/1193",
+  "stratum": "band-p1-holdout",
+  "note": "ACCU-CHEK Instant · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/1160",
+  "stratum": "band-p1-holdout",
+  "note": "ACCU-CHEK Performa 은색 각진버튼 · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/1060",
+  "stratum": "band-p1-holdout",
+  "note": "ACCU-CHEK Performa Nano 파랑 케이스 · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/2351",
+  "stratum": "band-p1-holdout",
+  "note": "ACURA PLUS · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/1042",
+  "stratum": "band-p1-holdout",
+  "note": "ACURA VIEW · 1단계(기기당 8장) · 1/4"
+ },
+ {
+  "id": "glucose_batch1/1679",
+  "stratum": "band-p1-holdout",
+  "note": "Boryung CareTouch 일반LCD · 1단계(기기당 8장) · 1/3"
+ },
+ {
+  "id": "glucose_batch1/1833",
+  "stratum": "band-p1-holdout",
+  "note": "CareSens Dual · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/1197",
+  "stratum": "band-p1-holdout",
+  "note": "CareSens N Premier · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/497",
+  "stratum": "band-p1-holdout",
+  "note": "Contour TS · 1단계(기기당 8장) · 1/2"
+ },
+ {
+  "id": "glucose_batch1/1210",
+  "stratum": "band-p1-holdout",
+  "note": "Dr.Diary+ · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/1982",
+  "stratum": "band-p1-holdout",
+  "note": "FORA · 1단계(기기당 8장) · 1/6"
+ },
+ {
+  "id": "glucose_batch1/1740",
+  "stratum": "band-p1-holdout",
+  "note": "GC 녹십자 MS Green Doctor · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/1122",
+  "stratum": "band-p1-holdout",
+  "note": "Gmate · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/1945",
+  "stratum": "band-p1-holdout",
+  "note": "HANDOK BAROZEN · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/564",
+  "stratum": "band-p1-holdout",
+  "note": "MaeilzeN · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/1049",
+  "stratum": "band-p1-holdout",
+  "note": "OneTouch Ultra · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/1650",
+  "stratum": "band-p1-holdout",
+  "note": "SD CodeFree · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/1047",
+  "stratum": "band-p1-holdout",
+  "note": "gDoctor · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch1/120",
+  "stratum": "band-p1-holdout",
+  "note": "도루코S Premium · 1단계(기기당 8장) · 1/3"
+ },
+ {
+  "id": "glucose_batch1/121",
+  "stratum": "band-p1-holdout",
+  "note": "오토-첵 · 1단계(기기당 8장) · 1/8"
+ },
+ {
+  "id": "glucose_batch2/2513",
+  "stratum": "band-p1-train",
+  "note": "ACCU-CHEK Active 사각배젤 · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/1200",
+  "stratum": "band-p1-train",
+  "note": "ACCU-CHEK Go · 1단계(기기당 8장) · 2/4"
+ },
+ {
+  "id": "glucose_batch1/141",
+  "stratum": "band-p1-train",
+  "note": "ACCU-CHEK Performa 빨강 둥근버튼 · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/1022",
+  "stratum": "band-p1-train",
+  "note": "ACCU-CHEK Performa Nano 검정 바디 · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/1206",
+  "stratum": "band-p1-train",
+  "note": "Auto-chek plus · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/103",
+  "stratum": "band-p1-train",
+  "note": "Boryung CareTouch 푸른LCD · 1단계(기기당 8장) · 2/6"
+ },
+ {
+  "id": "glucose_batch1/1220",
+  "stratum": "band-p1-train",
+  "note": "CareSens II · 1단계(기기당 8장) · 2/7"
+ },
+ {
+  "id": "glucose_batch1/1158",
+  "stratum": "band-p1-train",
+  "note": "CareSens II Plus · 1단계(기기당 8장) · 2/7"
+ },
+ {
+  "id": "glucose_batch1/1349",
+  "stratum": "band-p1-train",
+  "note": "CareSens N Voice · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/124",
+  "stratum": "band-p1-train",
+  "note": "CareSens PRO · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/1714",
+  "stratum": "band-p1-train",
+  "note": "GC 녹십자 MS Green Check · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/1438",
+  "stratum": "band-p1-train",
+  "note": "GluNEO plus · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/1093",
+  "stratum": "band-p1-train",
+  "note": "Gluco Dr.TOP · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/381",
+  "stratum": "band-p1-train",
+  "note": "Gluco Navii GDH · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/125",
+  "stratum": "band-p1-train",
+  "note": "Gluco Navii NFC · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/1035",
+  "stratum": "band-p1-train",
+  "note": "HANDOK BAROZEN II · 1단계(기기당 8장) · 2/6"
+ },
+ {
+  "id": "glucose_batch1/2398",
+  "stratum": "band-p1-train",
+  "note": "INFOPIA · 1단계(기기당 8장) · 2/5"
+ },
+ {
+  "id": "glucose_batch1/1595",
+  "stratum": "band-p1-train",
+  "note": "KOOKMIN Check · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/1376",
+  "stratum": "band-p1-train",
+  "note": "Link 0.3 · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/2286",
+  "stratum": "band-p1-train",
+  "note": "NOCODING ONE · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/2058",
+  "stratum": "band-p1-train",
+  "note": "NOCODING ONE PLUS · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/1209",
+  "stratum": "band-p1-train",
+  "note": "On Call Extra · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch2/2521",
+  "stratum": "band-p1-train",
+  "note": "SD CHECK GOLD · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/1204",
+  "stratum": "band-p1-train",
+  "note": "SD CHECK GOLD2 · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/958",
+  "stratum": "band-p1-train",
+  "note": "STANDARD CHECK GOLD PLUS · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/133",
+  "stratum": "band-p1-train",
+  "note": "글루코 1004 · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/31",
+  "stratum": "band-p1-train",
+  "note": "미레 3.3G + II · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch2/2519",
+  "stratum": "band-p1-holdout",
+  "note": "ACCU-CHEK Active 원형베젤 · 1단계(기기당 8장) · 2/3"
+ },
+ {
+  "id": "glucose_batch1/1194",
+  "stratum": "band-p1-holdout",
+  "note": "ACCU-CHEK Instant · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/1161",
+  "stratum": "band-p1-holdout",
+  "note": "ACCU-CHEK Performa 은색 각진버튼 · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/1061",
+  "stratum": "band-p1-holdout",
+  "note": "ACCU-CHEK Performa Nano 파랑 케이스 · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/2353",
+  "stratum": "band-p1-holdout",
+  "note": "ACURA PLUS · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/1994",
+  "stratum": "band-p1-holdout",
+  "note": "ACURA VIEW · 1단계(기기당 8장) · 2/4"
+ },
+ {
+  "id": "glucose_batch1/98",
+  "stratum": "band-p1-holdout",
+  "note": "Boryung CareTouch 일반LCD · 1단계(기기당 8장) · 2/3"
+ },
+ {
+  "id": "glucose_batch1/1834",
+  "stratum": "band-p1-holdout",
+  "note": "CareSens Dual · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/1894",
+  "stratum": "band-p1-holdout",
+  "note": "CareSens N Premier · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/1242",
+  "stratum": "band-p1-holdout",
+  "note": "Dr.Diary+ · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/1991",
+  "stratum": "band-p1-holdout",
+  "note": "FORA · 1단계(기기당 8장) · 2/6"
+ },
+ {
+  "id": "glucose_batch1/1745",
+  "stratum": "band-p1-holdout",
+  "note": "GC 녹십자 MS Green Doctor · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/1563",
+  "stratum": "band-p1-holdout",
+  "note": "GC 녹십자 MS ONE · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/1123",
+  "stratum": "band-p1-holdout",
+  "note": "Gmate · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/1946",
+  "stratum": "band-p1-holdout",
+  "note": "HANDOK BAROZEN · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/567",
+  "stratum": "band-p1-holdout",
+  "note": "MaeilzeN · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/1050",
+  "stratum": "band-p1-holdout",
+  "note": "OneTouch Ultra · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/1651",
+  "stratum": "band-p1-holdout",
+  "note": "SD CodeFree · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/1813",
+  "stratum": "band-p1-holdout",
+  "note": "gDoctor · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch1/694",
+  "stratum": "band-p1-holdout",
+  "note": "도루코S Premium · 1단계(기기당 8장) · 2/3"
+ },
+ {
+  "id": "glucose_batch1/1250",
+  "stratum": "band-p1-holdout",
+  "note": "오토-첵 · 1단계(기기당 8장) · 2/8"
+ },
+ {
+  "id": "glucose_batch2/2525",
+  "stratum": "band-p1-train",
+  "note": "ACCU-CHEK Active 사각배젤 · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/1201",
+  "stratum": "band-p1-train",
+  "note": "ACCU-CHEK Go · 1단계(기기당 8장) · 3/4"
+ },
+ {
+  "id": "glucose_batch1/142",
+  "stratum": "band-p1-train",
+  "note": "ACCU-CHEK Performa 빨강 둥근버튼 · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/1023",
+  "stratum": "band-p1-train",
+  "note": "ACCU-CHEK Performa Nano 검정 바디 · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/1207",
+  "stratum": "band-p1-train",
+  "note": "Auto-chek plus · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/104",
+  "stratum": "band-p1-train",
+  "note": "Boryung CareTouch 푸른LCD · 1단계(기기당 8장) · 3/6"
+ },
+ {
+  "id": "glucose_batch1/1221",
+  "stratum": "band-p1-train",
+  "note": "CareSens II · 1단계(기기당 8장) · 3/7"
+ },
+ {
+  "id": "glucose_batch1/12",
+  "stratum": "band-p1-train",
+  "note": "CareSens II Plus · 1단계(기기당 8장) · 3/7"
+ },
+ {
+  "id": "glucose_batch1/1350",
+  "stratum": "band-p1-train",
+  "note": "CareSens N Voice · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/127",
+  "stratum": "band-p1-train",
+  "note": "CareSens PRO · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/1715",
+  "stratum": "band-p1-train",
+  "note": "GC 녹십자 MS Green Check · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/1440",
+  "stratum": "band-p1-train",
+  "note": "GluNEO plus · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/1095",
+  "stratum": "band-p1-train",
+  "note": "Gluco Dr.TOP · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/382",
+  "stratum": "band-p1-train",
+  "note": "Gluco Navii GDH · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/128",
+  "stratum": "band-p1-train",
+  "note": "Gluco Navii NFC · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/1041",
+  "stratum": "band-p1-train",
+  "note": "HANDOK BAROZEN II · 1단계(기기당 8장) · 3/6"
+ },
+ {
+  "id": "glucose_batch1/2440",
+  "stratum": "band-p1-train",
+  "note": "INFOPIA · 1단계(기기당 8장) · 3/5"
+ },
+ {
+  "id": "glucose_batch1/1600",
+  "stratum": "band-p1-train",
+  "note": "KOOKMIN Check · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/2396",
+  "stratum": "band-p1-train",
+  "note": "Link 0.3 · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/2289",
+  "stratum": "band-p1-train",
+  "note": "NOCODING ONE · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/2059",
+  "stratum": "band-p1-train",
+  "note": "NOCODING ONE PLUS · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/1265",
+  "stratum": "band-p1-train",
+  "note": "On Call Extra · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch2/2528",
+  "stratum": "band-p1-train",
+  "note": "SD CHECK GOLD · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/1211",
+  "stratum": "band-p1-train",
+  "note": "SD CHECK GOLD2 · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/959",
+  "stratum": "band-p1-train",
+  "note": "STANDARD CHECK GOLD PLUS · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/468",
+  "stratum": "band-p1-train",
+  "note": "글루코 1004 · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch2/2520",
+  "stratum": "band-p1-holdout",
+  "note": "ACCU-CHEK Active 원형베젤 · 1단계(기기당 8장) · 3/3"
+ },
+ {
+  "id": "glucose_batch1/1195",
+  "stratum": "band-p1-holdout",
+  "note": "ACCU-CHEK Instant · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/1162",
+  "stratum": "band-p1-holdout",
+  "note": "ACCU-CHEK Performa 은색 각진버튼 · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/1062",
+  "stratum": "band-p1-holdout",
+  "note": "ACCU-CHEK Performa Nano 파랑 케이스 · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/2355",
+  "stratum": "band-p1-holdout",
+  "note": "ACURA PLUS · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/1995",
+  "stratum": "band-p1-holdout",
+  "note": "ACURA VIEW · 1단계(기기당 8장) · 3/4"
+ },
+ {
+  "id": "glucose_batch1/99",
+  "stratum": "band-p1-holdout",
+  "note": "Boryung CareTouch 일반LCD · 1단계(기기당 8장) · 3/3"
+ },
+ {
+  "id": "glucose_batch1/1835",
+  "stratum": "band-p1-holdout",
+  "note": "CareSens Dual · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/1895",
+  "stratum": "band-p1-holdout",
+  "note": "CareSens N Premier · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/1386",
+  "stratum": "band-p1-holdout",
+  "note": "Dr.Diary+ · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch2/2534",
+  "stratum": "band-p1-holdout",
+  "note": "FORA · 1단계(기기당 8장) · 3/6"
+ },
+ {
+  "id": "glucose_batch1/1747",
+  "stratum": "band-p1-holdout",
+  "note": "GC 녹십자 MS Green Doctor · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/211",
+  "stratum": "band-p1-holdout",
+  "note": "GC 녹십자 MS ONE · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/1399",
+  "stratum": "band-p1-holdout",
+  "note": "Gmate · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/1947",
+  "stratum": "band-p1-holdout",
+  "note": "HANDOK BAROZEN · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/568",
+  "stratum": "band-p1-holdout",
+  "note": "MaeilzeN · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/1051",
+  "stratum": "band-p1-holdout",
+  "note": "OneTouch Ultra · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/1652",
+  "stratum": "band-p1-holdout",
+  "note": "SD CodeFree · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/1814",
+  "stratum": "band-p1-holdout",
+  "note": "gDoctor · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch1/695",
+  "stratum": "band-p1-holdout",
+  "note": "도루코S Premium · 1단계(기기당 8장) · 3/3"
+ },
+ {
+  "id": "glucose_batch1/1251",
+  "stratum": "band-p1-holdout",
+  "note": "오토-첵 · 1단계(기기당 8장) · 3/8"
+ },
+ {
+  "id": "glucose_batch2/2535",
+  "stratum": "band-p1-train",
+  "note": "ACCU-CHEK Active 사각배젤 · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/1202",
+  "stratum": "band-p1-train",
+  "note": "ACCU-CHEK Go · 1단계(기기당 8장) · 4/4"
+ },
+ {
+  "id": "glucose_batch1/144",
+  "stratum": "band-p1-train",
+  "note": "ACCU-CHEK Performa 빨강 둥근버튼 · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/1025",
+  "stratum": "band-p1-train",
+  "note": "ACCU-CHEK Performa Nano 검정 바디 · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/1238",
+  "stratum": "band-p1-train",
+  "note": "Auto-chek plus · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/105",
+  "stratum": "band-p1-train",
+  "note": "Boryung CareTouch 푸른LCD · 1단계(기기당 8장) · 4/6"
+ },
+ {
+  "id": "glucose_batch1/1222",
+  "stratum": "band-p1-train",
+  "note": "CareSens II · 1단계(기기당 8장) · 4/7"
+ },
+ {
+  "id": "glucose_batch1/13",
+  "stratum": "band-p1-train",
+  "note": "CareSens II Plus · 1단계(기기당 8장) · 4/7"
+ },
+ {
+  "id": "glucose_batch1/1351",
+  "stratum": "band-p1-train",
+  "note": "CareSens N Voice · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/626",
+  "stratum": "band-p1-train",
+  "note": "CareSens PRO · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/1716",
+  "stratum": "band-p1-train",
+  "note": "GC 녹십자 MS Green Check · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/1449",
+  "stratum": "band-p1-train",
+  "note": "GluNEO plus · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/1096",
+  "stratum": "band-p1-train",
+  "note": "Gluco Dr.TOP · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/383",
+  "stratum": "band-p1-train",
+  "note": "Gluco Navii GDH · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/129",
+  "stratum": "band-p1-train",
+  "note": "Gluco Navii NFC · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/1043",
+  "stratum": "band-p1-train",
+  "note": "HANDOK BAROZEN II · 1단계(기기당 8장) · 4/6"
+ },
+ {
+  "id": "glucose_batch1/2487",
+  "stratum": "band-p1-train",
+  "note": "INFOPIA · 1단계(기기당 8장) · 4/5"
+ },
+ {
+  "id": "glucose_batch1/1603",
+  "stratum": "band-p1-train",
+  "note": "KOOKMIN Check · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/2399",
+  "stratum": "band-p1-train",
+  "note": "Link 0.3 · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/2301",
+  "stratum": "band-p1-train",
+  "note": "NOCODING ONE · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/2060",
+  "stratum": "band-p1-train",
+  "note": "NOCODING ONE PLUS · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/1638",
+  "stratum": "band-p1-train",
+  "note": "On Call Extra · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch2/2540",
+  "stratum": "band-p1-train",
+  "note": "SD CHECK GOLD · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/1212",
+  "stratum": "band-p1-train",
+  "note": "SD CHECK GOLD2 · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/960",
+  "stratum": "band-p1-train",
+  "note": "STANDARD CHECK GOLD PLUS · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/469",
+  "stratum": "band-p1-train",
+  "note": "글루코 1004 · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/33",
+  "stratum": "band-p1-train",
+  "note": "미레 3.3G + II · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/1215",
+  "stratum": "band-p1-holdout",
+  "note": "ACCU-CHEK Instant · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/1163",
+  "stratum": "band-p1-holdout",
+  "note": "ACCU-CHEK Performa 은색 각진버튼 · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/1063",
+  "stratum": "band-p1-holdout",
+  "note": "ACCU-CHEK Performa Nano 파랑 케이스 · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/2357",
+  "stratum": "band-p1-holdout",
+  "note": "ACURA PLUS · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/2410",
+  "stratum": "band-p1-holdout",
+  "note": "ACURA VIEW · 1단계(기기당 8장) · 4/4"
+ },
+ {
+  "id": "glucose_batch1/1836",
+  "stratum": "band-p1-holdout",
+  "note": "CareSens Dual · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/1896",
+  "stratum": "band-p1-holdout",
+  "note": "CareSens N Premier · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/2414",
+  "stratum": "band-p1-holdout",
+  "note": "Dr.Diary+ · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch2/2536",
+  "stratum": "band-p1-holdout",
+  "note": "FORA · 1단계(기기당 8장) · 4/6"
+ },
+ {
+  "id": "glucose_batch1/1749",
+  "stratum": "band-p1-holdout",
+  "note": "GC 녹십자 MS Green Doctor · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/212",
+  "stratum": "band-p1-holdout",
+  "note": "GC 녹십자 MS ONE · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/1405",
+  "stratum": "band-p1-holdout",
+  "note": "Gmate · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/1948",
+  "stratum": "band-p1-holdout",
+  "note": "HANDOK BAROZEN · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/570",
+  "stratum": "band-p1-holdout",
+  "note": "MaeilzeN · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/1052",
+  "stratum": "band-p1-holdout",
+  "note": "OneTouch Ultra · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/1653",
+  "stratum": "band-p1-holdout",
+  "note": "SD CodeFree · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/1818",
+  "stratum": "band-p1-holdout",
+  "note": "gDoctor · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch1/1252",
+  "stratum": "band-p1-holdout",
+  "note": "오토-첵 · 1단계(기기당 8장) · 4/8"
+ },
+ {
+  "id": "glucose_batch2/2538",
+  "stratum": "band-p1-train",
+  "note": "ACCU-CHEK Active 사각배젤 · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/146",
+  "stratum": "band-p1-train",
+  "note": "ACCU-CHEK Performa 빨강 둥근버튼 · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/1027",
+  "stratum": "band-p1-train",
+  "note": "ACCU-CHEK Performa Nano 검정 바디 · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/1239",
+  "stratum": "band-p1-train",
+  "note": "Auto-chek plus · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/106",
+  "stratum": "band-p1-train",
+  "note": "Boryung CareTouch 푸른LCD · 1단계(기기당 8장) · 5/6"
+ },
+ {
+  "id": "glucose_batch1/1223",
+  "stratum": "band-p1-train",
+  "note": "CareSens II · 1단계(기기당 8장) · 5/7"
+ },
+ {
+  "id": "glucose_batch1/14",
+  "stratum": "band-p1-train",
+  "note": "CareSens II Plus · 1단계(기기당 8장) · 5/7"
+ },
+ {
+  "id": "glucose_batch1/1352",
+  "stratum": "band-p1-train",
+  "note": "CareSens N Voice · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/627",
+  "stratum": "band-p1-train",
+  "note": "CareSens PRO · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/1717",
+  "stratum": "band-p1-train",
+  "note": "GC 녹십자 MS Green Check · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/1451",
+  "stratum": "band-p1-train",
+  "note": "GluNEO plus · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/1097",
+  "stratum": "band-p1-train",
+  "note": "Gluco Dr.TOP · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/384",
+  "stratum": "band-p1-train",
+  "note": "Gluco Navii GDH · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/130",
+  "stratum": "band-p1-train",
+  "note": "Gluco Navii NFC · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/1048",
+  "stratum": "band-p1-train",
+  "note": "HANDOK BAROZEN II · 1단계(기기당 8장) · 5/6"
+ },
+ {
+  "id": "glucose_batch1/2488",
+  "stratum": "band-p1-train",
+  "note": "INFOPIA · 1단계(기기당 8장) · 5/5"
+ },
+ {
+  "id": "glucose_batch1/1606",
+  "stratum": "band-p1-train",
+  "note": "KOOKMIN Check · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/2477",
+  "stratum": "band-p1-train",
+  "note": "Link 0.3 · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/2303",
+  "stratum": "band-p1-train",
+  "note": "NOCODING ONE · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/2061",
+  "stratum": "band-p1-train",
+  "note": "NOCODING ONE PLUS · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/1639",
+  "stratum": "band-p1-train",
+  "note": "On Call Extra · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch2/2555",
+  "stratum": "band-p1-train",
+  "note": "SD CHECK GOLD · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/1213",
+  "stratum": "band-p1-train",
+  "note": "SD CHECK GOLD2 · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/961",
+  "stratum": "band-p1-train",
+  "note": "STANDARD CHECK GOLD PLUS · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/474",
+  "stratum": "band-p1-train",
+  "note": "글루코 1004 · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/34",
+  "stratum": "band-p1-train",
+  "note": "미레 3.3G + II · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/1216",
+  "stratum": "band-p1-holdout",
+  "note": "ACCU-CHEK Instant · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/1165",
+  "stratum": "band-p1-holdout",
+  "note": "ACCU-CHEK Performa 은색 각진버튼 · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/1064",
+  "stratum": "band-p1-holdout",
+  "note": "ACCU-CHEK Performa Nano 파랑 케이스 · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/2358",
+  "stratum": "band-p1-holdout",
+  "note": "ACURA PLUS · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/1837",
+  "stratum": "band-p1-holdout",
+  "note": "CareSens Dual · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/1897",
+  "stratum": "band-p1-holdout",
+  "note": "CareSens N Premier · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/2479",
+  "stratum": "band-p1-holdout",
+  "note": "Dr.Diary+ · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch2/2537",
+  "stratum": "band-p1-holdout",
+  "note": "FORA · 1단계(기기당 8장) · 5/6"
+ },
+ {
+  "id": "glucose_batch1/1753",
+  "stratum": "band-p1-holdout",
+  "note": "GC 녹십자 MS Green Doctor · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/215",
+  "stratum": "band-p1-holdout",
+  "note": "GC 녹십자 MS ONE · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/1406",
+  "stratum": "band-p1-holdout",
+  "note": "Gmate · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/1949",
+  "stratum": "band-p1-holdout",
+  "note": "HANDOK BAROZEN · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/572",
+  "stratum": "band-p1-holdout",
+  "note": "MaeilzeN · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/1053",
+  "stratum": "band-p1-holdout",
+  "note": "OneTouch Ultra · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/1654",
+  "stratum": "band-p1-holdout",
+  "note": "SD CodeFree · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/1996",
+  "stratum": "band-p1-holdout",
+  "note": "gDoctor · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch1/1253",
+  "stratum": "band-p1-holdout",
+  "note": "오토-첵 · 1단계(기기당 8장) · 5/8"
+ },
+ {
+  "id": "glucose_batch2/2545",
+  "stratum": "band-p1-train",
+  "note": "ACCU-CHEK Active 사각배젤 · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/148",
+  "stratum": "band-p1-train",
+  "note": "ACCU-CHEK Performa 빨강 둥근버튼 · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/1029",
+  "stratum": "band-p1-train",
+  "note": "ACCU-CHEK Performa Nano 검정 바디 · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/1240",
+  "stratum": "band-p1-train",
+  "note": "Auto-chek plus · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/107",
+  "stratum": "band-p1-train",
+  "note": "Boryung CareTouch 푸른LCD · 1단계(기기당 8장) · 6/6"
+ },
+ {
+  "id": "glucose_batch1/1227",
+  "stratum": "band-p1-train",
+  "note": "CareSens II · 1단계(기기당 8장) · 6/7"
+ },
+ {
+  "id": "glucose_batch1/1353",
+  "stratum": "band-p1-train",
+  "note": "CareSens N Voice · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/628",
+  "stratum": "band-p1-train",
+  "note": "CareSens PRO · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/1718",
+  "stratum": "band-p1-train",
+  "note": "GC 녹십자 MS Green Check · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/1453",
+  "stratum": "band-p1-train",
+  "note": "GluNEO plus · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/1098",
+  "stratum": "band-p1-train",
+  "note": "Gluco Dr.TOP · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/385",
+  "stratum": "band-p1-train",
+  "note": "Gluco Navii GDH · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/131",
+  "stratum": "band-p1-train",
+  "note": "Gluco Navii NFC · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/1059",
+  "stratum": "band-p1-train",
+  "note": "HANDOK BAROZEN II · 1단계(기기당 8장) · 6/6"
+ },
+ {
+  "id": "glucose_batch1/1608",
+  "stratum": "band-p1-train",
+  "note": "KOOKMIN Check · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/510",
+  "stratum": "band-p1-train",
+  "note": "Link 0.3 · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/2307",
+  "stratum": "band-p1-train",
+  "note": "NOCODING ONE · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/2062",
+  "stratum": "band-p1-train",
+  "note": "NOCODING ONE PLUS · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/1640",
+  "stratum": "band-p1-train",
+  "note": "On Call Extra · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch2/2569",
+  "stratum": "band-p1-train",
+  "note": "SD CHECK GOLD · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/1225",
+  "stratum": "band-p1-train",
+  "note": "SD CHECK GOLD2 · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/962",
+  "stratum": "band-p1-train",
+  "note": "STANDARD CHECK GOLD PLUS · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/481",
+  "stratum": "band-p1-train",
+  "note": "글루코 1004 · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/35",
+  "stratum": "band-p1-train",
+  "note": "미레 3.3G + II · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/1217",
+  "stratum": "band-p1-holdout",
+  "note": "ACCU-CHEK Instant · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/1166",
+  "stratum": "band-p1-holdout",
+  "note": "ACCU-CHEK Performa 은색 각진버튼 · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/1065",
+  "stratum": "band-p1-holdout",
+  "note": "ACCU-CHEK Performa Nano 파랑 케이스 · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/2359",
+  "stratum": "band-p1-holdout",
+  "note": "ACURA PLUS · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/1838",
+  "stratum": "band-p1-holdout",
+  "note": "CareSens Dual · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/1898",
+  "stratum": "band-p1-holdout",
+  "note": "CareSens N Premier · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/283",
+  "stratum": "band-p1-holdout",
+  "note": "Dr.Diary+ · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch2/2539",
+  "stratum": "band-p1-holdout",
+  "note": "FORA · 1단계(기기당 8장) · 6/6"
+ },
+ {
+  "id": "glucose_batch1/1755",
+  "stratum": "band-p1-holdout",
+  "note": "GC 녹십자 MS Green Doctor · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/217",
+  "stratum": "band-p1-holdout",
+  "note": "GC 녹십자 MS ONE · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/207",
+  "stratum": "band-p1-holdout",
+  "note": "Gmate · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/1950",
+  "stratum": "band-p1-holdout",
+  "note": "HANDOK BAROZEN · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/574",
+  "stratum": "band-p1-holdout",
+  "note": "MaeilzeN · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/1054",
+  "stratum": "band-p1-holdout",
+  "note": "OneTouch Ultra · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/1656",
+  "stratum": "band-p1-holdout",
+  "note": "SD CodeFree · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/1999",
+  "stratum": "band-p1-holdout",
+  "note": "gDoctor · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch1/1254",
+  "stratum": "band-p1-holdout",
+  "note": "오토-첵 · 1단계(기기당 8장) · 6/8"
+ },
+ {
+  "id": "glucose_batch2/2546",
+  "stratum": "band-p1-train",
+  "note": "ACCU-CHEK Active 사각배젤 · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/150",
+  "stratum": "band-p1-train",
+  "note": "ACCU-CHEK Performa 빨강 둥근버튼 · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/1031",
+  "stratum": "band-p1-train",
+  "note": "ACCU-CHEK Performa Nano 검정 바디 · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/1228",
+  "stratum": "band-p1-train",
+  "note": "CareSens II · 1단계(기기당 8장) · 7/7"
+ },
+ {
+  "id": "glucose_batch1/16",
+  "stratum": "band-p1-train",
+  "note": "CareSens II Plus · 1단계(기기당 8장) · 7/7"
+ },
+ {
+  "id": "glucose_batch1/1354",
+  "stratum": "band-p1-train",
+  "note": "CareSens N Voice · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/629",
+  "stratum": "band-p1-train",
+  "note": "CareSens PRO · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/1456",
+  "stratum": "band-p1-train",
+  "note": "GluNEO plus · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/1099",
+  "stratum": "band-p1-train",
+  "note": "Gluco Dr.TOP · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/386",
+  "stratum": "band-p1-train",
+  "note": "Gluco Navii GDH · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch2/2515",
+  "stratum": "band-p1-train",
+  "note": "Gluco Navii NFC · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/1635",
+  "stratum": "band-p1-train",
+  "note": "KOOKMIN Check · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/614",
+  "stratum": "band-p1-train",
+  "note": "Link 0.3 · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/2308",
+  "stratum": "band-p1-train",
+  "note": "NOCODING ONE · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/2426",
+  "stratum": "band-p1-train",
+  "note": "NOCODING ONE PLUS · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/1641",
+  "stratum": "band-p1-train",
+  "note": "On Call Extra · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch2/2582",
+  "stratum": "band-p1-train",
+  "note": "SD CHECK GOLD · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/1226",
+  "stratum": "band-p1-train",
+  "note": "SD CHECK GOLD2 · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/963",
+  "stratum": "band-p1-train",
+  "note": "STANDARD CHECK GOLD PLUS · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/482",
+  "stratum": "band-p1-train",
+  "note": "글루코 1004 · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/36",
+  "stratum": "band-p1-train",
+  "note": "미레 3.3G + II · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/1167",
+  "stratum": "band-p1-holdout",
+  "note": "ACCU-CHEK Performa 은색 각진버튼 · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/1066",
+  "stratum": "band-p1-holdout",
+  "note": "ACCU-CHEK Performa Nano 파랑 케이스 · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/2360",
+  "stratum": "band-p1-holdout",
+  "note": "ACURA PLUS · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/1839",
+  "stratum": "band-p1-holdout",
+  "note": "CareSens Dual · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/1899",
+  "stratum": "band-p1-holdout",
+  "note": "CareSens N Premier · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/459",
+  "stratum": "band-p1-holdout",
+  "note": "Dr.Diary+ · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/1756",
+  "stratum": "band-p1-holdout",
+  "note": "GC 녹십자 MS Green Doctor · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/219",
+  "stratum": "band-p1-holdout",
+  "note": "GC 녹십자 MS ONE · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/208",
+  "stratum": "band-p1-holdout",
+  "note": "Gmate · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/1951",
+  "stratum": "band-p1-holdout",
+  "note": "HANDOK BAROZEN · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/576",
+  "stratum": "band-p1-holdout",
+  "note": "MaeilzeN · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/1055",
+  "stratum": "band-p1-holdout",
+  "note": "OneTouch Ultra · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/1657",
+  "stratum": "band-p1-holdout",
+  "note": "SD CodeFree · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/2001",
+  "stratum": "band-p1-holdout",
+  "note": "gDoctor · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch1/1255",
+  "stratum": "band-p1-holdout",
+  "note": "오토-첵 · 1단계(기기당 8장) · 7/8"
+ },
+ {
+  "id": "glucose_batch2/2547",
+  "stratum": "band-p1-train",
+  "note": "ACCU-CHEK Active 사각배젤 · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/151",
+  "stratum": "band-p1-train",
+  "note": "ACCU-CHEK Performa 빨강 둥근버튼 · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/1033",
+  "stratum": "band-p1-train",
+  "note": "ACCU-CHEK Performa Nano 검정 바디 · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/1243",
+  "stratum": "band-p1-train",
+  "note": "Auto-chek plus · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/1355",
+  "stratum": "band-p1-train",
+  "note": "CareSens N Voice · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/630",
+  "stratum": "band-p1-train",
+  "note": "CareSens PRO · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/1720",
+  "stratum": "band-p1-train",
+  "note": "GC 녹십자 MS Green Check · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/1458",
+  "stratum": "band-p1-train",
+  "note": "GluNEO plus · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/1100",
+  "stratum": "band-p1-train",
+  "note": "Gluco Dr.TOP · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/387",
+  "stratum": "band-p1-train",
+  "note": "Gluco Navii GDH · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch2/2516",
+  "stratum": "band-p1-train",
+  "note": "Gluco Navii NFC · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/1636",
+  "stratum": "band-p1-train",
+  "note": "KOOKMIN Check · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/936",
+  "stratum": "band-p1-train",
+  "note": "Link 0.3 · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/2309",
+  "stratum": "band-p1-train",
+  "note": "NOCODING ONE · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch2/2585",
+  "stratum": "band-p1-train",
+  "note": "NOCODING ONE PLUS · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/1642",
+  "stratum": "band-p1-train",
+  "note": "On Call Extra · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch2/2620",
+  "stratum": "band-p1-train",
+  "note": "SD CHECK GOLD · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/1229",
+  "stratum": "band-p1-train",
+  "note": "SD CHECK GOLD2 · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/964",
+  "stratum": "band-p1-train",
+  "note": "STANDARD CHECK GOLD PLUS · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/484",
+  "stratum": "band-p1-train",
+  "note": "글루코 1004 · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/37",
+  "stratum": "band-p1-train",
+  "note": "미레 3.3G + II · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/1219",
+  "stratum": "band-p1-holdout",
+  "note": "ACCU-CHEK Instant · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/1169",
+  "stratum": "band-p1-holdout",
+  "note": "ACCU-CHEK Performa 은색 각진버튼 · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/1067",
+  "stratum": "band-p1-holdout",
+  "note": "ACCU-CHEK Performa Nano 파랑 케이스 · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/2361",
+  "stratum": "band-p1-holdout",
+  "note": "ACURA PLUS · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/1840",
+  "stratum": "band-p1-holdout",
+  "note": "CareSens Dual · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/1900",
+  "stratum": "band-p1-holdout",
+  "note": "CareSens N Premier · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/489",
+  "stratum": "band-p1-holdout",
+  "note": "Dr.Diary+ · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/1759",
+  "stratum": "band-p1-holdout",
+  "note": "GC 녹십자 MS Green Doctor · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/222",
+  "stratum": "band-p1-holdout",
+  "note": "GC 녹십자 MS ONE · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/209",
+  "stratum": "band-p1-holdout",
+  "note": "Gmate · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/1952",
+  "stratum": "band-p1-holdout",
+  "note": "HANDOK BAROZEN · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/578",
+  "stratum": "band-p1-holdout",
+  "note": "MaeilzeN · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/1056",
+  "stratum": "band-p1-holdout",
+  "note": "OneTouch Ultra · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/1658",
+  "stratum": "band-p1-holdout",
+  "note": "SD CodeFree · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/2425",
+  "stratum": "band-p1-holdout",
+  "note": "gDoctor · 1단계(기기당 8장) · 8/8"
+ },
+ {
+  "id": "glucose_batch1/1256",
+  "stratum": "band-p1-holdout",
+  "note": "오토-첵 · 1단계(기기당 8장) · 8/8"
  }
 ]

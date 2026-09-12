@@ -66,6 +66,7 @@ tags: [index]
 | [[poison-row-blocks-pipeline]] | 관용의 단위가 **행이 아니라 배치**인 것. | 독행, 배치 단위 관용, 행 하나가 전체를 막음, ReadingDto.fromJson, _pull, syncOnce, fetchUpdatedSince, reading_dto.dart |
 | [[reset-clears-in-flight-lock]] | ```dart | reset 이 잠금을 푸는 것, _busy = false, FrameThrottler, frame_throttler.dart, _busy, reset(), isBusy |
 | [[sampled-uniformity-as-proof]] | 묶음이 균일한지 표본으로 확인하는 절차는 **반례를 못 찾았다**는 사실만 만든다. | 표본으로 균일성 확인, 사분위 표본, 거대 성분 점검, 반례 못 찾음, 4표본, spot check as proof |
+| [[stale-baseline-quoted-as-current]] | 파이프라인을 갈아엎고 나면 옛 성적은 **다른 모델이 다른 데이터로 다른 시험지를 | 옛 기준선 인용, 폐기된 수치, 기준선 혼동, stale baseline, 재구축 전 수치, 갈아엎기 전 성적, 옛 모델 수치 |
 | [[stale-client-writes]] | 브라우저에 어느 버전의 JS 가 떠 있는지 **아무도 모르는 상태**로 저장 요청을 받는 것. | 낡은 탭 쓰기, stale build, Cache-Control, no-store, webtool.html, /api/build |
 | [[tolerance-without-preservation]] | `values.firstWhere(..., orElse: () => SomeDefault)` — 관용처럼 보이지만, 그 값을 나중에 서버로 되돌려 쓰는 순간 **다른 기기의 데이터를 파괴한다.** | 모르는 값 치환, orElse 기본값, silent-normalization, fromWireName, orElse, firstWhere, MeasurementTag, ReadingSource, measurement_tag.dart |
 | [[uncontrolled-budget-in-ab-comparison]] | 바꾼 변인(크롭·워프·증강)과 **함께 움직이지 않은 변인**(에폭 수·사전학습 체크포인트· | 예산 불일치 A/B, 에폭 예산, 학습 예산 비교, budget parity, epoch-mismatch, unfair A/B |
@@ -87,6 +88,6 @@ tags: [index]
 
 - Total concepts: 6
 - Total patterns: 14
-- Total anti-patterns: 28
+- Total anti-patterns: 29
 - Total answers: 0
-- Last updated: 2026-09-10
+- Last updated: 2026-09-11
