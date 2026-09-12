@@ -3,6 +3,7 @@ title: 합성에 촬영 각도 변인과 밴드 쿼드 GT 추가
 status: todo
 ordinal: 23000
 created: 2026-09-11
+depends_on: ["합성을 물리 패널 기준으로 재구성"]
 ---
 
 ## Goal

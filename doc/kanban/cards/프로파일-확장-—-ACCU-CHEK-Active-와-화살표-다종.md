@@ -3,6 +3,7 @@ title: 프로파일 확장 — ACCU-CHEK Active 와 화살표 다종
 status: todo
 ordinal: 33000
 created: 2026-09-11
+depends_on: ["생성기 일원화 — 프로파일 렌더러를 기본 경로로"]
 ---
 
 ## Goal
