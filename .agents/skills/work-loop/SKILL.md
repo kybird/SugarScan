@@ -1,7 +1,7 @@
 ---
 name: work-loop
 description: Unattended kanban loop — pick a card, resolve it with objective evidence, park judgment calls and move on. Board is the only task list; converge, don't diverge.
-skill-version: 4
+skill-version: 5
 ---
 # When to use
 
@@ -27,7 +27,7 @@ pick → work → 판정 ─ done / handoff / abandon / supersede
 집을 카드 없음 → review(대기) 큐 점검 → 전부 대기면 질문을 모아 정지 (반스래시)
 ```
 
-# Rules (all six are load-bearing)
+# Rules (all seven are load-bearing)
 
 0. **Condition-gated cards.** Some cards must not start yet:
    - `not_before: YYYY-MM-DD` in frontmatter (future date) — `pick` skips them
@@ -69,6 +69,14 @@ pick → work → 판정 ─ done / handoff / abandon / supersede
 6. **Renew the claim.** A claim expires (board.yml `claim_timeout_minutes`, default 1h).
    On a long card, `llm-wiki card edit <제목> --renew-claim` before the timeout, or
    another loop instance will reclaim the card under you.
+
+7. **Worktrees share one board.** The board is a project resource, not a branch resource:
+   from a linked worktree, every `pick`/`done`/`card` writes the **primary worktree's**
+   `doc/kanban/`. If this loop runs in a linked worktree, its card changes appear as
+   uncommitted changes in the primary worktree — leave them there (the primary's next
+   commit picks them up); do not chase them into this worktree's commits, and do not
+   commit in the primary from here. `LLM_WIKI_WORKTREE_LOCAL=1` restores per-worktree
+   boards.
 
 # Splitting (supersede) — divergence guard
 
