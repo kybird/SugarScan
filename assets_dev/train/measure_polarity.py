@@ -123,11 +123,46 @@ def cmd_digits():
         print(f"  {lo}~{hi}: {m} ({m / len(r) * 100:.1f}%)")
 
 
+def cmd_synth_polarity(images_dir, manifest):
+    """합성 패널의 극성·밴드 대비 — 실사진과 같은 polarity_of 로 잰다.
+    합성은 패널만 렌더하므로 crop = 이미지 전체, band = manifest quad 의 bbox.
+    자를 새로 짜지 않는 것이 요점이다(2026-09-12 밀도 사고 —
+    [[ad-hoc-ruler-beside-the-committed-one]])."""
+    import cv2
+    imgs = Path(images_dir)
+    inv, contrast = [], []
+    for r in _load_jsonl(manifest):
+        p = imgs / (r["id"] + ".png")
+        if not p.exists():
+            continue
+        g = cv2.imread(str(p), cv2.IMREAD_GRAYSCALE)
+        if g is None:
+            continue
+        H, W = g.shape
+        x0, y0, x1, y1 = _rect_of(r["quad"])
+        out = polarity_of(g, (x0 / W, y0 / H, x1 / W, y1 / H))
+        if out is None:
+            continue
+        inv.append(out[0])
+        contrast.append(out[1])
+    a = np.asarray(contrast)
+    print(f"n={len(a)}  inverted={sum(inv)} ({100 * np.mean(inv):.1f}%)")
+    print(f"밴드 대비 p95-p5 median={np.median(a):.0f} "
+          f"p10={np.percentile(a, 10):.0f} p90={np.percentile(a, 90):.0f} "
+          f"min={a.min():.0f}  (<40: {100 * np.mean(a < 40):.1f}%)")
+
+
 def main():
     import sys
     cmd = sys.argv[1] if len(sys.argv) > 1 else "polarity"
     if cmd == "polarity":
         cmd_polarity()
+    elif cmd == "synth-polarity":
+        if len(sys.argv) < 4:
+            print("사용: measure_polarity.py synth-polarity <images_dir> <manifest>",
+                  file=sys.stderr)
+            return 2
+        cmd_synth_polarity(sys.argv[2], sys.argv[3])
     else:
         cmd_digits()
     return 0

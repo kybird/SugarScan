@@ -87,6 +87,12 @@ def cmd_band():
         pos[key].append(0)                                # 자리 표시(아래에서 y 따로)
         pos[key][-1] = ((by0 + by1) / 2 - gy0) / gh
     print(f"join={joined}/{len(bands)}")
+    _report_band(stats, pos)
+
+
+def _report_band(stats, pos):
+    """밴드 기하 출력 — 실사진(cmd_band)과 합성(cmd_synth_band)이 이 한 코드로
+    찍는다. 자가 갈리면 두 수치는 비교 대상이 아니다(2026-09-12 밀도 사고)."""
     for key in ("portrait", "wide"):
         if not stats[key]:
             print(f"{key}: 표본 없음")
@@ -105,6 +111,33 @@ def cmd_band():
               f"p90={p(cx, 90):.3f}]")
         print(f"  band_cy median={np.median(cy):.3f} [p10={p(cy, 10):.3f} "
               f"p90={p(cy, 90):.3f}]")
+
+
+def cmd_synth_band(manifest):
+    """합성 패널의 종횡비·밴드 기하 — 실사진과 같은 정의로 잰다.
+    패널 = 이미지 전체(합성은 패널만 렌더한다), 밴드 = manifest quad 의 bbox."""
+    rows = _load_jsonl(manifest)
+    stats = {"portrait": [], "wide": []}
+    pos = {"portrait": [], "wide": []}
+    asp = []
+    for r in rows:
+        W, H = r["w"], r["h"]
+        q = np.asarray(r["quad"], np.float64)
+        bx0, by0 = q[:, 0].min(), q[:, 1].min()
+        bx1, by1 = q[:, 0].max(), q[:, 1].max()
+        asp.append(W / H)
+        key = "portrait" if W / H < 1.0 else "wide"
+        stats[key].append(((bx1 - bx0) / W, (by1 - by0) / H))
+        pos[key].append((bx0 + bx1) / 2 / W)
+        pos[key].append((by0 + by1) / 2 / H)
+    a = np.asarray(asp)
+    print(f"n={len(a)}")
+    print(f"w/h median={np.median(a):.3f} p10={np.percentile(a, 10):.3f} "
+          f"p90={np.percentile(a, 90):.3f}")
+    print(f"portrait(w/h<1)={np.mean(a < 1.0) * 100:.1f}%  "
+          f"wide(w/h>1)={np.mean(a > 1.0) * 100:.1f}%  "
+          f"very-wide(w/h>2)={np.mean(a > 2.0) * 100:.1f}%")
+    _report_band(stats, pos)
 
 
 def _crop_by_rect(img, rect, long_side=LONG_SIDE):
@@ -211,7 +244,8 @@ def cmd_synth_density(images_dir, manifest, frame_exc):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["aspect", "band", "density", "synth-density"])
+    ap.add_argument("cmd", choices=["aspect", "band", "density", "synth-density",
+                                    "synth-band"])
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--frame-exc", type=float, default=0.0)
     ap.add_argument("--images")
@@ -223,6 +257,11 @@ def main():
         cmd_band()
     elif a.cmd == "density":
         cmd_density(a.limit, a.frame_exc)
+    elif a.cmd == "synth-band":
+        if not a.manifest:
+            print("--manifest 가 필요하다", file=sys.stderr)
+            return 2
+        cmd_synth_band(a.manifest)
     else:
         if not (a.images and a.manifest):
             print("--images 와 --manifest 가 필요하다", file=sys.stderr)
