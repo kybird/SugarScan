@@ -185,6 +185,14 @@ tr.miss td.mono { color: var(--bad); }
         <option value="unlabeled">라벨 없음만</option>
       </select>
     </label>
+    <label class="stat" title="다른 모드의 사람 라벨을 겹쳐 본다 — LCD 모드면 밴드를, 밴드 모드면 LCD 를">
+      <input type="checkbox" id="chk-other"> 다른 모드 라벨 겹쳐 보기
+    </label>
+    <span class="stat" id="legend" style="font-size:12px">
+      <b style="color:#4da3ff">┈ 파랑 점선</b> 모델 예측 ·
+      <b style="color:#ffd23f">━ 노랑</b> 지금 편집 중 ·
+      <b style="color:#5ddb8a">━ 초록</b> 다른 모드 사람 라벨
+    </span>
     <span class="stat" id="box-meaning"></span>
     <span class="stat" id="pilot-note"></span>
     <span class="stat">라벨 <b id="cnt-labeled">-</b> · 스킵 <b id="cnt-skipped">-</b> · 남음 <b id="cnt-remain">-</b></span>
@@ -327,6 +335,21 @@ document.querySelectorAll("nav .tab").forEach(btn => {
   });
 });
 
+/* --- 다른 모드 라벨 겹쳐 보기 -------------------------------------------
+   2026-09-11: 같은 장에 LCD 라벨과 밴드 라벨이 따로 있는데 화면에는 현재
+   모드 것만 보였다. 둘을 나란히 보려면 도구 밖에서 그림을 따로 만들어야 했고,
+   그러다 "내 웹툴엔 그 색이 없다"가 나왔다. 비교를 도구 안으로 들인다.
+   읽기 전용이다 — 겹쳐 보이는 박스는 편집되지 않는다. */
+async function loadOther() {
+  const other = lb.mode === "band" ? "lcd" : "band";
+  const r = await api("/api/labels?mode=" + other);
+  lb.other = r.labels || {};
+}
+document.getElementById("chk-other").addEventListener("change", async (e) => {
+  if (e.target.checked && !lb.other) { await loadOther(); }
+  draw();
+});
+
 /* ================= 라벨러 ================= */
 // 밴드 모드는 A 경로 확정(2026-09-02)으로 제거했다 — labeled.jsonl 데이터와
 // 서버 /api/labels?mode=band · /api/quads?kind=band 는 그대로라 되돌릴 땐
@@ -339,7 +362,7 @@ const MODES = {
 };
 const IMG_W = 1920;
 const lb = {
-  meta: null, labels: {}, quads: {}, mode: "lcd",
+  meta: null, labels: {}, quads: {}, other: null, mode: "lcd",
   idx: -1, box: null, img: null, ow: 0, oh: 0,
   // 좌표계에 이름표를 붙인다. lb.ow/lb.oh 가 '어느 장의' 표시 크기인지 모르면
   // 한 장 밀린 프레임으로 그린 박스를 그대로 저장하게 된다(2026-09-02 사고).
@@ -410,6 +433,7 @@ async function loadMode(mode) {
   ]);
   lb.labels = lab.labels || {};
   lb.quads = qd.quads || {};
+  lb.other = null;            // 모드가 바뀌면 겹쳐보기 캐시를 버린다
   // LCD 모드는 모델 미검출(예측 없음) 장을 앞에 — GM 파인튜닝 타깃 우선
   if (mode === "lcd") {
     lb.meta.items.sort((a, b) =>
@@ -721,6 +745,16 @@ function draw() {
     pred.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]));
     ctx.closePath(); ctx.stroke();
     ctx.setLineDash([]);
+  }
+  // 다른 모드의 사람 라벨 — 읽기 전용 참고선
+  if (document.getElementById("chk-other").checked && lb.other && it) {
+    const o = lb.other[it.id];
+    if (o && o.quad) {
+      ctx.strokeStyle = "#5ddb8a"; ctx.lineWidth = 2 / lb.s;
+      ctx.beginPath();
+      o.quad.forEach((pt, i) => i ? ctx.lineTo(pt[0], pt[1]) : ctx.moveTo(pt[0], pt[1]));
+      ctx.closePath(); ctx.stroke();
+    }
   }
   if (lb.box) {
     const b = lb.box;
