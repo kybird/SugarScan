@@ -149,6 +149,8 @@ def cmd_build(per_device):
 def cmd_progress(per_device):
     labeled = _labeled_ids()
     groups = _by_device()
+    in_corpus = {r["id"] for r in _rows(DEVICE_LABELS)}
+    have_quad = {r["id"] for r in _rows(QUADS)}
     total_photos = sum(len(v) for v in groups.values())
     done_by = {k: len([i for i in v if i in labeled]) for k, v in groups.items()}
     n_done = sum(done_by.values())
@@ -157,9 +159,24 @@ def cmd_progress(per_device):
           f"남은 {max(0, target - n_done)}장")
     print(f"전체 사진 {total_photos}장 · 기기 {len(groups)}종 · "
           f"목표 달성 기기 {sum(1 for k, c in done_by.items() if c >= min(per_device, len(groups[k])))}종")
-    orphan = len(labeled) - n_done
-    if orphan:
-        print(f"주의: 기기 라벨이 없거나 quad 가 없는 밴드 라벨 {orphan}장")
+    # 집계 밖 밴드 라벨 — 성격이 둘이고 대응도 다르다(2026-09-12 확인).
+    #  (가) 코퍼스 밖 18장: device_labels(2494장)와 scene_components 는 같은
+    #       집합인데 이 18장은 양쪽 모두에 없다. 옛 더 큰 풀에서 만들어진
+    #       밴드 라벨이다. 기종 탭은 성분 단위로 돌아 닿을 수 없다 —
+    #       기기 라벨 대상이 아니다. 할 일 없음.
+    #  (나) 코퍼스 안인데 GM quad 없음 3장: GM 검출 실패다. 라벨로 못 고친다.
+    #       카드「GM 검출 추론 전처리 … 레터박스」의 표적이다.
+    out_of_corpus = sorted(i for i in labeled
+                           if i not in {x for v in groups.values() for x in v}
+                           and i not in in_corpus)
+    no_quad = sorted(i for i in labeled if i in in_corpus and i not in have_quad)
+    if out_of_corpus:
+        print("\n코퍼스 밖 밴드 라벨 %d장 — 기기 라벨 대상이 아니다"
+              " (성분에 없어 기종 탭이 닿지 않는다). 할 일 없음"
+              % len(out_of_corpus))
+    if no_quad:
+        print(f"GM quad 없는 밴드 라벨 {len(no_quad)}장 — GM 검출 실패다. "
+              f"라벨로 못 고친다. 레터박스 카드 표적: {', '.join(no_quad)}")
     print(f"\n{'완료':>4} {'목표':>4} {'보유':>4}  기기")
     for k in sorted(groups, key=lambda k: (done_by[k], _device_name(k))):
         t = min(per_device, len(groups[k]))
