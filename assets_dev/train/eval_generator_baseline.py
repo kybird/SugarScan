@@ -45,6 +45,9 @@ def main() -> int:
     ap.add_argument("--name", default="pre_v1",
                     help="모델·결과 파일 접두어 (reader_model_<name>, "
                          "reader_preds_<name>.json)")
+    ap.add_argument("--cache", default=DEVICE_CACHE,
+                    help="hold-out 정의 캐시(real_train_ids). 기본: 기기 단절 "
+                         "분할 캐시. 실사진 배열이 같은 로컬 복사본도 쓸 수 있다")
     args = ap.parse_args()
 
     weights = Path(args.weights)
@@ -69,7 +72,7 @@ def main() -> int:
     cmd_eval = [sys.executable, str(HERE / "eval_reader.py"),
                 "--data-root", str(HERE),
                 "--model", model_dir.name,
-                "--cache", DEVICE_CACHE,
+                "--cache", args.cache,
                 "--out", preds_path.name]
     print("+", " ".join(cmd_eval), flush=True)
     subprocess.run(cmd_eval, check=True, cwd=str(HERE))

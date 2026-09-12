@@ -20,11 +20,85 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+from PIL import Image, ImageDraw, ImageFont
 
 from synth_lcd import (  # 레거시 구성요소 재사용 — 이 파일은 건드리지 않는다
     draw_digit, put_7seg_text, render_screen,
     add_local_shadow, add_reflection_stripe, apply_shear, apply_keystone,
 )
+
+# ── DSEG 글리프 렌더 — 「DSEG 폰트 기반 글리프 렌더러 교체」 카드 ────────────
+USE_DSEG = True   # False 면 rect 세그먼트 팔(직전 A/B 재현)
+# 폰트: DSEG v0.46 (keshikan, SIL OFL 1.1) — fonts/dseg/ 에 원문 라이선스 동봉.
+# 변형 선택 근거(눈 검증, _diag/synth_real_atlas/dseg_variant_check.png):
+# 실기기 8종 숫자 밴드와 나란히 놓아 Classic 계열이 전체적으로 가장 가깝고
+# (모따기 끝단 근사), 굵기는 기기별로 Light/Regular/Bold 가 다 나오며,
+# 이탤릭 기기(OneTouch 계열)엔 Italic 변형, 일부 가는획 기기엔 Modern-Light.
+# 라이선스(RFN 'DSEG'): 폰트 파일은 수정·재배포하지 않고 렌더에만 쓴다.
+FONT_DIR = Path(__file__).resolve().parent / "fonts" / "dseg"
+DSEG_FILES = {
+    "Light": "DSEG7Classic-Light.ttf", "Regular": "DSEG7Classic-Regular.ttf",
+    "Bold": "DSEG7Classic-Bold.ttf", "Italic": "DSEG7Classic-Italic.ttf",
+    "LightItalic": "DSEG7Classic-LightItalic.ttf",
+    "BoldItalic": "DSEG7Classic-BoldItalic.ttf",
+    "ModernLight": "DSEG7Modern-Light.ttf",
+}
+# 굵기·이탤릭 변인: 한 화면 안에서는 일정(카드 AC#2) — 표본마다 뽑는다.
+DSEG_WEIGHTS = ("Light", "Regular", "Regular", "Bold")   # Regular 2배 가중
+_fonts = {}
+
+
+def _font(variant, px):
+    key = (variant, px)
+    if key not in _fonts:
+        _fonts[key] = ImageFont.truetype(str(FONT_DIR / DSEG_FILES[variant]), px)
+    return _fonts[key]
+
+
+def _glyph_mask(ch, variant, h):
+    """DSEG 글리프를 h 높이에 맞춘 이진 마스크로. NEAREST 리사이즈로 획을
+    뭉개지 않게 한다(획 굵기는 폰트 변형이 담당 — 파일 수정 금지, RFN)."""
+    font = _font(variant, int(h * 1.35))
+    pil = Image.new("L", (int(h * 1.4), int(h * 1.5)), 0)
+    ImageDraw.Draw(pil).text((2, 2), ch, font=font, fill=255)
+    a = np.asarray(pil)
+    ys, xs = np.nonzero(a > 96)
+    if len(xs) == 0:
+        return None
+    m = a[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+    return cv2.resize(m, (max(2, int(m.shape[1] * h / m.shape[0])), h),
+                      interpolation=cv2.INTER_NEAREST) > 96
+
+
+def draw_digit_dseg(img, x, y, h, ch, ink, variant="Regular", ghost=0.0):
+    """DSEG 숫자 한 자. ghost>0 이면 꺼진 세그먼트 잔상('8' 전체 획을 배경과
+    잉크 사이 옅은 농도로) 먼저 깔고 진한 글리프를 얹는다(카드 AC#3).
+    잔상은 '생각보다 훨씬 약하다'(2026-09-11 실사진 정정) — 확률적으로,
+    농도 흔들림 포함. 폭은 글리프 비율이 정한다(배치 계산 불변)."""
+    if ghost > 0:
+        g = _glyph_mask("8", variant, h)
+        if g is not None:
+            panel_est = img[max(0, y):y + h, x:x + g.shape[1]].astype(np.float32)
+            blend = panel_est * (1 - ghost) + ink * ghost
+            region = img[max(0, y):y + h, x:x + g.shape[1]]
+            region[g[:region.shape[0], :region.shape[1]]] = \
+                blend[:region.shape[0], :region.shape[1]][
+                    g[:region.shape[0], :region.shape[1]]].astype(np.uint8)
+    m = _glyph_mask(ch, variant, h)
+    if m is None:
+        return 0
+    region = img[y:y + h, x:x + m.shape[1]]
+    region[m[:region.shape[0], :region.shape[1]]] = ink
+    return m.shape[1]
+
+
+def _pick_variant(rng, italic):
+    w = DSEG_WEIGHTS[rng.randrange(len(DSEG_WEIGHTS))]
+    if rng.random() < 0.12:            # 가는획+둥근끝 소수 기기
+        return "ModernLight"
+    if italic:
+        return w + "Italic" if w != "Regular" else "Italic"
+    return w
 
 # 실사진에서 관찰된 날짜·시간 표기 여덟 형식(카드 Notes (4) 그대로).
 DOT_FMTS = [
@@ -256,14 +330,28 @@ def render_profiled(value, rng, profile, size=(320, 160)):
         x0 = (W - field_w) // 2
     y0 = int(H * rng.uniform(0.18, 0.34))
     lead = slots - len(label)
-    for s in range(slots):
-        if s < lead:
-            continue
-        draw_digit(img, x0 + s * pitch, y0, dw, dh, label[s - lead], ink_digit)
-    if profile.get("italic"):   # 숫자에만 이탤릭 — 전역 shear 아님(D6)
-        sh = rng.uniform(0.18, 0.30)
-        img = cv2.warpAffine(img, np.float32([[1, sh, -sh * H / 2], [0, 1, 0]]),
-                             (W, H), borderMode=cv2.BORDER_REPLICATE)
+    if USE_DSEG:
+        # DSEG 팔 — 굵기·이탤릭은 표본마다 한 번 뽑고 화면 내내 일정(AC#2).
+        # 잔상: 15% 표본에서만, 농도는 0.08~0.20 흔들림(2026-09-11 정정 —
+        # 실물 잔상은 '생각보다 훨씬 약하다', 없음이 기본).
+        variant = _pick_variant(rng, bool(profile.get("italic")))
+        ghost = rng.uniform(0.08, 0.20) if rng.random() < 0.15 else 0.0
+        for s in range(slots):
+            if s < lead:
+                continue
+            draw_digit_dseg(img, x0 + s * pitch, y0, dh, label[s - lead],
+                            ink_digit, variant, ghost)
+        # 이탤릭은 폰트 변형이 담당 — 패널을 기울이는 전역 shear 는 쓰지
+        # 않는다(광학 카드의 지적 그대로).
+    else:
+        for s in range(slots):
+            if s < lead:
+                continue
+            draw_digit(img, x0 + s * pitch, y0, dw, dh, label[s - lead], ink_digit)
+        if profile.get("italic"):   # rect 팔 — 기존 동작 재현
+            sh = rng.uniform(0.18, 0.30)
+            img = cv2.warpAffine(img, np.float32([[1, sh, -sh * H / 2], [0, 1, 0]]),
+                                 (W, H), borderMode=cv2.BORDER_REPLICATE)
     last_r = x0 + field_w
 
     if profile.get("glulabel", {}).get("p", 0) > rng.random():
