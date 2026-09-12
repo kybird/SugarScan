@@ -266,10 +266,87 @@ flutter test     → All tests passed! (NNN tests)
 
 ---
 
+### 3.8 합성 생성기를 만질 때 — 자와 기준선
+
+합성 패널 렌더러(`assets_dev/train/synth_panel.py`)를 고치는 카드는 전부
+**같은 자로 실사진과 비교**한다. 자는 이미 있다. 새로 짜지 마라(§3.7).
+
+```
+# 실사진 기준선 — 밴드 라벨이 있는 84장 전량
+cd assets_dev/train
+python measure_panel_stats.py aspect                       # 종횡비, n=2497
+python measure_panel_stats.py band                         # 밴드 기하, n=84
+python measure_panel_stats.py density --frame-exc 0        # 엣지 밀도, n=84
+python measure_polarity.py                                 # 극성·밴드 대비, n=84
+
+# 합성 — 위와 같은 코드로 잰다
+python synth_panel.py gen --count 300 --seed 31000 --out <dir>
+python measure_panel_stats.py synth-band     --manifest <dir>/manifest.jsonl
+python measure_panel_stats.py synth-density  --images <dir>/images --manifest <dir>/manifest.jsonl --frame-exc 0
+python measure_polarity.py    synth-polarity <dir>/images <dir>/manifest.jsonl
+```
+
+**실사진 기준선(2026-09-12 실측, 위 명령 그대로).** 이 표를 인용할 때는
+명령과 `n` 을 같이 적는다.
+
+| 축 | 실사진 | n |
+|---|---|---|
+| 종횡비 w/h | median 0.792 · p10 0.705 · p90 0.975 · portrait 91.7% | 2497 |
+| 세로형 밴드 w/h 비 | w/panel_w 0.827 · h/panel_h 0.458 · cx 0.520 · cy 0.391 | 51 |
+| 가로형 밴드 w/h 비 | w/panel_w 0.587 · h/panel_h 0.798 · cx 0.464 · cy 0.517 | 33 |
+| 엣지 밀도(밴드 밖) | median 2.52% · p10 0.64% · p90 3.84% | 84 |
+| 극성 반전 | 27.4% | 84 |
+| 밴드 대비 p95-p5 | median 104 · p10 60 · min 21 · 40미만 1.2% | 84 |
+
+**폐기된 기준선 — 쓰지 마라.** 다음 수치가 옛 문서·카드에 남아 있다.
+
+- 엣지 밀도 **7.51%**(p10 5.44%, "각 300장") — 출처 불명으로 폐기(§3.7).
+- 밴드 대비 **중앙 117.5 · 40미만 0.0%** — 캐시 이미지에 거친 ROI 를 씌운
+  값이다. 밴드 쿼드 기준으로는 104 · 1.2% 다. 옛 값으로 AC 를 맞추면
+  **실사진보다 깨끗한 합성**을 만들게 된다.
+
+**이 파일은 한 곳을 고치면 다른 곳이 움직인다.** 밀도 채움 루프가 목표
+밀도에 닿을 때까지 요소를 뽑으므로 요소별 출현 확률이 독립이 아니다. 한
+요소의 확률을 낮추면 루프가 남은 후보를 더 많이 뽑는다. 실제로 2026-09-12
+에 두 번 연속 회귀가 났다(텍스트 후보를 줄이자 `mem` 이 12장 중 11장,
+도트줄로 돌리자 한 화면에 서너 줄). 확률은 개수 상한을 대신하지 못한다.
+→ `doc/wiki/antipatterns/coupled-budget-loop-defeats-per-element-tuning.md`
+
+**고칠 때마다 12장 montage 를 다시 뽑아 눈으로 본다.** 지표만 보면 위
+회귀가 통과한다.
+
+```
+python synth_panel.py gen --count 12 --seed 22000 --out <dir>
+python synth_panel.py montage --out <png> --images <dir>/images --manifest <dir>/manifest.jsonl --n 12
+```
+
+**워크트리 주의.** 합성 수정은 `main` 에 있다(`7bb19a9`). 부 워크트리에서
+재면 그 브랜치의 옛 렌더러를 재게 된다 — 2026-09-12 에 실제로 그렇게
+300장을 잘못 쟀다. 재기 전에 확인한다:
+
+```
+git log --oneline -1
+grep -c "_VALUE_BINS\|_MEM_VARIANTS" assets_dev/train/synth_panel.py   # 0 이면 옛 렌더러다
+```
+
+---
+
 ## 4. 작업 목록
 
 ---
 
+### G35 — GM 검출 추론 전처리를 학습과 맞춘다 (스트레치 → 레터박스)
+
+- 보드 카드: 「GM 검출 추론 전처리를 학습과 맞춘다 — 스트레치에서 레터박스로」
+- 브랜치: `glm/G35-gm-letterbox-infer`
+- 보고서: `docs/reports/G35-gm-letterbox-infer.md`
+- 재학습 없음. **채택 여부는 사람이 정한다** — 운영 파일을 덮어쓰지 않는다.
+
+`detect_datumo_gm.py` 의 추론 전처리가 학습과 다르다(학습 레터박스 / 추론
+스트레치). 일치시킨 경로를 **플래그로 추가**하고 두 전처리를 같은 잣대로
+비교한다. 상세 지시서는 붙여넣기용으로 별도 작성했다(세션 로그 참조).
+
+---
 
 ---
 
