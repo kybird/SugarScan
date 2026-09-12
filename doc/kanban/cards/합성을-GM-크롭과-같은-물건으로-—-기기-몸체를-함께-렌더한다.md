@@ -1,9 +1,11 @@
 ---
 title: 합성을 GM 크롭과 같은 물건으로 — 기기 몸체를 함께 렌더한다
-status: todo
+status: doing
 ordinal: 39000
 created: 2026-09-12
 depends_on: ["합성만으로 밴드 쿼드 검출기 v0"]
+claimed_by: glm
+claimed_at: 2026-09-12T16:14-07:00
 ---
 
 ## Goal
