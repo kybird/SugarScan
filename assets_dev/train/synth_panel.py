@@ -630,9 +630,10 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
     #    동일(AC#4).
     filler_pool = ["OK", "CHECK STRIP", "GLU", "mem"]
     for attempt in range(48):
-        d = _density_outside(img, quad)
-        if d is not None and d >= fill_target:
-            break
+        if attempt % 3 == 0 or attempt == 47:
+            d = _density_outside(img, quad)
+            if d is not None and d >= fill_target:
+                break
         kind = rng.random()
         if kind < 0.5:
             text = _dot_time_text(rng)
@@ -857,7 +858,8 @@ def generate(count, seed0, out_dir, with_reader=False):
             inverted=s["inverted"], glyph_plane_check=s["glyph_plane_check"],
             density=round(float(s["density"]), 5),
             target_density=s["target_density"],
-            rects=[[round(v, 1) for v in r[:4]] + [r[4]] for r in s["rects"]],
+            rects=[[round(float(v), 1) for v in r[:4]] + [r[4]]
+                   for r in s["rects"]],
             dropped=s["dropped"], overlaps=viol,
             margin=s["margin"],
         )
