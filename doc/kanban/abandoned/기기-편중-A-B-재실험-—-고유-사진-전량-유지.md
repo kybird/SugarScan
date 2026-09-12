@@ -1,8 +1,9 @@
 ---
 title: 기기 편중 A/B 재실험 — 고유 사진 전량 유지
-status: todo
+status: abandoned
 ordinal: 11000
 created: 2026-09-11
+discard_reason: scratch 재구축 결정(2026-09-11, docs/OCR_REBUILD_PLAN.md)으로 무의미해졌다. 이 카드는 옛 리더(pre_best 체크포인트)와 옛 캐시 위에서 편중 재배분 효과를 재는 것인데, 그 모델과 수치를 전부 버리기로 했다. 기기 편중 문제 자체는 남아 있으므로 새 리더가 선 뒤 같은 질문을 다시 세운다.
 ---
 
 ## Goal
