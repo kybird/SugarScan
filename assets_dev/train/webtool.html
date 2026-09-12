@@ -178,6 +178,7 @@ tr.miss td.mono { color: var(--bad); }
         <option value="safe">판독 오답 · 안전(자릿수 변동)</option>
         <option value="blank">판독 무출력</option>
         <option value="rejected">거절 대상(득표율 낮음)</option>
+        <option value="bandseed">밴드 씨앗 · 기기별 번갈아 (권장)</option>
         <option value="pilot">밴드 라벨 큐 (1단계 346 + 재라벨 86 + 기타 47)</option>
         <option value="lcdfix">LCD 재라벨 (GM 실패·가로)</option>
         <option value="wideband">밴드 · 가로형 LCD</option>
@@ -374,6 +375,7 @@ const lb = {
   // 실패 모아보기 — allItems 는 큐 필터 적용 전(모드 정렬까지 끝낸) 원본 목록.
   allItems: null,
   fail: { gm: new Set(), reader: new Set(), pilot: new Set(), lcdfix: new Set(),
+          bandseed: new Set(),
           risky: new Set(), safe: new Set(), blank: new Set(),
           rejected: new Set() },
   readerNote: {},
@@ -411,9 +413,11 @@ async function boot() {
     lb.fail.lcdfix = new Set(f.lcd_fix || []);
     lb.fail.wideband = new Set(f.wide_band || []);
     lb.fail.labelaudit = new Set(f.label_audit || []);
+    lb.fail.bandseed = new Set(f.band_seed || []);
     lb.holdout = new Set(f.lcd_holdout || []);
     lb.pilotNote = Object.assign({}, f.band_pilot_note || {}, f.lcd_fix_note || {},
-                                 f.wide_band_note || {}, f.label_audit_note || {});
+                                 f.wide_band_note || {}, f.label_audit_note || {},
+                                 f.band_seed_note || {});
   } catch (e) { /* /api/failures 없는 구형 서버 */ }
   try {
     const p = await api("/api/preds_holdout");
@@ -482,6 +486,15 @@ function applyQueueFilter() {
   } else if (q === "wideband" && lb.fail.wideband && lb.fail.wideband.size) {
     // 학습셋 → 검증 순서를 유지한다. 중간에 멈춰도 검증셋이 통째로 비지 않는다.
     const order = [...lb.fail.wideband];
+    const rank = new Map(order.map((id, i) => [id, i]));
+    lb.meta.items = lb.meta.items
+      .filter(it => rank.has(it.id))
+      .sort((a, b) => rank.get(a.id) - rank.get(b.id));
+  } else if (q === "bandseed" && lb.fail.bandseed && lb.fail.bandseed.size) {
+    // 기기별 번갈아 뽑은 순서를 그대로 지킨다. 사전순으로 섞이면 중간에
+    // 멈췄을 때 몇 기기만 채워지고 나머지가 통째로 빈다 — 큐의 존재 이유가
+    // 사라진다(2026-09-12: 기존 라벨 76장 중 63장이 세 기기에 몰려 있었다).
+    const order = [...lb.fail.bandseed];
     const rank = new Map(order.map((id, i) => [id, i]));
     lb.meta.items = lb.meta.items
       .filter(it => rank.has(it.id))
@@ -592,7 +605,7 @@ async function show(idx) {
         pn.textContent = `· ${rnote}`;
         pn.style.color = q === "risky" ? "#e06c6c" : "#d8a657";
       } else {
-        pn.textContent = ((q === "pilot" || q === "lcdfix" || q === "wideband"
+        pn.textContent = ((q === "bandseed" || q === "pilot" || q === "lcdfix" || q === "wideband"
                          || q === "labelaudit") && note) ? `· ${note}` : "";
         pn.style.color = "#8ab4f8";
       }

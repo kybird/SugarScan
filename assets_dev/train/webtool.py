@@ -510,6 +510,11 @@ def api_failures(qs):
     wideband, wideband_note = _queue("wide_band_queue.json")
     # 라벨 감사 — make_label_audit_queue.py. 라벨 안 빈 여백이 큰 순서다.
     audit, audit_note = _queue("label_audit_queue.json")
+    # 밴드 씨앗 — band_queue.py build. 기기별로 번갈아 뽑은 순서다(2026-09-12).
+    # 기존 밴드 라벨 97장이 세 기기에 몰려 있어(OneTouch UltraMini 30 ·
+    # CareSens N 19 · 이름모를 가로형 14) 54종 중 39종이 0장이었다. 이 큐는
+    # 0장 기기부터 한 장씩 돈다 — 중간에 멈춰도 기기 다양성이 유지된다.
+    seed, seed_note = _queue("band_seed_queue.json")
     # 테스트 holdout — 라벨링하면 개선을 잴 데가 없어진다. 큐에서 빼는 것으로는
     # 부족하고(전체 큐로 들어올 수 있다) 화면에 경고를 띄운다.
     hold, _ = _queue("lcd_fix_holdout.json")
@@ -521,6 +526,7 @@ def api_failures(qs):
             "lcd_fix": lcdfix, "lcd_fix_note": lcdfix_note,
             "wide_band": wideband, "wide_band_note": wideband_note,
             "label_audit": audit, "label_audit_note": audit_note,
+            "band_seed": seed, "band_seed_note": seed_note,
             "lcd_holdout": hold}
 
 

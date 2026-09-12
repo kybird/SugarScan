@@ -1,0 +1,1082 @@
+[
+ {
+  "id": "glucose_batch2/2520",
+  "stratum": "band-seed",
+  "device": "ACCU-CHEK / Active / 원형베젤",
+  "note": "ACCU-CHEK / Active / 원형베젤 · 기기당 4장 목표 · 1/3"
+ },
+ {
+  "id": "glucose_batch1/2039",
+  "stratum": "band-seed",
+  "device": "ACCU-CHEK / Instant",
+  "note": "ACCU-CHEK / Instant · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/1784",
+  "stratum": "band-seed",
+  "device": "ACCU-CHEK / Performa / 빨강 둥근버튼",
+  "note": "ACCU-CHEK / Performa / 빨강 둥근버튼 · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/2454",
+  "stratum": "band-seed",
+  "device": "ACCU-CHEK / Performa / 은색 각진버튼",
+  "note": "ACCU-CHEK / Performa / 은색 각진버튼 · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/1086",
+  "stratum": "band-seed",
+  "device": "ACCU-CHEK / Performa Nano / 파랑 케이스",
+  "note": "ACCU-CHEK / Performa Nano / 파랑 케이스 · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/2405",
+  "stratum": "band-seed",
+  "device": "ACURA PLUS",
+  "note": "ACURA PLUS · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/2410",
+  "stratum": "band-seed",
+  "device": "ACURA VIEW",
+  "note": "ACURA VIEW · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/2329",
+  "stratum": "band-seed",
+  "device": "Auto-chek plus",
+  "note": "Auto-chek plus · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/98",
+  "stratum": "band-seed",
+  "device": "Boryung / CareTouch / 일반LCD",
+  "note": "Boryung / CareTouch / 일반LCD · 기기당 4장 목표 · 1/3"
+ },
+ {
+  "id": "glucose_batch1/2066",
+  "stratum": "band-seed",
+  "device": "CareSens Dual",
+  "note": "CareSens Dual · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/816",
+  "stratum": "band-seed",
+  "device": "CareSens N Premier",
+  "note": "CareSens N Premier · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/1702",
+  "stratum": "band-seed",
+  "device": "CareSens N Voice",
+  "note": "CareSens N Voice · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/632",
+  "stratum": "band-seed",
+  "device": "CareSens PRO",
+  "note": "CareSens PRO · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/497",
+  "stratum": "band-seed",
+  "device": "Contour TS",
+  "note": "Contour TS · 기기당 4장 목표 · 1/2"
+ },
+ {
+  "id": "glucose_batch1/2414",
+  "stratum": "band-seed",
+  "device": "Dr.Diary+",
+  "note": "Dr.Diary+ · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/1991",
+  "stratum": "band-seed",
+  "device": "FORA",
+  "note": "FORA · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/1716",
+  "stratum": "band-seed",
+  "device": "GC 녹십자 MS / Green Check",
+  "note": "GC 녹십자 MS / Green Check · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/648",
+  "stratum": "band-seed",
+  "device": "GC 녹십자 MS / Green Doctor",
+  "note": "GC 녹십자 MS / Green Doctor · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/375",
+  "stratum": "band-seed",
+  "device": "GC 녹십자 MS ONE",
+  "note": "GC 녹십자 MS ONE · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/821",
+  "stratum": "band-seed",
+  "device": "GluNEO plus",
+  "note": "GluNEO plus · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/993",
+  "stratum": "band-seed",
+  "device": "Gluco Dr.TOP",
+  "note": "Gluco Dr.TOP · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/394",
+  "stratum": "band-seed",
+  "device": "Gluco Navii GDH",
+  "note": "Gluco Navii GDH · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/125",
+  "stratum": "band-seed",
+  "device": "Gluco Navii NFC",
+  "note": "Gluco Navii NFC · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/1267",
+  "stratum": "band-seed",
+  "device": "GlucoDr. GOLD",
+  "note": "GlucoDr. GOLD · 기기당 4장 목표 · 1/1"
+ },
+ {
+  "id": "glucose_batch1/745",
+  "stratum": "band-seed",
+  "device": "Gmate",
+  "note": "Gmate · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/579",
+  "stratum": "band-seed",
+  "device": "HANDOK / BAROZEN",
+  "note": "HANDOK / BAROZEN · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/1998",
+  "stratum": "band-seed",
+  "device": "INFOPIA",
+  "note": "INFOPIA · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch2/2634",
+  "stratum": "band-seed",
+  "device": "KOOKMIN Check",
+  "note": "KOOKMIN Check · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/936",
+  "stratum": "band-seed",
+  "device": "Link 0.3",
+  "note": "Link 0.3 · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/598",
+  "stratum": "band-seed",
+  "device": "MaeilzeN",
+  "note": "MaeilzeN · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/2303",
+  "stratum": "band-seed",
+  "device": "NOCODING ONE",
+  "note": "NOCODING ONE · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch2/2585",
+  "stratum": "band-seed",
+  "device": "NOCODING ONE PLUS",
+  "note": "NOCODING ONE PLUS · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/947",
+  "stratum": "band-seed",
+  "device": "On Call Extra",
+  "note": "On Call Extra · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/1053",
+  "stratum": "band-seed",
+  "device": "OneTouch / Ultra",
+  "note": "OneTouch / Ultra · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch2/2635",
+  "stratum": "band-seed",
+  "device": "SD CHECK GOLD",
+  "note": "SD CHECK GOLD · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/1734",
+  "stratum": "band-seed",
+  "device": "SD CHECK GOLD2",
+  "note": "SD CHECK GOLD2 · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/1653",
+  "stratum": "band-seed",
+  "device": "SD CodeFree",
+  "note": "SD CodeFree · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/971",
+  "stratum": "band-seed",
+  "device": "STANDARD / CHECK GOLD PLUS",
+  "note": "STANDARD / CHECK GOLD PLUS · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/1174",
+  "stratum": "band-seed",
+  "device": "VERI-Q",
+  "note": "VERI-Q · 기기당 4장 목표 · 1/1"
+ },
+ {
+  "id": "glucose_batch1/807",
+  "stratum": "band-seed",
+  "device": "gDoctor",
+  "note": "gDoctor · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/491",
+  "stratum": "band-seed",
+  "device": "글루코 1004",
+  "note": "글루코 1004 · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/120",
+  "stratum": "band-seed",
+  "device": "도루코S / Premium",
+  "note": "도루코S / Premium · 기기당 4장 목표 · 1/3"
+ },
+ {
+  "id": "glucose_batch1/66",
+  "stratum": "band-seed",
+  "device": "미레 3.3G + II",
+  "note": "미레 3.3G + II · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/505",
+  "stratum": "band-seed",
+  "device": "오토-첵",
+  "note": "오토-첵 · 기기당 4장 목표 · 1/4"
+ },
+ {
+  "id": "glucose_batch1/1202",
+  "stratum": "band-seed",
+  "device": "ACCU-CHEK / Go",
+  "note": "ACCU-CHEK / Go · 기기당 4장 목표 · 1/3"
+ },
+ {
+  "id": "glucose_batch1/1228",
+  "stratum": "band-seed",
+  "device": "CareSens / II",
+  "note": "CareSens / II · 기기당 4장 목표 · 1/3"
+ },
+ {
+  "id": "glucose_batch1/615",
+  "stratum": "band-seed",
+  "device": "CareSens II Plus",
+  "note": "CareSens II Plus · 기기당 4장 목표 · 1/3"
+ },
+ {
+  "id": "glucose_batch2/2606",
+  "stratum": "band-seed",
+  "device": "ACCU-CHEK / Active / 사각배젤",
+  "note": "ACCU-CHEK / Active / 사각배젤 · 기기당 4장 목표 · 1/2"
+ },
+ {
+  "id": "glucose_batch1/181",
+  "stratum": "band-seed",
+  "device": "HANDOK / BAROZEN II",
+  "note": "HANDOK / BAROZEN II · 기기당 4장 목표 · 1/2"
+ },
+ {
+  "id": "glucose_batch1/1034",
+  "stratum": "band-seed",
+  "device": "ACCU-CHEK / Performa Nano / 검정 바디",
+  "note": "ACCU-CHEK / Performa Nano / 검정 바디 · 기기당 4장 목표 · 1/1"
+ },
+ {
+  "id": "glucose_batch1/117",
+  "stratum": "band-seed",
+  "device": "Boryung / CareTouch / 푸른LCD",
+  "note": "Boryung / CareTouch / 푸른LCD · 기기당 4장 목표 · 1/1"
+ },
+ {
+  "id": "glucose_batch2/2519",
+  "stratum": "band-seed",
+  "device": "ACCU-CHEK / Active / 원형베젤",
+  "note": "ACCU-CHEK / Active / 원형베젤 · 기기당 4장 목표 · 2/3"
+ },
+ {
+  "id": "glucose_batch1/2492",
+  "stratum": "band-seed",
+  "device": "ACCU-CHEK / Instant",
+  "note": "ACCU-CHEK / Instant · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch2/2504",
+  "stratum": "band-seed",
+  "device": "ACCU-CHEK / Performa / 빨강 둥근버튼",
+  "note": "ACCU-CHEK / Performa / 빨강 둥근버튼 · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/1675",
+  "stratum": "band-seed",
+  "device": "ACCU-CHEK / Performa / 은색 각진버튼",
+  "note": "ACCU-CHEK / Performa / 은색 각진버튼 · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/1073",
+  "stratum": "band-seed",
+  "device": "ACCU-CHEK / Performa Nano / 파랑 케이스",
+  "note": "ACCU-CHEK / Performa Nano / 파랑 케이스 · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/2357",
+  "stratum": "band-seed",
+  "device": "ACURA PLUS",
+  "note": "ACURA PLUS · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/1994",
+  "stratum": "band-seed",
+  "device": "ACURA VIEW",
+  "note": "ACURA VIEW · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/2166",
+  "stratum": "band-seed",
+  "device": "Auto-chek plus",
+  "note": "Auto-chek plus · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/1679",
+  "stratum": "band-seed",
+  "device": "Boryung / CareTouch / 일반LCD",
+  "note": "Boryung / CareTouch / 일반LCD · 기기당 4장 목표 · 2/3"
+ },
+ {
+  "id": "glucose_batch1/2097",
+  "stratum": "band-seed",
+  "device": "CareSens Dual",
+  "note": "CareSens Dual · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/819",
+  "stratum": "band-seed",
+  "device": "CareSens N Premier",
+  "note": "CareSens N Premier · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/1697",
+  "stratum": "band-seed",
+  "device": "CareSens N Voice",
+  "note": "CareSens N Voice · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/770",
+  "stratum": "band-seed",
+  "device": "CareSens PRO",
+  "note": "CareSens PRO · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/499",
+  "stratum": "band-seed",
+  "device": "Contour TS",
+  "note": "Contour TS · 기기당 4장 목표 · 2/2"
+ },
+ {
+  "id": "glucose_batch1/845",
+  "stratum": "band-seed",
+  "device": "Dr.Diary+",
+  "note": "Dr.Diary+ · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/1982",
+  "stratum": "band-seed",
+  "device": "FORA",
+  "note": "FORA · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/1715",
+  "stratum": "band-seed",
+  "device": "GC 녹십자 MS / Green Check",
+  "note": "GC 녹십자 MS / Green Check · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/1759",
+  "stratum": "band-seed",
+  "device": "GC 녹십자 MS / Green Doctor",
+  "note": "GC 녹십자 MS / Green Doctor · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/369",
+  "stratum": "band-seed",
+  "device": "GC 녹십자 MS ONE",
+  "note": "GC 녹십자 MS ONE · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/2016",
+  "stratum": "band-seed",
+  "device": "GluNEO plus",
+  "note": "GluNEO plus · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/709",
+  "stratum": "band-seed",
+  "device": "Gluco Dr.TOP",
+  "note": "Gluco Dr.TOP · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/466",
+  "stratum": "band-seed",
+  "device": "Gluco Navii GDH",
+  "note": "Gluco Navii GDH · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/131",
+  "stratum": "band-seed",
+  "device": "Gluco Navii NFC",
+  "note": "Gluco Navii NFC · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/696",
+  "stratum": "band-seed",
+  "device": "Gmate",
+  "note": "Gmate · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/2284",
+  "stratum": "band-seed",
+  "device": "HANDOK / BAROZEN",
+  "note": "HANDOK / BAROZEN · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/2487",
+  "stratum": "band-seed",
+  "device": "INFOPIA",
+  "note": "INFOPIA · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/1608",
+  "stratum": "band-seed",
+  "device": "KOOKMIN Check",
+  "note": "KOOKMIN Check · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/2396",
+  "stratum": "band-seed",
+  "device": "Link 0.3",
+  "note": "Link 0.3 · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/583",
+  "stratum": "band-seed",
+  "device": "MaeilzeN",
+  "note": "MaeilzeN · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/2311",
+  "stratum": "band-seed",
+  "device": "NOCODING ONE",
+  "note": "NOCODING ONE · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/2060",
+  "stratum": "band-seed",
+  "device": "NOCODING ONE PLUS",
+  "note": "NOCODING ONE PLUS · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/946",
+  "stratum": "band-seed",
+  "device": "On Call Extra",
+  "note": "On Call Extra · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/2104",
+  "stratum": "band-seed",
+  "device": "OneTouch / Ultra",
+  "note": "OneTouch / Ultra · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch2/2582",
+  "stratum": "band-seed",
+  "device": "SD CHECK GOLD",
+  "note": "SD CHECK GOLD · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/2153",
+  "stratum": "band-seed",
+  "device": "SD CHECK GOLD2",
+  "note": "SD CHECK GOLD2 · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/655",
+  "stratum": "band-seed",
+  "device": "SD CodeFree",
+  "note": "SD CodeFree · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch2/2501",
+  "stratum": "band-seed",
+  "device": "STANDARD / CHECK GOLD PLUS",
+  "note": "STANDARD / CHECK GOLD PLUS · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/2425",
+  "stratum": "band-seed",
+  "device": "gDoctor",
+  "note": "gDoctor · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/492",
+  "stratum": "band-seed",
+  "device": "글루코 1004",
+  "note": "글루코 1004 · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/694",
+  "stratum": "band-seed",
+  "device": "도루코S / Premium",
+  "note": "도루코S / Premium · 기기당 4장 목표 · 2/3"
+ },
+ {
+  "id": "glucose_batch1/69",
+  "stratum": "band-seed",
+  "device": "미레 3.3G + II",
+  "note": "미레 3.3G + II · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/610",
+  "stratum": "band-seed",
+  "device": "오토-첵",
+  "note": "오토-첵 · 기기당 4장 목표 · 2/4"
+ },
+ {
+  "id": "glucose_batch1/1200",
+  "stratum": "band-seed",
+  "device": "ACCU-CHEK / Go",
+  "note": "ACCU-CHEK / Go · 기기당 4장 목표 · 2/3"
+ },
+ {
+  "id": "glucose_batch1/1388",
+  "stratum": "band-seed",
+  "device": "CareSens / II",
+  "note": "CareSens / II · 기기당 4장 목표 · 2/3"
+ },
+ {
+  "id": "glucose_batch1/860",
+  "stratum": "band-seed",
+  "device": "CareSens II Plus",
+  "note": "CareSens II Plus · 기기당 4장 목표 · 2/3"
+ },
+ {
+  "id": "glucose_batch2/2525",
+  "stratum": "band-seed",
+  "device": "ACCU-CHEK / Active / 사각배젤",
+  "note": "ACCU-CHEK / Active / 사각배젤 · 기기당 4장 목표 · 2/2"
+ },
+ {
+  "id": "glucose_batch2/2588",
+  "stratum": "band-seed",
+  "device": "HANDOK / BAROZEN II",
+  "note": "HANDOK / BAROZEN II · 기기당 4장 목표 · 2/2"
+ },
+ {
+  "id": "glucose_batch1/1329",
+  "stratum": "band-seed",
+  "device": "ACCU-CHEK / Active / 원형베젤",
+  "note": "ACCU-CHEK / Active / 원형베젤 · 기기당 4장 목표 · 3/3"
+ },
+ {
+  "id": "glucose_batch1/267",
+  "stratum": "band-seed",
+  "device": "ACCU-CHEK / Instant",
+  "note": "ACCU-CHEK / Instant · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/1801",
+  "stratum": "band-seed",
+  "device": "ACCU-CHEK / Performa / 빨강 둥근버튼",
+  "note": "ACCU-CHEK / Performa / 빨강 둥근버튼 · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/2471",
+  "stratum": "band-seed",
+  "device": "ACCU-CHEK / Performa / 은색 각진버튼",
+  "note": "ACCU-CHEK / Performa / 은색 각진버튼 · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/1081",
+  "stratum": "band-seed",
+  "device": "ACCU-CHEK / Performa Nano / 파랑 케이스",
+  "note": "ACCU-CHEK / Performa Nano / 파랑 케이스 · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/2358",
+  "stratum": "band-seed",
+  "device": "ACURA PLUS",
+  "note": "ACURA PLUS · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/1042",
+  "stratum": "band-seed",
+  "device": "ACURA VIEW",
+  "note": "ACURA VIEW · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/1246",
+  "stratum": "band-seed",
+  "device": "Auto-chek plus",
+  "note": "Auto-chek plus · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/99",
+  "stratum": "band-seed",
+  "device": "Boryung / CareTouch / 일반LCD",
+  "note": "Boryung / CareTouch / 일반LCD · 기기당 4장 목표 · 3/3"
+ },
+ {
+  "id": "glucose_batch1/2078",
+  "stratum": "band-seed",
+  "device": "CareSens Dual",
+  "note": "CareSens Dual · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/1899",
+  "stratum": "band-seed",
+  "device": "CareSens N Premier",
+  "note": "CareSens N Premier · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/1940",
+  "stratum": "band-seed",
+  "device": "CareSens N Voice",
+  "note": "CareSens N Voice · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/772",
+  "stratum": "band-seed",
+  "device": "CareSens PRO",
+  "note": "CareSens PRO · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/1242",
+  "stratum": "band-seed",
+  "device": "Dr.Diary+",
+  "note": "Dr.Diary+ · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch2/2537",
+  "stratum": "band-seed",
+  "device": "FORA",
+  "note": "FORA · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/1714",
+  "stratum": "band-seed",
+  "device": "GC 녹십자 MS / Green Check",
+  "note": "GC 녹십자 MS / Green Check · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/2500",
+  "stratum": "band-seed",
+  "device": "GC 녹십자 MS / Green Doctor",
+  "note": "GC 녹십자 MS / Green Doctor · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/312",
+  "stratum": "band-seed",
+  "device": "GC 녹십자 MS ONE",
+  "note": "GC 녹십자 MS ONE · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/838",
+  "stratum": "band-seed",
+  "device": "GluNEO plus",
+  "note": "GluNEO plus · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/1100",
+  "stratum": "band-seed",
+  "device": "Gluco Dr.TOP",
+  "note": "Gluco Dr.TOP · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/478",
+  "stratum": "band-seed",
+  "device": "Gluco Navii GDH",
+  "note": "Gluco Navii GDH · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch2/2517",
+  "stratum": "band-seed",
+  "device": "Gluco Navii NFC",
+  "note": "Gluco Navii NFC · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/848",
+  "stratum": "band-seed",
+  "device": "Gmate",
+  "note": "Gmate · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/1954",
+  "stratum": "band-seed",
+  "device": "HANDOK / BAROZEN",
+  "note": "HANDOK / BAROZEN · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/2440",
+  "stratum": "band-seed",
+  "device": "INFOPIA",
+  "note": "INFOPIA · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch2/2633",
+  "stratum": "band-seed",
+  "device": "KOOKMIN Check",
+  "note": "KOOKMIN Check · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/1224",
+  "stratum": "band-seed",
+  "device": "Link 0.3",
+  "note": "Link 0.3 · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/595",
+  "stratum": "band-seed",
+  "device": "MaeilzeN",
+  "note": "MaeilzeN · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/2307",
+  "stratum": "band-seed",
+  "device": "NOCODING ONE",
+  "note": "NOCODING ONE · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/2059",
+  "stratum": "band-seed",
+  "device": "NOCODING ONE PLUS",
+  "note": "NOCODING ONE PLUS · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/493",
+  "stratum": "band-seed",
+  "device": "On Call Extra",
+  "note": "On Call Extra · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/1049",
+  "stratum": "band-seed",
+  "device": "OneTouch / Ultra",
+  "note": "OneTouch / Ultra · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch2/2514",
+  "stratum": "band-seed",
+  "device": "SD CHECK GOLD",
+  "note": "SD CHECK GOLD · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/2151",
+  "stratum": "band-seed",
+  "device": "SD CHECK GOLD2",
+  "note": "SD CHECK GOLD2 · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/256",
+  "stratum": "band-seed",
+  "device": "SD CodeFree",
+  "note": "SD CodeFree · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/967",
+  "stratum": "band-seed",
+  "device": "STANDARD / CHECK GOLD PLUS",
+  "note": "STANDARD / CHECK GOLD PLUS · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/2443",
+  "stratum": "band-seed",
+  "device": "gDoctor",
+  "note": "gDoctor · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/797",
+  "stratum": "band-seed",
+  "device": "글루코 1004",
+  "note": "글루코 1004 · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/695",
+  "stratum": "band-seed",
+  "device": "도루코S / Premium",
+  "note": "도루코S / Premium · 기기당 4장 목표 · 3/3"
+ },
+ {
+  "id": "glucose_batch1/71",
+  "stratum": "band-seed",
+  "device": "미레 3.3G + II",
+  "note": "미레 3.3G + II · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/328",
+  "stratum": "band-seed",
+  "device": "오토-첵",
+  "note": "오토-첵 · 기기당 4장 목표 · 3/4"
+ },
+ {
+  "id": "glucose_batch1/1201",
+  "stratum": "band-seed",
+  "device": "ACCU-CHEK / Go",
+  "note": "ACCU-CHEK / Go · 기기당 4장 목표 · 3/3"
+ },
+ {
+  "id": "glucose_batch1/1221",
+  "stratum": "band-seed",
+  "device": "CareSens / II",
+  "note": "CareSens / II · 기기당 4장 목표 · 3/3"
+ },
+ {
+  "id": "glucose_batch1/883",
+  "stratum": "band-seed",
+  "device": "CareSens II Plus",
+  "note": "CareSens II Plus · 기기당 4장 목표 · 3/3"
+ },
+ {
+  "id": "glucose_batch1/1195",
+  "stratum": "band-seed",
+  "device": "ACCU-CHEK / Instant",
+  "note": "ACCU-CHEK / Instant · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/1793",
+  "stratum": "band-seed",
+  "device": "ACCU-CHEK / Performa / 빨강 둥근버튼",
+  "note": "ACCU-CHEK / Performa / 빨강 둥근버튼 · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/2460",
+  "stratum": "band-seed",
+  "device": "ACCU-CHEK / Performa / 은색 각진버튼",
+  "note": "ACCU-CHEK / Performa / 은색 각진버튼 · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/1060",
+  "stratum": "band-seed",
+  "device": "ACCU-CHEK / Performa Nano / 파랑 케이스",
+  "note": "ACCU-CHEK / Performa Nano / 파랑 케이스 · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/472",
+  "stratum": "band-seed",
+  "device": "ACURA PLUS",
+  "note": "ACURA PLUS · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/1995",
+  "stratum": "band-seed",
+  "device": "ACURA VIEW",
+  "note": "ACURA VIEW · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/401",
+  "stratum": "band-seed",
+  "device": "Auto-chek plus",
+  "note": "Auto-chek plus · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/1877",
+  "stratum": "band-seed",
+  "device": "CareSens Dual",
+  "note": "CareSens Dual · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/1903",
+  "stratum": "band-seed",
+  "device": "CareSens N Premier",
+  "note": "CareSens N Premier · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/1924",
+  "stratum": "band-seed",
+  "device": "CareSens N Voice",
+  "note": "CareSens N Voice · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/633",
+  "stratum": "band-seed",
+  "device": "CareSens PRO",
+  "note": "CareSens PRO · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/997",
+  "stratum": "band-seed",
+  "device": "Dr.Diary+",
+  "note": "Dr.Diary+ · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch2/2536",
+  "stratum": "band-seed",
+  "device": "FORA",
+  "note": "FORA · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/1718",
+  "stratum": "band-seed",
+  "device": "GC 녹십자 MS / Green Check",
+  "note": "GC 녹십자 MS / Green Check · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/1780",
+  "stratum": "band-seed",
+  "device": "GC 녹십자 MS / Green Doctor",
+  "note": "GC 녹십자 MS / Green Doctor · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/329",
+  "stratum": "band-seed",
+  "device": "GC 녹십자 MS ONE",
+  "note": "GC 녹십자 MS ONE · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/2003",
+  "stratum": "band-seed",
+  "device": "GluNEO plus",
+  "note": "GluNEO plus · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/851",
+  "stratum": "band-seed",
+  "device": "Gluco Dr.TOP",
+  "note": "Gluco Dr.TOP · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/381",
+  "stratum": "band-seed",
+  "device": "Gluco Navii GDH",
+  "note": "Gluco Navii GDH · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/128",
+  "stratum": "band-seed",
+  "device": "Gluco Navii NFC",
+  "note": "Gluco Navii NFC · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/932",
+  "stratum": "band-seed",
+  "device": "Gmate",
+  "note": "Gmate · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/1945",
+  "stratum": "band-seed",
+  "device": "HANDOK / BAROZEN",
+  "note": "HANDOK / BAROZEN · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/2398",
+  "stratum": "band-seed",
+  "device": "INFOPIA",
+  "note": "INFOPIA · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch2/2503",
+  "stratum": "band-seed",
+  "device": "KOOKMIN Check",
+  "note": "KOOKMIN Check · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/2399",
+  "stratum": "band-seed",
+  "device": "Link 0.3",
+  "note": "Link 0.3 · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/601",
+  "stratum": "band-seed",
+  "device": "MaeilzeN",
+  "note": "MaeilzeN · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/2312",
+  "stratum": "band-seed",
+  "device": "NOCODING ONE",
+  "note": "NOCODING ONE · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/2057",
+  "stratum": "band-seed",
+  "device": "NOCODING ONE PLUS",
+  "note": "NOCODING ONE PLUS · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/494",
+  "stratum": "band-seed",
+  "device": "On Call Extra",
+  "note": "On Call Extra · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/2119",
+  "stratum": "band-seed",
+  "device": "OneTouch / Ultra",
+  "note": "OneTouch / Ultra · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch2/2521",
+  "stratum": "band-seed",
+  "device": "SD CHECK GOLD",
+  "note": "SD CHECK GOLD · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/2202",
+  "stratum": "band-seed",
+  "device": "SD CHECK GOLD2",
+  "note": "SD CHECK GOLD2 · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/236",
+  "stratum": "band-seed",
+  "device": "SD CodeFree",
+  "note": "SD CodeFree · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/969",
+  "stratum": "band-seed",
+  "device": "STANDARD / CHECK GOLD PLUS",
+  "note": "STANDARD / CHECK GOLD PLUS · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/1999",
+  "stratum": "band-seed",
+  "device": "gDoctor",
+  "note": "gDoctor · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/784",
+  "stratum": "band-seed",
+  "device": "글루코 1004",
+  "note": "글루코 1004 · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/33",
+  "stratum": "band-seed",
+  "device": "미레 3.3G + II",
+  "note": "미레 3.3G + II · 기기당 4장 목표 · 4/4"
+ },
+ {
+  "id": "glucose_batch1/549",
+  "stratum": "band-seed",
+  "device": "오토-첵",
+  "note": "오토-첵 · 기기당 4장 목표 · 4/4"
+ }
+]
