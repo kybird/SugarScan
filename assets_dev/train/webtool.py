@@ -1022,6 +1022,37 @@ def api_selftest(qs):
     return report
 
 
+# ---- 아틀라스 프록시 ----------------------------------------------------
+# make_failure_atlas.py --serve 는 별도 서버(기본 8790)다. 편집 백엔드가 따로
+# 있어(agent_review.json 저장) 이 서버로 흡수하지 않고 **주소만 합친다**.
+# iframe 을 8790 으로 직접 물리면 출처가 달라(localhost:8777 vs 127.0.0.1:8790)
+# 브라우저에 따라 프레임이 비어 보인다. 그래서 같은 출처로 중계한다.
+# 아틀라스 페이지가 쓰는 경로는 /imgs/* · /api/cases · /api/review 뿐이고
+# 이 서버에는 셋 다 없다 — 충돌하지 않는다(2026-09-11 확인).
+ATLAS_PORT = 8790
+ATLAS_PATHS = ("/imgs/", "/api/cases", "/api/review")
+
+
+def _atlas_proxy(handler, path, method="GET", body=None):
+    import http.client
+    try:
+        c = http.client.HTTPConnection("127.0.0.1", ATLAS_PORT, timeout=10)
+        c.request(method, path, body=body,
+                  headers={"Content-Type": "application/json"} if body else {})
+        r = c.getresponse()
+        data = r.read()
+        ctype = r.getheader("Content-Type", "application/octet-stream")
+        handler._send(r.status, data, ctype)
+    except OSError:
+        # 서버가 안 떠 있는 것은 오류가 아니라 정상 상태다 — 안내를 띄운다.
+        handler._send(503, ("아틀라스 서버(포트 %d)가 떠 있지 않다. "
+                            "cd assets_dev/train && conda run -n sugartrain "
+                            "python make_failure_atlas.py --serve "
+                            "--data-root D:/Project/sugarScan/assets_dev/train"
+                            % ATLAS_PORT).encode("utf-8"),
+                      "text/plain; charset=utf-8")
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         pass  # 요청 로그 조용히 (콘솔에 학습 로그만)
@@ -1041,6 +1072,12 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         u = urlparse(self.path)
         qs = parse_qs(u.query)
+        if u.path == "/atlas":
+            _atlas_proxy(self, "/")
+            return
+        if u.path.startswith(ATLAS_PATHS):
+            _atlas_proxy(self, self.path)
+            return
         if u.path == "/" or u.path == "/index.html":
             if HTML.exists():
                 self._send(200, HTML.read_bytes(), "text/html; charset=utf-8")
@@ -1121,7 +1158,11 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         u = urlparse(self.path)
         ln = int(self.headers.get("Content-Length", 0))
-        body = json.loads(self.rfile.read(ln) or b"{}")
+        raw = self.rfile.read(ln) or b"{}"
+        if u.path.startswith(ATLAS_PATHS):
+            _atlas_proxy(self, self.path, "POST", raw)
+            return
+        body = json.loads(raw)
         if u.path == "/api/label":
             mode = body.get("mode", "band")
             p = BAND_FILE if mode == "band" else LCD_FILE
