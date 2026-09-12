@@ -1,10 +1,8 @@
 ---
 title: 공개 mmol/L 혈당계 화면 데이터셋 조사
-status: doing
+status: done
 ordinal: 15000
 created: 2026-09-11
-claimed_by: glm
-claimed_at: 2026-09-11T20:08-07:00
 ---
 
 ## Goal
@@ -14,9 +12,9 @@ claimed_at: 2026-09-11T20:08-07:00
 
 ## Acceptance Criteria
 <!-- kanban:ac:begin -->
-- [ ] #1 후보 데이터셋마다 출처 URL·라이선스 원문·총 장수·mmol/L 소수점 표시 장수 추정이 표로 정리된다
-- [ ] #2 라이선스가 확인되지 않은 후보는 '미확인'으로 남고 확인된 것처럼 적히지 않는다
-- [ ] #3 우리 파이프라인에 넣으려면 추가로 필요한 작업(GM 박스 quad 라벨링 등)과 그 대략 분량이 후보마다 적힌다
+- [x] #1 후보 데이터셋마다 출처 URL·라이선스 원문·총 장수·mmol/L 소수점 표시 장수 추정이 표로 정리된다
+- [x] #2 라이선스가 확인되지 않은 후보는 '미확인'으로 남고 확인된 것처럼 적히지 않는다
+- [x] #3 우리 파이프라인에 넣으려면 추가로 필요한 작업(GM 박스 quad 라벨링 등)과 그 대략 분량이 후보마다 적힌다
 <!-- kanban:ac:end -->
 
 ## Plan
@@ -30,3 +28,4 @@ claimed_at: 2026-09-11T20:08-07:00
 ## Handoff
 
 ## Result
+- 2026-09-11T20:27-07:00 — 조사 완료(docs/reports/public-mmol-dataset-survey-2026-09-11.md). mmol/L 소수점 실츬 공개 출처는 Oxford/Finnegan 2019 zip 하나뿐인데 라이선스 미확인 + 공식 링크 사망(302→랩홈, 신호스트 404, 웹아카이브 백업 없음) — 확보는 저자 연락뿐. 혈당계 132장(One Touch Ultra Mini, 12.8 mmol/L 등 소수점 표시, 원본 미확인)·2Ai 1,614장은 요청제+CC BY-NC-ND·DataCluster Labs 3,000+장은 CC0 표기와 배타적 소유 주장 병기. 세 후보 모두 소수점 클래스 없음. 반입 여부는 사람 판정.
