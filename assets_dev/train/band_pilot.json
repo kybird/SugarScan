@@ -1731,158 +1731,433 @@
  },
  {
   "id": "glucose_batch1/1046",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=3.58"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/1091",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=3.50"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/1593",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.43"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/1596",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.67"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/1598",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.64"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/1602",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.78"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/1604",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.59"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/1605",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.66"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/1607",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.66"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/1609",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.73"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/1610",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.69"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/1611",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.51"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/1612",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.64"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/1613",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.64"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/1614",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.66"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/1615",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.73"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/1616",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.57"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/1617",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.50"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/1618",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.66"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/1619",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.60"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/1620",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.52"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/1622",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.05"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/1624",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.07"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/1627",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=1.96"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/1815",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.09"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/1822",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=1.92"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/1826",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=1.71"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/606",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=3.53"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/950",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.78"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/951",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.57"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/956",
-  "stratum": "wide",
-  "note": "가로 화면 w/h=2.80"
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/1588",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/1",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/10",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/100",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/1000",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/1001",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/1002",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/1003",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/1004",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/1005",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/1006",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/1007",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/1008",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/1009",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/101",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/1010",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/1011",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/1012",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/1013",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/1014",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/1015",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/1016",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/1044",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/1094",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/126",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/134",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/1564",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/1565",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/1590",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/2198",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/2210",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/2221",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/2317",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/2319",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/233",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/235",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/2371",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/2391",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/2431",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/2489",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/607",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/700",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/703",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/713",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/716",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/722",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/726",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/808",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/92",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/952",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/953",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/954",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/955",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/96",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
+ },
+ {
+  "id": "glucose_batch1/97",
+  "stratum": "band-redraw",
+  "note": "재라벨 — 숫자 필드 전체로(기존 라벨은 값에 붙여 그려짐)"
  },
  {
   "id": "glucose_batch1/1241",
@@ -1918,11 +2193,6 @@
   "id": "glucose_batch1/1174",
   "stratum": "misread",
   "note": "오독 137->131"
- },
- {
-  "id": "glucose_batch1/1588",
-  "stratum": "misread",
-  "note": "오독 103->101"
  },
  {
   "id": "glucose_batch1/40",
