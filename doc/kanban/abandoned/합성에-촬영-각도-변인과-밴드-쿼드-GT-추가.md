@@ -1,9 +1,10 @@
 ---
 title: 합성에 촬영 각도 변인과 밴드 쿼드 GT 추가
-status: todo
+status: abandoned
 ordinal: 23000
 created: 2026-09-11
 depends_on: ["합성을 물리 패널 기준으로 재구성"]
+discard_reason: 「합성을 물리 패널 기준으로 재구성」에 흡수. 키스톤·회전·밴드 쿼드 GT 가 모두 그 카드의 AC 에 들어가 있어 같은 코드를 두 번 고치게 된다. 각도는 워프 전 패널 단계에서 걸어야 하므로 패널 재구성과 분리할 수 없다.
 ---
 
 ## Goal

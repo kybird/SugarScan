@@ -19,6 +19,7 @@ CTC 리더의 온디바이스 추론을 위한 Flutter ONNX 런타임 패키지�
 
 ## Notes
 - 2026-09-10T11:06-07:00 — 사람 판정 2026-09-10 (Claude): flutter_onnxruntime 유지. 근거 — 이미 pubspec.yaml:21 에 ^1.8.3 으로 있고 docs/LICENSES.md 에서 ONNX Runtime MIT 실사가 2026-08-21 에 끝나 있다(flutter_onnxruntime 경유로 명시). onnxruntime_flutter 로 바꾸면 닫힌 라이선스 실사를 다시 열어야 하는데 바꿀 이유가 제시된 바 없다. 성능 근거 없이 의존성을 갈아타지 않는다. 벤치 시점: 통합 직후 실기기 1대에서 재고, 벤치 전에는 패키지를 바꾸지 않는다 — 바꾼 뒤 재면 무엇이 달라졌는지 갈리지 않는다. 벤치가 실제로 문제를 보이면 그때 대안을 연다.
+- 2026-09-11T23:58-07:00 — 판정 2026-09-12 — 스파이크 벤치 결과 대기. 그 카드가 새 리더 뒤로 미뤄졌으므로 이 카드도 함께 미뤄진다. 새 패키지 도입은 여전히 승인제다. 무인 에이전트는 잡지 마라.
 
 ## Handoff
 - 2026-09-09T23:43-07:00 — QUESTION: ONNX 방향은 확정됨(86d3dbe, tflite 불가 — docs/DONE.md G28). Flutter ONNX 런타임 패키지를 무엇으로 할지(onnxruntime_flutter · flutter_onnxruntime 등), 모바일 벤치마크(p50/p95·메모리, 강화 프롬프트 §34)를 언제 돌릴지 결정이 필요하다. 새 패키지 도입은 승인제다.
