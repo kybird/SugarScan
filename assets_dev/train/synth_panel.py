@@ -119,9 +119,11 @@ LCD_TOKENS = {
 }
 LCD_UNITS = ["mg/dL", "mg /dL", "mg/dl"]   # 843(gmate), 1991, 1058, 1903, #33 99
 LCD_ICONS = ["battery", "bluetooth", "curved-right", "curved-left",
-             "tri-right", "triangle", "blood-drop", "mem-flag", "smile"]
+             "tri-right", "tri-down", "triangle", "blood-drop", "mem-flag",
+             "smile"]
 # 베젤 인쇄(액정 밖 링 전용) — 지시서 베젤 목록 중 프로파일이 있는 것만.
 BEZEL_TEXTS = {
+    "accuchek_active": ["Active"],
     "dorucos_premium": ["Premium"],
     "green_doctor": ["GREEN Doctor"],
     "onetouch_ultra": ["ONETOUCH Ultra", "LIFESCAN"],
@@ -138,8 +140,12 @@ _BEZEL_FONTS = [cv2.FONT_HERSHEY_SIMPLEX, cv2.FONT_HERSHEY_TRIPLEX,
 # 반전을 추측으로 매기는 쪽이 더 위험하다. generic_v1 은 기기 미상의 잔여 풀이므로
 # 렌더마다 실측 코퍼스 반전률 27.4%로 뽑는다(기기 속성이 없으니 기기 일관성
 # 제약도 없다 — 이 판단과 근거는 보고서에 적는다).
+# inverted="mixed" 는 실측에서 두 상태가 모두 관찰된 기기 — 렌더마다 mixed_p 로
+# 뽑는다. ACCU-CHEK Active: 밴드 라벨 2장 중 1장 반전(measure_polarity).
+# 기기 특성상 백라이트 유무로 두 상태가 나타나는 것으로 보인다(n=2, 표본 작음).
 PANEL_ATTRS = {
-    "performa_silver": dict(inverted=True),   # Performa Nano 3/3 반전
+    "performa_silver": dict(inverted=True),       # Performa Nano 3/3 반전
+    "accuchek_active": dict(inverted="mixed", mixed_p=0.5),
 }
 GENERIC_INVERTED_P = 0.274
 
@@ -297,11 +303,14 @@ def render_panel(value, rng, profile=None):
         profile = PROFILES[rng.randrange(len(PROFILES))]
     pid = profile.get("id", "generic_v1")
     if profile.get("legacy"):
-        profile = dict(id="generic_v1", slots=3, align="right", italic=False)
+        profile = dict(id="generic_v1", slots=(2, 3), align="right",
+                       italic=False)
         pid = "generic_v1"
     attrs = PANEL_ATTRS.get(pid, {})
     if pid == "generic_v1":
         inverted = rng.random() < GENERIC_INVERTED_P
+    elif attrs.get("inverted") == "mixed":
+        inverted = rng.random() < attrs.get("mixed_p", 0.5)
     else:
         inverted = bool(attrs.get("inverted", False))
     target = REAL_DENSITY[rng.randrange(len(REAL_DENSITY))]
@@ -375,7 +384,10 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
     #    panel_23000_213, 가로형 + margin 33).
     key = "portrait" if wh < 1.0 else "wide"
     g = BAND_GEOM[key]
-    slots = max(profile.get("slots") or len(label), len(label))
+    slots_spec = profile.get("slots") or len(label)
+    slots = rng.choice(list(slots_spec)) if isinstance(slots_spec, (tuple,
+                                                                    list))         else slots_spec
+    slots = max(slots, len(label))
     pw, ph = px1 - px0, py1 - py0
     band_h_frac = rng.uniform(*g["h"])
     band_h = band_h_frac * ph
