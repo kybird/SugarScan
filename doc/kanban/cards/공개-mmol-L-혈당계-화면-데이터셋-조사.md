@@ -1,8 +1,10 @@
 ---
 title: 공개 mmol/L 혈당계 화면 데이터셋 조사
-status: todo
+status: doing
 ordinal: 15000
 created: 2026-09-11
+claimed_by: glm
+claimed_at: 2026-09-11T20:08-07:00
 ---
 
 ## Goal

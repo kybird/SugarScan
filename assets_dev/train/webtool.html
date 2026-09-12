@@ -293,7 +293,7 @@ const MODES = {
   lcd:  { labelKind: "gm",   flag: "lcd",  name: "LCD",
           meaning: "이 모드의 박스 = LCD 화면 전체 (숫자+단위+시간줄 포함) — 모델이 못 찾은 장(파란 박스 없음)부터 표시" },
   band: { labelKind: "gm",   flag: "band", name: "밴드",
-          meaning: "이 모드의 박스 = 측정값 숫자줄만 (시간줄·날짜·배터리·mem 제외. 단위 mg/dL 은 붙어 있으면 포함)" },
+          meaning: "이 모드의 박스 = 그 기기의 숫자 칸 전체(보통 3칸). 값이 2자리여도 빈 칸 포함 — 보이는 숫자의 칸 간격만큼 왼쪽으로 연장. 단위 mg/dL·시간줄·날짜·배터리·mem·아이콘은 위든 아래든 옆이든 전부 제외" },
 };
 const IMG_W = 1920;
 const lb = {
