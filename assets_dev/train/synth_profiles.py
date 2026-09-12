@@ -215,11 +215,48 @@ PROFILES = [
         icons=[("battery", "top-right", 0.4), ("blood-drop", "right-mid", 0.3)],
     ),
     dict(
+        id="accuchek_active", slots=3, align="center", italic=False,
+        digit_h=(0.48, 0.58),
+        evidence=["glucose_batch1/1329", "glucose_batch2/2502",
+                  "glucose_batch2/2513", "glucose_batch2/2519"],
+        # 상단에 시간(왼쪽)·날짜(오른쪽) 작은 줄, 숫자는 중앙 대형,
+        # mg/dL 은 숫자 아래 오른쪽(1329 '0:00 0-0' + 하단 mg/dL 관찰).
+        unit=dict(texts=["mg/dL"], pos="below", gap=(4, 12),
+                  h_ratio=(0.12, 0.16), p=0.9),
+        time=dict(pos="top-left", p=0.85),
+        daterow=dict(p=0.8),
+        bezel=dict(texts=["Active"], edge="top", p=0.6),
+    ),
+    dict(
+        id="gluneo_plus", slots=3, align="center", italic=False,
+        digit_h=(0.50, 0.60),
+        evidence=["glucose_batch1/1435", "glucose_batch1/1438",
+                  "glucose_batch1/1440", "glucose_batch1/1449"],
+        # 대형 중앙 숫자, mg/dL 은 숫자 아래 오른쪽, 하단 줄 왼쪽에 아래
+        # 화살표 아이콘 + 오른쪽 시간(1435~1449 전 관찰). 온도 표기 '28C' 는
+        # 화이트리스트 밖이라 렌더하지 않는다(보고서 명시).
+        unit=dict(texts=["mg/dL"], pos="below", gap=(4, 12),
+                  h_ratio=(0.12, 0.16), p=0.9),
+        time=dict(pos="below-right", p=0.9),
+        arrow=dict(kinds=["tri-down"], gap=(4, 10), size=(10, 16),
+                   pos="below-left", p=0.85),
+    ),
+    dict(
         id="generic_v1", legacy=True, evidence=[],
         # 기존 무작위 레이아웃(synth_lcd.render_screen) 그대로. 8종 프로파일에
         # 없는 배치의 다양성 하한을 지킨다.
+        slots=(2, 3),   # 익명 풀은 칸 수도 흔든다(카드 AC#3)
     ),
 ]
+
+
+def sample_corpus_value(rng):
+    """값 샘플 — 코퍼스 자릿수 비율 반영(카드 「프로파일 확장」 AC#3).
+    2,512행 실측: 2자리 20.5%, 3자리 79.5%(2026-09-12 measure_polarity digits).
+    균일 randint(30, 511) 는 2자리가 14.5% 로 과소 대표됐다."""
+    if rng.random() < 0.205:
+        return rng.randint(30, 99)
+    return rng.randint(100, 511)
 
 
 def dot_text(img, x, y, text, glyph, ink):
@@ -265,6 +302,11 @@ def _icon(img, kind, cx, cy, s, ink):
         cv2.ellipse(img, (cx + s // 3, cy), (s // 2, s // 2), 0, 105, 255,
                     ink, 1, cv2.LINE_AA)
         _tri(img, cx - s // 6, cy - s // 2 + 2, 4, ink, "down")
+    elif kind == "tri-down":
+        # 아래 화살표 — GluNEO plus 하단 시간줄 왼쪽(1435·1438·1440·1449 관찰)
+        pts = np.array([[cx, cy + s], [cx - s, cy - s], [cx + s, cy - s]],
+                       np.int32)
+        cv2.fillPoly(img, [pts], ink)
     elif kind in ("tri-right", "triangle"):
         _tri(img, cx, cy, max(3, s // 2), ink, "right")
     elif kind == "battery":
@@ -315,8 +357,13 @@ def render_profiled(value, rng, profile, size=(320, 160)):
                   thickness=bez)
 
     # 숫자 필드: slots 칸 전체(값이 아니라 칸 — 밴드 정의 2026-09-11 과 동일).
-    # 앞쪽 빈 칸은 꺼진 슬롯으로 남는다.
-    slots = profile.get("slots") or len(label)
+    # 앞쪽 빈 칸은 꺼진 슬롯으로 남는다. slots 에 튜플을 허용한다 — 카드
+    # 「프로파일 확장」 AC#3: 칸 수가 3으로 고정되지 않게(익명 풀 등).
+    slots_spec = profile.get("slots") or len(label)
+    slots = rng.choice(list(slots_spec)) if isinstance(slots_spec, (tuple,
+                                                                    list)) \
+        else slots_spec
+    slots = max(slots, len(label))
     dh = int(H * rng.uniform(*profile["digit_h"]))
     dw = int(dh * 0.58)
     pitch = dw + int(dw * 0.25)
@@ -414,9 +461,15 @@ def render_profiled(value, rng, profile, size=(320, 160)):
     if a and rng.random() < a["p"]:
         s = int(rng.uniform(*a["size"]))
         gap = int(rng.uniform(*a["gap"]))
-        ax = min(W - s, last_r + gap)
-        ay = y0 + int(dh * rng.uniform(0.15, 0.55))
-        _icon(img, a["kinds"][rng.randrange(len(a["kinds"]))], ax, ay, s, ink_small)
+        kind = a["kinds"][rng.randrange(len(a["kinds"]))]
+        if a.get("pos") == "below-left":
+            # 숫자 아래 왼쪽 — GluNEO plus 하단 화살표(1435 등 4장 관찰)
+            ax = int(W * rng.uniform(0.06, 0.14))
+            ay = y0 + dh + int(H * rng.uniform(0.05, 0.09))
+        else:
+            ax = min(W - s, last_r + gap)
+            ay = y0 + int(dh * rng.uniform(0.15, 0.55))
+        _icon(img, kind, ax, ay, s, ink_small)
 
     for kind, pos, p in profile.get("icons", []):
         if rng.random() > p:
@@ -451,8 +504,19 @@ def render_profiled(value, rng, profile, size=(320, 160)):
         th = int(dh * rng.uniform(0.28, 0.42))
         ty = y0 + dh + int(H * rng.uniform(0.04, 0.08))
         hh = f"{rng.randint(0, 23):02d}:{rng.randint(0, 59):02d}"
-        tx = int(W * rng.uniform(0.5, 0.65)) if t["pos"] == "below-right" \
-            else int(W * rng.uniform(0.06, 0.30))
+        if t["pos"] == "below-right":
+            tx = int(W * rng.uniform(0.5, 0.65))
+        elif t["pos"] == "top-left":
+            # 숫자 위 왼쪽 — ACCU-CHEK Active 상단 시간줄(1329·2519 관찰)
+            tx = int(W * rng.uniform(0.06, 0.15))
+            ty = max(th, y0 - int(H * rng.uniform(0.10, 0.16)))
+        elif t["pos"] == "top-right":
+            tx = int(W * rng.uniform(0.68, 0.80))
+            ty = max(th, y0 - int(H * rng.uniform(0.10, 0.16)))
+        elif t["pos"] == "below-right":
+            pass
+        else:
+            tx = int(W * rng.uniform(0.06, 0.30))
         put_7seg_text(img, tx, ty, int(W * 0.3), th, hh, ink_small)
 
     if profile.get("avgrow", {}).get("p", 0) > rng.random():
@@ -539,7 +603,7 @@ def generate_profiled(count, seed0, out_dir, size=(320, 160)):
     (out / "images").mkdir(parents=True, exist_ok=True)
     labels = {}
     for i in range(count):
-        val = rng.randint(30, 511)
+        val = sample_corpus_value(rng)
         img, label = render_any(val, rng, size)
         name = f"synth_{seed0}_{i}"
         cv2.imwrite(str(out / "images" / f"{name}.png"), img)
