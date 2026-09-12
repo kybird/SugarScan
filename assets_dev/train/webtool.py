@@ -47,12 +47,9 @@ BAND_QUADS = HERE / "datumo_quads_v2.jsonl"  # v2 밴드 모델 예측(도메인
 # 라벨러 힌트 전용(점선 제안). 표시(EXIF 적용) 좌표계 — convert_quads_oriented.py
 # 의 정정문 참조. **캐시 정본인 gmscreen_quads.jsonl 과 별개다** — 이 파일을
 # 바꿔도 data_cache_v2.npz 는 영향받지 않는다(build_cache_v2.py:146 은 정본을 읽는다).
-# 2026-09-11: base -> ft3 로 교체. 사람 LCD 라벨 대조에서 ft3 가 전 지표 우세
-# (IoU 중앙 0.795->0.828 · >=0.9 7.4->10.4% · >=0.75 65.6->76.3% · <0.3 0.5->0.0%).
-# ft4 는 퇴보라 쓰지 않는다(0.761 · 5.0% · 55.7% · 1.3%).
-# 주의: 이 대조 표본은 두 모델의 학습 데이터와 겹친다(ft3 가 116장 더 많이 봤다).
-# 힌트 품질 선택에는 충분하지만 검출기 성능 수치로 인용하지 말 것.
-GM_QUADS = HERE / "gmscreen_quads_ft3_oriented.jsonl"
+# 2026-09-12: ft3 가 정본으로 승격돼 별도 힌트 파일이 필요 없어졌다.
+# gmscreen_quads.jsonl(정본) -> convert_quads_oriented.py -> 이 파일. 한 갈래다.
+GM_QUADS = HERE / "gmscreen_quads_oriented.jsonl"
 TRAIN_LOG = HERE / "ctc_train_gpu.log"
 RESUME_STATE = HERE / "checkpoints_v2" / "resume_state.json"
 HOLDOUT = HERE / "reader_preds.json"
