@@ -53,6 +53,7 @@ import sys
 from pathlib import Path
 
 import cv2
+import zlib
 import numpy as np
 
 HERE = Path(__file__).resolve().parent
@@ -117,6 +118,9 @@ LCD_TOKENS = {
     "OK", "CHECK", "STRIP",   # 120, 694, 695 (도루코 도트줄)
     "am", "pm", "AM", "PM",   # 497
 }
+
+# 같은 라벨 부류의 표기 변형. 기기는 이 중 하나만 쓴다.
+_MEM_VARIANTS = {"M", "mem", "memory"}
 LCD_UNITS = ["mg/dL", "mg /dL", "mg/dl"]   # 843(gmate), 1991, 1058, 1903, #33 99
 LCD_ICONS = ["battery", "bluetooth", "curved-right", "curved-left",
              "tri-right", "tri-down", "triangle", "blood-drop", "mem-flag",
@@ -156,11 +160,25 @@ def sample_wh(rng):
     return rng.uniform(lo, hi)
 
 
+# 코퍼스 값 분포 실측(labels.jsonl 2,512행, 2026-09-12). 자릿수 비율만 맞추고
+# 구간 안을 균등으로 뽑으면 큰 값이 과대표집된다 — randint(100,511) 균등은
+# 200 이상을 3자리의 76%로 만드는데 실측은 8.0%다. 구간까지 실측을 따른다.
+_VALUE_BINS = [
+    ((30, 70), 0.023), ((70, 100), 0.181), ((100, 130), 0.385),
+    ((130, 160), 0.211), ((160, 200), 0.119), ((200, 300), 0.062),
+    ((300, 512), 0.018),
+]
+
+
 def sample_value(rng):
-    """코퍼스 자릿수 분포: 2자리 20.5%, 3자리 79.5%(2,512행 실측)."""
-    if rng.random() < 0.205:
-        return rng.randint(30, 99)
-    return rng.randint(100, 511)
+    """코퍼스 값 분포(2,512행 실측): 중앙 121 · 100 미만 20.5% · 200 이상 8.0%."""
+    r = rng.random()
+    acc = 0.0
+    for (lo, hi), w in _VALUE_BINS:
+        acc += w
+        if r <= acc:
+            return rng.randint(lo, hi - 1)
+    return rng.randint(100, 129)
 
 
 class Placer:
@@ -363,13 +381,17 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
         bh = max(8, int(m * 0.55))
         text = BEZEL_TEXTS[pid][rng.randrange(len(BEZEL_TEXTS[pid]))]
         scale = bh / 22.0
-        (tw, thh), _ = cv2.getTextSize(text, _BEZEL_FONTS[0], scale, 1)
-        if tw < W - 2 * m - 8:
+        # getTextSize 의 두 번째 반환값은 baseline 아래 descent 다. 그것을 버리면
+        # p·m 같은 글자가 링을 넘어 액정으로 흘러든다(2026-09-12 결함 (4)).
+        (tw, thh), bl = cv2.getTextSize(text, _BEZEL_FONTS[0], scale, 1)
+        if tw < W - 2 * m - 8 and thh + bl <= m - 2:
             bx = m + int((W - 2 * m - tw) * rng.uniform(0.15, 0.6))
+            # 글자 상자 전체 높이(thh + descent)를 링 안에 넣는다.
+            box = thh + bl
             if rng.random() < 0.6:      # 아랫링 우세(실물 관례)
-                by = H - m + (m - thh) // 2
+                by = H - m + (m - box) // 2
             else:
-                by = (m - thh) // 2
+                by = (m - box) // 2
             cv2.putText(img, text, (bx, by + thh), _BEZEL_FONTS[0], scale,
                         int(rng.uniform(120, 200)), 1, cv2.LINE_AA)
             bezel_text = text
@@ -422,7 +444,10 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
 
     # ── 숫자 — DSEG, 균일 압축. 이탤릭은 폰트 변형(전역 shear 없음) ────────
     variant = _pick_variant(rng, bool(profile.get("italic")))
-    ghost = rng.uniform(0.08, 0.16) if rng.random() < 0.3 else 0.0
+    # 잔상 하향(2026-09-12): 2자리 값 실사진 3종(GC 녹십자 MS ONE 55 ·
+    # SD CodeFree 84 · Gmate 98)에서 빈 앞칸에 아무 흔적이 없었다. 확률 0.3 ·
+    # 농도 0.16 은 켜진 획과 구분이 어려울 만큼 자주·진하다.
+    ghost = rng.uniform(0.04, 0.11) if rng.random() < 0.15 else 0.0
     glyph_cache = {}
     glyph_plane = np.zeros((H, W), np.uint8)
     align = profile.get("align", "right")
@@ -454,7 +479,16 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
     # ── 액정 요소 — 전부 실폭 재서 배치, 패널 밖으로 못 나가게(AC#12) ──────
     u = profile.get("unit")
     if u and rng.random() < u["p"]:
-        ut = LCD_UNITS[rng.randrange(len(LCD_UNITS))]   # 관찰된 변형만(AC#15)
+        # 단위 표기는 기기의 성질이다 — 같은 기기가 어떤 장은 mg/dL, 어떤 장은
+        # mg/dl 이면 실물에 없는 변형을 가르친다(2026-09-12 정정). 프로파일이
+        # 선언한 texts 를 쓰고, 여러 개면 프로파일 id 로 결정적으로 고른다.
+        # 미식별 잔여 풀(generic_v1)만 전역 변형에서 뽑는다 — 그건 여러 기기를
+        # 뭉뚱그린 풀이라 장마다 달라도 된다.
+        _uts = u.get("texts")
+        if _uts:
+            ut = _uts[zlib.crc32(pid.encode("utf-8")) % len(_uts)]
+        else:
+            ut = LCD_UNITS[rng.randrange(len(LCD_UNITS))]
         uh = max(7, int(dh * rng.uniform(*u["h_ratio"])))
         ug = int(rng.uniform(*u["gap"]))
         (tw, _), _b = cv2.getTextSize(ut, cv2.FONT_HERSHEY_SIMPLEX, uh / 22.0,
@@ -492,6 +526,10 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
             _draw_text(img, r[0], r[1], mt, mh, ink_small, "meal")
             used_texts.add(mt)
 
+    # 메모리 표기(mem/memory/M)는 한 기기에 한 종류다 — 문자열이 달라도 같은
+    # 라벨 부류이므로 하나를 쓰면 부류 전체를 소진 처리한다. used_texts 가
+    # 문자열 단위라 이 처리를 빼면 mem 과 memory 가 한 화면에 같이 뜬다
+    # (2026-09-12 montage_fix3 실측 — 12장 중 5장).
     mk = profile.get("mem")
     if mk and rng.random() < mk["p"]:
         mh = max(8, int(dh * 0.22))
@@ -514,12 +552,12 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
                 cv2.rectangle(img, (r[0] - 2, r[1]), (r[0] + mh + 2, r[3]),
                               ink_small, 1)
                 _draw_text(img, r[0], r[1], "M", mh, ink_small, "mem")
-                used_texts.add("M")
+                used_texts |= _MEM_VARIANTS
             else:
                 t = {"mem": "mem", "memory": "memory", "M": "M"}.get(
                     mk["kind"], "M")
                 _draw_text(img, r[0], r[1], t, mh, ink_small, "mem")
-                used_texts.add(t)
+                used_texts |= _MEM_VARIANTS
 
     gl = profile.get("glulabel")
     if gl and rng.random() < gl.get("p", 0):
@@ -628,20 +666,32 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
     # ── 밀도 채움 — 실관찰 요소만(인쇄 라벨·도트 시간줄·아이콘), Placer 검사.
     #    목표는 실사진 84장 분포에서 재표본한 값. 자는 measure_panel_stats 와
     #    동일(AC#4).
-    filler_pool = ["OK", "CHECK STRIP", "GLU", "mem"]
+    # 채움 문자열은 근거가 있는 자리에서만 쓴다(2026-09-12 정정). GLU 는 위쪽
+    # 전용 배치 경로가 따로 있고(green_doctor·gc_ms_one 근거), OK/CHECK STRIP 은
+    # 도루코 도트줄(120·694·695)에서만 관찰된 문자열이다. 아무 데나 뿌리면
+    # 실물에 없는 배치를 가르친다 — 1판에서 GLU 가 우하단에 떠다녔다.
+    # 실사진에서 자유롭게 떠다니는 짧은 라벨은 메모리 표기 계열뿐이다. 밀도는
+    # 도트 시간/날짜줄과 아이콘이 채워야 한다 — 텍스트로 채우면 같은 단어가
+    # 거의 매 장에 붙는다(2026-09-12 1차 수정의 부작용: mem 이 12장 중 11장).
+    # 도트 시간/날짜줄은 실사진에서 보통 한 줄, 많아야 두 줄이다. 밀도를
+    # 도트줄로 채우게 바꾸니 한 화면에 서너 개가 붙었다(2026-09-12 부작용).
+    dot_rows = 0
+    filler_pool = ["mem", "memory"]
+    if profile.get("id") == "dorucos_premium":
+        filler_pool = filler_pool + ["OK", "CHECK STRIP"]
     for attempt in range(48):
         if attempt % 3 == 0 or attempt == 47:
             d = _density_outside(img, quad)
             if d is not None and d >= fill_target:
                 break
         kind = rng.random()
-        if kind < 0.5:
+        if kind < 0.62 and dot_rows < 2:
             text = _dot_time_text(rng)
             glyph = max(4, int(dh * rng.uniform(0.10, 0.16)))
             wpx = max(16, int(len(text) * glyph * 1.2))
             hpx = glyph * 2 + 4
             draw = ("dot", text, glyph)
-        elif kind < 0.8:
+        elif kind < 0.70:   # 텍스트 채움은 드물게 — 후보가 적어 반복이 티난다
             fresh = [t for t in filler_pool if t not in used_texts]
             if not fresh:
                 continue
@@ -682,10 +732,13 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
             if draw[0] == "dot":
                 dot_text(img, r[0], r[1], draw[1], draw[2], ink_small)
                 used_texts.add(draw[1])
+                dot_rows += 1
             elif draw[0] == "print":
                 _draw_text(img, r[0], r[1], draw[1], draw[2], ink_small,
                            "filler")
                 used_texts.add(draw[1])
+                if draw[1] in _MEM_VARIANTS:
+                    used_texts |= _MEM_VARIANTS
             else:
                 _icon(img, draw[1], (r[0] + r[2]) // 2, (r[1] + r[3]) // 2,
                       draw[2], ink_small)
@@ -706,7 +759,9 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
                   0, 255).astype(np.uint8)
     if rng.random() < 0.35:
         img = add_local_shadow(img, rng)
-    for _ in range(rng.randint(1, 2)):
+    # 개수도 줄인다(2026-09-12): 크기만 줄였더니 작은 얼룩이 서너 개 겹쳐
+    # 실물에 없는 반점 무늬가 됐다. 대부분 0~1개, 가끔 2개.
+    for _ in range(rng.choice([0, 0, 1, 1, 1, 2])):
         # 가장자리에 붙은 연한 타원 반사 — 전폭 강선은 폐지했다(1판 결함 (7)).
         edge = rng.randrange(4)
         if edge == 0:
@@ -717,8 +772,10 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
             ecx, ecy = rng.uniform(0, W * 0.2), rng.uniform(0, H)
         else:
             ecx, ecy = rng.uniform(W * 0.8, W), rng.uniform(0, H)
-        ax_ = rng.uniform(0.18, 0.38) * W
-        ay_ = rng.uniform(0.10, 0.30) * H
+        # 반장축 0.38W 는 패널 폭의 76%를 덮는다 — 패치가 아니라 도포다.
+        # 1판의 '대각선 흰 줄' 을 없앴더니 이번엔 넓은 쐐기가 됐다(2026-09-12).
+        ax_ = rng.uniform(0.05, 0.20) * W
+        ay_ = rng.uniform(0.04, 0.15) * H
         glare = min(255, panel_col + rng.uniform(40, 90))
         msk = np.zeros((H, W), np.float32)
         cv2.ellipse(msk, (int(ecx), int(ecy)), (int(ax_), int(ay_)),
