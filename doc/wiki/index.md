@@ -47,11 +47,13 @@ tags: [index]
 
 | 안티패턴 | 설명 | 별칭 |
 |------|------|------|
+| [[ad-hoc-ruler-beside-the-committed-one]] | 같은 축을 재는 측정 스크립트가 이미 저장소에 있는데, 그걸 찾지 않고 그 자리에서 | 즉석 자, 자가 있는데 새로 잼, 측정 스크립트 중복, ad hoc ruler, 재현 불가 수치 |
 | [[aggregate-hides-stratified-failure]] | 소수 층의 심각한 실패가 다수 층에 희석되어 **지표에서 사라진다.** 그리고 그 소수 층이 하필 제품에서 중요한 경우가 많다. | 층화, 평균에 묻힌다, stratify, 전체 정확도, 가로 화면, 소수 클래스, 대조군, control group, 표본이 작다 |
 | [[backup-list-by-importance-not-by-what-writes]] | 중요한 자산을 떠 놓고 안심한다. | 백업, 덮어쓰기, 무인 실행, 밤샘, 소실, 재생성 가능, 시드, np.random, synth_screens |
 | [[bounds-check-as-correctness-proof]] | 파손된 좌표를 보정할 때 **결과가 이미지 경계 안에 들어오는지**로 맞았는지 판정하는 것. | 경계 통과를 정답으로 오인, oob 검사 과신, audit_oob.py, oob, 경계 초과 |
 | [[contract-guard-too-narrow]] | "이 메서드는 예외를 던지지 않는다"고 문서에 적어 두고, `try` 는 **위험해 보이는 호출 하나만** 감싸는 것. | 좁은 try, 계약보다 좁은 방어, GlucoseScanner.offer, _recognizeSafely, glucose_scanner.dart |
 | [[count-rows-not-entities]] | 아웃박스는 변경마다 행을 쌓지만, 서버로는 **현재 상태 한 번**만 간다. | 대기 n건 오표시, 큐 행 세기, pendingSyncCountProvider, syncMaxAttemptsProvider, syncOutboxRows, blockedCount, providers.dart |
+| [[coupled-budget-loop-defeats-per-element-tuning]] | "목표치에 닿을 때까지 뽑는다"는 루프에서는 요소들의 출현 확률이 **독립이 아니다.** | 총량 제약 루프, 확률만 조정, 밀도 채움 회귀, coupled budget loop, 풍선 효과 |
 | [[degradation-past-legibility]] | 증강은 강할수록 강건해진다는 직관이 있다. | 열화 상한, 증강 과다, 읽을 수 없는 표본, 라벨 잡음, illegible |
 | [[display-and-selection-from-different-sources]] | 목록을 보여 주는 코드와 "지금 선택된 것"을 만드는 코드가 **다른 배열을 읽으면**, | 화면과 선택 불일치, 표시 목록과 조작 대상 분리, selection off-screen, viewOf memberOf, a 전체선택 사고, 보이지 않는 선택 |
 | [[downscaled-view-as-evidence]] | 작게 줄인 이미지나 몇 장의 표본은 **판단이 가능해 보인다.** 틀렸다는 신호를 주지 않기 때문이다. | 축소본, 썸네일, 몽타주, 눈검, 해상도, resize, 미리보기로 판단, 표본이 작다 |
@@ -75,6 +77,7 @@ tags: [index]
 | [[shared-state-split-by-worktree]] | 작업 보드·클레임·활동 로그는 "어느 브랜치에서 보든 같아야" 하는 값이다. | 워크트리, git worktree, 보드가 갈린다, 칸반 충돌, 공유 상태 |
 | [[stale-baseline-quoted-as-current]] | 파이프라인을 갈아엎고 나면 옛 성적은 **다른 모델이 다른 데이터로 다른 시험지를 | 옛 기준선 인용, 폐기된 수치, 기준선 혼동, stale baseline, 재구축 전 수치, 갈아엎기 전 성적, 옛 모델 수치 |
 | [[stale-client-writes]] | 브라우저에 어느 버전의 JS 가 떠 있는지 **아무도 모르는 상태**로 저장 요청을 받는 것. | 낡은 탭 쓰기, stale build, Cache-Control, no-store, webtool.html, /api/build |
+| [[string-identity-for-label-class]] | 도메인에서 같은 것(같은 annunciator, 같은 표시등)이 **표기 변형** 때문에 문자열로는 | 문자열 동일성, 표기 변형 중복, used_texts, string identity, 라벨 부류 |
 | [[tolerance-without-preservation]] | `values.firstWhere(..., orElse: () => SomeDefault)` — 관용처럼 보이지만, 그 값을 나중에 서버로 되돌려 쓰는 순간 **다른 기기의 데이터를 파괴한다.** | 모르는 값 치환, orElse 기본값, silent-normalization, fromWireName, orElse, firstWhere, MeasurementTag, ReadingSource, measurement_tag.dart |
 | [[uncontrolled-budget-in-ab-comparison]] | 바꾼 변인(크롭·워프·증강)과 **함께 움직이지 않은 변인**(에폭 수·사전학습 체크포인트· | 예산 불일치 A/B, 에폭 예산, 학습 예산 비교, budget parity, epoch-mismatch, unfair A/B |
 | [[unnamed-coordinate-frame]] | 좌표 배열만 저장하고, **그 좌표가 어느 프레임에서 만들어졌는지**는 저장하지 않는 것. | 이름 없는 좌표계, 프레임 미기록, lb.ow, lb.frameId, applyImage, screen_boxes.jsonl, labeled.jsonl |
@@ -95,6 +98,6 @@ tags: [index]
 
 - Total concepts: 8
 - Total patterns: 14
-- Total anti-patterns: 34
+- Total anti-patterns: 37
 - Total answers: 0
-- Last updated: 2026-09-11
+- Last updated: 2026-09-12
