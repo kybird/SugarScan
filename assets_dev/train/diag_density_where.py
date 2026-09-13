@@ -139,8 +139,15 @@ def main():
         print(f"{tag:6s} n={len(arr):3d}  " +
               FMT[a.cmd].format(np.median(arr[:, 0]), np.median(arr[:, 1])))
         if a.cmd == "denoise":
-            d = (arr[:, 0] - arr[:, 1]) / arr[:, 0]
-            print(f"        질감 기여 median={100 * np.median(d):.1f}%")
+            # 원본 밀도가 0인 장(엣지가 아예 없는 크롭)은 비율이 정의되지
+            # 않는다 — 나누면 표본 전체가 nan 이 된다(2026-09-12 실측).
+            ok = arr[:, 0] > 0
+            if ok.any():
+                d = (arr[ok, 0] - arr[ok, 1]) / arr[ok, 0]
+                print(f"        질감 기여 median={100 * np.median(d):.1f}% "
+                      f"(밀도 0인 {int((~ok).sum())}장 제외)")
+            else:
+                print("        질감 기여: 잴 수 있는 표본 없음")
     return 0
 
 
