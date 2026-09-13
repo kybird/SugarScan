@@ -423,6 +423,15 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
         panel_col = int(rng.uniform(150, 215))
         ink_digit = int(rng.uniform(20, 90))
         ink_small = int(rng.uniform(60, 130))
+    # 밴드 대비 열화(카드 「합성 열화 상한」): 잉크-패널 간극에 계수를 곱한다.
+    # 실사진 대비 분포(median 99 · p10 60 · p90 178 · min 21 · 40미만 1.1%,
+    # real_baseline.json polarity, n=264)의 아래쪽 폭은 씻긴 화면·역광·저조도
+    # 촬영에서 온다 — 글자와 바탕의 간극이 줄어드는 물리 현상이라 렌더 파라미터
+    # 로 낸다(렌더 후 버리지 않는다, AC#5). 숫자·보조 잉크에 같은 계수 — 화면
+    # 전체의 세척 상태는 기기·촬영 단위라 함께 움직인다.
+    _c = rng.uniform(0.40, 1.0)
+    ink_digit = int(round(panel_col + (ink_digit - panel_col) * _c))
+    ink_small = int(round(panel_col + (ink_small - panel_col) * _c))
 
     # 몸체 윤곡 곡선 — 캔버스 모서리를 라운드로 깎아 배경이 보이게(713·722·
     # 92·97·100). 회전·원근 크롭의 모서리는 몸체 곡면 바깥이 프레임에 들어온
@@ -445,9 +454,11 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
     px0, py0, px1, py1 = mg_l, mg_t, W - mg_r, H - mg_b
     # 움푹한 베젤 + 그림자(233·235) — 유리 직전 홈(어두운 선)과 홈 바깥
     # 그림자 띠(위쪽 진하게), 가장자리 하이라이트 한 줄.
-    # 재조준(2026-09-12): 확률 0.7→0.5, 그림자 강도 0.45→0.36·0.26→0.22,
+    # 재조준(2026-09-12): 확률 0.7→0.4, 그림자 강도 0.45→0.36·0.26→0.22,
     # 띠 폭 1.5~3.0→1.2~2.2 — n=84 링 목표에 맞춘 과다였다(위와 같은 근거).
-    if rng.random() < 0.45:
+    # 대비 열화 카드에서 링이 상한(2.40%)에 붙어 0.45→0.40 으로 한 단계 더
+    # 내렸다(seed 32000 에서 2.42% — 재측정 기록은 synth-degradation-cap.md).
+    if rng.random() < 0.40:
         sh = max(3, int(min(W, H) * rng.uniform(0.008, 0.02)))
         dark = np.clip(panel_col * 0.35, 8, 60)
         cv2.rectangle(img, (px0 - sh, py0 - sh), (px1 + sh, py1 + sh),
