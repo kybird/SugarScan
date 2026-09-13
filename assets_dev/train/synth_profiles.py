@@ -22,8 +22,8 @@ import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-from synth_lcd import (  # 레거시 구성요소 재사용 — 이 파일은 건드리지 않는다
-    draw_digit, put_7seg_text, render_screen,
+from synth_lcd import (  # 레거시 구성요소 재사용 + 세그먼트 스트로크 폰트(2026-09-13)
+    draw_digit, put_7seg_text, render_screen, seg_text, seg_text_width,
     add_local_shadow, add_reflection_stripe, apply_shear, apply_keystone,
 )
 
@@ -118,8 +118,12 @@ PROFILES = [
         # '거의 닿는' 배치까지 재현한다(AC#5).
         unit=dict(texts=["mg/dL"], pos="right-baseline", gap=(2, 80),
                   h_ratio=(0.14, 0.20), p=0.9),
-        arrow=dict(kinds=["curved-right", "tri-right"], gap=(2, 80),
-                   size=(18, 30), p=0.95),
+        # 미터기 지시 화살표(AC#5): 검은 창 안 오른쪽 가장자리의 흰 ▶ 이
+        # 몸체에 인쇄된 점 눈금 열을 가리킨다. 근거 Instant 34장 — 화살표는
+        # 값에 대응해 위로 오르고 v159+ 에서 상단에 포화된다(2026-09-13
+        # 실측). 단독 아이콘이 아니라 지시자라 kinds 는 tri-right 하나다.
+        arrow=dict(kinds=["tri-right"], gap=(2, 80), size=(18, 30), p=0.95),
+        meter=True,
         time=dict(pos="below-left", p=0.9),
     ),
     dict(
@@ -139,6 +143,10 @@ PROFILES = [
         digit_h=(0.50, 0.58),
         evidence=["glucose_batch1/120", "glucose_batch1/694",
                   "glucose_batch1/695"],
+        # 도트 패널 기기(120·694·695) — 도트매트릭스 렌더를 쓰는 유일한
+        # 프로파일이다(카드 2026-09-13 AC#1). 다른 기기의 시간·날짜줄은
+        # 실사진에서 전부 세그먼트다(228·800·1903·1911 확인).
+        dot_panel=True,
         unit=dict(texts=["mg/dL"], pos="left-mid", gap=(8, 14),
                   h_ratio=(0.12, 0.16), p=0.9),
         dotrow_above=dict(texts=["OK", "CHECK STRIP", "GLUCOSE"],
@@ -310,12 +318,16 @@ def _icon(img, kind, cx, cy, s, ink):
     elif kind in ("tri-right", "triangle"):
         _tri(img, cx, cy, max(3, s // 2), ink, "right")
     elif kind == "battery":
+        # 722(Gmate) 상단 우측: 얇은 외곽선 + 오른쪽 돌기 + 부분 채움(가는
+        # 세로 막대 2개). 구판의 통짜 블록 둘은 진행 막대처럼 보였다(사람
+        # blind 8/8 지적, 카드 2026-09-13 AC#4).
         cv2.rectangle(img, (cx - s, cy - s // 3), (cx + s, cy + s // 3), ink, 1)
         cv2.rectangle(img, (cx + s + 1, cy - s // 6), (cx + s + 3, cy + s // 6),
                       ink, -1)
+        bw = max(2, s // 3)
         for k in range(2):
-            x1 = cx - s + 3 + k * (2 * s - 6) // 2
-            cv2.rectangle(img, (x1, cy - s // 6), (x1 + (s - 6) // 2, cy + s // 6),
+            bx = cx - s + 3 + k * (bw + 2)
+            cv2.rectangle(img, (bx, cy - s // 3 + 3), (bx + bw, cy + s // 3 - 3),
                           ink, -1)
     elif kind == "blood-drop":
         cv2.ellipse(img, (cx, cy + s // 4), (s // 3, s // 3), 0, 0, 360, ink, 1)

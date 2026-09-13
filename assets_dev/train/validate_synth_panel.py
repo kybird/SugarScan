@@ -56,7 +56,7 @@ def main():
     np.random.seed(args.seed)          # 광학 노이즈도 재현 가능하게
     manifest = []
     hard = {"overlaps": 0, "quad_out": 0, "long_side": 0, "label": 0,
-            "clipped": 0, "bezel_inside": 0}
+            "clipped": 0, "bezel_inside": 0, "sizes": 0}
     for i in range(args.count):
         val = sp.sample_value(rng)
         s = sp.render_panel(val, rng)
@@ -68,6 +68,7 @@ def main():
                    wh=round(s["wh"], 4), quad=np.round(q, 2).tolist(),
                    label=s["label"], inverted=s["inverted"],
                    glyph_plane_check=s["glyph_plane_check"],
+                   text_heights=s["text_heights"],
                    density=round(float(s["density"]), 5),
                    target_density=s["target_density"], margin=m,
                    bezel=s["bezel"], dropped=s["dropped"],
@@ -76,6 +77,11 @@ def main():
         # ── 하드 검사 ────────────────────────────────────────────────
         if _count_overlaps(s["rects"]):
             hard["overlaps"] += 1
+        # 글자 크기 종수(AC#3, 카드 「합성 글리프 네 결함」 2026-09-13) —
+        # LCD 안 글자 높이는 큰 숫자(dh) 와 보조(aux_h) 2종이 최대다.
+        # 베젤(몸체 인쇄)은 계층이 달라 세지 않는다.
+        if len(set(s["text_heights"])) > 2:
+            hard["sizes"] += 1
         if (q[:, 0].min() < 0 or q[:, 0].max() > W - 1
                 or q[:, 1].min() < 0 or q[:, 1].max() > H - 1):
             hard["quad_out"] += 1

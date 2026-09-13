@@ -56,7 +56,8 @@ sys.path.insert(0, str(HERE))
 from synth_profiles import (  # noqa: E402
     PROFILES, DOT_FMTS, dot_text, _icon, _pick_variant, _glyph_mask,
 )
-from synth_lcd import put_7seg_text, add_local_shadow  # noqa: E402
+from synth_lcd import (add_local_shadow,  # noqa: E402
+                       seg_text, seg_text_width)
 from measure_panel_stats import edge_density_outside  # 같은 자(AC#4)  # noqa: E402
 
 LONG_SIDE = 896
@@ -118,7 +119,7 @@ GPC_INK_FLOOR = 12     # 바닥 — 광학 노이즈 σ≤9(렌더 광학 단) �
 # ── 액정 화이트리스트(AC#14·#15) ─────────────────────────────────────────────
 # 액정 안에 그릴 수 있는 알파벳 토큰 전부다. 각 근거는 실사진 id(아틀라스 요소
 # 재고표 2026-09-11 + 프로파일 evidence). 이 토큰 밖의 알파벳을 액정에 그리면
-# _draw_text 가 assert 로 죽는다 — GLUCOSEDATE 같은 지어낸 문자열 차단.
+# _lcd_text 가 assert 로 죽는다 — GLUCOSEDATE 같은 지어낸 문자열 차단.
 LCD_TOKENS = {
     "GLU",                    # 1781, 2498 (green_doctor glulabel)
     "M", "mem", "memory",     # 727, 2498, 1186
@@ -251,30 +252,23 @@ class Placer:
         return False
 
 
-def _text_size(text, h):
-    """_draw_text 와 같은 파라미터의 실폭·실높이 — 배치 예약은 이 값으로
-    한다(추정 폭이 어긋나면 그린 글자가 예약 밖으로 나와 이웃과 겹친다 —
-    1판 및 본판 초기('memory' 위에 'mem') 실측)."""
-    scale = h / 22.0
-    th = max(1, int(round(h / 9.0)))
-    (tw, thh), base = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, scale, th)
-    return tw, thh + base
-
-
-def _draw_text(img, x, y, text, h, ink, name=""):
-    """액정 인쇄 글자 — 채움 획(AC#11). 알파벳 토큰 화이트리스트 assert(AC#14).
-    (x,y) 는 좌상단. 굵기 h/9 — 1판의 속 빈 글자(AVG 7 DAY) 결함 대응."""
+def _lcd_text(img, x, y, text, h, ink, name="", heights=None):
+    """액정 보조 글자 — 세그먼트 스트로크 폰트(카드 「합성 글리프 네 결함」
+    AC#1, 2026-09-13). Hershey 벡터 폰트의 곡선은 세그먼트 LCD 가 낼 수
+    없다 — 실사진 722(Gmate)는 값·시간·단위·days 줄이 전부 각진 세그먼트다.
+    숫자는 7-세그, 콜론은 사각 점 두 개(synth_lcd.seg_text, 근거 722 '1:27').
+    알파벳 토큰 화이트리스트 assert(AC#14)는 계속 여기서 지킨다.
+    heights 를 넘기면 그은 글자 높이를 기록한다(AC#3 크기 종수 검사).
+    반환값: 그은 폭 px(배치 예약은 이 값으로 — 추정이 어긋나면 예약 밖으로
+    나가 이웃과 겹친다)."""
     alpha_ok = LCD_TOKENS | {w for u in LCD_UNITS for w in u.split(" ")
                              if w.isalpha()}
     for w in text.split(" "):
         if w.isalpha() and len(w) >= 2:
             assert w in alpha_ok, f"액정 토큰 위반: {w!r} ({name})"
-    scale = h / 22.0
-    th = max(1, int(round(h / 9.0)))
-    (tw, thh), base = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, scale, th)
-    cv2.putText(img, text, (x, y + thh), cv2.FONT_HERSHEY_SIMPLEX, scale, ink,
-                th, cv2.LINE_AA)
-    return tw
+    if heights is not None:
+        heights.add(h)
+    return seg_text(img, x, y, text, h, ink)
 
 
 def _draw_ghost(img, x, y, dh, w_target, ink, variant, ghost, cache):
@@ -585,6 +579,21 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
         body_text = text
         break
 
+    # 미터기 눈금(카드 「합성 글리프 네 결함」 AC#5) — LCD 창 '바깥' 오른쪽
+    # 회색 띠에 인쇄된 점 열(약 10개). 근거 Instant 34장(2026-09-13): 점 열의
+    # 모양·위치·밝기가 장마다 같다 — 세그먼트가 아니라 인쇄다. 화살표 요소가
+    # 이 열을 가리킨다(arrow 의 meter 가 같은 프로파일에만 있다).
+    if profile.get("meter") and mg_r >= 7:
+        _nd = 10
+        _colh = int((py1 - py0) * 0.80)
+        _gy0 = py0 + ((py1 - py0) - _colh) // 2
+        _mcx = px1 + mg_r // 2
+        _dr = max(1, min(2, mg_r // 6))
+        _mcol = int(np.clip(body_col * 0.68, 30, 200))
+        for _k in range(_nd):
+            _cy = _gy0 + int(_colh * (_k + 0.5) / _nd)
+            cv2.circle(img, (_mcx, _cy), _dr, _mcol, -1)
+
     placer = Placer(px0 + 2, py0 + 2, px1 - 2, py1 - 2)
 
     # ── 숫자 밴드 — 실측 기하에서 역산. x0 는 '보이는 숫자줄'의 좌측이고
@@ -735,6 +744,13 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
     band_l, band_r = fx0 - pad_x, fx0 + field_all_w + pad_x
     last_r = x0 + field_w
 
+    # 보조 글자 크기 — 패널당 하나(AC#3, 카드 2026-09-13). 큰 숫자(dh)와
+    # 보조(aux_h) 2종이 최대다. 실사진 722(Gmate)가 그렇다: 값·시간·단위·
+    # days 줄의 보조 글자가 전부 같은 높이다. 구판은 요소별로 0.10~0.42dh
+    # 여덟 종을 독립 계산해 한 패널에 4~5종이 났다(blind 8/8 지적).
+    aux_h = max(7, int(dh * rng.uniform(0.15, 0.19)))
+    text_heights = {dh}   # 그은 글자 높이 기록(AC#3 — validate 하드 검사)
+
     # ── 가로형 정보 배치 — 가로형 렌더에만(세로형 경로 무손상, AC#2) ──────
     # 실측 두 가족(정본 band.wide_raw n=39 + 눈검 9장, 2026-09-12):
     #   측면 칼럼형(27/39, band_w<0.75) — 숫자줄 옆에 단위·시간·날짜가 세로로
@@ -763,54 +779,47 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
             if _cw > 26:
                 _items = []
                 if rng.random() < 0.9:
-                    _items.append(("unit", _ut, max(8, int(dh * 0.20))))
+                    _items.append(("unit", _ut))
                 if rng.random() < 0.8:
-                    _items.append(("time", _dot_time_text(rng),
-                                   max(8, int(dh * 0.18))))
+                    _items.append(("time", _dot_time_text(rng)))
                 if rng.random() < 0.6:
                     _items.append(("date", f"{rng.randint(1, 12)}-"
-                                           f"{rng.randint(1, 31)}",
-                                   max(7, int(dh * 0.15))))
+                                           f"{rng.randint(1, 31)}"))
                 if rng.random() < 0.3:
-                    _items.append(("mem", "M", max(8, int(dh * 0.16))))
+                    _items.append(("mem", "M"))
                 _cy_ = py0 + 6
-                for _nm, _txt, _ih in _items:
-                    _tw_, _th_ = _text_size(_txt, _ih)
+                for _nm, _txt in _items:
+                    _tw_ = seg_text_width(_txt, aux_h)
                     if _tw_ > _cw:
                         continue
                     if maybe(placer.try_place(_cx0 + (_cw - _tw_) // 2, _cy_,
-                                              _tw_, _th_, f"wide:{_nm}"),
+                                              _tw_, aux_h, f"wide:{_nm}"),
                              f"wide:{_nm}"):
                         _r = placer.rects[-1]
-                        if _nm == "time":
-                            dot_text(img, _r[0], _r[1], _txt,
-                                     max(4, int(_ih * 0.55)), ink_small)
-                        else:
-                            _draw_text(img, _r[0], _r[1], _txt, _ih,
-                                       ink_small, "wide")
+                        _lcd_text(img, _r[0], _r[1], _txt, aux_h, ink_small,
+                                  "wide", heights=text_heights)
                         used_texts.add(_txt)
                         _cy_ = _r[3] + max(6, int(dh * 0.10))
         else:
             # 하단행형 — 정보행은 쿼드 안(밴드 예약 영역)이라 Placer 없이 그린다.
             # 배치 근거: 821(DATE·AM 1.29·12:23)·971(mg/dL·AM 9:48)·
             # 66(26·PM·12:36)·497 하단(1/10·11:38 AM) — 단위 좌·시간 우.
-            _rh = max(7, int(dh * 0.26))
             _ry = min(int(y0 + dh + max(4, int(dh * 0.10))),
-                      int(qy0 + band_h - _rh - 4))
-            if _ry > y0 + dh - 2 and _ry + _rh < qy0 + band_h:
+                      int(qy0 + band_h - aux_h - 4))
+            if _ry > y0 + dh - 2 and _ry + aux_h < qy0 + band_h:
                 if rng.random() < 0.85:
-                    _tw_, _th_ = _text_size(_ut, _rh)
+                    _tw_ = seg_text_width(_ut, aux_h)
                     if qx0 + 10 + _tw_ < fx0:
-                        _draw_text(img, qx0 + 10, _ry, _ut, _rh, ink_small,
-                                   "wide")
+                        _lcd_text(img, qx0 + 10, _ry, _ut, aux_h, ink_small,
+                                  "wide", heights=text_heights)
                         used_texts.add(_ut)
                 if rng.random() < 0.8:
                     _tt = _dot_time_text(rng)
-                    _tw2, _th2 = _text_size(_tt, _rh)
+                    _tw2 = seg_text_width(_tt, aux_h)
                     _tx = int(qx0 + qw - 10 - _tw2)
                     if _tx > fx0 + field_all_w + 6:
-                        dot_text(img, _tx, _ry, _tt, max(4, int(_rh * 0.55)),
-                                 ink_small)
+                        _lcd_text(img, _tx, _ry, _tt, aux_h, ink_small,
+                                  "wide", heights=text_heights)
                         used_texts.add(_tt)
 
     # ── 액정 요소 — 전부 실폭 재서 배치, 패널 밖으로 못 나가게(AC#12) ──────
@@ -827,10 +836,11 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
             ut = _uts[zlib.crc32(pid.encode("utf-8")) % len(_uts)]
         else:
             ut = LCD_UNITS[rng.randrange(len(LCD_UNITS))]
-        uh = max(7, int(dh * rng.uniform(*u["h_ratio"])))
+        # 높이는 aux_h 로 통일(AC#3) — 프로파일의 h_ratio 는 2종 규칙에 밀려
+        # 폐기한다(실사진 722 도 단위·시간이 같은 높이다).
+        uh = aux_h
         ug = int(rng.uniform(*u["gap"]))
-        (tw, _), _b = cv2.getTextSize(ut, cv2.FONT_HERSHEY_SIMPLEX, uh / 22.0,
-                                      max(1, uh // 9))
+        tw = seg_text_width(ut, uh)
         pos = u["pos"]
         if pos == "right-baseline":
             cands = [(last_r + ug, y0 + dh - uh), (last_r + ug, y0 + (dh - uh) // 2)]
@@ -848,20 +858,21 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
         if maybe(placer.try_place(cands[0][0], cands[0][1], tw, uh + 2, "unit",
                                   alternates=cands[1:]), "unit"):
             r = placer.rects[-1]
-            _draw_text(img, r[0], r[1], ut, uh, ink_small, "unit")
+            _lcd_text(img, r[0], r[1], ut, uh, ink_small, "unit",
+                      heights=text_heights)
             used_texts.add(ut)
 
     meal = profile.get("meal")
     if meal and rng.random() < meal["p"]:
-        mh = max(7, int(dh * 0.16))
         mt = meal["texts"][rng.randrange(len(meal["texts"]))]
-        (tw, _), _b = cv2.getTextSize(mt, cv2.FONT_HERSHEY_SIMPLEX, mh / 22.0, 1)
-        if maybe(placer.try_place(last_r + int(dh * 0.1), band_bot - mh, tw,
-                                  mh + 2, "meal",
-                                  alternates=((px1 - 2 - tw, band_bot - mh),)),
+        tw = seg_text_width(mt, aux_h)
+        if maybe(placer.try_place(last_r + int(dh * 0.1), band_bot - aux_h, tw,
+                                  aux_h + 2, "meal",
+                                  alternates=((px1 - 2 - tw, band_bot - aux_h),)),
                  "meal"):
             r = placer.rects[-1]
-            _draw_text(img, r[0], r[1], mt, mh, ink_small, "meal")
+            _lcd_text(img, r[0], r[1], mt, aux_h, ink_small, "meal",
+                      heights=text_heights)
             used_texts.add(mt)
 
     # 메모리 표기(mem/memory/M)는 한 기기에 한 종류다 — 문자열이 달라도 같은
@@ -870,7 +881,7 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
     # (2026-09-12 montage_fix3 실측 — 12장 중 5장).
     mk = profile.get("mem")
     if mk and rng.random() < mk["p"]:
-        mh = max(8, int(dh * 0.22))
+        mh = aux_h
         if mk["pos"] == "top-left":
             cands = ((int(W * 0.08), py0 + 4), (int(W * 0.08), band_top - mh - 4))
         elif mk["pos"] == "top-right":
@@ -881,31 +892,33 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
             cands = ((last_r + int(glyph_w * 0.4), y0 + (dh - mh) // 2),
                      (last_r + int(glyph_w * 0.4), py0 + 4))
         mtxt = {"mem": "mem", "memory": "memory", "M": "M"}.get(mk["kind"], "M")
-        mtw, mth = _text_size(mtxt, mh)
+        mtw = seg_text_width(mtxt, mh)
         cands = [(cx_, cy_) for cx_, cy_ in cands]
-        if maybe(placer.try_place(cands[0][0], cands[0][1], mtw, mth,
+        if maybe(placer.try_place(cands[0][0], cands[0][1], mtw, mh,
                                   "mem", alternates=cands[1:]), "mem"):
             r = placer.rects[-1]
             if mk["kind"] == "M-box":
                 cv2.rectangle(img, (r[0] - 2, r[1]), (r[0] + mh + 2, r[3]),
                               ink_small, 1)
-                _draw_text(img, r[0], r[1], "M", mh, ink_small, "mem")
+                _lcd_text(img, r[0], r[1], "M", mh, ink_small, "mem",
+                          heights=text_heights)
                 used_texts |= _MEM_VARIANTS
             else:
                 t = {"mem": "mem", "memory": "memory", "M": "M"}.get(
                     mk["kind"], "M")
-                _draw_text(img, r[0], r[1], t, mh, ink_small, "mem")
+                _lcd_text(img, r[0], r[1], t, mh, ink_small, "mem",
+                          heights=text_heights)
                 used_texts |= _MEM_VARIANTS
 
     gl = profile.get("glulabel")
     if gl and rng.random() < gl.get("p", 0):
-        gh = max(8, int(dh * 0.2))
-        gtw, gth = _text_size("GLU", gh)
-        if maybe(placer.try_place(x0, max(py0 + 2, band_top - gh - 4),
-                                  gtw, gth, "glulabel",
+        gtw = seg_text_width("GLU", aux_h)
+        if maybe(placer.try_place(x0, max(py0 + 2, band_top - aux_h - 4),
+                                  gtw, aux_h, "glulabel",
                                   alternates=((x0, band_bot + 4),)), "glulabel"):
             r = placer.rects[-1]
-            _draw_text(img, r[0], r[1], "GLU", gh, ink_small, "glulabel")
+            _lcd_text(img, r[0], r[1], "GLU", aux_h, ink_small, "glulabel",
+                      heights=text_heights)
             used_texts.add("GLU")
 
     a = profile.get("arrow")
@@ -915,10 +928,21 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
         s = max(8, int(dh * rng.uniform(0.18, 0.30)))
         kinds = [k for k in a["kinds"] if k in LCD_ICONS]
         ag = int(rng.uniform(*a["gap"]) * max(1, dh / 56.0))
-        ay = y0 + int(dh * rng.uniform(0.15, 0.55))
-        cands = [(last_r + ag, ay), (last_r + ag, band_bot + 4),
-                 (px1 - 2 - 2 * s, ay), (px1 - 2 - 2 * s, band_top - 2 * s - 4),
-                 (px0 + 2, ay)]
+        if profile.get("meter"):
+            # 미터기 지시 화살표(AC#5): 세로 위치는 혈당값에 대응한다. 실측
+            # Instant 34장(값 100~511, 2026-09-13 눈검 inst_all 시트): v100
+            # 하단 · v119 하중단 · v123~126 중앙 · v131~135 중상단 · v141~150
+            # 상단 상승 · v159+ 상단 포화. y=clamp((v-95)/70, 0, 1) (1=위)이
+            # 34장 전부와 어울린다. 후보를 떠다니게 하지 않는다(구판 결함).
+            yf = min(1.0, max(0.0, (value - 95) / 70.0))
+            ay = int(py0 + 0.10 * (py1 - py0)
+                     + (1.0 - yf) * 0.72 * (py1 - py0) - s)
+            cands = [(px1 - 2 - 2 * s, ay)]
+        else:
+            ay = y0 + int(dh * rng.uniform(0.15, 0.55))
+            cands = [(last_r + ag, ay), (last_r + ag, band_bot + 4),
+                     (px1 - 2 - 2 * s, ay), (px1 - 2 - 2 * s, band_top - 2 * s - 4),
+                     (px0 + 2, ay)]
         if maybe(placer.try_place(cands[0][0], cands[0][1], 2 * s, 2 * s,
                                   "arrow", alternates=cands[1:]), "arrow"):
             r = placer.rects[-1]
@@ -943,62 +967,89 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
             _icon(img, kind, (r[0] + r[2]) // 2, (r[1] + r[3]) // 2, s,
                   ink_small)
 
+    # 도트매트릭스 줄은 실제로 도트 패널인 기기만(AC#1) — dorucos_premium
+    # (dot_panel, 근거 120·694·695). 다른 프로파일의 dotrow_* 요소는 실사진이
+    # 세그먼트라(228·800·1903·1911 확인, 2026-09-13) 세그먼트로 그린다.
+    _dotp = bool(profile.get("dot_panel"))
     da = profile.get("dotrow_above")
     if da and rng.random() < da["p"]:
-        glyph = int(rng.uniform(4, 6)) * max(1, dh // 48)
         txt = da["texts"][rng.randrange(len(da["texts"]))]
-        wpx = int(len(txt) * glyph * 1.2)
-        if maybe(placer.try_place(int(W * 0.08), py0 + 2, wpx, glyph * 2 + 4,
+        if _dotp:
+            glyph = max(3, (aux_h - 4) // 2)
+            wpx = int(len(txt) * glyph * 1.2)
+            hpx = glyph * 2 + 4
+        else:
+            glyph = None
+            wpx = seg_text_width(txt, aux_h)
+            hpx = aux_h
+        if maybe(placer.try_place(int(W * 0.08), py0 + 2, wpx, hpx,
                                   "dotrow_above"), "dotrow_above"):
             r = placer.rects[-1]
-            dot_text(img, r[0], r[1], txt, glyph, ink_small)
+            if _dotp:
+                dot_text(img, r[0], r[1], txt, glyph, ink_small)
+            else:
+                _lcd_text(img, r[0], r[1], txt, aux_h, ink_small,
+                          "dotrow_above", heights=text_heights)
             used_texts.add(txt)
     db = profile.get("dotrow_below")
     if db and rng.random() < db["p"]:
-        glyph = int(rng.uniform(4, 6)) * max(1, dh // 48)
         txt = _dot_time_text(rng)
-        wpx = int(len(txt) * glyph * 1.2)
-        if maybe(placer.try_place(int(W * 0.08), band_bot + 4, wpx,
-                                  glyph * 2 + 4, "dotrow_below"), "dotrow_below"):
+        if _dotp:
+            glyph = max(3, (aux_h - 4) // 2)
+            wpx = int(len(txt) * glyph * 1.2)
+            hpx = glyph * 2 + 4
+        else:
+            glyph = None
+            wpx = seg_text_width(txt, aux_h)
+            hpx = aux_h
+        if maybe(placer.try_place(int(W * 0.08), band_bot + 4, wpx, hpx,
+                                  "dotrow_below"), "dotrow_below"):
             r = placer.rects[-1]
-            dot_text(img, r[0], r[1], txt, glyph, ink_small)
+            if _dotp:
+                dot_text(img, r[0], r[1], txt, glyph, ink_small)
+            else:
+                _lcd_text(img, r[0], r[1], txt, aux_h, ink_small,
+                          "dotrow_below", heights=text_heights)
             used_texts.add(txt)
 
     t = profile.get("time")
     if t and rng.random() < t["p"]:
-        th = int(dh * rng.uniform(0.28, 0.42))
+        # 시간줄도 보조 글자 크기(AC#3 — 실사진 722 는 시간·단위가 같은 높이).
+        # 7-세그 + 사각 점 콜론으로 그은다(구판 put_7seg_text 는 폭을 임의
+        # 폭으로 늘려 숫자 비율이 깨졌다 — seg_text 는 글리프 비율 유지).
         hh = f"{rng.randint(0, 23):02d}:{rng.randint(0, 59):02d}"
-        tw = int(W * 0.30)
+        tw = seg_text_width(hh, aux_h)
         if t["pos"] == "below-right":
             cands = ((int(W * 0.55), band_bot + 4), (px1 - 2 - tw, band_bot + 4))
         else:
-            cands = ((int(W * 0.1), band_bot + 4), (px0 + 2, py1 - 2 - th))
-        if maybe(placer.try_place(cands[0][0], cands[0][1], tw, th, "time",
+            cands = ((int(W * 0.1), band_bot + 4), (px0 + 2, py1 - 2 - aux_h))
+        if maybe(placer.try_place(cands[0][0], cands[0][1], tw, aux_h, "time",
                                   alternates=cands[1:]), "time"):
             r = placer.rects[-1]
-            put_7seg_text(img, r[0], r[1], tw, th, hh, ink_small)
+            _lcd_text(img, r[0], r[1], hh, aux_h, ink_small, "time",
+                      heights=text_heights)
 
     if profile.get("avgrow", {}).get("p", 0) > rng.random():
-        ah = int(dh * rng.uniform(0.24, 0.34))
         txt = f"{rng.choice(['7', '14'])} DAY AVG"
-        (tw, _), _b = cv2.getTextSize(txt, cv2.FONT_HERSHEY_SIMPLEX, ah / 22.0,
-                                      max(1, ah // 9))
-        if maybe(placer.try_place(int(W * 0.1), band_bot + 4, tw + int(W * 0.16),
-                                  ah + 2, "avgrow"), "avgrow"):
+        num = f"{rng.randint(1, 999):03d}"
+        tw = seg_text_width(txt + "  " + num, aux_h)
+        if maybe(placer.try_place(int(W * 0.1), band_bot + 4, tw,
+                                  aux_h + 2, "avgrow"), "avgrow"):
             r = placer.rects[-1]
-            _draw_text(img, r[0], r[1], txt, ah, ink_small, "avgrow")
+            w1 = _lcd_text(img, r[0], r[1], txt, aux_h, ink_small, "avgrow",
+                           heights=text_heights)
+            _lcd_text(img, r[0] + w1 + max(2, aux_h // 3), r[1], num, aux_h,
+                      ink_small, "avgrow", heights=text_heights)
             used_texts.add(txt)
-            put_7seg_text(img, r[2] - int(W * 0.15), r[1], int(W * 0.15), ah,
-                          f"{rng.randint(1, 999):03d}", ink_small)
 
     if profile.get("daterow", {}).get("p", 0) > rng.random():
-        rh = max(7, int(dh * 0.18))
         txt = f"{rng.randint(1, 12)}-{rng.randint(1, 31)}  #{rng.randint(1, 9)}"
-        tw = int(len(txt) * rh * 0.85)
+        tw = seg_text_width(txt, aux_h)
         if maybe(placer.try_place(int(W * 0.08), band_bot + int(H * 0.02), tw,
-                                  rh + 2, "daterow"), "daterow"):
+                                  aux_h + 2, "daterow"), "daterow"):
             r = placer.rects[-1]
-            _draw_text(img, r[0], r[1], txt, rh, ink_small, "daterow")
+            _lcd_text(img, r[0], r[1], txt, aux_h, ink_small, "daterow",
+                      heights=text_heights)
             used_texts.add(txt)
 
     # ── 밀도 채움 — 실관찰 요소만(인쇄 라벨·도트 시간줄·아이콘), Placer 검사.
@@ -1031,21 +1082,26 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
         kind = rng.random()
         if kind < 0.62 and dot_rows < 2:
             text = _dot_time_text(rng)
-            # 필러 양자(재조준 2026-09-12): 글리프를 0.10~0.16 → 0.09~0.14 로
-            # 줄인다 — 채움 루프의 최소 단계가 커서 목표를 한 번에 넘겨 안쪽
-            # 밀도가 실사진(1.11%)을 0.4pp 초과했다. 작은 만큼 정밀히 맞는다.
-            glyph = max(4, int(dh * rng.uniform(0.09, 0.14)))
-            wpx = max(16, int(len(text) * glyph * 1.2))
-            hpx = glyph * 2 + 4
-            draw = ("dot", text, glyph)
+            if _dotp:
+                # 도트 패널 기기만 도트 양자화(AC#1) — 필러 양자는 aux_h 에서
+                # 파생한다(재조준 2026-09-12 의 정밀도 의도는 유지: 도트 판의
+                # 글리프 0.09~0.14dh 대신 (aux_h-4)//2 로 귀결).
+                glyph = max(4, (aux_h - 4) // 2)
+                wpx = max(16, int(len(text) * glyph * 1.2))
+                hpx = glyph * 2 + 4
+            else:
+                glyph = None
+                wpx = max(16, seg_text_width(text, aux_h))
+                hpx = aux_h
+            draw = ("row", text, glyph)
         elif kind < 0.70:   # 텍스트 채움은 드물게 — 후보가 적어 반복이 티난다
             fresh = [t for t in filler_pool if t not in used_texts]
             if not fresh:
                 continue
             text = fresh[rng.randrange(len(fresh))]
-            fh = max(9, int(dh * rng.uniform(0.18, 0.30)))
-            wpx, hpx = _text_size(text, fh)
-            draw = ("print", text, fh)
+            wpx = seg_text_width(text, aux_h)
+            hpx = aux_h
+            draw = ("text", text, None)
         else:
             icon = LCD_ICONS[rng.randrange(len(LCD_ICONS))]
             s = max(8, int(dh * rng.uniform(0.18, 0.30)))
@@ -1076,13 +1132,17 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
         py = int(rng.uniform(y_lo, max(y_lo, y_hi)))
         if placer.try_place(px, py, wpx, hpx, f"filler{attempt}"):
             r = placer.rects[-1]
-            if draw[0] == "dot":
-                dot_text(img, r[0], r[1], draw[1], draw[2], ink_small)
+            if draw[0] == "row":
+                if draw[2] is not None:
+                    dot_text(img, r[0], r[1], draw[1], draw[2], ink_small)
+                else:
+                    _lcd_text(img, r[0], r[1], draw[1], aux_h, ink_small,
+                              "filler", heights=text_heights)
                 used_texts.add(draw[1])
                 dot_rows += 1
-            elif draw[0] == "print":
-                _draw_text(img, r[0], r[1], draw[1], draw[2], ink_small,
-                           "filler")
+            elif draw[0] == "text":
+                _lcd_text(img, r[0], r[1], draw[1], aux_h, ink_small,
+                          "filler", heights=text_heights)
                 used_texts.add(draw[1])
                 if draw[1] in _MEM_VARIANTS:
                     used_texts |= _MEM_VARIANTS
@@ -1224,7 +1284,8 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
                 glyph_warped=glyph_warped,
                 density=dens if dens is not None else 0.0,
                 bezel=body_text, margin=max(mg_t, mg_b, mg_l, mg_r),
-                margins=[mg_t, mg_b, mg_l, mg_r])
+                margins=[mg_t, mg_b, mg_l, mg_r],
+                text_heights=sorted(text_heights))
 
 
 def _density_outside(img, quad):
@@ -1270,6 +1331,7 @@ def generate(count, seed0, out_dir, with_reader=False):
             id=name, profile=s["profile"], w=s["W"], h=s["H"],
             wh=round(s["wh"], 4), quad=q.tolist(), label=s["label"],
             inverted=s["inverted"], glyph_plane_check=s["glyph_plane_check"],
+            text_heights=s["text_heights"],
             density=round(float(s["density"]), 5),
             target_density=s["target_density"],
             rects=[[round(float(v), 1) for v in r[:4]] + [r[4]]
