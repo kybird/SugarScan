@@ -41,8 +41,11 @@ def _pct(a, q):
     return float(np.percentile(a, q))
 
 
-def _band_axis(stats, pos):
-    """collect_band 의 stats/pos -> 축별 median·p10·p90 사전."""
+def _band_axis(stats, pos, raw_portrait, raw_wide):
+    """collect_band 의 stats/pos -> 축별 median·p10·p90 사전 + 가로형 raw 목록.
+    raw_wide 는 칼럼 카드(2026-09-12)의 실측 재표본용 — 가로형 분포는 치우쳐
+    (median 이 p10~p90 중앙과 다름) 균등 재표본이 median 을 놓친다. 크롭 밖으로
+    나간 라벨(x0<0 또는 x1>1)은 합성이 재현할 수 없어 뺀다."""
     out = {}
     for key in ("portrait", "wide"):
         a = np.asarray(stats[key])
@@ -59,12 +62,33 @@ def _band_axis(stats, pos):
             cy_median=float(np.median(cy)), cy_p10=_pct(cy, 10),
             cy_p90=_pct(cy, 90),
         )
+    out["portrait_raw"] = [[round(v, 4) for v in t] for t in raw_portrait]
+    out["wide_raw"] = [[round(v, 4) for v in t] for t in raw_wide]
     return out
 
 
 def build():
     aspect = np.asarray(M.collect_aspect())
     joined, total, stats, pos = M.collect_band()
+    # raw 튜플(w,h,cx,cy) — 가로형 empirical 재표본용(위 _band_axis 설명).
+    # 로더·좌표 변환은 collect_band 와 같은 함수를 쓴다.
+    raw_portrait, raw_wide = [], []
+    quads = {r["id"]: r for r in M._load_jsonl(M.QUADS_ORIENTED)}
+    for b in M._load_jsonl(M.BAND_BOXES):
+        g = quads.get(b["id"])
+        if g is None:
+            continue
+        gx = M._rect_of(g["quad"])
+        bx = M._rect_of(b["quad"])
+        gw, gh = gx[2] - gx[0], gx[3] - gx[1]
+        fx = ((bx[0] - gx[0]) / gw, (bx[2] - gx[0]) / gw)
+        t = ((bx[1] - gx[1]) / gh + (bx[3] - gx[1]) / gh) / 2   # cy
+        key = "portrait" if gw / gh < 1.0 else "wide"
+        if key == "wide" and (fx[0] < 0 or fx[1] > 1):
+            continue   # 크롭 밖으로 나간 밴드 라벨 — 합성이 재현 불가
+        (raw_portrait if key == "portrait" else raw_wide).append(
+            ((fx[1] - fx[0]), ((bx[3] - bx[1]) / gh),
+             (fx[0] + fx[1]) / 2, t))
     dens = np.asarray(M.collect_density(frame_exc=0.0))
     ring = np.asarray([r for r in (D.stat_ring(g, b)
                                    for g, b in D.iter_real()) if r is not None])
@@ -107,7 +131,7 @@ def build():
             hist_0p1={f"[{e:.1f},{e + 0.1:.1f})": int(h)
                       for e, h in zip(edges[:-1], hist) if h},
         ),
-        band=_band_axis(stats, pos),
+        band=_band_axis(stats, pos, raw_portrait, raw_wide),
         density=dict(
             n=len(dens), frame_exc=0.0,
             median=float(np.median(dens)), p10=_pct(dens, 10), p90=_pct(dens, 90),
