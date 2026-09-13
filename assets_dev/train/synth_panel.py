@@ -495,6 +495,17 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
         dh, glyph_w, pitch, gap = (int(dh * s), int(glyph_w * s),
                                    int(pitch * s), int(gap * s))
         field_w = n_vis * pitch - gap
+    # 높이도 유리 안에 들어와야 한다 — band_h 의 분모가 캔버스(H)라 몸체 스트립이
+    # 깊은 가로형에서 쿼드가 유리보다 높아져 아래쪽 몸체로 넘쳤다(리뷰 2026-09-12:
+    # wide 3/52, 최대 24px). 폭 클램프(max_w)는 폭만 잡는다 — 세로형은 한 장도
+    # 발동하지 않는다(0/549, seed 31000 n=600).
+    max_h = max(8, min(int(ph * 0.96), ph - 8))
+    if dh + 2 * pad_y > max_h:
+        s2 = max_h / (dh + 2 * pad_y)
+        dh, glyph_w, pitch, gap = (int(dh * s2), int(glyph_w * s2),
+                                   int(pitch * s2), int(gap * s2))
+        pad_y = max(2, int(pad_y * s2))
+        field_w = n_vis * pitch - gap
     cx = rng.uniform(*g["cx"]) * W
     # cy 는 실측 분포가 왼쪽 치우침(median 0.391 < uniform 중앙 0.410)이다 —
     # u**1.6 재표본으로 중앙을 맞춘다(2026-09-12, synth-band n=300 실측 정정).
