@@ -45,13 +45,19 @@ def _rect_of(quad):
     return q[:, 0].min(), q[:, 1].min(), q[:, 0].max(), q[:, 1].max()
 
 
-def cmd_aspect():
-    rows = _load_jsonl(QUADS_ORIENTED)
+def collect_aspect():
+    """GM 쿼드(표시 좌표계) w/h 전체 목록 — cmd_aspect 와 정본 기준선 생성기
+    (make_real_baseline.py)가 같은 코드를 쓴다. 자가 갈리면 두 수치는 비교
+    대상이 아니다(2026-09-12 밀도 사고)."""
     ratios = []
-    for r in rows:
+    for r in _load_jsonl(QUADS_ORIENTED):
         x0, y0, x1, y1 = _rect_of(r["quad"])
         ratios.append((x1 - x0) / max(1.0, y1 - y0))
-    a = np.asarray(ratios)
+    return ratios
+
+
+def cmd_aspect():
+    a = np.asarray(collect_aspect())
     pct = lambda q: float(np.percentile(a, q))
     print(f"n={len(a)}")
     print(f"w/h median={np.median(a):.3f} p10={pct(10):.3f} p90={pct(90):.3f} "
@@ -66,7 +72,9 @@ def cmd_aspect():
             print(f"  [{e:.1f},{e + 0.1:.1f}) {h:5d} {'#' * int(h / 10)}")
 
 
-def cmd_band():
+def collect_band():
+    """밴드 기하 원본 — (joined, total, stats, pos). cmd_band 와 정본 기준선
+    생성기가 같은 코드를 쓴다."""
     quads = {r["id"]: r for r in _load_jsonl(QUADS_ORIENTED)}
     bands = _load_jsonl(BAND_BOXES)
     joined = 0
@@ -86,7 +94,12 @@ def cmd_band():
         pos[key].append(((bx0 + bx1) / 2 - gx0) / gw)   # 밴드 중심 x (패널 좌 frac)
         pos[key].append(0)                                # 자리 표시(아래에서 y 따로)
         pos[key][-1] = ((by0 + by1) / 2 - gy0) / gh
-    print(f"join={joined}/{len(bands)}")
+    return joined, len(bands), stats, pos
+
+
+def cmd_band():
+    joined, total, stats, pos = collect_band()
+    print(f"join={joined}/{total}")
     _report_band(stats, pos)
 
 
@@ -175,12 +188,13 @@ def edge_density_outside(gray, band_rect_frac, exclude_frame=0.0):
     return float((e > 0)[m].mean())
 
 
-def cmd_density(limit, frame_exc):
+def collect_density(limit=0, frame_exc=0.0):
+    """실사진 GM 크롭 밴드 밖 엣지 밀도값 목록 — cmd_density 와 정본 기준선
+    생성기가 같은 코드를 쓴다. synth_panel.REAL_DENSITY 가 이 값을 재표본한다."""
     quads = {r["id"]: r for r in _load_jsonl(QUADS_ORIENTED)}
     bands = _load_jsonl(BAND_BOXES)
     vals = []
     roots = [UPSTREAM / "extracted" / "TILDE"]
-    n_ok = 0
     for b in bands[:limit] if limit else bands:
         g = quads.get(b["id"])
         if g is None:
@@ -212,9 +226,12 @@ def cmd_density(limit, frame_exc):
         d = edge_density_outside(crop, frac, exclude_frame=frame_exc)
         if d is not None:
             vals.append(d)
-            n_ok += 1
-    a = np.asarray(vals)
-    print(f"n={n_ok} frame_exc={frame_exc}")
+    return vals
+
+
+def cmd_density(limit, frame_exc):
+    a = np.asarray(collect_density(limit, frame_exc))
+    print(f"n={len(a)} frame_exc={frame_exc}")
     print(f"density median={np.median(a):.4f} p10={np.percentile(a, 10):.4f} "
           f"p90={np.percentile(a, 90):.4f} min={a.min():.4f} max={a.max():.4f}")
 

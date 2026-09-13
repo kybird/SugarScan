@@ -59,13 +59,14 @@ def polarity_of(crop, band_frac):
     return inverted, abs(p95 - p5)
 
 
-def cmd_polarity():
+def collect_polarity():
+    """극성·대비 원본 — cmd_polarity 와 정본 기준선 생성기(make_real_baseline.py)
+    가 같은 코드를 쓴다. -> dict(n, inverted(목록), contrast(목록), per_device)"""
     quads = {r["id"]: r for r in _load_jsonl(QUADS_ORIENTED)}
     devices = {r["id"]: r for r in _load_jsonl(DEVICE_LABELS)}
     bands = _load_jsonl(BAND_BOXES)
     per_device = defaultdict(lambda: [0, 0])   # name -> [inverted, n]
-    contrast = []
-    n_ok = 0
+    inverted, contrast = [], []
     for b in bands:
         g = quads.get(b["id"])
         if g is None:
@@ -89,25 +90,32 @@ def cmd_polarity():
         r = polarity_of(crop, frac)
         if r is None:
             continue
-        inverted, c = r
-        n_ok += 1
+        inv, c = r
+        inverted.append(bool(inv))
         contrast.append(c)
         d = devices.get(b["id"])
         name = f"{d['brand']} {d['model']}".strip() if d and \
             d.get("status") == "identified" else "(미식별)"
-        per_device[name][0] += int(inverted)
+        per_device[name][0] += int(inv)
         per_device[name][1] += 1
-    inv = sum(v[0] for v in per_device.values())
-    a = np.asarray(contrast)
+    return dict(n=len(inverted), inverted=inverted, contrast=contrast,
+                per_device=dict(per_device))
+
+
+def cmd_polarity():
+    r = collect_polarity()
+    inv = sum(r["inverted"])
+    n_ok = r["n"]
+    a = np.asarray(r["contrast"])
     print(f"n={n_ok}  inverted={inv} ({inv / max(1, n_ok) * 100:.1f}%)")
     print(f"밴드 대비 p95-p5 median={np.median(a):.0f} "
           f"p10={np.percentile(a, 10):.0f} min={a.min():.0f}  (<40: "
           f"{np.mean(a < 40) * 100:.1f}%)")
     print("-- 기기별 (n>=2 만, 반전률 내림차순) --")
-    for name, (i, n) in sorted(per_device.items(), key=lambda kv: -kv[1][0]):
+    for name, (i, n) in sorted(r["per_device"].items(), key=lambda kv: -kv[1][0]):
         if n >= 2:
             print(f"  {name:28s} n={n:3d}  inverted={i / n * 100:5.1f}%")
-    mix = [(name, i, n) for name, (i, n) in per_device.items()]
+    mix = [(name, i, n) for name, (i, n) in r["per_device"].items()]
     dark = [name for name, i, n in mix if n >= 2 and i / n >= 0.5]
     print("-- 반전 우세 기기(반전률>=50%) --")
     for name in dark:
