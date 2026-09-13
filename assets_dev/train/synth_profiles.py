@@ -16,6 +16,7 @@
 # 문자열에는 절대 넣지 않는다 — 모델이 그 자리에 blank 를 내도록 배운다.
 import json
 import random
+import zlib
 from pathlib import Path
 
 import cv2
@@ -116,7 +117,7 @@ PROFILES = [
                   "glucose_batch1/2039"],
         # 화살표-끝자리 갭 실측 72~84px(스트립 12장) — 넓은 범위로 흔들어
         # '거의 닿는' 배치까지 재현한다(AC#5).
-        unit=dict(texts=["mg/dL"], pos="right-baseline", gap=(2, 80),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(2, 80),
                   h_ratio=(0.14, 0.20), p=0.9),
         # 미터기 지시 화살표(AC#5): 검은 창 안 오른쪽 가장자리의 흰 ▶ 이
         # 몸체에 인쇄된 점 눈금 열을 가리킨다. 근거 Instant 34장 — 화살표는
@@ -132,7 +133,7 @@ PROFILES = [
         evidence=["glucose_batch1/842", "glucose_batch1/843",
                   "glucose_batch1/731", "glucose_batch1/727"],
         # 단위 글리프가 끝자리에 4~5px 로 붙는다(아틀라스 재고표) — 실패 서명.
-        unit=dict(texts=["mg/dL", "mg /dL"], pos="right-mid", gap=(3, 8),
+        unit=dict(texts=["mg/dL", "mg /dL"], pos="below-right", gap=(3, 8),
                   h_ratio=(0.16, 0.22), p=1.0),
         meal=dict(texts=["AC", "PC"], p=0.3),
         mem=dict(kind="M", pos="below-left", p=0.5),
@@ -147,7 +148,7 @@ PROFILES = [
         # 프로파일이다(카드 2026-09-13 AC#1). 다른 기기의 시간·날짜줄은
         # 실사진에서 전부 세그먼트다(228·800·1903·1911 확인).
         dot_panel=True,
-        unit=dict(texts=["mg/dL"], pos="left-mid", gap=(8, 14),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(8, 14),
                   h_ratio=(0.12, 0.16), p=0.9),
         dotrow_above=dict(texts=["OK", "CHECK STRIP", "GLUCOSE"],
                           glyph=(4, 6), p=1.0),
@@ -159,7 +160,7 @@ PROFILES = [
         digit_h=(0.36, 0.46),
         evidence=["glucose_batch1/1781", "glucose_batch1/2498"],
         glulabel=dict(p=0.9),
-        unit=dict(texts=["mg/dL"], pos="right-mid", gap=(6, 14),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(6, 14),
                   h_ratio=(0.14, 0.18), p=0.6),
         mem=dict(kind="M-box", pos="top-left", p=0.7),
         icons=[("triangle", "top-left", 0.4), ("triangle", "top-right", 0.4),
@@ -172,7 +173,7 @@ PROFILES = [
         id="onetouch_ultra", slots=3, align="right", italic=True,
         digit_h=(0.34, 0.44),
         evidence=["glucose_batch1/1058", "glucose_batch1/2110"],
-        unit=dict(texts=["mg/dL"], pos="left-mid", gap=(8, 40),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(8, 40),
                   h_ratio=(0.14, 0.20), p=0.9),
         mem=dict(kind="mem", pos="top-right", p=0.4),
         time=dict(pos="below-left", p=0.5),
@@ -184,7 +185,7 @@ PROFILES = [
         evidence=["glucose_batch1/228", "glucose_batch1/373",
                   "glucose_batch1/800"],
         glulabel=dict(p=0.9),
-        unit=dict(texts=["mg/dL"], pos="right-baseline", gap=(2, 8),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(2, 8),
                   h_ratio=(0.12, 0.16), p=0.9),
         mem=dict(kind="M-box", pos="top-left", p=0.9),
         time=dict(pos="below-left", p=0.8),
@@ -195,7 +196,7 @@ PROFILES = [
         digit_h=(0.36, 0.46),
         evidence=["glucose_batch1/475", "glucose_batch1/477",
                   "glucose_batch1/2357"],
-        unit=dict(texts=["mg/dL"], pos="right-baseline", gap=(4, 12),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 12),
                   h_ratio=(0.13, 0.18), p=0.8),
         avgrow=dict(p=0.9),     # '07 DAY AVG 019' — 작은 7세그 + 인쇄 라벨 혼합
         time=dict(pos="below-right", p=0.6),
@@ -205,7 +206,7 @@ PROFILES = [
         id="caresens_n_premier", slots=3, align="right", italic=False,
         digit_h=(0.38, 0.48),
         evidence=["glucose_batch1/1911", "glucose_batch1/1903"],
-        unit=dict(texts=["mg/dL"], pos="right-mid", gap=(10, 18),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(10, 18),
                   h_ratio=(0.14, 0.18), p=0.9),
         mem=dict(kind="M", pos="right-of-digits", p=0.5),
         icons=[("mem-flag", "right-of-digits", 0.5), ("battery", "top-right", 0.3)],
@@ -215,7 +216,7 @@ PROFILES = [
         id="performa_silver", slots=3, align="right", italic=False,
         digit_h=(0.40, 0.50),
         evidence=["glucose_batch1/1186"],
-        unit=dict(texts=["mg/dL"], pos="above-right", gap=(4, 10),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 10),
                   h_ratio=(0.12, 0.16), p=0.9),
         mem=dict(kind="memory", pos="top-left", p=0.6),
         daterow=dict(p=0.8),    # '7-1' '#5' — 기록번호 포함
@@ -229,7 +230,7 @@ PROFILES = [
                   "glucose_batch2/2513", "glucose_batch2/2519"],
         # 상단에 시간(왼쪽)·날짜(오른쪽) 작은 줄, 숫자는 중앙 대형,
         # mg/dL 은 숫자 아래 오른쪽(1329 '0:00 0-0' + 하단 mg/dL 관찰).
-        unit=dict(texts=["mg/dL"], pos="below", gap=(4, 12),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 12),
                   h_ratio=(0.12, 0.16), p=0.9),
         time=dict(pos="top-left", p=0.85),
         daterow=dict(p=0.8),
@@ -243,7 +244,7 @@ PROFILES = [
         # 대형 중앙 숫자, mg/dL 은 숫자 아래 오른쪽, 하단 줄 왼쪽에 아래
         # 화살표 아이콘 + 오른쪽 시간(1435~1449 전 관찰). 온도 표기 '28C' 는
         # 화이트리스트 밖이라 렌더하지 않는다(보고서 명시).
-        unit=dict(texts=["mg/dL"], pos="below", gap=(4, 12),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 12),
                   h_ratio=(0.12, 0.16), p=0.9),
         time=dict(pos="below-right", p=0.9),
         arrow=dict(kinds=["tri-down"], gap=(4, 10), size=(10, 16),
@@ -301,6 +302,59 @@ LAYOUTS = {
 for _p in PROFILES:
     if _p["id"] in LAYOUTS:
         _p["layout"] = LAYOUTS[_p["id"]]
+
+
+# ── 기기 형질 / 촬영 변인의 분리(사람 지침 2026-09-13) ─────────────────────
+# 하나의 기기는 렌더마다 같아야 한다. 그런데 실측이 있는 축(유리 종횡비·밴드
+# 기하·세그먼트 굵기)만 LAYOUTS 로 고정돼 있고, 실측이 없는 축(몸체색·모서리
+# 반경·베젤 홈·칸 비율·표기 포맷·잔상)은 렌더마다 rng 에서 뽑혔다. 그래서 같은
+# 기기가 장마다 다른 물건으로 보였다.
+#
+# 해법은 '고정값을 정한다'가 아니다 — 실측이 없으니 정할 근거가 없다. 대신
+# **뽑는 시점을 기기로 옮긴다**: 기기 id 로 씨를 만들어 형질을 한 번 뽑고
+# 캐시한다. 프로세스·시드·렌더 순서와 무관하게 같은 기기는 같은 형질을 받는다
+# (crc32 는 파이썬 hash 와 달리 실행 간 안정적이다 — PYTHONHASHSEED 무관).
+#
+# 경계: 여기 있는 것은 전부 '기기가 가진 것'이다. 촬영이 바꾸는 것(프레이밍·
+# 각도·조명·대비·노이즈·반사)과 기기 상태가 바꾸는 것(mem 표기·식전후 마커·
+# 배터리·블루투스)은 여기 없다 — 그건 렌더 rng 가 계속 뽑는다.
+_IDENTITY_CACHE = {}
+
+
+def device_identity(pid):
+    """기기 고정 형질. 같은 pid 면 언제·어디서 불러도 같은 값을 돌려준다.
+    값은 0~1 분수로 준다 — 실제 범위(몸체색 50~190 등)는 소비처가 정한다."""
+    if pid in _IDENTITY_CACHE:
+        return _IDENTITY_CACHE[pid]
+    r = random.Random(zlib.crc32(("device:" + pid).encode("utf-8")))
+    t = dict(
+        body_u=r.random(),           # 몸체 플라스틱 톤(밝기 범위 안 위치)
+        panel_u=r.random(),          # 액정 바탕 톤
+        ink_u=r.random(),            # 잉크 톤(대비 열화 전)
+        corner_u=r.random() if r.random() < 0.45 else None,  # 라운드 반경(없으면 각진 몸체)
+        groove=r.random() < 0.45,    # 움푹한 베젤 홈 유무
+        groove_u=r.random(),         # 홈 깊이(있을 때)
+        glyph_in_cell=r.uniform(*GLYPH_IN_CELL_RANGE),       # 글리프 폭 / 칸 피치
+        ghost=r.uniform(0.04, 0.11) if r.random() < 0.15 else 0.0,
+        bezel_i=r.randrange(8),      # 베젤 인쇄 문자열 선택(소비처가 나머지 연산)
+        time_fmt_i=r.randrange(len(DOT_FMTS)),
+        dotrow_i=r.randrange(8),
+        polarity_u=r.random(),       # mixed 기기의 극성을 한 번에 확정
+    )
+    _IDENTITY_CACHE[pid] = t
+    return t
+
+
+# 글리프 폭/칸 피치 — 육안 근거 범위(synth_panel.GLYPH_IN_CELL 과 같은 값).
+# 여기 둔 이유: 이 축은 촬영이 아니라 기기의 액정 셀 기하라서 기기 형질이다.
+GLYPH_IN_CELL_RANGE = (0.78, 0.84)
+
+# 상태성 요소 — 기기는 같아도 장마다 켜지고 꺼진다. 자리·크기·모양은 고정이고
+# 켜짐 여부만 렌더 rng 가 정한다. 근거: 메모리 표기는 회상 모드에서만(1058
+# mem), 식전후 마커는 태그가 있을 때만, 배터리·블루투스는 상태 표시다.
+# 미터기 화살표는 여기 없다 — Instant 34장 전부에 있고 값에 묶인 지시자다.
+STATEFUL_ELEMENTS = {"mem", "meal", "arrow", "icon:battery", "icon:bluetooth",
+                     "icon:mem-flag", "icon:blood-drop", "icon:smile"}
 
 
 def sample_corpus_value(rng):
