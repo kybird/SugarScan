@@ -61,6 +61,10 @@ assets_dev/train/*
 !assets_dev/train/*.html
 !assets_dev/train/*.bat
 !assets_dev/train/*.md
+# 실사진 기준선 정본 — make_real_baseline.py 가 라벨에서 생성한다. 세 소비처
+# (synth_panel·validate_synth_panel·GLM_TASKS 3.8)가 읽는 살아 있는 입력이라
+# 저장소에 있어야 한다(손으로 편집 금지 — 생성기로만 갱신).
+!assets_dev/train/real_baseline.json
 !assets_dev/train/labeled.jsonl
 !assets_dev/train/screen_boxes.jsonl
 !assets_dev/train/gt_corrections.jsonl

@@ -22,13 +22,23 @@ sys.path.insert(0, str(HERE))
 import synth_panel as sp  # noqa: E402
 from measure_panel_stats import edge_density_outside  # noqa: E402
 
-# 실측 기준선(2026-09-12 측정, 이 파일과 같은 자) — 보고서에 나란히 쓴다.
+# 실측 기준선 — 정본 real_baseline.json(make_real_baseline.py 가 라벨 파일에서
+# 생성)을 읽는다. 이 파일에 수치를 베끼지 않는다(카드 2026-09-12 기준선 정본화).
+# 키 이름은 아래 인쇄문의 것을 그대로 쓴다.
+with open(HERE / "real_baseline.json", encoding="utf-8") as _f:
+    _RB = json.load(_f)
 REAL = dict(
-    wh_median=0.792, wh_p10=0.705, wh_p90=0.975, portrait=91.7, very_wide=0.8,
-    density_median=0.0225, density_p10=0.0056, density_p90=0.0397,
-    contrast_lt40=1.2,          # 밴드 p95-p5 < 40 비율(84장, measure_polarity)
-    inverted=27.4,              # 84장 기준(600장 카드 수치는 21.0)
-    digits2=20.5,
+    wh_median=round(_RB["aspect"]["wh_median"], 3),
+    wh_p10=round(_RB["aspect"]["wh_p10"], 3),
+    wh_p90=round(_RB["aspect"]["wh_p90"], 3),
+    portrait=round(_RB["aspect"]["portrait_pct"], 1),
+    very_wide=round(_RB["aspect"]["very_wide_pct"], 1),
+    density_median=round(_RB["density"]["median"], 4),
+    density_p10=round(_RB["density"]["p10"], 4),
+    density_p90=round(_RB["density"]["p90"], 4),
+    contrast_lt40=round(_RB["polarity"]["contrast_lt40_pct"], 1),  # p95-p5<40 비율
+    inverted=round(_RB["polarity"]["inverted_pct"], 1),
+    digits2=round(_RB["digits"]["two_digit_pct"], 1),
 )
 
 

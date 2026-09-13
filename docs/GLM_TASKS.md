@@ -272,12 +272,16 @@ flutter test     → All tests passed! (NNN tests)
 **같은 자로 실사진과 비교**한다. 자는 이미 있다. 새로 짜지 마라(§3.7).
 
 ```
-# 실사진 기준선 — 밴드 라벨이 있는 84장 전량
+# 실사진 기준선 정본 — 라벨 파일에서 생성한다(손으로 타이핑한 값은 무효).
 cd assets_dev/train
+python make_real_baseline.py             # real_baseline.json 갱신 + 표 출력
+python make_real_baseline.py --markdown  # 아래 표만 다시 뽑기
+
+# 정본을 여는 낱축 자(정본 생성기가 import 하는 것과 같은 코드다)
 python measure_panel_stats.py aspect                       # 종횡비, n=2497
-python measure_panel_stats.py band                         # 밴드 기하, n=84
-python measure_panel_stats.py density --frame-exc 0        # 엣지 밀도, n=84
-python measure_polarity.py                                 # 극성·밴드 대비, n=84
+python measure_panel_stats.py band                         # 밴드 기하, n=264
+python measure_panel_stats.py density --frame-exc 0        # 엣지 밀도, n=264
+python measure_polarity.py                                 # 극성·밴드 대비, n=264
 
 # 합성 — 위와 같은 코드로 잰다
 python synth_panel.py gen --count 300 --seed 31000 --out <dir>
@@ -286,8 +290,12 @@ python measure_panel_stats.py synth-density  --images <dir>/images --manifest <d
 python measure_polarity.py    synth-polarity <dir>/images <dir>/manifest.jsonl
 ```
 
-**실사진 기준선(2026-09-12 실측, 위 명령 그대로).** 이 표를 인용할 때는
-명령과 `n` 을 같이 적는다.
+**실사진 기준선의 정본은 `assets_dev/train/real_baseline.json` 하나다** —
+`make_real_baseline.py` 가 라벨 파일(band_boxes 277행·54종·join 264, 2026-09-12)
+에서 생성하고, `synth_panel.py`(REAL_DENSITY)·`validate_synth_panel.py`(REAL)·
+이 표가 그것을 읽는다. 아래 표는 `python make_real_baseline.py --markdown` 출력을
+붙여넣은 렌더링이다 — 수치를 고치려면 라벨을 고치고 정본을 다시 생성한다.
+인용할 때는 명령과 `n` 을 같이 적는다.
 
 | 축 | 실사진 | n |
 |---|---|---|
@@ -298,7 +306,7 @@ python measure_polarity.py    synth-polarity <dir>/images <dir>/manifest.jsonl
 | 엣지 밀도 — 바깥 링(15%) | median 1.90% | 263 |
 | 엣지 밀도 — 안쪽 | median 1.11% | 263 |
 | 극성 반전 | 33.7% | 264 |
-| 밴드 대비 p95-p5 | median 99 · p10 60 · min 21 · 40미만 1.1% | 264 |
+| 밴드 대비 p95-p5 | median 99 · p10 60 · p90 178 · min 21 · 40미만 1.1% | 264 |
 | 질감 기여(denoise) | 22.4% | 263 |
 
 **합성 패널과 실사진 GM 크롭은 같은 물건이 아니다 — 밀도를 비교하기 전에 읽어라.**
