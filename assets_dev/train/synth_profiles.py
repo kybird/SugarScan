@@ -144,15 +144,15 @@ PROFILES = [
         digit_h=(0.50, 0.58),
         evidence=["glucose_batch1/120", "glucose_batch1/694",
                   "glucose_batch1/695"],
-        # 도트 패널 기기(120·694·695) — 도트매트릭스 렌더를 쓰는 유일한
-        # 프로파일이다(카드 2026-09-13 AC#1). 다른 기기의 시간·날짜줄은
-        # 실사진에서 전부 세그먼트다(228·800·1903·1911 확인).
-        dot_panel=True,
+        # 도트 패널이 아니다(2026-09-13 정정). 근거 사진 120 을 3배 확대해
+        # 보면 큰 숫자가 꼭짓점 뾰족한 7-세그먼트이고, 694·695 도 같다.
+        # 화면 아래 한 줄은 '3.21  08:41 AM' — 날짜+시간이고 역시 세그먼트다.
+        # 'OK'·'CHECK STRIP' 윗줄은 세 장 어디에도 없다. 도트 렌더를 쓰는
+        # 프로파일은 이제 하나도 없다.
         unit=dict(texts=["mg/dL"], pos="below-right", gap=(8, 14),
                   h_ratio=(0.12, 0.16), p=0.9),
-        dotrow_above=dict(texts=["OK", "CHECK STRIP", "GLUCOSE"],
+        dotrow_below=dict(fmts=["{M}.{d02}  {h02}:{m02} {AM}"],
                           glyph=(4, 6), p=1.0),
-        dotrow_below=dict(fmts=DOT_FMTS, glyph=(4, 6), p=0.8),
         bezel=dict(texts=["Premium"], edge="bottom", p=1.0),
     ),
     dict(
@@ -198,8 +198,10 @@ PROFILES = [
                   "glucose_batch1/2357"],
         unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 12),
                   h_ratio=(0.13, 0.18), p=0.8),
-        avgrow=dict(p=0.9),     # '07 DAY AVG 019' — 작은 7세그 + 인쇄 라벨 혼합
-        time=dict(pos="below-right", p=0.6),
+        # avgrow('07 DAY AVG 019') 철회(2026-09-13) — 근거 사진 475·477·
+        # 2357 어디에도 없다. 셋 다 화면 맨 아래가 '04-22  16:45'(날짜+시간)
+        # 한 줄이다. 배치 실패로 120장 중 12장에서 빠지던 요소이기도 했다.
+        dotrow_below=dict(fmts=["{M02}-{d02}   {h02}:{m02}"], p=1.0),
         bezel=dict(texts=["ACURA PLUS"], edge="top", p=1.0),
     ),
     dict(

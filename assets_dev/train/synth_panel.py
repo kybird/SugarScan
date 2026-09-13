@@ -358,11 +358,11 @@ def _draw_digit_uniform(img, x, y, dh, ch, w_target, ink, variant, glyph_cache,
         preg[:hh, :ww][m[:hh, :ww]] = 255
 
 
-def _dot_time_text(rng, fmt_i=None):
+def _dot_time_text(rng, fmt_i=None, fmts=None):
     """시간·날짜 줄. 표기 포맷(구분자·12/24시·am 표기)은 기기의 것이라
     fmt_i 로 고정하고, 숫자 내용만 렌더마다 뽑는다(사람 지침 2026-09-13)."""
-    fmt = DOT_FMTS[rng.randrange(len(DOT_FMTS)) if fmt_i is None
-                   else fmt_i % len(DOT_FMTS)]
+    pool = fmts or DOT_FMTS
+    fmt = pool[rng.randrange(len(pool)) if fmt_i is None else fmt_i % len(pool)]
     return fmt.format(h02=f"{rng.randint(0, 12):02d}",
                       m02=f"{rng.randint(0, 59):02d}",
                       M=f"{rng.randint(1, 12)}", M02=f"{rng.randint(1, 12):02d}",
@@ -644,6 +644,23 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
     img = np.clip(img.astype(np.float32) * (1 - _pmask) + panel_col * _pmask,
                   0, 255).astype(np.uint8)
 
+    # 어두운 창(meter 기기) — 액정을 감싼 검은 면. 근거 267·270: 흰 몸체와
+    # 액정 사이에 검은 창이 한 겹 있고 미터기 점 열이 그 위에 인쇄돼 있다.
+    # 몸체 인쇄(브랜드명)보다 먼저 깐다 — 브랜드명은 흰 몸체 위에 있다.
+    if profile.get("meter"):
+        _wk_r = max(6, int(mg_r * 0.92))
+        _wk_t = max(3, int(mg_t * 0.45))
+        _wk_b = max(3, int(mg_b * 0.45))
+        _wk_l = max(3, int(mg_l * 0.55))
+        _wcol = int(np.clip(body_col * 0.22, 12, 70))
+        # 유리 '바깥' 테두리만 칠한다 — 유리 안을 덮으면 이미 그린 액정 바탕과
+        # 페더링이 날아간다.
+        for _r in ((px0 - _wk_l, py0 - _wk_t, px1 + _wk_r, py0),
+                   (px0 - _wk_l, py1, px1 + _wk_r, py1 + _wk_b),
+                   (px0 - _wk_l, py0, px0, py1),
+                   (px1, py0, px1 + _wk_r, py1)):
+            cv2.rectangle(img, (_r[0], _r[1]), (_r[2], _r[3]), _wcol, -1)
+
     # 몸체 인쇄 — 브랜드·모델명. 문자열은 프로파일 근거(BEZEL_TEXTS)대로,
     # 몸체 인쇄 자체의 근거 사진은 713·722(Gmate)·92·97·100(CareTouch·
     # MM1000·Boryung). 스트립이 글자를 온전히 담을 때만 그린다(잘리지 않는다).
@@ -701,12 +718,16 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
     # 모양·위치·밝기가 장마다 같다 — 세그먼트가 아니라 인쇄다. 화살표 요소가
     # 이 열을 가리킨다(arrow 의 meter 가 같은 프로파일에만 있다).
     if profile.get("meter") and mg_r >= 7:
+        # 근거 사진 270(2026-09-13 눈검): 점 열은 흰 몸체가 아니라 액정을
+        # 감싼 '검은 창' 위에 있다. 구판은 몸체 마진에 그려 밝은 플라스틱
+        # 위에 회색 점이 떠 있었다. 창을 먼저 깔고 그 위에 점을 얹는다.
         _nd = 10
         _colh = int((py1 - py0) * 0.80)
         _gy0 = py0 + ((py1 - py0) - _colh) // 2
         _mcx = px1 + mg_r // 2
         _dr = max(1, min(2, mg_r // 6))
-        _mcol = int(np.clip(body_col * 0.68, 30, 200))
+        # 점은 창보다 밝다(실물은 청록·붉은 인쇄) — 창 톤 기준으로 올린다.
+        _mcol = int(np.clip(body_col * 0.22 + 90, 60, 235))
         for _k in range(_nd):
             _cy = _gy0 + int(_colh * (_k + 0.5) / _nd)
             cv2.circle(img, (_mcx, _cy), _dr, _mcol, -1)
@@ -1291,7 +1312,8 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
             used_texts.add(txt)
     db = profile.get("dotrow_below")
     if db and _shown("dotrow_below", db["p"]):
-        txt = _dot_time_text(rng, ident["time_fmt_i"] if ident else None)
+        txt = _dot_time_text(rng, ident["time_fmt_i"] if ident else None,
+                             db.get("fmts"))
         if _dotp:
             glyph = max(3, (aux_h - 4) // 2)
             wpx = int(len(txt) * glyph * 1.2)
