@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>llm-wiki board</title>
+<style>
+  body { font-family: -apple-system, 'Segoe UI', 'Malgun Gothic', sans-serif; margin: 24px; background: #f6f7f9; color: #1c2733; }
+  header h1 { font-size: 20px; margin: 0 0 4px; }
+  header p { margin: 0 0 20px; color: #5b6a78; font-size: 13px; }
+  main { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  section { background: #fff; border: 1px solid #e2e6ea; border-radius: 10px; padding: 12px; }
+  h2 { font-size: 14px; margin: 0 0 10px; text-transform: uppercase; letter-spacing: .04em; color: #40505f; }
+  .count { color: #8a97a3; font-weight: 400; }
+  .card { background: #f2f4f7; border: 1px solid #dde2e8; border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; }
+  .card .t { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .q { font-size: 12px; color: #5b6a78; margin: 2px 0 4px; }
+  .badge { display: inline-block; font-size: 11px; background: #e3e8ee; color: #44525f; border-radius: 999px; padding: 2px 8px; margin: 2px 4px 0 0; }
+  .badge.warn { background: #fdeccf; color: #7a4d05; }
+  .badge.gate { background: #dbe7fd; color: #1c4d8f; }
+  .empty { color: #98a3ad; font-size: 13px; }
+  .tt { font-size: 13px; color: #1c2733; }
+  .t-done { background: #6ee7a0; }
+  .t-superseded { background: #c9a6ff; }
+  .t-abandoned { background: #ff8f8f; }
+  footer { margin-top: 18px; color: #5b6a78; font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Kanban board</h1>
+  <p>생성: 2026-09-13T17:18:30.566Z · WIP doing 1/2 · 이 파일은 유도물 — 정본은 doc/kanban/ 카드 파일들</p>
+</header>
+<main style="grid-template-columns: repeat(4, 1fr)">
+
+    <section>
+      <h2>Doing <span class="count">1</span></h2>
+      <div class="card"><div class="t">글리프 평면 자가검사의 잉크 문턱을 대비에 비례시킨다</div><span class="badge">glm</span></div>
+    </section>
+
+    <section>
+      <h2>Review (사람 판정 대기) <span class="count">6</span></h2>
+      <div class="card"><div class="t">온디바이스 ONNX 런타임 선택</div><div class="q">↳ ONNX 방향은 확정됨(86d3dbe, tflite 불가 — docs/DONE.md G28). Flutter ONNX 런타임 패키지를 무엇으로 할지(onnxruntime_flutter · flutter_onnxruntime 등), 모바일 벤치마크(p50/p95·메모리, 강화 프롬프트 §34)를 언제 돌릴지 결정이 필요하다. 새 패키지 도입은 승인제다.</div></div>
+<div class="card"><div class="t">mmol/L 실츬 데이터 확보</div><div class="q">↳ mmol/L 소수점 판독은 현재 측정도 학습도 불가능하다(코퍼스에 소수점 표본 0건·리더 charset 0~9 전용). mmol/L 표시 기기 실츬 사진을 어떤 기기·몇 장 기준으로 확보할지 결정이 필요하다. 확보 전까지 mmol/L 경로는 앱의 규칙 엔진(소수점 채널 직접 검출)만이 유일한 경로다.</div></div>
+<div class="card"><div class="t">mmol/L 소수점 합성 생성기와 리더 charset 확장</div><div class="q">↳ scratch 재구축(2026-09-11) 뒤 AC 재조정 필요: AC#2(기존 캐시 라벨 유효성 고정)와 AC#4(기존 기기 단절 홀드아웃 1,138장 짝비교)가 폐기된 옛 리더·옛 홀드아웃을 전제한다. 새 리더가 아직 없는 지금 이 카드를 (a)새 리더 설계 시점으로 순서를 미룰지 (b)합성 소수점 렌더만 남겨 지금 할지 정해야 한다. 참고: 2026-09-11 무인 세션이 pick 을 돌렸을 때 ordinal 최저 카드라 자동으로 잡혔으나 킥오프의 수행 가능 카드 목록에 포함돼 있지 않아 반납한다.</div></div>
+<div class="card"><div class="t">Flutter ONNX 런타임 후보 스파이크 벤치</div><div class="q">↳ 두 가지를 사람이 정해야 한다: (1) AC#2 가 실기기(Redmi Note 11) 측정을 요구하는데 무인 에이전트는 물리 기기가 없어 수행 불가 — 벤치를 사람이 직접 돌리는 시점/방법을 정해야 한다. (2) Notes 가 지시하는 G28·G31 ONNX 내보내기 산출물은 폐기된 옛 리더의 것인데, 런타임 스파이크를 그 파일로 지금 돌릴지 새 리더 내보내기가 나올 뒤로 미룰지. 참고: 2026-09-11 무인 세션의 오풀(pick --help 실행)로 클레임이 찍혀 반납한다.</div></div>
+<div class="card"><div class="t">새로 검출된 8장에 기기 라벨을 붙인다</div><div class="q">↳ 사람만 할 수 있는 카드다 — 무인 에이전트는 사진을 보고 기종을 식별할 수 없고, device_labels.jsonl 은 사람 라벨 파일이다. 무인 루프가 ordinal 순으로 집어가지 못하게 REVIEW 로 세운다. 사람이 웹툴 기종 탭에서 8장을 붙인 뒤 resume 하면 된다. (같이 적혀 있던 밴드 라벨 18장 AC 는 무효다 — 그 18장은 코퍼스 밖이라 기종 탭이 닿지 않는다. 카드 Note 참조)</div></div>
+<div class="card"><div class="t">합성 프로파일 세트가 기기 모집단을 대표하지 않는다 — 극성이 그 증상</div><div class="q">↳ 사람 결정 대기. 합성 프로파일 세트(12종 균등)를 실사진 코퍼스(51종·사진수 불균등)의 무엇으로 볼 것인지 정해야 한다. GLM 은 (가) 기기 충실 유지 + 허용폭 재정의를 추천했고, 나도 (가) 쪽으로 기운다 — 코퍼스 사진 가중치는 촬영자 편향이고(UltraMini 30장 vs 대부분 4장) 오늘 라벨링 큐를 기기 균등으로 짠 것도 같은 이유다. 다만 이건 &#39;합성이 무엇을 닮아야 하는가&#39; 라는 제품 판단이라 내가 정하지 않는다. 근거 수치는 카드 Goal 에 전부 있다. 결정이 극성 하나로 끝나지 않는다는 점이 중요하다 — 지금 밀도·기하 AC 는 사진 가중 실측값을 쓰고 극성만 기기 속성을 전제해 두 가정이 섞여 있다.</div></div>
+    </section>
+
+    <section>
+      <h2>Todo <span class="count">12</span></h2>
+      <div class="card"><div class="t">밴드 쿼드 제안 검수 UI</div></div>
+<div class="card"><div class="t">GM 검출 추론 전처리를 학습과 맞춘다 — 스트레치에서 레터박스로</div></div>
+<div class="card"><div class="t">ft3 가 놓친 5장 회귀 진단</div></div>
+<div class="card"><div class="t">생성기 일원화 — 프로파일 렌더러를 기본 경로로</div></div>
+<div class="card"><div class="t">합성 국소 광원 — 전역 그라데이션을 반사 패치로</div></div>
+<div class="card"><div class="t">7-세그먼트 글리프 정밀화</div><span class="badge gate">의존 대기: 합성 글리프 네 결함 — 콜론·글자 크기 종수·배터리·화살표 위치</span></div>
+<div class="card"><div class="t">밴드 크롭 대 LCD 전체 A/B — 이번엔 합성도 같은 크롭으로</div></div>
+<div class="card"><div class="t">합성 생성이 같은 시드에서 같은 코퍼스를 내게 한다</div></div>
+<div class="card"><div class="t">밀도 최대 선택이 여백 분포를 왜곡한다 — 타이트 크롭이 절반으로 준다</div><span class="badge gate">의존 대기: 합성 생성이 같은 시드에서 같은 코퍼스를 내게 한다</span></div>
+<div class="card"><div class="t">밴드 쿼드 검출기 재학습 2차 — 재조준 합성으로 짝비교</div><span class="badge gate">의존 대기: 합성 글리프 네 결함 — 콜론·글자 크기 종수·배터리·화살표 위치</span></div>
+<div class="card"><div class="t">실사진 밴드 라벨로 검출기 파인튜닝 — 기기 단절 분할</div></div>
+<div class="card"><div class="t">합성 글리프 네 결함 — 콜론·글자 크기 종수·배터리·화살표 위치</div><span class="badge gate">의존 대기: 글리프 평면 자가검사의 잉크 문턱을 대비에 비례시킨다</span></div>
+    </section>
+
+    <section>
+      <h2>종결 적체 <span class="count">최근 8</span></h2>
+      <div class="card"><span class="badge t-done">완료</span><span class="tt">합성에 가로형 정보칼럼을 넣는다 — v0 이 짚은 최대 약점</span></div>
+<div class="card"><span class="badge t-done">완료</span><span class="tt">합성 열화 상한 — 사람이 못 읽는 표본을 만들지 않는다</span></div>
+<div class="card"><span class="badge t-done">완료</span><span class="tt">합성을 GM 크롭과 같은 물건으로 — 기기 몸체를 함께 렌더한다</span></div>
+<div class="card"><span class="badge t-done">완료</span><span class="tt">밴드 라벨 확장 뒤 합성 밀도·기하 기준선을 재고정한다</span></div>
+<div class="card"><span class="badge t-done">완료</span><span class="tt">v0 체크포인트를 54종 평가셋으로 다시 잰다</span></div>
+<div class="card"><span class="badge t-superseded">대체</span><span class="tt">밴드 쿼드 검출기 재학습 — 몸체 렌더 합성 + 54종 평가셋</span></div>
+<div class="card"><span class="badge t-superseded">대체</span><span class="tt">PITCH_RATIO 근거를 실측으로 세우거나 주석을 사실로 되돌린다</span></div>
+<div class="card"><span class="badge t-done">완료</span><span class="tt">숫자 밴드 라벨링 큐 전량 확장과 진행 계측</span></div>
+    </section>
+</main>
+<footer>종결: done 32 · superseded 5 · abandoned 6 — 갱신은 <code>llm-wiki board --html</code></footer>
+</body>
+</html>
