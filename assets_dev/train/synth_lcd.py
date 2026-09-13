@@ -56,109 +56,218 @@ def put_7seg_text(img, x, y, w, h, text, ink, gap_ratio=0.25):
 # ── 세그먼트 스트로크 폰트 — 카드 「합성 글리프 네 결함」(2026-09-13) ──────────
 # LCD 보조 글자는 Hershey 벡터 폰트의 곡선을 쓸 수 없다 — 세그먼트 LCD 의 획은
 # 전부 직선이다. 근거: glucose_batch1/722(Gmate) — 값·시간·단위·days 줄이 전부
-# 각진 세그먼트 글자고 콜론은 사각 점 두 개('1:27'). 아래 스트로크 표는 실물
-# 글자 모양을 보고 자체 정의한 것이다(외부 폰트 자산 아님 — 라이선스 정돈
-# 불필요). 좌표는 글자 셀 안 0..1 (x 오른쪽, y 아래).
-SEG_STROKES = {
-    # 대문자
-    "A": [(0, 1, 0, .45), (0, .45, .5, 0), (.5, 0, 1, .45), (1, .45, 1, 1), (.14, .62, .86, .62)],
-    "B": [(0, 0, 0, 1), (0, 0, .8, 0), (.8, 0, 1, .18), (1, .18, 1, .44), (1, .44, .8, .58), (.8, .58, 0, .58), (0, .58, .8, .58), (.8, .58, 1, .74), (1, .74, 1, .82), (1, .82, .8, 1), (.8, 1, 0, 1)],
-    "C": [(1, .12, .5, 0), (.5, 0, 0, .12), (0, .12, 0, .88), (0, .88, .5, 1), (.5, 1, 1, .88)],
-    "D": [(0, 0, 0, 1), (0, 0, .7, 0), (.7, 0, 1, .25), (1, .25, 1, .75), (1, .75, .7, 1), (.7, 1, 0, 1)],
-    "E": [(1, 0, 0, 0), (0, 0, 0, 1), (0, 1, 1, 1), (0, .55, .8, .55)],
-    "F": [(1, 0, 0, 0), (0, 0, 0, 1), (0, .55, .8, .55)],
-    "G": [(1, .12, .5, 0), (.5, 0, 0, .12), (0, .12, 0, .88), (0, .88, .5, 1), (.5, 1, 1, .88), (1, .88, 1, .55), (1, .55, .55, .55)],
-    "H": [(0, 0, 0, 1), (1, 0, 1, 1), (0, .55, 1, .55)],
-    "I": [(.5, 0, .5, 1), (0, 0, 1, 0), (0, 1, 1, 1)],
-    "K": [(0, 0, 0, 1), (1, 0, 0, .58), (0, .58, 1, 1)],
-    "L": [(0, 0, 0, 1), (0, 1, 1, 1)],
-    "M": [(0, 1, 0, 0), (0, 0, .5, .5), (.5, .5, 1, 0), (1, 0, 1, 1)],
-    "N": [(0, 1, 0, 0), (0, 0, 1, 1), (1, 1, 1, 0)],
-    "O": [(0, .12, 0, .88), (0, .88, .5, 1), (.5, 1, 1, .88), (1, .88, 1, .12), (1, .12, .5, 0), (.5, 0, 0, .12)],
-    "P": [(0, 1, 0, 0), (0, 0, .8, 0), (.8, 0, 1, .18), (1, .18, 1, .4), (1, .4, .8, .58), (.8, .58, 0, .58)],
-    "R": [(0, 1, 0, 0), (0, 0, .8, 0), (.8, 0, 1, .18), (1, .18, 1, .4), (1, .4, .8, .58), (.8, .58, 0, .58), (.35, .58, 1, 1)],
-    "S": [(1, .1, .5, 0), (.5, 0, 0, .12), (0, .12, 0, .44), (0, .44, .5, .58), (.5, .58, 1, .7), (1, .7, 1, .9), (1, .9, .5, 1), (.5, 1, 0, .9)],
-    "T": [(0, 0, 1, 0), (.5, 0, .5, 1)],
-    "U": [(0, 0, 0, .88), (0, .88, .5, 1), (.5, 1, 1, .88), (1, .88, 1, 0)],
-    "V": [(0, 0, .5, 1), (.5, 1, 1, 0)],
-    "Y": [(0, 0, .5, .45), (1, 0, .5, .45), (.5, .45, .5, 1)],
-    # 소문자 — 실물 LCD 보조 글자는 소문자도 각진 대형(722 'days'·'mem')
-    "a": [(0, 1, 0, .5), (0, .5, .5, .42), (.5, .42, 1, .55), (1, .55, 1, 1), (1, 1, 0, 1), (.5, .42, .5, 1)],
-    "b": [(0, 0, 0, 1), (0, 1, .8, 1), (.8, 1, 1, .8), (1, .8, 1, .6), (1, .6, .8, .45), (.8, .45, 0, .45)],
-    "c": [(1, .58, .5, .45), (.5, .45, 0, .58), (0, .58, 0, .88), (0, .88, .5, 1), (.5, 1, 1, .88)],
-    "d": [(1, 0, 1, 1), (1, 1, .2, 1), (.2, 1, 0, .8), (0, .8, 0, .6), (0, .6, .2, .45), (.2, .45, 1, .45)],
-    "e": [(0, .58, 0, .88), (0, .88, .5, 1), (.5, 1, 1, .88), (1, .88, 1, .72), (1, .72, 0, .58), (0, .58, 1, .58)],
-    "g": [(1, 0, 1, .88), (1, .88, .5, 1), (.5, 1, 0, .88), (0, .88, 0, .68), (0, .68, .5, .55), (.5, .55, 1, .68), (1, .68, 1, 1.12), (1, 1.12, .4, 1.12)],
-    "h": [(0, 0, 0, 1), (0, .45, .8, .45), (.8, .45, 1, .62), (1, .62, 1, 1)],
-    "k": [(0, 0, 0, 1), (1, .45, 0, .72), (0, .72, 1, 1)],
-    "l": [(.5, 0, .5, 1)],
-    "m": [(0, .45, 0, 1), (0, .45, .27, .38), (.27, .38, .5, .45), (.5, .45, .73, .38), (.73, .38, 1, .45), (1, .45, 1, 1)],
-    "n": [(0, .45, 0, 1), (0, .45, .55, .45), (.55, .45, 1, .62), (1, .62, 1, 1)],
-    "o": [(0, .58, 0, .88), (0, .88, .5, 1), (.5, 1, 1, .88), (1, .88, 1, .58), (1, .58, .5, .45), (.5, .45, 0, .58)],
-    "p": [(0, .45, 0, 1.12), (0, .45, .8, .45), (.8, .45, 1, .62), (1, .62, 1, .8), (1, .8, .8, 1), (.8, 1, 0, 1)],
-    "r": [(0, .45, 0, 1), (0, .45, .6, .45), (.6, .45, 1, .58)],
-    "s": [(1, .52, .5, .45), (.5, .45, 0, .55), (0, .55, 0, .72), (0, .72, .5, .82), (.5, .82, 1, .9), (1, .9, .5, 1), (.5, 1, 0, .92)],
-    "t": [(.4, .2, .4, .85), (.4, .85, .7, 1), (.7, 1, 1, .85), (0, .45, .8, .45)],
-    "u": [(0, .45, 0, .88), (0, .88, .5, 1), (.5, 1, 1, .88), (1, .88, 1, .45), (0, .45, 1, .45)],
-    "v": [(0, .45, .5, 1), (.5, 1, 1, .45)],
-    "y": [(0, .45, .5, .8), (1, .45, .5, .8), (.5, .8, .5, 1), (.5, 1, 1, 1.12)],
-    # 숫자·기호
-    "/": [(1, .95, 0, .05)],
-    "-": [(.1, .55, .9, .55)],
-    ".": [(.35, .85, .35, 1.0)],
-    "#": [(.25, 0, .25, 1), (.7, 0, .7, 1), (0, .3, 1, .3), (0, .72, 1, .72)],
-    "+": [(.5, .2, .5, .9), (.1, .55, .9, .55)],
+# 각진 세그먼트 글자고 콜론은 사각 점 두 개('1:27'). 스트로크 표는 실물 계산기
+# 세그먼트 글자 관례(대부분 축정렬, 굳은 모서리)를 따라 자체 정의했다(외부
+# 폰트 자산 아님). 좌표는 글자 셀 안 0..1 (x 오른쪽, y 아래). 소문자 x-높이
+# 상단 0.42, 대문자는 전 높이.
+#
+# 2026-09-13 2차(사람 리뷰): 1차 지그재그 대각선 글자('m' 등)가 작은 크기에서
+# 깨져 보였고, 예약 폭(seg_text_width)이 실제 그은 폭보다 글자당 간격(h/8)
+# 만큼 적어 단위·mem 이 배치 박스를 뚫고 나갔다(실측 'mg/dL' +10px, h=30).
+# 글자를 계산기식 블록 형태로 바꾸고 폭 계산을 seg_char_advance 단일 소스로
+# 통일했다. 굵기·이탤릭 변형은 큰 숫자의 DSEG 변형(_pick_variant)과 같은
+# 계열을 따른다 — 한 패널 안에서 숫자와 보조 글자의 굵기·기울기가 일치.
+# ── 14-세그먼트 글자 행렬(2026-09-13 3차) ─────────────────────────────────
+# 사람 지적: 2차의 손그림 스트로크 폰트는 세그먼트가 아니었다(숫자와 시각
+# 언어가 다르고 'g' 가 안 읽혔다). 순수 7-세그로는 m·w 를 아예 못 쓰므로,
+# 실제 알파넘메릭 LCD(DSEG14 계열)가 쓰는 14-세그 행렬로 글자를 그린다:
+# 7-세그(a~g) + 분할 가로획(a1·a2·d1·d2·g1·g2) + 중심 대각선 4개(h·i·j·l).
+# 숫자는 기존 7-세그(SEG_MAP) 그대로 — 큰 숫자의 DSEG 과 같은 관계다.
+SEG14_GEO = {   # 셀 안 0..1 (x 오른쪽, y 아래)
+    "a1": (0, 0, .5, 0), "a2": (.5, 0, 1, 0),
+    "f": (0, 0, 0, .5), "b": (1, 0, 1, .5),
+    "g1": (0, .5, .5, .5), "g2": (.5, .5, 1, .5),
+    "e": (0, .5, 0, 1), "c": (1, .5, 1, 1),
+    "d1": (0, 1, .5, 1), "d2": (.5, 1, 1, 1),
+    "h": (0, 0, .5, .5), "i": (1, 0, .5, .5),
+    "j": (0, 1, .5, .5), "l": (1, 1, .5, .5),
 }
-# 소문자 g·p·y 처럼 밑으로 내려오는 활자 — 셀 아래 0.12 여유가 필요하다.
-SEG_DESCEND = set("gpy")
-SEG_ADVANCE = {"/": .55, "-": .8, ".": .55, "#": 1.0, "+": 1.0, " ": .55, ":": .5}
+SEG14_MAP = {   # 토큰에 쓰이는 글자만 — 14-세그 표기 관례
+    "A": ("a1", "a2", "b", "c", "e", "f", "g1", "g2"),
+    "C": ("a1", "a2", "d1", "d2", "e", "f"),
+    "D": ("a1", "a2", "b", "c", "f", "g2", "d2"),
+    "E": ("a1", "a2", "d1", "d2", "e", "f", "g1", "g2"),
+    "F": ("a1", "a2", "e", "f", "g1", "g2"),
+    "G": ("a1", "a2", "c", "d1", "d2", "e", "f", "g2"),
+    "H": ("b", "c", "e", "f", "g1", "g2"),
+    "K": ("e", "f", "i", "j"),
+    "L": ("d1", "d2", "e", "f"),
+    "M": ("e", "f", "b", "c", "h", "i"),
+    "O": ("a1", "a2", "b", "c", "d1", "d2", "e", "f"),
+    "P": ("a1", "a2", "b", "e", "f", "g1", "g2"),
+    "R": ("a1", "a2", "b", "e", "f", "g1", "g2", "l"),
+    "S": ("a1", "a2", "f", "g1", "g2", "c", "d1", "d2"),
+    "U": ("e", "f", "b", "c", "d1", "d2"),
+    "V": ("e", "f", "b", "c", "j", "l"),
+    # 소문자 — 14-seg 관례: 내림/올림 없이 행렬 안 근사(g≈9형, m≈M형)
+    "a": ("a1", "a2", "b", "c", "e", "f", "g1", "g2"),
+    "c": ("a1", "a2", "d1", "d2", "e", "f"),
+    "d": ("b", "c", "d1", "d2", "e", "g1", "g2"),
+    "e": ("a2", "f", "g1", "g2", "e", "d1", "d2"),
+    "g": ("a1", "a2", "b", "c", "d1", "d2", "f", "g1", "g2"),
+    "l": ("e", "f"),
+    "m": ("e", "f", "b", "c", "h", "i"),
+    "o": ("c", "d1", "d2", "e", "g1", "g2"),
+    "p": ("a1", "a2", "b", "e", "f", "g1", "g2"),
+    "r": ("e", "g1"),
+    "u": ("b", "c", "d1", "d2", "e", "g1", "g2"),
+    "y": ("f", "g1", "g2", "b", "c", "d1", "d2"),
+    # 기호는 원시 스트로크(아래), 숫자는 SEG_MAP(7-세그)
+}
+SEG14_RAW = set("/-.#+")
+# 글자별 셀 폭(높이 대비). 없는 글자는 0.72(일반 글자), 숫자는 0.62.
+SEG_CELL = {"-": .55, ".": .30, "/": .50, "+": .95, "#": 1.05}
+# 굵기 변형 — 큰 숫자의 DSEG 변형(DSEG_WEIGHTS, 실기기 8종 눈검 근거)과
+# 같은 3계열. 두께/높이 비율.
+SEG_WEIGHTS = {"Light": .08, "Regular": .11, "Bold": .15}
+# 이탤릭 전단 계수(양수=오른쪽 기울임) — DSEG Italic 관례각 ~10°.
+SEG_SLANT = 0.17
 
 
-def seg_text_width(text, h):
-    """seg_text 가 그을 폭(px) — 배치 사각형 계산용."""
-    w = 0
-    for ch in text:
-        if ch in SEG_MAP:
-            w += h * 0.62
-        elif ch in SEG_STROKES:
-            w += h * 0.72
-        else:
-            w += h * SEG_ADVANCE.get(ch, 0.55)
-    return int(round(w)) + 2
+def seg_weight_from_variant(variant):
+    """DSEG 변형 이름(put_7seg_text 큰 숫자용) -> 보조 글자 굵기 키."""
+    if "Bold" in variant:
+        return "Bold"
+    if "Light" in variant:      # ModernLight 포함
+        return "Light"
+    return "Regular"
 
 
-def seg_text(img, x, y, text, h, ink, thick=None):
-    """세그먼트 보조 글자 줄(AC#1). 숫자는 7-세그(SEG_MAP), 글자는 직선
-    스트로크, 콜론은 사각 점 두 개(put_7seg_text 와 같은 관례, 근거 722
-    '1:27'). 반환값: 그은 폭 px."""
-    t = thick or max(1, int(round(h / 8.0)))
+_HERSHEY_W = {}
+
+
+def _hershey_metric(ch, h, thick):
+    """Hershey 글자 하나의 (폭, 전체높이, 베이스라인, 배율) — 높이 h 에
+    맞춘다. 글자를 Hershey 폰트로 그릴 때 쓴다(사람 지정 2026-09-13:
+    숫자는 7-세그, 글자는 폰트, 폰트는 기기별 프로파일이 고른다)."""
+    key = (ch, h, thick)
+    if key not in _HERSHEY_W:
+        t = max(1, thick)
+        (w0, h0), b0 = cv2.getTextSize("M", cv2.FONT_HERSHEY_SIMPLEX, 1.0, t)
+        scale = h / max(1, h0 + b0)
+        (w, hh), bb = cv2.getTextSize(ch, cv2.FONT_HERSHEY_SIMPLEX, scale, t)
+        _HERSHEY_W[key] = (int(round(w)), int(round(hh + bb)), bb, scale)
+    return _HERSHEY_W[key]
+
+
+def seg_char_advance(ch, h, slant=0.0, font="seg14"):
+    """글자 하나의 진폭(px) — 그리기와 폭 계산이 같은 값을 쓴다(단일 소스).
+    1차 결함: seg_text_width 가 간격을 빼먹어 실제 그은 폭보다 적었다."""
+    gap = max(1, int(round(h * 0.13)))
+    if ch == " ":
+        return int(round(h * 0.55))
+    if ch == ":":
+        return max(2, h // 7) * 2 + gap
+    if ch in SEG_MAP:                      # 숫자 — 언제나 7-세그
+        cell = h * 0.62
+    elif font == "hershey":
+        w, _, _, _ = _hershey_metric(ch, h, max(2, int(round(h * 0.11))))
+        cell = w
+    else:
+        cell = h * SEG_CELL.get(ch, 0.72)
+    lean = int(slant * h) if slant else 0   # 기운 글자가 위에서 차지하는 폭
+    return int(round(cell)) + gap + lean
+
+
+def _seg_lead(h):
+    """줄 앞 여유 — 첫 글자 획의 왼쪽 반침(획 중심 원점 기준). 두께는
+    변형에 따라 최대 Bold(0.15h) 까지라 그 절반+안티앨리어싱 1px."""
+    return int(round(h * 0.075)) + 1
+
+
+def _seg_trailing(h, slant=0.0):
+    """줄 끝 여유 — 마지막 글자 획의 오른쪽 반침(최대 굵기 Bold 0.15h 기준)
+    + 이탤릭 끝글자 기움이 간격(0.13h)을 넘는 몫."""
+    return int(round(h * 0.15)) + 4 + (int(round(h * 0.05)) if slant else 0)
+
+
+def seg_text_width(text, h, slant=0.0, font="seg14"):
+    """seg_text 가 그을 폭(px) — 배치 사각형 계산용. seg_char_advance 합
+    + 줄 끝 여유. seg_text 반환값과 같은 공식이다."""
+    return sum(seg_char_advance(ch, h, slant, font) for ch in text) \
+        + _seg_trailing(h, slant)
+
+
+def _seg_draw_upright(canvas, x, y, text, h, thick, slant=0.0, font="seg14"):
+    """오프스크린 캔버스에 정자로 그린다(값 255). 이탤릭 전단은 seg_text
+    에서 한다 — 다만 진폭은 slant 를 포함해 잡아 전단 뒤 글자끼리 겹치지
+    않게 한다(이탤릭 활자가 넓은 이유와 같다). 숫자는 7-세그, 콜론은 사각
+    점 두 개(근거 722), 글자는 font 지정(seg14 행렬 / hershey 폰트)."""
     cx = x
     for ch in text:
         if ch == " ":
-            cx += int(h * SEG_ADVANCE[" "])
+            cx += seg_char_advance(ch, h, slant, font)
             continue
         if ch == ":":
             r = max(2, h // 7)
-            cv2.rectangle(img, (cx, y + int(h * .30)), (cx + 2 * r, y + int(h * .30) + 2 * r), ink, -1)
-            cv2.rectangle(img, (cx, y + int(h * .68)), (cx + 2 * r, y + int(h * .68) + 2 * r), ink, -1)
-            cx += int(h * SEG_ADVANCE[":"])
+            cv2.rectangle(canvas, (cx, y + int(h * .30)),
+                          (cx + 2 * r, y + int(h * .30) + 2 * r), 255, -1)
+            cv2.rectangle(canvas, (cx, y + int(h * .68)),
+                          (cx + 2 * r, y + int(h * .68) + 2 * r), 255, -1)
+            cx += seg_char_advance(ch, h, slant, font)
             continue
         if ch in SEG_MAP:
             dw = int(h * 0.62)
-            draw_digit(img, cx, y, dw, h, ch, ink, thickness=t)
-            cx += dw + max(1, h // 8)
+            draw_digit(canvas, cx, y, dw, h, ch, 255, thickness=thick)
+            cx += seg_char_advance(ch, h, slant, font)
             continue
-        strokes = SEG_STROKES.get(ch)
-        if strokes is None:
+        if font == "hershey":
+            w, hh, bb, scale = _hershey_metric(ch, h, thick)
+            cv2.putText(canvas, ch, (cx, y + hh - bb),
+                        cv2.FONT_HERSHEY_SIMPLEX, scale, 255, thick,
+                        cv2.LINE_AA)
+            cx += seg_char_advance(ch, h, slant, font)
             continue
-        cw = int(h * 0.72)
-        depth = h * (1.12 if ch in SEG_DESCEND else 1.0)
-        for sx0, sy0, sx1, sy1 in strokes:
-            p0 = (cx + int(sx0 * cw), y + int(sy0 * depth))
-            p1 = (cx + int(sx1 * cw), y + int(sy1 * depth))
-            cv2.line(img, p0, p1, ink, t, cv2.LINE_AA)
-        cx += cw + max(1, h // 8)
-    return cx - x
+        spec = SEG14_MAP.get(ch)
+        if spec is None:
+            continue
+        cw = int(h * SEG_CELL.get(ch, 0.72))
+        if ch in SEG14_RAW:            # 기호(/ - . # +)는 원시 스트로크
+            for sx0, sy0, sx1, sy1 in spec:
+                p0 = (cx + int(sx0 * cw), y + int(sy0 * h))
+                p1 = (cx + int(sx1 * cw), y + int(sy1 * h))
+                cv2.line(canvas, p0, p1, 255, thick, cv2.LINE_AA)
+        else:                          # 글자는 14-세그먼트
+            for seg in spec:
+                gx0, gy0, gx1, gy1 = SEG14_GEO[seg]
+                p0 = (cx + int(gx0 * cw), y + int(gy0 * h))
+                p1 = (cx + int(gx1 * cw), y + int(gy1 * h))
+                cv2.line(canvas, p0, p1, 255, thick, cv2.LINE_AA)
+        cx += seg_char_advance(ch, h, slant, font)
+
+
+def seg_text(img, x, y, text, h, ink, thick=None, slant=0.0, font="seg14"):
+    """세그먼트 보조 글자 줄. 숫자는 7-세그(SEG_MAP), 콜론은 사각 점
+    두 개(put_7seg_text 와 같은 관례, 근거 722 '1:27'). 글자·기호는
+    font 지정 — "seg14"=14-세그 행렬, "hershey"=Hershey 폰트. 폰트는
+    기기별 프로파일이 고른다(사람 지정 2026-09-13).
+    thick: 획 두께(기본 Regular). slant: 이탤릭 전단(0.17 ≈ DSEG Italic) —
+    숫자·콜론까지 통째로 기울인다(오프스크린 전단). 반환값: 그은 폭 px.
+    폭은 seg_char_advance 단일 소스라 seg_text_width 와 어긋나지 않는다."""
+    t = thick or max(2, int(round(h * SEG_WEIGHTS["Regular"])))
+    lead = _seg_lead(h)
+    ov = t // 2 + 1          # 획 중심이 아닌 왼쪽 가장자리를 원점에 맞추는 몫
+    w = seg_text_width(text, h, slant, font)
+    t_pad = t + 2
+    ch_box = h + 2 * t_pad                  # 14-세그는 내림글자가 없다
+    canvas = np.zeros((ch_box + t_pad, w + 2 * t_pad), np.uint8)
+    _seg_draw_upright(canvas, t_pad + lead + ov, t_pad, text, h, t, slant,
+                      font)
+    if slant:
+        sh = slant * (canvas.shape[0] - 1)
+        M = np.float32([[1, -slant, sh], [0, 1, 0]])
+        canvas = cv2.warpAffine(canvas, M, (canvas.shape[1], canvas.shape[0]),
+                                flags=cv2.INTER_NEAREST,
+                                borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+    # 캔버스 안 글자 원점은 t_pad+lead+ov(ov=획 반침 몫) — 합성은
+    # (x-t_pad-lead, y-t_pad) 에 대고 붙인다. 잉크의 왼쪽 가장자리가 x 에,
+    # 오른쪽은 trailing 안에 들어온다.
+    ox = x - t_pad - lead
+    reg = img[max(0, y - t_pad):y - t_pad + canvas.shape[0],
+              max(0, ox):ox + canvas.shape[1]]
+    m = canvas[:reg.shape[0], :reg.shape[1]] > 128
+    reg[m] = ink
+    return w
 
 
 def put_small_text(img, x, y, text, h, ink):

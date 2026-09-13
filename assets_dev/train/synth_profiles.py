@@ -258,6 +258,51 @@ PROFILES = [
 ]
 
 
+# ── 기기 고정 레이아웃(사람 지침 2026-09-13) ──────────────────────────────
+# 하나의 디바이스는 레이아웃이 고정이다 — LCD 종횡비·밴드 기하·요소 자리를
+# 기기별로 통일하고, 랜덤은 촬영(프레이밍·광학)에만 남긴다. 값은 전부
+# device_layout_stats.py 의 실측 중앙값(device_labels + 밴드 라벨 join)이다.
+#   panel_ar 유리 w/h · band_w/h/cx/cy 밴드/유리 비(사람 밴드 라벨 기준)
+#   weight  세그먼트 굵기 3종 중 하나(초기 배정 — 아틀라스 눈검으로 조정)
+# p>=0.85 인 요소는 항상 렌더(always), 그 아래는 상태성 옵션으로 렌더마다
+# 결정된다(자리는 고정). gluneo_plus 는 밴드 라벨이 없어 전역 세로 중앙값
+# 폴백(real_baseline band portrait, n=217).
+LAYOUTS = {
+    "accuchek_instant": dict(panel_ar=0.775, band_w=0.814, band_h=0.386,
+                             band_cx=0.524, band_cy=0.459, weight="Bold", font="hershey",
+                             n=4),
+    "gmate": dict(panel_ar=0.710, band_w=0.995, band_h=0.390,
+                  band_cx=0.510, band_cy=0.408, weight="Regular", font="hershey", n=4),
+    "dorucos_premium": dict(panel_ar=0.830, band_w=0.916, band_h=0.468,
+                            band_cx=0.526, band_cy=0.403, weight="Regular", font="hershey",
+                            n=3),
+    "green_doctor": dict(panel_ar=0.800, band_w=0.919, band_h=0.402,
+                         band_cx=0.548, band_cy=0.467, weight="Regular", font="hershey", n=4),
+    "onetouch_ultra": dict(panel_ar=0.950, band_w=0.965, band_h=0.471,
+                           band_cx=0.519, band_cy=0.391, weight="Light", font="hershey",
+                           n=3),
+    "gc_ms_one": dict(panel_ar=0.836, band_w=0.989, band_h=0.473,
+                      band_cx=0.508, band_cy=0.500, weight="Regular", font="hershey", n=4),
+    "acura_plus": dict(panel_ar=0.941, band_w=0.884, band_h=0.585,
+                       band_cx=0.502, band_cy=0.394, weight="Bold", font="hershey", n=4),
+    "caresens_n_premier": dict(panel_ar=0.760, band_w=0.918, band_h=0.473,
+                               band_cx=0.514, band_cy=0.384, weight="Light", font="hershey",
+                               n=4),
+    "performa_silver": dict(panel_ar=0.774, band_w=0.859, band_h=0.400,
+                            band_cx=0.527, band_cy=0.432, weight="Light", font="hershey",
+                            n=8),
+    "accuchek_active": dict(panel_ar=0.808, band_w=0.850, band_h=0.420,
+                            band_cx=0.495, band_cy=0.460, weight="Regular", font="hershey",
+                            n=7),
+    "gluneo_plus": dict(panel_ar=0.792, band_w=0.888, band_h=0.447,
+                        band_cx=0.512, band_cy=0.407, weight="Regular", font="hershey",
+                        n=0),
+}
+for _p in PROFILES:
+    if _p["id"] in LAYOUTS:
+        _p["layout"] = LAYOUTS[_p["id"]]
+
+
 def sample_corpus_value(rng):
     """값 샘플 — 코퍼스 자릿수 비율 반영(카드 「프로파일 확장」 AC#3).
     2,512행 실측: 2자리 20.5%, 3자리 79.5%(2026-09-12 measure_polarity digits).
