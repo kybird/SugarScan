@@ -56,10 +56,12 @@ tags: [index]
 | [[coupled-budget-loop-defeats-per-element-tuning]] | "목표치에 닿을 때까지 뽑는다"는 루프에서는 요소들의 출현 확률이 **독립이 아니다.** | 총량 제약 루프, 확률만 조정, 밀도 채움 회귀, coupled budget loop, 풍선 효과 |
 | [[degradation-past-legibility]] | 증강은 강할수록 강건해진다는 직관이 있다. | 열화 상한, 증강 과다, 읽을 수 없는 표본, 라벨 잡음, illegible |
 | [[display-and-selection-from-different-sources]] | 목록을 보여 주는 코드와 "지금 선택된 것"을 만드는 코드가 **다른 배열을 읽으면**, | 화면과 선택 불일치, 표시 목록과 조작 대상 분리, selection off-screen, viewOf memberOf, a 전체선택 사고, 보이지 않는 선택 |
+| [[distribution-matched-method-wrong]] | 합성물의 **통계 축**(밀도·대비·기하·비율)을 실물에 맞췄는데, **만드는 방식**이 | 분포는 맞고 방식은 틀림, 지표 통과 산출물 가짜, blind 비교, synthetic realism |
 | [[downscaled-view-as-evidence]] | 작게 줄인 이미지나 몇 장의 표본은 **판단이 가능해 보인다.** 틀렸다는 신호를 주지 않기 때문이다. | 축소본, 썸네일, 몽타주, 눈검, 해상도, resize, 미리보기로 판단, 표본이 작다 |
 | [[duplicated-geometry-implementation]] | 거의 같은 100줄(디코드 → 회색 변환 → 호모그래피 역샘플링)이 두 함수에 복사돼 있는 것. | 좌표 변환 중복, 워프 두 벌, warpQuadToRect, warpQuadToEngineFrame, _warpQuad, photo_preprocessor.dart, _homography |
 | [[frozen-now-in-live-query]] | ```dart | 굳은 now, 기간 상한 고정, statsReadingsProvider, watchBetween, StreamProvider, DateTime.now(), providers.dart |
 | [[global-transform-on-heterogeneous-input]] | 측정해서 중앙값을 얻은 뒤 **그 값을 전체에 똑같이** 적용하는 것. | 전역 변환, 일률 적용, 중앙값으로 처방, 고정 패딩, CLAHE, 여유, margin, 분포가 넓다, 표준편차가 평균보다 |
+| [[guard-threshold-absolute-while-input-widens]] | 자가검사·가드가 **고정 문턱**(절대값)을 쓰는데, 나중에 다른 작업이 **입력 | 고정 문턱 가드, 절대 문턱, 자가검사 무력화, guard threshold, glyph_plane_check |
 | [[image-level-split-on-session-corpus]] | 같은 촬영 세션(같은 기기·구도·조명)의 사진이 여러 장 있는 코퍼스를 이미지 단위로 | 이미지 단위 분할, 랜덤 분할 누수, 세션 누수, data leakage, near-duplicate leakage, burst corpus split, 그룹 분할 안 함 |
 | [[improvement-parked-outside-the-pipeline]] | 기준선을 보존하려고 개선을 **별도 구현**으로 만드는 것은 옳다. | 곁가지 개선, 병렬 구현, 반영 안 된 개선, A/B 전용 코드, 기본 경로 |
 | [[irreversible-write-without-history]] | 원자적 저장(`.tmp` → `rename`)은 **쓰다 만 파일**을 막을 뿐, **틀린 내용으로 온전히 | 이력 없는 덮어쓰기, 원자적 저장의 함정, tmp rename, untracked 라벨, 백업 없는 사람 라벨, 재생 불가 자산 |
@@ -98,6 +100,6 @@ tags: [index]
 
 - Total concepts: 8
 - Total patterns: 14
-- Total anti-patterns: 37
+- Total anti-patterns: 39
 - Total answers: 0
-- Last updated: 2026-09-12
+- Last updated: 2026-09-13

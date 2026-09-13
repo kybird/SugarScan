@@ -46,6 +46,15 @@ confidence: 5
 84장의 최대가 5.43% 인데 적어 둔 p10 이 5.44% 였다.
 → [[ad-hoc-ruler-beside-the-committed-one]]
 
+**어떤 대상에서 (2) — 표본이 편향된 경우.** 실사진 기준선 전부가 밴드 라벨
+84장에서 나왔는데 그 84장의 76장 중 63장이 세 기기였고 54종 중 39종이 0장이었다.
+기기 균등으로 라벨링해 n=264 가 되자 전 축이 움직였다 — 링 2.84→1.90%,
+안쪽 1.38→1.11%, 극성 27.4→33.7%, 세로 band_w 0.827→0.888. 편향은 수치에
+나타나지 않는다. `n` 은 적혀 있었지만 "그 84장이 세 기기" 는 아무 데도 없었다.
+같은 편향이 반대로도 작동한다 — 검출기 v0 의 0.669 는 평가셋이 최하위 두 기기에
+몰려 **비관적**이었고, 같은 모델이 54종에서 0.717 이 나왔다.
+→ `doc/raw/2026-09-13.md#case-1` · `#case-2`
+
 여기서 배운 것은 "자를 고정하라"가 아니다. **자는 코드다.** 수치가 갈렸을 때
 "자가 달라서 재현이 안 된다"고 해명한 것이 수치를 틀린 것보다 나빴다 —
 읽으면 확인되는 주장을 읽지 않고 적었다.
@@ -69,8 +78,10 @@ confidence: 5
 - [[verify-premises-before-executing]]
 - [[verification-record-without-subject]] — 검증 기록에 주어가 없는 것
 - [[ad-hoc-ruler-beside-the-committed-one]] — 자가 있는데 새로 잰 것
+- [[distribution-matched-method-wrong]] — 분포는 맞고 방식이 틀린 것
 
 ## Grounding (References)
 
 - `doc/raw/2026-09-12.md#case-1` · `#case-3` · `#case-4` · `#case-10`
+- `doc/raw/2026-09-13.md#case-1` · `#case-2` · `#case-4` · `#case-6`
 - `doc/raw/2026-09-11.md#case-3`

@@ -75,6 +75,6 @@ GLM 의 2.25% 는 `--frame-exc 0.04` 다. **7.51% 는 어떤 조합으로도 나
 
 ## Grounding (References)
 
-- `doc/raw/2026-09-12.md#case-10`
+- `doc/raw/2026-09-12.md#case-10` · `doc/raw/2026-09-13.md#case-7`
 - 규칙: `CLAUDE.md`「수치를 인용하기 전에 — 자가 이미 있는지 본다」 ·
   `docs/GLM_TASKS.md` §3.7
