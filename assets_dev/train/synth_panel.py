@@ -87,7 +87,10 @@ BAND_GEOM = {
     "portrait": dict(h=(0.378, 0.543), cx=(0.466, 0.586), cy=(0.360, 0.460)),
     "wide": dict(h=(0.690, 0.865), cx=(0.15, 0.575), cy=(0.473, 0.543)),
 }
-PITCH_RATIO = (0.50, 0.60)   # 칸 피치 / 글리프 높이 — 실사진 밴드 크롭 육안
+# 칸 피치 / 글리프 높이 — 실사진 밴드 크롭 육안 0.50~0.60. 상한을 0.56 으로
+# 좁혔다(2026-09-12): 폭 제약이 걸리는 패널에서 피치가 클수록 밴드 높이가
+# 깎려 synth-band band_h median 이 0.437 에 그쳤다(실사진 0.458, n=300).
+PITCH_RATIO = (0.50, 0.56)
 GLYPH_IN_CELL = (0.78, 0.84)  # 글리프 폭 / 피치 — 같은 육안 근거
 
 # 밀도 목표 — 실사진 GM 크롭 84장을 같은 자로 잰 값(frame 3% 제외,
@@ -356,14 +359,35 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
     else:
         W, H = max(64, int(round(LONG_SIDE * wh))), LONG_SIDE
 
-    # ── 두 층: 베젤 링(플라스틱) + 액정 패널(AC#13) ────────────────────────
-    # 링 두께: 대부분 2~8px(타이트한 GM 박스). 35% 는 느슨한 크롭으로 14~36px
-    # 링이 생기고, 링이 충분할 때만 프로파일 베젤 문자를 링에 그린다(AC#15 —
-    # 관찰된 문자열만, 프로파일 evidence). 액정 안에는 절대 그리지 않는다.
-    loose = rng.random() < 0.35
-    m = int(rng.uniform(14, 36)) if loose else int(rng.uniform(2, 8))
-    bezel_col = int(rng.uniform(40, 90))
-    img = np.full((H, W), bezel_col, np.uint8)
+    # ── 몸체 + 액정 — GM 크롭과 같은 물건(카드 2026-09-12) ──────────────────
+    # 실사진 GM 크롭의 바깥 링(15%) 밀도 2.84% 는 기기 몸체에서 온다 — 몸체 인쇄
+    # 브랜드·모델명(Gmate 713·722, CareTouch·MM1000 92·97·100, Boryung 97),
+    # 몸체 윤곽 곡선(713·722·92·97·100), 움푹한 베젤과 그림자(233·235).
+    # 구판은 균일 베젤 링만 그려 링이 1.73% 에 그쳤다(before, n=296,
+    # diag_density_where.py ring). 이 네 요소 이외의 몸체 요소는 근거 없다.
+    #
+    # 폭 결정(AC#1, 실측): '링 15% 균일 확대'는 기하가 막는다 — 실측
+    # band_w/canvas_w 0.827 → 유리 폭 ≥ ~0.84 → 측면 몸체는 편당 ≤ ~0.08.
+    # 상단은 band_cy 0.391 − band_h/2(≤0.27) → ≤ ~0.12, 하단은 band 하단
+    # (≤ ~0.73) → ≤ ~0.14 여유. 비대칭 확대: 좌우 1~7%, 상 3~12%·하 3~14%.
+    # 30% 는 타이트 크롭(전변 0.5~2%, 실물 타이트 GM 박스).
+    if rng.random() < 0.30:
+        mg_t = int(H * rng.uniform(0.005, 0.02))
+        mg_b = int(H * rng.uniform(0.005, 0.02))
+        mg_l = int(W * rng.uniform(0.005, 0.02))
+        mg_r = int(W * rng.uniform(0.005, 0.02))
+    else:
+        mg_l = int(W * rng.uniform(0.01, 0.07))
+        mg_r = int(W * rng.uniform(0.01, 0.07))
+        mg_t = int(H * rng.uniform(0.03, 0.12))
+        mg_b = int(H * rng.uniform(0.03, 0.14))
+    body_col = int(rng.uniform(50, 190))
+    bg_col = int(body_col * rng.uniform(0.25, 0.55))   # 몸체 바깥(배경·표면)
+    img = np.full((H, W), body_col, np.uint8)
+    # 몸체 표면 — 완만한 상→하 기울기(플라스틱 조명)
+    grad = np.linspace(rng.uniform(-18, -4), rng.uniform(4, 18), H,
+                       dtype=np.float32)[:, None]
+    img = np.clip(img.astype(np.float32) + grad, 0, 255).astype(np.uint8)
     if inverted:
         panel_col = int(rng.uniform(35, 95))
         ink_digit = int(rng.uniform(185, 245))
@@ -372,38 +396,80 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
         panel_col = int(rng.uniform(150, 215))
         ink_digit = int(rng.uniform(20, 90))
         ink_small = int(rng.uniform(60, 130))
-    px0, py0, px1, py1 = m, m, W - m, H - m
+
+    # 몸체 윤곡 곡선 — 캔버스 모서리를 라운드로 깎아 배경이 보이게(713·722·
+    # 92·97·100). 회전·원근 크롭의 모서리는 몸체 곡면 바깥이 프레임에 들어온
+    # 실사진 크롭과 같은 모양새다.
+    body_text = None
+    if rng.random() < 0.65:
+        rr = int(min(W, H) * rng.uniform(0.04, 0.10))
+        sil = np.zeros((H, W), np.uint8)
+        cv2.rectangle(sil, (rr, 0), (W - 1 - rr, H - 1), 255, -1)
+        cv2.rectangle(sil, (0, rr), (W - 1, H - 1 - rr), 255, -1)
+        for cx_, cy_ in ((rr, rr), (W - 1 - rr, rr),
+                         (rr, H - 1 - rr), (W - 1 - rr, H - 1 - rr)):
+            cv2.circle(sil, (cx_, cy_), rr, 255, -1)
+        img[sil == 0] = bg_col
+        img = cv2.GaussianBlur(img, (3, 3), 0)   # 곡면 부드러운 전이
+
+    px0, py0, px1, py1 = mg_l, mg_t, W - mg_r, H - mg_b
+    # 움푹한 베젤 + 그림자(233·235) — 유리 직전 홈(어두운 선)과 홈 바깥
+    # 그림자 띠(위쪽 진하게), 가장자리 하이라이트 한 줄.
+    if rng.random() < 0.7:
+        sh = max(3, int(min(W, H) * rng.uniform(0.008, 0.02)))
+        dark = np.clip(panel_col * 0.35, 8, 60)
+        cv2.rectangle(img, (px0 - sh, py0 - sh), (px1 + sh, py1 + sh),
+                      int(dark), 2)
+        shadow = np.zeros((H, W), np.float32)
+        top_w = int(sh * rng.uniform(1.5, 3.0))
+        for k in range(sh, 0, -1):
+            f = 0.45 * (1 - k / sh)
+            cv2.rectangle(shadow, (px0 - k, py0 - k), (px1 + k, py1 + k), f, 1)
+        cv2.rectangle(shadow, (px0 - sh - top_w, py0 - sh - top_w),
+                      (px1 + sh + top_w, py1 + sh + top_w), 0.26, 1)
+        shadow *= (255.0 - dark) / max(1.0, shadow.max() * 255)
+        img = np.clip(img.astype(np.float32) * (1 - shadow),
+                      0, 255).astype(np.uint8)
+        hi = int(min(255, body_col + 40))
+        cv2.rectangle(img, (px0 - sh - 3, py0 - sh - 3),
+                      (px1 + sh + 3, py1 + sh + 3), hi, 1)
     img[py0:py1, px0:px1] = panel_col
 
-    # 베젤 인쇄 — 링 높이의 55%로 링 안에 완전히 들어오게(잘리지 않는다)
-    bezel_text = None
-    if loose and pid in BEZEL_TEXTS and rng.random() < 0.8:
-        bh = max(8, int(m * 0.55))
+    # 몸체 인쇄 — 브랜드·모델명. 문자열은 프로파일 근거(BEZEL_TEXTS)대로,
+    # 몸체 인쇄 자체의 근거 사진은 713·722(Gmate)·92·97·100(CareTouch·
+    # MM1000·Boryung). 스트립이 글자를 온전히 담을 때만 그린다(잘리지 않는다).
+    for edge, m_side in (("top", mg_t), ("bottom", mg_b)):
+        if edge == "top" and rng.random() >= 0.6:
+            continue
+        if m_side < 14 or pid not in BEZEL_TEXTS or rng.random() >= 0.8:
+            continue
+        bh = max(8, int(m_side * 0.45))
         text = BEZEL_TEXTS[pid][rng.randrange(len(BEZEL_TEXTS[pid]))]
         scale = bh / 22.0
-        # getTextSize 의 두 번째 반환값은 baseline 아래 descent 다. 그것을 버리면
-        # p·m 같은 글자가 링을 넘어 액정으로 흘러든다(2026-09-12 결함 (4)).
         (tw, thh), bl = cv2.getTextSize(text, _BEZEL_FONTS[0], scale, 1)
-        if tw < W - 2 * m - 8 and thh + bl <= m - 2:
-            bx = m + int((W - 2 * m - tw) * rng.uniform(0.15, 0.6))
-            # 글자 상자 전체 높이(thh + descent)를 링 안에 넣는다.
-            box = thh + bl
-            if rng.random() < 0.6:      # 아랫링 우세(실물 관례)
-                by = H - m + (m - box) // 2
-            else:
-                by = (m - box) // 2
-            cv2.putText(img, text, (bx, by + thh), _BEZEL_FONTS[0], scale,
-                        int(rng.uniform(120, 200)), 1, cv2.LINE_AA)
-            bezel_text = text
+        if tw >= px1 - px0 - 8 or thh + bl + 4 > m_side:
+            continue
+        bx = mg_l + max(6, int((W - mg_l - mg_r - tw) * rng.uniform(0.2, 0.55)))
+        t_ink = int(bg_col * 0.6) if body_col > 110 else int(min(255, body_col + 70))
+        if edge == "top":
+            by = (mg_t - (thh + bl)) // 2
+        else:
+            by = H - mg_b + (mg_b - (thh + bl)) // 2
+        cv2.putText(img, text, (bx, by + thh), _BEZEL_FONTS[0], scale,
+                    t_ink, 1, cv2.LINE_AA)
+        body_text = text
+        break
 
     placer = Placer(px0 + 2, py0 + 2, px1 - 2, py1 - 2)
 
     # ── 숫자 밴드 — 실측 기하에서 역산. x0 는 '보이는 숫자줄'의 좌측이고
     #    빈 슬롯(잔상)은 그 바깥쪽에 그린다 — 쿼드는 사람 라벨처럼 보이는
     #    숫자줄만 감싼다(실측: 2자리 0.571 vs 3자리 0.810).
-    #    기하 비율의 분모는 패널(액정)이다 — 캔버스 기준으로 뽑으면 링 여유가
-    #    큰 패널에서 밴드가 패널보다 커져 패널 안쪽 클리핑이 난다(실측:
-    #    panel_23000_213, 가로형 + margin 33).
+    #    기하 비율의 분모는 캔버스(=GM 박스)다(2026-09-12 재앵커). 실측
+    #    band_w 0.827 의 분모도 GM 박스이고, 몸체 스트립이 생긴 지금 패널
+    #    분모를 쓰면 밴드가 캔버스 대비 커져 기하 AC 가 깨진다. 대신 밴드가
+    #    유리(px0..px1) 안에 들어가도록 아래 클램프가 지킨다(구판 우려는
+    #    클램프+max_w 축소가 흡수한다).
     key = "portrait" if wh < 1.0 else "wide"
     g = BAND_GEOM[key]
     slots_spec = profile.get("slots") or len(label)
@@ -412,7 +478,7 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
     slots = max(slots, len(label))
     pw, ph = px1 - px0, py1 - py0
     band_h_frac = rng.uniform(*g["h"])
-    band_h = band_h_frac * ph
+    band_h = band_h_frac * H
     dh = int(band_h / 1.26)              # 세로 여유 13% 씩(실사진 밴드 크롭 기준)
     pad_y = max(4, int((band_h - dh) / 2))
     pitch_r = rng.uniform(*PITCH_RATIO)
@@ -429,8 +495,21 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
         dh, glyph_w, pitch, gap = (int(dh * s), int(glyph_w * s),
                                    int(pitch * s), int(gap * s))
         field_w = n_vis * pitch - gap
-    cx = px0 + rng.uniform(*g["cx"]) * pw
-    cy = py0 + rng.uniform(*g["cy"]) * ph
+    # 높이도 유리 안에 들어와야 한다 — band_h 의 분모가 캔버스(H)라 몸체 스트립이
+    # 깊은 가로형에서 쿼드가 유리보다 높아져 아래쪽 몸체로 넘쳤다(리뷰 2026-09-12:
+    # wide 3/52, 최대 24px). 폭 클램프(max_w)는 폭만 잡는다 — 세로형은 한 장도
+    # 발동하지 않는다(0/549, seed 31000 n=600).
+    max_h = max(8, min(int(ph * 0.96), ph - 8))
+    if dh + 2 * pad_y > max_h:
+        s2 = max_h / (dh + 2 * pad_y)
+        dh, glyph_w, pitch, gap = (int(dh * s2), int(glyph_w * s2),
+                                   int(pitch * s2), int(gap * s2))
+        pad_y = max(2, int(pad_y * s2))
+        field_w = n_vis * pitch - gap
+    cx = rng.uniform(*g["cx"]) * W
+    # cy 는 실측 분포가 왼쪽 치우침(median 0.391 < uniform 중앙 0.410)이다 —
+    # u**1.6 재표본으로 중앙을 맞춘다(2026-09-12, synth-band n=300 실측 정정).
+    cy = (g["cy"][0] + (g["cy"][1] - g["cy"][0]) * rng.random() ** 1.6) * H
     x0 = int(cx - field_w / 2)
     y0 = int(cy - dh / 2)
     pad_x = max(6, int(dh * 0.20))
@@ -776,7 +855,11 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
         # 1판의 '대각선 흰 줄' 을 없앴더니 이번엔 넓은 쐐기가 됐다(2026-09-12).
         ax_ = rng.uniform(0.05, 0.20) * W
         ay_ = rng.uniform(0.04, 0.15) * H
-        glare = min(255, panel_col + rng.uniform(40, 90))
+        # 몸체 위 반사는 몸체 톤 기준 — 타원 중심 픽셀에서 시작한다(구판은
+        # 패널색 고정이라 어두운 몸체에 하얀 도포가 얹혔다).
+        gc_y = min(H - 1, max(0, int(ecy)))
+        gc_x = min(W - 1, max(0, int(ecx)))
+        glare = min(255, int(img[gc_y, gc_x]) + rng.uniform(40, 90))
         msk = np.zeros((H, W), np.float32)
         cv2.ellipse(msk, (int(ecx), int(ecy)), (int(ax_), int(ay_)),
                     rng.uniform(0, 180), 0, 360, 1, -1)
@@ -792,7 +875,7 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
     quad0 = quad.copy()
     gp0 = glyph_plane.copy()
     pre = img.copy()
-    fillc = int(bezel_col)
+    fillc = int(body_col)   # 워프 경계색 — 몸체 톤(구판 베젤 링 잔여)
     do_key = rng.random() < 0.35
     fx = [rng.uniform(0, 0.05) for _ in range(4)]
     fy = [rng.uniform(0, 0.05) for _ in range(4)]
@@ -814,16 +897,21 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
             Mr = cv2.getRotationMatrix2D((W / 2, H / 2), ang * shrink, 1.0)
         return Mk, Mr
 
-    def _warp_img(im, interp, Mk, Mr):
+    def _warp_img(im, interp, Mk, Mr, border=None):
+        # border=None 이면 이미지용 몸체 톤(fillc). 글리프 평면은 0 을 넘겨야
+        # 한다 — 몸체색이 127 을 넘는 패널에서 마스크 경계가 sel 로 뒤집혀
+        # glyph_plane_check 가 붕괴했다(2026-09-12, check 0.15, sel 9.4만px).
+        # 구판은 베젤색 40~90 이 항상 127 밑이라 우연히 안 터졌다.
+        bv = fillc if border is None else border
         out = im
         if Mk is not None:
             out = cv2.warpPerspective(out, Mk, (W, H), flags=interp,
                                       borderMode=cv2.BORDER_CONSTANT,
-                                      borderValue=fillc)
+                                      borderValue=bv)
         if Mr is not None:
             out = cv2.warpAffine(out, Mr, (W, H), flags=interp,
                                  borderMode=cv2.BORDER_CONSTANT,
-                                 borderValue=fillc)
+                                 borderValue=bv)
         return out
 
     def _warp_pts(q, Mk, Mr):
@@ -846,14 +934,24 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
         if _in(quad):
             img = _warp_img(pre, cv2.INTER_LINEAR, Mk, Mr)
             break
-    glyph_warped = _warp_img(gp0, cv2.INTER_NEAREST, Mk, Mr)
+    glyph_warped = _warp_img(gp0, cv2.INTER_NEAREST, Mk, Mr, border=0)
 
     # 글리프 평면 자가검사(AC#8): 같은 변환을 통과한 글리프 마스크 자리가
     # 최종 이미지에서 실제 잉크(배경과 유의미하게 다른 픽셀)인지 비율로.
     # 주의: 워프가 마스크 밖을 borderValue(베젤색) 로 채우므로 0 이 아니라
     # 127 로 문턱을 낸다 — 0 비교는 캔버스 전체가 sel 이 된다.
     if glyph_warped.max() > 0:
-        bg = float(np.median(img))
+        # 배경(액정 톤)은 유리 영역에서 밴드 쿼드 bbox 를 뺀 부분의 중앙값.
+        # 셋 다 결함이 있었다: 전체 중앙값은 몸체가 절반을 차지한 뒤 몸체 톤
+        # (p10 0.99→0.56), 워프 전 유리 좌표는 회전·키스톤 장에서 몸체를 집고,
+        # 쿼드 안 중앙값은 대형 숫자 패널에서 숫자 톤에 떨어진다(panel_31000_
+        # 149, 반전·check 0.088, 2026-09-12 실측). 쿼드 '바깥 유리'가 정답.
+        qx0, qx1 = int(quad[:, 0].min()), int(quad[:, 0].max()) + 1
+        qy0, qy1 = int(quad[:, 1].min()), int(quad[:, 1].max()) + 1
+        glass = img[max(0, py0):min(H, py1), max(0, px0):min(W, px1)].astype(np.float32)
+        glass[max(0, qy0 - py0):min(glass.shape[0], qy1 - py0),
+              max(0, qx0 - px0):min(glass.shape[1], qx1 - px0)] = np.nan
+        bg = float(np.nanmedian(glass)) if np.isfinite(np.nanmedian(glass))             else float(np.median(img))
         sel = glyph_warped > 127
         ink = np.abs(img.astype(np.float32) - bg) > 30
         gpc = float((ink & sel).sum()) / max(1, sel.sum())
@@ -867,7 +965,8 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
                 glyph_plane_check=round(gpc, 4),
                 glyph_warped=glyph_warped,
                 density=dens if dens is not None else 0.0,
-                bezel=bezel_text, margin=m)
+                bezel=body_text, margin=max(mg_t, mg_b, mg_l, mg_r),
+                margins=[mg_t, mg_b, mg_l, mg_r])
 
 
 def _density_outside(img, quad):
@@ -919,6 +1018,7 @@ def generate(count, seed0, out_dir, with_reader=False):
                    for r in s["rects"]],
             dropped=s["dropped"], overlaps=viol,
             margin=s["margin"],
+            margins=s["margins"],
         )
         if s["bezel"]:
             rec["bezel"] = s["bezel"]

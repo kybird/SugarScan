@@ -73,9 +73,14 @@ def main():
             hard["long_side"] += 1
         if not s["label"].isdigit():
             hard["label"] += 1
-        # 요소 패널 이탈(AC#12) — 액정 요소 rect 는 패널 안에 완전히 들어와야
+        # 요소 패널 이탈(AC#12) — 액정 요소 rect 는 패널 안에 완전히 들어와야 한다.
+        # 여백은 사방이 다르다(margins=[t,b,l,r]) — 스칼라 margin 은 그 최댓값이라
+        # 좌우에 상하 여백을 들이대 정상 배치를 이탈로 잡는다(리뷰 2026-09-12:
+        # 거짓 양성 107/120). 구판 렌더러에는 margins 가 없으므로 스칼라로 떨어진다.
+        mg_t, mg_b, mg_l, mg_r = s.get("margins") or (m, m, m, m)
         for x0, y0, x1, y1, nm in s["rects"]:
-            if x0 < m + 1 or y0 < m + 1 or x1 > W - m - 1 or y1 > H - m - 1:
+            if (x0 < mg_l + 1 or y0 < mg_t + 1
+                    or x1 > W - mg_r - 1 or y1 > H - mg_b - 1):
                 hard["clipped"] += 1
                 break
         # 베젤 문자는 느슨한 크롭(링 >= 14)에서만, 그리고 링 위에서만(AC#13)
