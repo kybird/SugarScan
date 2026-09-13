@@ -105,6 +105,16 @@ GLYPH_IN_CELL = (0.78, 0.84)  # 글리프 폭 / 피치 — 같은 육안 근거
 # 재표본한다. 자는 measure_panel_stats.edge_density_outside 와 동일하다(AC#4).
 REAL_DENSITY = REAL_BASELINE["density"]["values"]
 
+# 글리프 평면 자가검사의 잉크 문턱 — 밴드 대비(p95-p5)에 비례한다(카드
+# 「글리프 평면 자가검사의 잉크 문턱을 대비에 비례시킨다」, 2026-09-13).
+# 구판의 고정 30 은 저대비 패널(대비 열화 카드가 의도적으로 분포를 아래로
+# 넓혔다)에서 잉크를 못 넘겨 gpc 가 대비와 단조로 얽혔다 — 검사가 '평면이
+# 어긋났다'와 '패널이 흐리다'를 구별하지 못했다(리뷰 2026-09-13 지적 A).
+# 계수·바닥의 근거와 스윕은 diag_gpc_threshold.py 와 docs/reports/
+# glyph-check-threshold.md.
+GPC_INK_K = 0.25       # 문턱 = 밴드 대비 × K
+GPC_INK_FLOOR = 12     # 바닥 — 광학 노이즈 σ≤9(렌더 광학 단) 위로
+
 # ── 액정 화이트리스트(AC#14·#15) ─────────────────────────────────────────────
 # 액정 안에 그릴 수 있는 알파벳 토큰 전부다. 각 근거는 실사진 id(아틀라스 요소
 # 재고표 2026-09-11 + 프로파일 evidence). 이 토큰 밖의 알파벳을 액정에 그리면
@@ -373,6 +383,46 @@ def render_panel(value, rng, profile=None):
         fill = fill + (target - best["density"])   # 광학 감쇠분을 보탠다
     best["target_density"] = round(target, 5)
     return best
+
+
+def _gpc_bg_contrast(img, quad, glass_rect):
+    """글리프 평면 검사용 배경·대비. bg 는 유리 영역에서 밴드 쿼드 bbox 를 뺀
+    부분의 중앙값이고, 대비는 쿼드 bbox 안 p95-p5 — 실측 자
+    measure_polarity.polarity_of 와 같은 정의다."""
+    H, W = img.shape[:2]
+    px0, py0, px1, py1 = glass_rect
+    qx0, qx1 = int(quad[:, 0].min()), int(np.ceil(quad[:, 0].max()))
+    qy0, qy1 = int(quad[:, 1].min()), int(np.ceil(quad[:, 1].max()))
+    glass = img[max(0, py0):min(H, py1),
+                max(0, px0):min(W, px1)].astype(np.float32)
+    glass[max(0, qy0 - py0):min(glass.shape[0], qy1 - py0),
+          max(0, qx0 - px0):min(glass.shape[1], qx1 - px0)] = np.nan
+    med = np.nanmedian(glass)
+    bg = float(med) if np.isfinite(med) else float(np.median(img))
+    band = img[max(0, qy0):min(H, qy1),
+               max(0, qx0):min(W, qx1)].astype(np.float32)
+    contrast = float(abs(np.percentile(band, 95) - np.percentile(band, 5)))
+    return bg, contrast
+
+
+def gpc_ink_threshold(contrast):
+    """잉크 문턱: 밴드 대비(p95-p5)의 비례 계수에 노이즈 위 바닥."""
+    return max(GPC_INK_FLOOR, GPC_INK_K * contrast)
+
+
+def glyph_plane_score(img, quad, glyph_warped, glass_rect, ink_thr=None):
+    """글리프 평면 자가검사(AC#8 계승): 같은 변환을 통과한 글리프 마스크
+    자리가 최종 이미지에서 실제 잉크(배경과 유의미하게 다른 픽셀)인지 비율로.
+    ink_thr=None 이면 대비 비례 문턱(gpc_ink_threshold)을 쓴다 — 구판 고정
+    문턱(30)은 진단(diag_gpc_threshold.py)이 재현용으로 넘긴다.
+    주의: 워프가 마스크 밖을 borderValue(베젤색) 로 채우므로 0 이 아니라 127 로
+    문턱을 낸다 — 0 비교는 캔버스 전체가 sel 이 된다."""
+    bg, contrast = _gpc_bg_contrast(img, quad, glass_rect)
+    if ink_thr is None:
+        ink_thr = gpc_ink_threshold(contrast)
+    sel = glyph_warped > 127
+    ink = np.abs(img.astype(np.float32) - bg) > ink_thr
+    return float((ink & sel).sum()) / max(1, sel.sum())
 
 
 def _render_once(value, rng, profile, pid, inverted, fill_target):
@@ -1154,25 +1204,15 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
             break
     glyph_warped = _warp_img(gp0, cv2.INTER_NEAREST, Mk, Mr, border=0)
 
-    # 글리프 평면 자가검사(AC#8): 같은 변환을 통과한 글리프 마스크 자리가
-    # 최종 이미지에서 실제 잉크(배경과 유의미하게 다른 픽셀)인지 비율로.
-    # 주의: 워프가 마스크 밖을 borderValue(베젤색) 로 채우므로 0 이 아니라
-    # 127 로 문턱을 낸다 — 0 비교는 캔버스 전체가 sel 이 된다.
+    # 글리프 평면 자가검사(AC#8) — 점수 계산과 bg·문턱 선정 이력은
+    # glyph_plane_score / _gpc_bg_contrast 안에 있다. bg 후보 셋 다 결함이
+    # 있었다(2026-09-12): 전체 중앙값은 몸체가 절반을 차지한 뒤 몸체 톤
+    # (p10 0.99→0.56), 워프 전 유리 좌표는 회전·키스톤 장에서 몸체를 집고,
+    # 쿼드 안 중앙값은 대형 숫자 패널에서 숫자 톤에 떨어진다(panel_31000_
+    # 149, 반전·check 0.088). 쿼드 '바깥 유리'가 정답이다.
     if glyph_warped.max() > 0:
-        # 배경(액정 톤)은 유리 영역에서 밴드 쿼드 bbox 를 뺀 부분의 중앙값.
-        # 셋 다 결함이 있었다: 전체 중앙값은 몸체가 절반을 차지한 뒤 몸체 톤
-        # (p10 0.99→0.56), 워프 전 유리 좌표는 회전·키스톤 장에서 몸체를 집고,
-        # 쿼드 안 중앙값은 대형 숫자 패널에서 숫자 톤에 떨어진다(panel_31000_
-        # 149, 반전·check 0.088, 2026-09-12 실측). 쿼드 '바깥 유리'가 정답.
-        qx0, qx1 = int(quad[:, 0].min()), int(quad[:, 0].max()) + 1
-        qy0, qy1 = int(quad[:, 1].min()), int(quad[:, 1].max()) + 1
-        glass = img[max(0, py0):min(H, py1), max(0, px0):min(W, px1)].astype(np.float32)
-        glass[max(0, qy0 - py0):min(glass.shape[0], qy1 - py0),
-              max(0, qx0 - px0):min(glass.shape[1], qx1 - px0)] = np.nan
-        bg = float(np.nanmedian(glass)) if np.isfinite(np.nanmedian(glass))             else float(np.median(img))
-        sel = glyph_warped > 127
-        ink = np.abs(img.astype(np.float32) - bg) > 30
-        gpc = float((ink & sel).sum()) / max(1, sel.sum())
+        gpc = glyph_plane_score(img, quad, glyph_warped,
+                                (px0, py0, px1, py1))
     else:
         gpc = 0.0
 
