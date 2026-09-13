@@ -1,9 +1,10 @@
 ---
 title: PITCH_RATIO 근거를 실측으로 세우거나 주석을 사실로 되돌린다
-status: todo
+status: superseded
 ordinal: 41000
 created: 2026-09-12
 depends_on: ["합성을 GM 크롭과 같은 물건으로 — 기기 몸체를 함께 렌더한다"]
+superseded_by: ["합성을 GM 크롭과 같은 물건으로 — 기기 몸체를 함께 렌더한다"]
 ---
 
 ## Goal
