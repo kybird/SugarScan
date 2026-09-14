@@ -185,6 +185,12 @@ def seg_char_advance(ch, h, slant=0.0, digit_w=None):
         # 콜론은 획 굵기와 같은 사각 점 두 개다. 앞뒤로 숫자 간격을 준다 —
         # 구판은 뒤에만 줘서 앞 글자에 붙어 나왔다(사람 지적 3회, 2026-09-13).
         return max(2, int(round(h * 0.12))) + 2 * dgap
+    if ch in "-.":
+        # 날짜의 '-' 는 폰트 하이픈이 아니라 7-세그의 가운데 획(g)이다. '.' 도
+        # 세그먼트 점이다. 폰트로 그리면 굵기와 성격이 숫자와 달라진다
+        # (사람 지적 2026-09-13). 진폭도 숫자 칸에서 낸다.
+        _c = digit_w if digit_w else h * 0.62
+        return int(round(_c * (0.62 if ch == "-" else 0.30))) + dgap
     if ch in SEG_MAP:                      # 숫자 — 큰 숫자와 같은 글리프
         cell = digit_w if digit_w else h * 0.62
         gap = dgap
@@ -232,6 +238,18 @@ def _seg_draw_upright(canvas, x, y, text, h, thick, slant=0.0,
             for fy in (0.28, 0.62):
                 cv2.rectangle(canvas, (gx, y + int(h * fy)),
                               (gx + r, y + int(h * fy) + r), 255, -1)
+            cx += seg_char_advance(ch, h, slant, digit_w)
+            continue
+        if ch in "-.":
+            # 7-세그 획으로 그린다 — 굵기·색이 숫자와 같아진다.
+            _c = digit_w if digit_w else int(h * 0.62)
+            if ch == "-":
+                bw = max(2, int(round(_c * 0.62)))
+                yy = y + h // 2 - max(1, thick // 2)
+                cv2.rectangle(canvas, (cx, yy), (cx + bw, yy + thick), 255, -1)
+            else:
+                r = max(2, thick)
+                cv2.rectangle(canvas, (cx, y + h - r), (cx + r, y + h), 255, -1)
             cx += seg_char_advance(ch, h, slant, digit_w)
             continue
         if ch in SEG_MAP:
