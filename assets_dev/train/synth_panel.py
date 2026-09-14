@@ -57,7 +57,7 @@ sys.path.insert(0, str(HERE))
 
 from synth_profiles import (  # noqa: E402
     PROFILES, DOT_FMTS, dot_text, _icon, _pick_variant, _glyph_mask,
-    device_identity, STATEFUL_ELEMENTS, PROFILE_INVERTED,
+    device_identity, STATEFUL_ELEMENTS, PROFILE_INVERTED, lay_val,
 )
 from synth_lcd import (add_local_shadow,  # noqa: E402
                        seg_text, seg_text_width, seg_weight_from_variant,
@@ -444,6 +444,13 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
     # lay 가 없는 generic_v1 은 '여러 기기를 뭉뚱그린 익명 풀'이라 형질이 없다
     # (그게 이 풀의 존재 이유다 — 프로파일 밖 배치의 다양성 하한).
     ident = device_identity(pid) if lay is not None else None
+    # 레이아웃 축은 렌더당 한 번만 뽑는다 — 기기가 중심(중앙값), 촬영이 그
+    # 주위(p10~p90)를 흔든다. 같은 축을 두 번 뽑으면 밴드 폭과 위치가 서로
+    # 다른 장의 것이 섞인다.
+    if lay is not None:
+        _L = {k: lay_val(lay, k, rng) for k in ("ar", "bw", "bh", "cx", "cy")}
+    else:
+        _L = None
 
     def _fix(key, lo, hi):
         """기기 형질 분수를 실제 범위로. 형질이 없으면(익명 풀) 렌더 rng."""
@@ -468,7 +475,7 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
     # 마진을 더한 것이므로 그 순서로 만든다: 유리 종횡비(기기) + 마진 비율
     # (기기) -> 캔버스 종횡비. 촬영이 흔드는 것은 아래 '크롭 여유' 하나다.
     if lay is not None:
-        _gwr = lay["panel_ar"]                    # 유리 w/h
+        _gwr = _L["ar"]                           # 유리 w/h(이 장의 값)
         _z = rng.uniform(0.55, 1.0)               # 크롭 여유(타이트~여유)
         _fl, _fr = ident["mg_l"] * _z, ident["mg_r"] * _z
         _ft, _fb = ident["mg_t"] * _z, ident["mg_b"] * _z
@@ -491,8 +498,7 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
         if lay is not None:
             # 기기 고정 가로형은 자기 실측 기하를 쓴다 — 코퍼스 wide_raw 에서
             # 뽑으면 같은 기기가 장마다 칼럼형·하단행형을 오간다(2026-09-13).
-            _wide_t = (lay["band_w"], lay["band_h"],
-                       lay["band_cx"], lay["band_cy"])
+            _wide_t = (_L["bw"], _L["bh"], _L["cx"], _L["cy"])
         else:
             _wr = REAL_BASELINE["band"]["wide_raw"]
             _wide_t = _wr[rng.randrange(len(_wr))]
@@ -748,7 +754,7 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
     pw, ph = px1 - px0, py1 - py0
     # _wide_t/_wide_row 는 캔버스 직후(스트립 얇힘과 공유)에서 이미 뽑았다.
     if lay is not None:
-        band_h = lay["band_h"] * ph        # 기기 고정 — 유리 높이 기준 실측값
+        band_h = _L["bh"] * ph             # 기기 실측 분포에서 뽑은 이 장의 값
     elif _wide_t is not None:
         band_h_frac = _wide_t[1]
         band_h = band_h_frac * H
@@ -845,7 +851,7 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
             _allow += seg_text_width(_mt, _aux_est, _sl) + int(dh * 0.1)
         if profile.get("meter"):
             _allow += int(dh * 0.24) + 4      # 미터기 화살표(유리 오른끝 트랙)
-        _inner = lay["band_w"] * pw - 2 * _pad_x_t - _allow
+        _inner = _L["bw"] * pw - 2 * _pad_x_t - _allow
         _pr = _inner / max(1.0, dh * (slots - 1 + _g_r))
         pitch_r = min(0.85, max(0.21, _pr))
         glyph_w = int(dh * pitch_r * _g_r)
@@ -855,8 +861,8 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
         ghost_w = lead * pitch
         field_all_w = field_w + ghost_w
     if lay is not None:
-        cx = px0 + lay["band_cx"] * pw     # 기기 고정 — 유리 좌표계 실측값
-        cy = py0 + lay["band_cy"] * ph
+        cx = px0 + _L["cx"] * pw           # 유리 좌표계 — 이 장의 값
+        cy = py0 + _L["cy"] * ph
     elif _wide_t is not None:
         cx = _wide_t[2] * W
         cy = _wide_t[3] * H
@@ -875,7 +881,7 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
         # 밴드는 유리를 0.75% 넘는다). 필드는 밴드 오른쪽에서 왼쪽으로 배치해
         # 밴드 안 요소(단위·mem) 자리(_allow)를 먼저 확보한다 — 중앙 배치면
         # 몫이 양쪽으로 갈라져 단위가 유리 밖으로 나갔다.
-        _bw_eff = min(lay["band_w"] * pw,
+        _bw_eff = min(_L["bw"] * pw,
                       2 * min(cx - (px0 + 2), (px1 - 2) - cx))
         _qx0 = int(cx - _bw_eff / 2)
         _qx1 = int(cx + _bw_eff / 2)
@@ -892,6 +898,11 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
         y0 = max(py0 + 2 + pad_y, min(py1 - 2 - pad_y - dh, y0))
         quad = np.float32([[_qx0, y0 - pad_y], [_qx1, y0 - pad_y],
                            [_qx1, y0 + dh + pad_y], [_qx0, y0 + dh + pad_y]])
+        # 하단행형 가로 기기(gluneo_plus 처럼 bw 가 넓은 장)는 아래 정보행
+        # 코드가 qx0/qy0/qw 를 쓴다 — 기기 고정 경로에도 같은 이름을 준다.
+        # 없으면 UnboundLocalError 로 죽는다(2026-09-13, 실측 분포로 bw 를
+        # 흔들기 시작하면서 lay 기기도 행형에 들어갈 수 있게 됐다).
+        qx0, qy0, qw = _qx0, y0 - pad_y, _qx1 - _qx0
     elif _wide_row:
         # 쿼드가 목표 폭 전체(단위·시간 포함 — 사람 라벨이 그렇게 감쌌다)
         qw = min(int(_wide_t[0] * W), px1 - px0 - 4)
