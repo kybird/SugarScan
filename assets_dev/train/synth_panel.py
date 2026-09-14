@@ -63,6 +63,9 @@ from synth_lcd import (add_local_shadow,  # noqa: E402
                        seg_text, seg_text_width, seg_weight_from_variant,
                        SEG_WEIGHTS, SEG_SLANT)
 from measure_panel_stats import edge_density_outside  # 같은 자(AC#4)  # noqa: E402
+# 리더 프레이밍의 정본 — 실사진 팔과 같은 자를 쓴다(tensorflow 를 끌고 오는
+# eval_reader 가 아니라 build_cache_v2 에서 가져온다, 2026-09-13).
+from build_cache_v2 import framed_src_rect, IN_H, IN_W  # noqa: E402
 
 LONG_SIDE = 896
 
@@ -139,17 +142,12 @@ LCD_UNITS = ["mg/dL", "mg /dL", "mg/dl"]   # 843(gmate), 1991, 1058, 1903, #33 9
 LCD_ICONS = ["battery", "bluetooth", "curved-right", "curved-left",
              "tri-right", "tri-down", "triangle", "blood-drop", "mem-flag",
              "smile"]
-# 베젤 인쇄(액정 밖 링 전용) — 지시서 베젤 목록 중 프로파일이 있는 것만.
-BEZEL_TEXTS = {
-    "accuchek_active": ["Active"],
-    "dorucos_premium": ["Premium"],
-    "green_doctor": ["GREEN Doctor"],
-    "onetouch_ultra": ["ONETOUCH Ultra", "LIFESCAN"],
-    "acura_plus": ["ACURA PLUS"],
-    "performa_silver": ["Performa", "Performa Nano"],
-    "gmate": ["Gmate"],
-    "accuchek_instant": ["ACCU-CHEK", "Instant"],
-}
+# 베젤 인쇄(액정 밖 링 전용). 문자열의 정본은 프로파일의 bezel.texts 다 —
+# 여기서 따로 들고 있다가 2026-09-13 에 실제로 갈라졌다(performa_silver 에서
+# Performa Nano 를 떼어 별도 프로파일로 세웠는데 이 표에는 그대로 남아, 은색
+# Performa 몸체에 'Performa Nano' 가 찍혔다). 파생으로 바꾼다.
+BEZEL_TEXTS = {p["id"]: list(p["bezel"]["texts"])
+               for p in PROFILES if p.get("bezel")}
 _BEZEL_FONTS = [cv2.FONT_HERSHEY_SIMPLEX, cv2.FONT_HERSHEY_TRIPLEX,
                 cv2.FONT_HERSHEY_COMPLEX]
 
@@ -1598,6 +1596,11 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
             img = _warp_img(pre, cv2.INTER_LINEAR, Mk, Mr)
             break
     glyph_warped = _warp_img(gp0, cv2.INTER_NEAREST, Mk, Mr, border=0)
+    # 유리(=실사진의 GM 화면 쿼드에 해당) 도 같은 행렬을 통과시킨다. 리더
+    # 프레이밍이 이 쿼드에서 나온다 — 실사진 팔은 GM 쿼드 + BOX_MARGIN 이고
+    # 합성도 같아야 한다(reader_onnx_spec.md 프레임 조립).
+    glass_quad = _warp_pts(
+        np.float32([[px0, py0], [px1, py0], [px1, py1], [px0, py1]]), Mk, Mr)
 
     # 글리프 평면 자가검사(AC#8) — 점수 계산과 bg·문턱 선정 이력은
     # glyph_plane_score / _gpc_bg_contrast 안에 있다. bg 후보 셋 다 결함이
@@ -1613,6 +1616,7 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
 
     dens = _density_outside(img, quad)
     return dict(panel=img, quad=np.asarray(quad, np.float32), label=label,
+                glass_quad=np.asarray(glass_quad, np.float32),
                 rects=placer.rects, dropped=dropped, wh=W / H, W=W, H=H,
                 profile=pid, inverted=bool(inverted),
                 glyph_plane_check=round(gpc, 4),
@@ -1632,13 +1636,22 @@ def _density_outside(img, quad):
 
 
 def reader_view(sample):
-    """파이프라인과 같은 워프 — 패널 캔버스 전체를 320x160 으로(AC#2 참고
-    산출물). 세로 패널은 가로로 약 2.5배 늘어난 납작한 글리프가 된다."""
-    img, H, W = sample["panel"], sample["H"], sample["W"]
-    src = np.float32([[0, 0], [W - 1, 0], [W - 1, H - 1], [0, H - 1]])
-    dst = np.float32([[0, 0], [319, 0], [319, 159], [0, 159]])
+    """리더 입력(320x160). 실사진 팔과 **같은 자**로 만든다 —
+    build_cache_v2.framed_src_rect(GM 쿼드의 축정렬 박스를 BOX_MARGIN 10% 로
+    사방 확장) -> 원근 워프. 정본은 reader_onnx_spec.md '프레임 조립'이다.
+
+    2026-09-13 정정: 구판은 패널 캔버스 '전체'를 워프했다. 그런데 합성 캔버스의
+    몸체 마진은 기기 형질이라 사방 1~15% 로 제각각이고, 실사진 팔은 언제나
+    10% 다. 학습-추론 전처리가 갈라지면 그 자체가 성능 저하다(spec 3항).
+    기하 구현을 여기서 다시 짜지 않는다 — 같은 함수를 부른다
+    (antipatterns/duplicated-geometry-implementation).
+    """
+    img = sample["panel"]
+    src = framed_src_rect(img, sample["glass_quad"])
+    dst = np.float32([[0, 0], [IN_W - 1, 0], [IN_W - 1, IN_H - 1],
+                      [0, IN_H - 1]])
     Mp = cv2.getPerspectiveTransform(src, dst)
-    warped = cv2.warpPerspective(img, Mp, (320, 160))
+    warped = cv2.warpPerspective(img, Mp, (IN_W, IN_H))
     rq = cv2.perspectiveTransform(sample["quad"][None, :, :], Mp)[0]
     return warped, np.asarray(rq, np.float32)
 
@@ -1665,6 +1678,8 @@ def generate(count, seed0, out_dir, with_reader=False):
         rec = dict(
             id=name, profile=s["profile"], w=s["W"], h=s["H"],
             wh=round(s["wh"], 4), quad=q.tolist(), label=s["label"],
+            # 유리 쿼드 — 리더 프레이밍의 입력(실사진의 GM 쿼드에 해당).
+            glass_quad=np.round(s["glass_quad"], 2).tolist(),
             inverted=s["inverted"], glyph_plane_check=s["glyph_plane_check"],
             text_heights=s["text_heights"],
             density=round(float(s["density"]), 5),

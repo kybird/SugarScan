@@ -66,6 +66,7 @@ def main():
         W, H, m = s["W"], s["H"], s["margin"]
         rec = dict(id=name, profile=s["profile"], w=W, h=H,
                    wh=round(s["wh"], 4), quad=np.round(q, 2).tolist(),
+                   glass_quad=np.round(s["glass_quad"], 2).tolist(),
                    label=s["label"], inverted=s["inverted"],
                    glyph_plane_check=s["glyph_plane_check"],
                    text_heights=s["text_heights"],
@@ -119,8 +120,9 @@ def main():
     for r in manifest[:6]:
         img = cv2.imread(str(out / "images" / f"{r['id']}.png"),
                          cv2.IMREAD_GRAYSCALE)
-        s = dict(panel=img, H=r["h"], W=r["w"], quad=np.asarray(r["quad"],
-                                                                np.float32))
+        s = dict(panel=img, H=r["h"], W=r["w"],
+                 quad=np.asarray(r["quad"], np.float32),
+                 glass_quad=np.asarray(r["glass_quad"], np.float32))
         rv, rq = sp.reader_view(s)
         rq = np.round(rq).astype(np.int32)
         cv2.polylines(rv, [rq.reshape(-1, 1, 2)], True, 255, 1)

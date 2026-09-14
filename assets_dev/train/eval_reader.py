@@ -76,41 +76,13 @@ def load_gray(img_path):
         return None
 
 
-def framed_src_rect(gray, quad, cid=None, bandcrop=False, rotated_ids=None):
-    """GM 쿼드의 축정렬 박스를 BOX_MARGIN 만큼 넓힌 크롭 사각형(TL,TR,BR,BL).
+# framed_src_rect / frame_crop 의 정본은 build_cache_v2 로 옮겼다(2026-09-13).
+# 프레이밍 규약(BOX_MARGIN)이 거기 있는데 함수가 여기 있으면, 합성 쪽에서
+# 같은 프레이밍을 쓰려고 eval_reader 를 import 하는 순간 tensorflow 가 딸려
+# 온다. 이름은 그대로 재수출한다 — 기존 호출자(make_failure_atlas·
+# g30_check_cache)가 eval_reader 에서 가져간다.
+from build_cache_v2 import framed_src_rect, frame_crop  # noqa: E402,F401
 
-    프레이밍 규약은 학습 캐시와 **같아야 한다** — 정본은 build_cache_v2.BOX_MARGIN.
-    (왼, 오른, 위, 아래) 변마다 여유가 다르다. 기준 폭·높이는 **원본 박스** 것을
-    쓴다 — 좌측 여유로 x0 이 움직인 뒤의 폭을 쓰면 오른쪽 여유가 좌측 값에
-    영향을 받는다(순서 의존). 이미지 경계로 클램프한다.
-
-    bandcrop=True 면 마진 **전에** G30 세로형 크롭을 먼저 적용한다(build_cache_v2
-    와 같은 순서·같은 함수). 기본(False)이면 크롭 없이 종래 프레이밍 그대로다.
-    """
-    q = np.array(quad, dtype=np.float32)
-    xs, ys = q[:, 0], q[:, 1]
-    bx0, by0 = float(xs.min()), float(ys.min())
-    bx1, by1 = float(xs.max()), float(ys.max())
-    if bandcrop:
-        bx0, by0, bx1, by1 = band_crop_box(
-            bx0, by0, bx1, by1, cid, rotated_ids or frozenset())
-    w0, h0 = bx1 - bx0, by1 - by0
-    ml, mr, mt, mb = BOX_MARGIN
-    bx0, by0 = max(0.0, bx0 - w0 * ml), max(0.0, by0 - h0 * mt)
-    bx1 = min(float(gray.shape[1] - 1), bx1 + w0 * mr)
-    by1 = min(float(gray.shape[0] - 1), by1 + h0 * mb)
-    return np.array(
-        [[bx0, by0], [bx1, by0], [bx1, by1], [bx0, by1]], dtype=np.float32)
-
-
-def frame_crop(gray, quad, cid=None, bandcrop=False, rotated_ids=None):
-    """load_gray 결과 + GM 쿼드 → 리더 입력(320x160) 워프."""
-    src = framed_src_rect(gray, quad, cid, bandcrop, rotated_ids)
-    dst = np.array(
-        [[0, 0], [IN_W - 1, 0], [IN_W - 1, IN_H - 1], [0, IN_H - 1]],
-        dtype=np.float32)
-    return cv2.warpPerspective(
-        gray, cv2.getPerspectiveTransform(src, dst), (IN_W, IN_H))
 
 
 def parse_args():

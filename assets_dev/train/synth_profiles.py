@@ -29,7 +29,6 @@ from synth_lcd import (  # 레거시 구성요소 재사용 + 세그먼트 스�
 )
 
 # ── DSEG 글리프 렌더 — 「DSEG 폰트 기반 글리프 렌더러 교체」 카드 ────────────
-USE_DSEG = True   # False 면 rect 세그먼트 팔(직전 A/B 재현)
 # 폰트: DSEG v0.46 (keshikan, SIL OFL 1.1) — fonts/dseg/ 에 원문 라이선스 동봉.
 # 변형 선택 근거(눈 검증, _diag/synth_real_atlas/dseg_variant_check.png):
 # 실기기 8종 숫자 밴드와 나란히 놓아 Classic 계열이 전체적으로 가장 가깝고
@@ -71,28 +70,6 @@ def _glyph_mask(ch, variant, h):
                       interpolation=cv2.INTER_NEAREST) > 96
 
 
-def draw_digit_dseg(img, x, y, h, ch, ink, variant="Regular", ghost=0.0):
-    """DSEG 숫자 한 자. ghost>0 이면 꺼진 세그먼트 잔상('8' 전체 획을 배경과
-    잉크 사이 옅은 농도로) 먼저 깔고 진한 글리프를 얹는다(카드 AC#3).
-    잔상은 '생각보다 훨씬 약하다'(2026-09-11 실사진 정정) — 확률적으로,
-    농도 흔들림 포함. 폭은 글리프 비율이 정한다(배치 계산 불변)."""
-    if ghost > 0:
-        g = _glyph_mask("8", variant, h)
-        if g is not None:
-            panel_est = img[max(0, y):y + h, x:x + g.shape[1]].astype(np.float32)
-            blend = panel_est * (1 - ghost) + ink * ghost
-            region = img[max(0, y):y + h, x:x + g.shape[1]]
-            region[g[:region.shape[0], :region.shape[1]]] = \
-                blend[:region.shape[0], :region.shape[1]][
-                    g[:region.shape[0], :region.shape[1]]].astype(np.uint8)
-    m = _glyph_mask(ch, variant, h)
-    if m is None:
-        return 0
-    region = img[y:y + h, x:x + m.shape[1]]
-    region[m[:region.shape[0], :region.shape[1]]] = ink
-    return m.shape[1]
-
-
 def _pick_variant(rng, italic):
     w = DSEG_WEIGHTS[rng.randrange(len(DSEG_WEIGHTS))]
     if rng.random() < 0.12:            # 가는획+둥근끝 소수 기기
@@ -126,6 +103,7 @@ PROFILES = [
         arrow=dict(kinds=["tri-right"], gap=(2, 80), size=(18, 30), p=0.95),
         meter=True,
         time=dict(pos="below-left", p=0.9),
+        bezel=dict(texts=["ACCU-CHEK", "Instant"], edge="top", p=0.9),
     ),
     dict(
         id="gmate", slots=3, align="right", italic=False,
@@ -138,6 +116,7 @@ PROFILES = [
         meal=dict(texts=["AC", "PC"], p=0.3),
         mem=dict(kind="M", pos="below-left", p=0.5),
         time=dict(pos="below-left", p=0.85),
+        bezel=dict(texts=["Gmate"], edge="top", p=0.9),
     ),
     dict(
         id="dorucos_premium", slots=3, align="left", italic=False,
@@ -190,6 +169,9 @@ PROFILES = [
         mem=dict(kind="M-box", pos="top-left", p=0.9),
         time=dict(pos="below-left", p=0.8),
         dotrow_below=dict(fmts=DOT_FMTS[:4], glyph=(4, 6), p=0.4),
+        # 228 몸체 상단 'GC 녹십자MS / ONE' — 한글은 Hershey 가 못 그려
+        # 라틴 부분만 쓴다(없는 글자를 지어내지 않는다).
+        bezel=dict(texts=["ONE"], edge="top", p=0.8),
     ),
     dict(
         id="acura_plus", slots=3, align="right", italic=False,
@@ -213,6 +195,7 @@ PROFILES = [
         mem=dict(kind="M", pos="right-of-digits", p=0.5),
         icons=[("mem-flag", "right-of-digits", 0.5), ("battery", "top-right", 0.3)],
         dotrow_below=dict(fmts=DOT_FMTS, glyph=(4, 6), p=0.9),
+        bezel=dict(texts=["CareSens N", "Premier"], edge="top", p=0.8),
     ),
     dict(
         id="performa_silver", slots=3, align="right", italic=False,
@@ -267,6 +250,7 @@ PROFILES = [
         time=dict(pos="below-right", p=0.9),
         arrow=dict(kinds=["tri-down"], gap=(4, 10), size=(10, 16),
                    pos="below-left", p=0.85),
+        bezel=dict(texts=["GluNEO plus"], edge="top", p=0.8),
     ),
     dict(
         id="generic_v1", legacy=True, evidence=[],
@@ -506,285 +490,18 @@ def _icon(img, kind, cx, cy, s, ink):
         cv2.ellipse(img, (cx, cy + s // 10), (s // 3, s // 5), 0, 20, 160, ink, 1)
 
 
-def render_profiled(value, rng, profile, size=(320, 160)):
-    """프로파일 렌더. 라벨은 언제나 str(value) — 다른 요소는 라벨에 없다."""
-    W, H = size
-    label = str(value)
-    panel = int(rng.uniform(150, 215))
-    img = np.full((H, W), panel, dtype=np.uint8)
-    polarity = rng.random() < 0.5
-    if polarity:
-        panel = int(rng.uniform(35, 95))
-        ink_digit = int(rng.uniform(185, 245))
-        ink_small = int(rng.uniform(150, 210))
-    else:
-        panel = int(rng.uniform(150, 215))
-        ink_digit = int(rng.uniform(20, 90))
-        ink_small = int(rng.uniform(60, 130))
-    bez = int(rng.uniform(2, 8))
-    cv2.rectangle(img, (0, 0), (W - 1, H - 1), int(rng.uniform(40, 90)),
-                  thickness=bez)
-
-    # 숫자 필드: slots 칸 전체(값이 아니라 칸 — 밴드 정의 2026-09-11 과 동일).
-    # 앞쪽 빈 칸은 꺼진 슬롯으로 남는다. slots 에 튜플을 허용한다 — 카드
-    # 「프로파일 확장」 AC#3: 칸 수가 3으로 고정되지 않게(익명 풀 등).
-    slots_spec = profile.get("slots") or len(label)
-    slots = rng.choice(list(slots_spec)) if isinstance(slots_spec, (tuple,
-                                                                    list)) \
-        else slots_spec
-    slots = max(slots, len(label))
-    dh = int(H * rng.uniform(*profile["digit_h"]))
-    dw = int(dh * 0.58)
-    pitch = dw + int(dw * 0.25)
-    field_w = slots * dw + int(dw * 0.25) * (slots - 1)
-    align = profile.get("align", "right")
-    if align == "right":
-        x0 = W - int(W * rng.uniform(0.04, 0.12)) - field_w
-    elif align == "left":
-        x0 = int(W * rng.uniform(0.06, 0.16))
-    else:
-        x0 = (W - field_w) // 2
-    y0 = int(H * rng.uniform(0.18, 0.34))
-    lead = slots - len(label)
-    if USE_DSEG:
-        # DSEG 팔 — 굵기·이탤릭은 표본마다 한 번 뽑고 화면 내내 일정(AC#2).
-        # 잔상: 15% 표본에서만, 농도는 0.08~0.20 흔들림(2026-09-11 정정 —
-        # 실물 잔상은 '생각보다 훨씬 약하다', 없음이 기본).
-        variant = _pick_variant(rng, bool(profile.get("italic")))
-        ghost = rng.uniform(0.08, 0.20) if rng.random() < 0.15 else 0.0
-        for s in range(slots):
-            if s < lead:
-                continue
-            draw_digit_dseg(img, x0 + s * pitch, y0, dh, label[s - lead],
-                            ink_digit, variant, ghost)
-        # 이탤릭은 폰트 변형이 담당 — 패널을 기울이는 전역 shear 는 쓰지
-        # 않는다(광학 카드의 지적 그대로).
-    else:
-        for s in range(slots):
-            if s < lead:
-                continue
-            draw_digit(img, x0 + s * pitch, y0, dw, dh, label[s - lead], ink_digit)
-        if profile.get("italic"):   # rect 팔 — 기존 동작 재현
-            sh = rng.uniform(0.18, 0.30)
-            img = cv2.warpAffine(img, np.float32([[1, sh, -sh * H / 2], [0, 1, 0]]),
-                                 (W, H), borderMode=cv2.BORDER_REPLICATE)
-    last_r = x0 + field_w
-
-    if profile.get("glulabel", {}).get("p", 0) > rng.random():
-        gh = max(8, int(dh * 0.2))
-        cv2.putText(img, "GLU", (x0 + int(field_w * rng.uniform(0.0, 0.3)),
-                                 max(12, y0 - int(H * rng.uniform(0.04, 0.10)))),
-                    cv2.FONT_HERSHEY_SIMPLEX, gh / 26.0, ink_small, 1, cv2.LINE_AA)
-
-    # 단위 — 표기 변형을 섞는다(하나로 몰지 않는다, 카드 Notes).
-    u = profile.get("unit")
-    unit_right = last_r + int(dw * 0.3)
-    if u and rng.random() < u["p"]:
-        ut = u["texts"][rng.randrange(len(u["texts"]))]
-        uh = max(7, int(dh * rng.uniform(*u["h_ratio"])))
-        gap = int(rng.uniform(*u["gap"]))
-        pos = u["pos"]
-        if pos == "right-baseline":
-            ux, uy = last_r + gap, y0 + dh - uh
-        elif pos == "right-mid":
-            ux, uy = last_r + gap, y0 + (dh - uh) // 2
-        elif pos == "left-mid":
-            ux = max(2, x0 - gap - int(uh * 2.4))
-            uy = y0 + (dh - uh) // 2
-        elif pos == "above-right":
-            ux, uy = last_r - int(uh * 2.2), max(9, y0 - int(H * rng.uniform(0.05, 0.12)))
-        else:  # below
-            ux, uy = int(W * rng.uniform(0.5, 0.62)), y0 + dh + int(H * 0.05)
-        cv2.putText(img, ut, (ux, uy + uh), cv2.FONT_HERSHEY_SIMPLEX,
-                    uh / 26.0, ink_small, 1, cv2.LINE_AA)
-        unit_right = ux + int(uh * 2.6)
-
-    # 식전·식후 마커. 실물 관례 표기(AC/PC) — 이 40장 표본에서 관찰은 0건이고
-    # AC#5 요건으로 렌더한다(보고서에 관찰 0건 명시).
-    meal = profile.get("meal")
-    if meal and rng.random() < meal["p"]:
-        mh = max(7, int(dh * 0.16))
-        cv2.putText(img, meal["texts"][rng.randrange(2)],
-                    (min(W - 20, unit_right + 4), y0 + dh - mh),
-                    cv2.FONT_HERSHEY_SIMPLEX, mh / 26.0, ink_small, 1, cv2.LINE_AA)
-
-    m = profile.get("mem")
-    if m and rng.random() < m["p"]:
-        mh = max(8, int(dh * 0.22))
-        if m["pos"] == "top-left":
-            mx, my = int(W * 0.06), int(H * 0.14)
-        elif m["pos"] == "top-right":
-            mx, my = int(W * 0.72), int(H * 0.14)
-        elif m["pos"] == "below-left":
-            mx, my = int(W * 0.08), y0 + dh + int(H * 0.08)
-        else:  # right-of-digits
-            mx, my = last_r + int(dw * 0.4), y0 + (dh - mh) // 2 + mh
-        if m["kind"] == "M-box":
-            cv2.rectangle(img, (mx - 2, my - mh - 2), (mx + mh + 2, my + 2),
-                          ink_small, 1)
-        cv2.putText(img, m["kind"][:3] if m["kind"] != "M-box" else "M",
-                    (mx, my), cv2.FONT_HERSHEY_SIMPLEX, mh / 24.0,
-                    ink_small, 1, cv2.LINE_AA)
-
-    a = profile.get("arrow")
-    if a and rng.random() < a["p"]:
-        s = int(rng.uniform(*a["size"]))
-        gap = int(rng.uniform(*a["gap"]))
-        kind = a["kinds"][rng.randrange(len(a["kinds"]))]
-        if a.get("pos") == "below-left":
-            # 숫자 아래 왼쪽 — GluNEO plus 하단 화살표(1435 등 4장 관찰)
-            ax = int(W * rng.uniform(0.06, 0.14))
-            ay = y0 + dh + int(H * rng.uniform(0.05, 0.09))
-        else:
-            ax = min(W - s, last_r + gap)
-            ay = y0 + int(dh * rng.uniform(0.15, 0.55))
-        _icon(img, kind, ax, ay, s, ink_small)
-
-    for kind, pos, p in profile.get("icons", []):
-        if rng.random() > p:
-            continue
-        s = max(8, int(dh * rng.uniform(0.28, 0.4)))
-        if pos == "top-right":
-            cx, cy = W - int(W * rng.uniform(0.06, 0.12)), int(H * rng.uniform(0.08, 0.16))
-        elif pos == "top-left":
-            cx, cy = int(W * rng.uniform(0.05, 0.10)), int(H * rng.uniform(0.08, 0.16))
-        else:  # right-mid — 숫자 밴드 오른쪽(혈액방울 실측 285~315,60~90)
-            cx, cy = W - int(W * rng.uniform(0.04, 0.10)), y0 + int(dh * rng.uniform(0.3, 0.6))
-        _icon(img, kind, cx, cy, s, ink_small)
-
-    da = profile.get("dotrow_above")
-    if da and rng.random() < da["p"]:
-        g = int(rng.uniform(*da["glyph"]))
-        dot_text(img, int(W * rng.uniform(0.05, 0.30)), int(H * rng.uniform(0.06, 0.14)),
-                 da["texts"][rng.randrange(len(da["texts"]))], g, ink_small)
-    db = profile.get("dotrow_below")
-    if db and rng.random() < db["p"]:
-        g = int(rng.uniform(*db["glyph"]))
-        fmt = db["fmts"][rng.randrange(len(db["fmts"]))]
-        txt = fmt.format(h02=f"{rng.randint(0, 12):02d}", m02=f"{rng.randint(0, 59):02d}",
-                         M=f"{rng.randint(1, 12)}", M02=f"{rng.randint(1, 12):02d}",
-                         d=f"{rng.randint(1, 31)}", d02=f"{rng.randint(1, 31):02d}",
-                         am=random.choice(["am", "pm"]), AM=random.choice(["AM", "PM"]))
-        dot_text(img, int(W * rng.uniform(0.05, 0.35)),
-                 y0 + dh + int(H * rng.uniform(0.05, 0.10)), txt, g, ink_small)
-
-    t = profile.get("time")
-    if t and rng.random() < t["p"]:
-        th = int(dh * rng.uniform(0.28, 0.42))
-        ty = y0 + dh + int(H * rng.uniform(0.04, 0.08))
-        hh = f"{rng.randint(0, 23):02d}:{rng.randint(0, 59):02d}"
-        if t["pos"] == "below-right":
-            tx = int(W * rng.uniform(0.5, 0.65))
-        elif t["pos"] == "top-left":
-            # 숫자 위 왼쪽 — ACCU-CHEK Active 상단 시간줄(1329·2519 관찰)
-            tx = int(W * rng.uniform(0.06, 0.15))
-            ty = max(th, y0 - int(H * rng.uniform(0.10, 0.16)))
-        elif t["pos"] == "top-right":
-            tx = int(W * rng.uniform(0.68, 0.80))
-            ty = max(th, y0 - int(H * rng.uniform(0.10, 0.16)))
-        elif t["pos"] == "below-right":
-            pass
-        else:
-            tx = int(W * rng.uniform(0.06, 0.30))
-        put_7seg_text(img, tx, ty, int(W * 0.3), th, hh, ink_small)
-
-    if profile.get("avgrow", {}).get("p", 0) > rng.random():
-        ah = int(dh * rng.uniform(0.24, 0.34))
-        ay2 = y0 + dh + int(H * rng.uniform(0.05, 0.09))
-        cv2.putText(img, f"{rng.randint(1, 30):02d} DAY AVG",
-                    (int(W * rng.uniform(0.08, 0.20)), ay2 + ah),
-                    cv2.FONT_HERSHEY_SIMPLEX, ah / 26.0, ink_small, 1, cv2.LINE_AA)
-        put_7seg_text(img, int(W * rng.uniform(0.45, 0.60)), ay2, int(W * 0.2), ah,
-                      f"{rng.randint(1, 999):03d}", ink_small)
-
-    if profile.get("daterow", {}).get("p", 0) > rng.random():
-        rh = max(7, int(dh * 0.18))
-        ry = y0 + dh + int(H * rng.uniform(0.08, 0.13))
-        cv2.putText(img, f"{rng.randint(1, 12)}-{rng.randint(1, 31)}  #{rng.randint(1, 9)}",
-                    (int(W * rng.uniform(0.06, 0.25)), ry),
-                    cv2.FONT_HERSHEY_SIMPLEX, rh / 24.0, ink_small, 1, cv2.LINE_AA)
-
-    b = profile.get("bezel")
-    if b and rng.random() < b["p"]:
-        face = [cv2.FONT_HERSHEY_SIMPLEX, cv2.FONT_HERSHEY_TRIPLEX,
-                cv2.FONT_HERSHEY_COMPLEX][rng.randrange(3)]
-        text = b["texts"][rng.randrange(len(b["texts"]))]
-        if b["edge"] == "top":
-            bx, by = int(W * rng.uniform(0.25, 0.6)), int(H * 0.10)
-        else:
-            bx, by = int(W * rng.uniform(0.2, 0.55)), H - 6
-        cv2.putText(img, text, (bx, by), face, 0.42, ink_small, 1, cv2.LINE_AA)
-    if profile.get("buttons"):
-        for bxx in (int(W * 0.2), int(W * 0.78)):
-            _tri(img, bxx, H - 8, 5, ink_small, "up")
-
-    # 광학·노이즈·기하 계층 — 레거시와 같은 배치·같은 확률(변인 통제).
-    img = np.clip(img.astype(np.float32)
-                  + np.random.normal(0, rng.uniform(2, 9), img.shape),
-                  0, 255).astype(np.uint8)
-    if rng.random() < 0.4:
-        img = cv2.GaussianBlur(img, (3, 3), rng.uniform(0.3, 1.0))
-    if rng.random() < 0.3:
-        img = cv2.GaussianBlur(img, (5, 5), rng.uniform(0.5, 1.2))
-    a_, b_ = rng.uniform(0.75, 1.25), rng.uniform(-25, 25)
-    img = np.clip(img.astype(np.float32) * a_ + b_, 0, 255).astype(np.uint8)
-    for _ in range(rng.randint(0, 2)):
-        ex, ey = rng.randint(0, W - 1), rng.randint(0, H - 1)
-        ax_, ay_ = rng.randint(W // 12, W // 5), rng.randint(H // 12, H // 5)
-        glare = int(min(255, panel + rng.uniform(50, 100)))
-        msk = np.zeros((H, W), np.float32)
-        cv2.ellipse(msk, (ex, ey), (ax_, ay_), rng.uniform(0, 180), 0, 360, 1, -1)
-        msk *= rng.uniform(0.15, 0.3)
-        img = np.clip(img.astype(np.float32) * (1 - msk) + glare * msk,
-                      0, 255).astype(np.uint8)
-    yy, xx = np.mgrid[0:H, 0:W]
-    d2 = ((xx - W / 2) / (W / 2)) ** 2 + ((yy - H / 2) / (H / 2)) ** 2
-    img = np.clip(img.astype(np.float32) * (1.0 - rng.uniform(0.08, 0.22) * d2),
-                  0, 255).astype(np.uint8)
-    if rng.random() < 0.35:
-        img = add_local_shadow(img, rng)
-    if rng.random() < 0.30:
-        img = add_reflection_stripe(img, rng)
-    if rng.random() < 0.15:   # 프로파일은 자릿수 이탤릭을 별도 처리하므로 전역
-        img = apply_shear(img, rng)   # shear 확률을 0.20 -> 0.15 로 낮춘다
-    if rng.random() < 0.25:
-        img = apply_keystone(img, rng)
-    if rng.random() < 0.7:
-        M2 = cv2.getRotationMatrix2D((W / 2, H / 2), rng.uniform(-1.5, 1.5), 1.0)
-        img = cv2.warpAffine(img, M2, (W, H), borderValue=int(rng.uniform(30, 80)))
-    return img, label
-
-
-def render_any(value, rng, size=(320, 160), profile=None):
-    """프로파일 지정 렌더. None 이면 PROFILES 에서 균등 추출."""
-    if profile is None:
-        profile = PROFILES[rng.randrange(len(PROFILES))]
-    if profile.get("legacy"):
-        return render_screen(value, rng, size)
-    return render_profiled(value, rng, profile, size)
-
-
-def generate_profiled(count, seed0, out_dir, size=(320, 160)):
-    """균등 프로파일(레거시 generic_v1 포함). 산출 형식은 synth_lcd.generate 와
-    동일(images/*.png + labels_{seed}.json) — build_cache_v2 가 그대로 흡수한다."""
-    rng = random.Random(seed0)
-    out = Path(out_dir)
-    (out / "images").mkdir(parents=True, exist_ok=True)
-    labels = {}
-    for i in range(count):
-        val = sample_corpus_value(rng)
-        img, label = render_any(val, rng, size)
-        name = f"synth_{seed0}_{i}"
-        cv2.imwrite(str(out / "images" / f"{name}.png"), img)
-        labels[name] = label
-    (out / f"labels_{seed0}.json").write_text(
-        json.dumps(labels, ensure_ascii=False, indent=0), encoding="utf-8")
-    print(f"generated {count} profiled -> {out}")
-
-
-if __name__ == "__main__":
-    import sys
-    count = int(sys.argv[1]) if len(sys.argv) > 1 else 3000
-    seed = int(sys.argv[2]) if len(sys.argv) > 2 else 19000
-    out = sys.argv[3] if len(sys.argv) > 3 else "synth_screens_profiled"
-    generate_profiled(count, seed, out)
+# ── 은퇴한 320x160 렌더러(2026-09-13) ────────────────────────────────────
+# render_profiled / render_any / generate_profiled 를 여기서 지웠다.
+#
+# 리더의 합성 팔이 이 함수들을 썼고, 검출기의 합성 팔은 synth_panel 을 썼다.
+# 두 렌더러가 같은 축에서 서로 다른 답을 들고 있었다 — 극성(여기: rng<0.5
+# 동전던지기 / 저기: 사람 선언), 글리프 폭 비율(0.58·dh / 0.78~0.84·피치),
+# 단위 자리(숫자 옆 / 숫자 아래), 기기 개념(없음 / 12종 형질 고정).
+# 리더를 다시 구우면 두 모델이 서로 다른 세계를 배우게 돼 있었다.
+#
+# 이제 리더도 synth_panel 을 본다(build_profiled_cache -> render_panel ->
+# reader_view). 프레이밍도 실사진 팔과 같은 함수를 통과한다
+# (build_cache_v2.framed_src_rect, BOX_MARGIN 10%).
+#
+# 되살릴 일이 있으면 git 에서 꺼낸다 — 커밋 메시지에 이 사정이 적혀 있다.
+# draw_digit_dseg 와 USE_DSEG 도 이 경로 전용이라 함께 나갔다.
