@@ -494,14 +494,20 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
     # 라벨이 단위·시간까지 밴드에 포함 — 971·497·66·821).
     _wide_t = None
     _wide_row = False
-    if wh >= 1.0:
-        if lay is not None:
-            # 기기 고정 가로형은 자기 실측 기하를 쓴다 — 코퍼스 wide_raw 에서
-            # 뽑으면 같은 기기가 장마다 칼럼형·하단행형을 오간다(2026-09-13).
+    # 배치 가족은 기기의 성질이지 종횡비의 함수가 아니다(2026-09-13 정정).
+    # 구판은 화면 w/h >= 1.0 을 문턱으로 삼았는데, 정사각에 가까운 기기가
+    # 장마다 가족을 오갔다 — GluNEO plus 는 세로형 기기에 거의 정사각 화면
+    # (쿼드에 따라 0.89~1.23)이고 배치는 '큰 숫자 + 아래 한 줄'인데, 타이트
+    # 쿼드에서 ar>1 이 나오면 가로형 정보 칼럼 가족으로 넘어갔다.
+    # 기기 고정 프로파일은 family 를 선언한다. 익명 풀만 종횡비로 가른다.
+    _fam = profile.get("family")
+    if lay is not None:
+        if _fam in ("column", "row"):
             _wide_t = (_L["bw"], _L["bh"], _L["cx"], _L["cy"])
-        else:
-            _wr = REAL_BASELINE["band"]["wide_raw"]
-            _wide_t = _wr[rng.randrange(len(_wr))]
+            _wide_row = (_fam == "row")
+    elif wh >= 1.0:
+        _wr = REAL_BASELINE["band"]["wide_raw"]
+        _wide_t = _wr[rng.randrange(len(_wr))]
         _wide_row = _wide_t[0] >= 0.75
 
     # ── 몸체 + 액정 — GM 크롭과 같은 물건(카드 2026-09-12) ──────────────────
@@ -1113,7 +1119,7 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
     # ── 액정 요소 — 전부 실폭 재서 배치, 패널 밖으로 못 나가게(AC#12) ──────
     # 가로형은 단위를 칼럼/하단행이 담당한다(위) — 프로파일 unit 요소는 세로형만.
     u = profile.get("unit")
-    if u and _shown("unit", u["p"]) and wh < 1.0:
+    if u and _shown("unit", u["p"]) and _wide_t is None:
         # 단위 표기는 기기의 성질이다 — 같은 기기가 어떤 장은 mg/dL, 어떤 장은
         # mg/dl 이면 실물에 없는 변형을 가르친다(2026-09-12 정정). 프로파일이
         # 선언한 texts 를 쓰고, 여러 개면 프로파일 id 로 결정적으로 고른다.

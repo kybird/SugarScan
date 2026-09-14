@@ -234,6 +234,7 @@ PROFILES = [
         # 못 그린다 — bezel 을 선언하지 않는다. 극성은 정상(검은 숫자).
         # 기하는 실측: device_layout_stats --wide, n=28.
         id="onetouch_ultramini", slots=3, align="right", italic=False,
+        family="column",
         evidence=["glucose_batch1/1588", "glucose_batch1/1590",
                   "glucose_batch1/1596", "glucose_batch1/1598",
                   "glucose_batch1/1602"],
@@ -249,6 +250,7 @@ PROFILES = [
         # 숫자가 화면 맨 왼쪽에 붙는다(실측 cx 0.092). 근거 1091·1094·1815·
         # 1622·1624·1627·1822. 기종 미상이라 베젤 문자열이 없다.
         id="wide_unknown", slots=3, align="left", italic=False,
+        family="column",
         evidence=["glucose_batch1/1091", "glucose_batch1/1094",
                   "glucose_batch1/1815"],
         unit=dict(texts=["mg /dL"], pos="below-right", gap=(4, 10), p=1.0),
