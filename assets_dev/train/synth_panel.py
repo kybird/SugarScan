@@ -174,6 +174,31 @@ PANEL_ATTRS = {pid: dict(inverted=inv)
 # 지우지 않는다: 기기 지식이고, 가로형을 다시 넣을 때 근거가 거기 있다.
 TRAIN_PROFILES = [p for p in PROFILES
                   if not (EXCLUDE_WIDE and p.get("family") in ("column", "row"))]
+# 프로파일 추첨 가중치 — 기본은 균등(None). set_wide_share() 로 가로형 비중을
+# 올린다. 가로형 판정은 선언(family)이지 측정한 종횡비가 아니다: gluneo_plus 는
+# 유리 종횡비가 1.18 로 1 을 넘지만 사람이 세로형이라고 선언했다(2026-09-13).
+_PROFILE_WEIGHTS = None
+WIDE_FAMILIES = ("column", "row")
+
+
+def set_wide_share(share):
+    """가로형(family=column/row) 프로파일의 합계 추첨 비중을 share 로 맞춘다.
+
+    share=None 이면 균등(=선언된 가로형 2종 / 전체 15종 = 13.3%). 가로형 안에서,
+    세로형 안에서는 각각 균등하게 나눈다 — 기기 하나를 편애하지 않는다.
+    """
+    global _PROFILE_WEIGHTS
+    if share is None:
+        _PROFILE_WEIGHTS = None
+        return
+    wide = [p.get("family") in WIDE_FAMILIES for p in TRAIN_PROFILES]
+    nw, nn = sum(wide), len(wide) - sum(wide)
+    if nw == 0 or nn == 0:
+        raise SystemExit("가로형 또는 세로형 프로파일이 없다 — 비중을 못 맞춘다")
+    _PROFILE_WEIGHTS = [(share / nw) if w else ((1.0 - share) / nn)
+                        for w in wide]
+
+
 # generic_v1(기기 미상 잔여 품)은 기기 속성이 없어 기기 일관성 제약도 없다 —
 # 렌더마다 실측 코퍼스 반전률로 뽑는다.
 GENERIC_INVERTED_P = REAL_BASELINE["polarity"]["inverted_pct"] / 100.0
@@ -375,7 +400,11 @@ def render_panel(value, rng, profile=None):
     밀도는 광학 뒤에 재서 목표에 못 미치면 부족분을 올려 최대 3회 재렌더한다 —
     계수 추측으로 맞추지 않는다(1판의 교훈)."""
     if profile is None:
-        profile = TRAIN_PROFILES[rng.randrange(len(TRAIN_PROFILES))]
+        # 가중치가 없으면 구판 경로 그대로 — rng.choices 는 randrange 와 난수
+        # 소비가 달라서, 갈아끼우면 같은 시드가 다른 코퍼스를 낸다.
+        profile = (TRAIN_PROFILES[rng.randrange(len(TRAIN_PROFILES))]
+                   if _PROFILE_WEIGHTS is None else
+                   rng.choices(TRAIN_PROFILES, weights=_PROFILE_WEIGHTS, k=1)[0])
     pid = profile.get("id", "generic_v1")
     if profile.get("legacy"):
         profile = dict(id="generic_v1", slots=(2, 3), align="right",
@@ -1772,6 +1801,9 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("cmd", choices=["gen", "montage"])
     ap.add_argument("--count", type=int, default=500)
+    ap.add_argument("--wide-share", type=float, default=None,
+                    help="가로형(선언 family=column/row) 프로파일의 합계 비중. "
+                         "생략하면 균등(2/15=13.3%%). 예: 0.40")
     ap.add_argument("--seed", type=int, default=22000)
     ap.add_argument("--out", default=str(HERE / "synth_panels_v2"))
     ap.add_argument("--reader", action="store_true")
@@ -1781,6 +1813,7 @@ if __name__ == "__main__":
     ap.add_argument("--quad-key", default="quad")
     args = ap.parse_args()
     if args.cmd == "gen":
+        set_wide_share(args.wide_share)
         v = generate(args.count, args.seed, args.out, with_reader=args.reader)
         if v:
             sys.exit(1)
