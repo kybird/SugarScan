@@ -235,15 +235,21 @@ class Placer:
                 return True
         return False
 
-    def place_fixed(self, x0, y0, w, h, name, tol=3):
-        """기기 고정 레이아웃용 — 밴드('band') 예약과의 겹침은 무시한다.
-        숫자 옆 요소(단위·meal·화살표)는 밴드 안이 원래 자리라서다.
-        다른 요소와의 겹침(tol px 여유)과 유리 경계는 그대로 검사한다."""
+    # 밴드(숫자 필드) 안에 앉아도 되는 요소 — 실물에서 숫자 옆이 원래 자리다.
+    # 아이콘은 여기 없다: green_doctor 의 blood-drop 이 밴드 오른쪽 끝을 7px
+    # 파고들어 마지막 자릿수 위에 얹혔다(2026-09-13, n=2600 중 2장).
+    BAND_OK = frozenset(("unit", "meal", "arrow"))
+
+    def place_fixed(self, x0, y0, w, h, name, tol=0):
+        """기기 고정 레이아웃용. BAND_OK 요소만 밴드 예약을 무시한다.
+        tol 은 0 이다 — 하드 검사(_count_overlaps)가 엄밀 겹침을 세므로
+        여기서 여유를 두면 배치는 통과하고 검사는 실패한다(같은 세션에서
+        glulabel x icon:triangle 3px 겹침이 그렇게 났다)."""
         x0, y0, w, h = int(x0), int(y0), int(w), int(h)
         if x0 < self.px0 or y0 < self.py0 or _x1(x0, w) > self.px1                 or _y1(y0, h) > self.py1:
             return False
         for a, b, c, d, nm in self.rects:
-            if nm == "band":
+            if nm == "band" and name in self.BAND_OK:
                 continue
             if x0 < c - tol and a + tol < x0 + w and y0 < d - tol                     and b + tol < y0 + h:
                 return False
