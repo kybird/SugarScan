@@ -1258,8 +1258,10 @@ def _render_once(value, rng, profile, pid, inverted):
                     a["p"]):
         # 1판에서 320px 용 size(18~30) 를 패널 배율로 곧이곧대로 키운 실수 대신,
         # 글리프 높이 비율로 잡는다 — 실관찰상 화살표는 숫자 높이의 2~3할.
-        s = max(8, int(dh * (0.24 if lay is not None
-                             else rng.uniform(0.18, 0.30))))
+        # 크기를 줄였다(사람 지시 2026-09-13) — 구판 0.24·dh 는 실물보다
+        # 컸다. 실물 Instant 의 ▶ 는 숫자 높이의 1.5할쯤이다.
+        s = max(6, int(dh * (0.15 if lay is not None
+                             else rng.uniform(0.12, 0.20))))
         kinds = [k for k in a["kinds"] if k in LCD_ICONS]
         # 화살표-숫자 간격도 기기의 자리다(구판은 렌더마다 흔들렸다).
         ag = int((sum(a["gap"]) / 2 if ident is not None
@@ -1277,16 +1279,12 @@ def _render_once(value, rng, profile, pid, inverted):
             ay = int(py0 + 0.10 * (py1 - py0)
                      + (1.0 - yf) * 0.72 * (py1 - py0) - _ab // 2)
             cands = [(px1 - 2 - _ab, ay)]
-        elif lay is not None and a.get("pos") == "below-left":
-            # GluNEO(1435~1449): 시간줄 왼쪽 아래화살표 — pos 를 읽지 않고
-            # 숫자 옆 랜덤 슬롯을 쓰면 유리 밖으로 나가 떨어진다.
-            _gy0 = _below_y(px0 + 4, _ab)
-            cands = [(px0 + 4, _gy0)]
         else:
-            ay = y0 + int(dh * rng.uniform(0.15, 0.55))
-            cands = [(last_r + ag, ay), (last_r + ag, band_bot + 4),
-                     (px1 - 2 - _ab, ay), (px1 - 2 - _ab, band_top - _ab - 4),
-                     (px0 + 2, ay)]
+            # 오른쪽으로 한정한다(사람 지시 2026-09-13). 구판은 왼쪽·아래까지
+            # 후보로 두어 같은 기기에서 화살표가 돌아다녔다.
+            ay = y0 + int(dh * 0.30)
+            cands = [(last_r + ag, ay), (px1 - 2 - _ab, ay),
+                     (px1 - 2 - _ab, band_top - _ab - 4)]
         if maybe(_place(cands[0][0], cands[0][1], _ab, _ab, "arrow",
                         alts=cands[1:]), "arrow"):
             r = placer.rects[-1]

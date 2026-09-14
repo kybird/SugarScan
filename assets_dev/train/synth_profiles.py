@@ -223,8 +223,10 @@ PROFILES = [
         # 화이트리스트 밖이라 렌더하지 않는다(보고서 명시).
         unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 12), p=0.9),
         time=dict(pos="below-right", p=0.9),
-        arrow=dict(kinds=["tri-down"], gap=(4, 10),
-                   pos="below-left", p=0.85),
+        # 구판의 '왼쪽 아래 아래화살표' 는 뺐다(2026-09-13). 실물
+        # 821·2016·838·2003 의 그 자리는 온도(29C) 옆 온도계 아이콘이지
+        # 화살표가 아니다. 화살표를 오른쪽으로 옮기면 없는 것을 지어내는
+        # 셈이라 선언 자체를 거둔다.
         bezel=dict(texts=["GluNEO plus"], edge="top", p=0.8),
     ),
     dict(
@@ -442,7 +444,10 @@ GLYPH_IN_CELL_RANGE = (0.78, 0.84)
 # 미터기 화살표는 여기 없다 — Instant 34장 전부에 있고 값에 묶인 지시자다.
 # 배터리는 상태성이 아니다 — 기기가 가졌으면 언제나 표시한다(사람 지시
 # 2026-09-13). 실물 혈당계의 배터리 표시는 잔량계라 늘 켜져 있다.
-STATEFUL_ELEMENTS = {"mem", "meal", "arrow", "icon:bluetooth",
+# 화살표는 상태성이 아니다 — 기기가 가졌으면 계속 표시한다(사람 지시
+# 2026-09-13). 나머지(mem·meal·bluetooth·mem-flag·blood-drop·smile)는 전부
+# 옵션이다: 켜 있을 수도 꺼 있을 수도 있다.
+STATEFUL_ELEMENTS = {"mem", "meal", "icon:bluetooth",
                      "icon:mem-flag", "icon:blood-drop", "icon:smile"}
 
 
