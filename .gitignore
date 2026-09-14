@@ -73,6 +73,9 @@ assets_dev/train/*
 # 기종 태그(성분→기기)도 같은 사정: by:agent 1차 + 사람 확인(by:human)이
 # 섞이는 라벨이라 웹툰 검토가 진행되면 재생 불가능해진다(G34).
 !assets_dev/train/device_tags.jsonl
+# 극성 정답 30장(2026-09-13) — 사람이 블라인드로 찍은 라벨. 자(measure_polarity)
+# 의 배경 정의를 채점하는 유일한 기준이라 다시 만들 수 없다.
+!assets_dev/train/polarity_gt.jsonl
 # 사진 단위 기종 라벨 — 사람이 한 장씩 확인해 붙인 라벨의 정본이다.
 # device_tags.jsonl 은 여기서 파생되는 요약이라 이걸 잃으면 요약도 못 되살린다.
 !assets_dev/train/device_labels.jsonl
