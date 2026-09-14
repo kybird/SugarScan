@@ -35,3 +35,10 @@ OcrFrame? _warpQuad(bytes, quad, outW, outH, {required bool stretchContrast})
 
 - `doc/raw/2026-09-02.md#case-10` (`hash:d7042da`)
 - `test/features/scan_photo_perspective_warp_test.dart` 그룹 'warpQuadToRect'
+- `doc/raw/2026-09-13.md#case-13` (`hash:904c266`) — 같은 저장소의 두 모델이
+  서로 다른 합성기를 봤다. 검출기는 synth_panel(극성 사람 선언·기기 12종),
+  리더는 render_profiled(극성 rng<0.5·기기 개념 없음). 프레이밍도 갈라져
+  실사진 팔은 GM 쿼드 + BOX_MARGIN 10%, 합성 팔은 화면만 320x160 이었다.
+  import 그래프만 보면 죽은 코드로 보인다 — 부르는 쪽이 다른 모델이었다.
+  해소: framed_src_rect/frame_crop 을 BOX_MARGIN 의 집(build_cache_v2)으로
+  옮기고 합성이 같은 함수를 통과하게 했다

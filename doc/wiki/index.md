@@ -29,6 +29,7 @@ tags: [index]
 | [[build-fingerprint]] | 돌고 있는 클라이언트가 **어느 빌드인지** 화면에서 읽히게 한다. | 빌드 지문, stale-tab-detection, /api/build, _build_stamp, checkBuild, Cache-Control: no-store |
 | [[contract-boundary-equals-method-boundary]] | "이 메서드는 예외를 던지지 않는다"는 계약을 걸었으면, `try` 는 **메서드 전체**를 감싸야 한다. | 계약 경계, never-throws, GlucoseScanner.offer, _recognizeSafely, ScanUnavailable |
 | [[cursor-holdback-for-skipped-rows]] | 델타 커서를 어디까지 미느냐는 **왜 건너뛰었는지에 따라 정반대**다. | 커서 홀드백, delta cursor, SyncCursorStore, _pull, _apply, updated_at, skippedFrom |
+| [[declare-what-the-human-knows]] | 도메인 사실(기기의 성질·부품의 종류·문서의 종류)을 사람이 이미 안다면, | 사람이 아는 것은 선언한다, 재지 말고 라벨, 도메인 사실은 라벨, declare not measure |
 | [[dry-run-before-repair]] | 사람이 만든 데이터를 되돌리는 스크립트는 **기본 동작이 "계산만"** 이어야 한다. | 복구 스크립트 규약, --apply, 백업 후 수정, repair_prevframe_labels.py, repair_unrotated_band_labels.py |
 | [[frame-provenance-binding]] | 좌표를 다루는 상태에는 **그 좌표계가 누구의 것인지**를 함께 들고 다닌다. | 프레임 이름표, frame-id-binding, 좌표계 귀속, applyImage, frameGuard, lb.frameId, webtool.html |
 | [[generation-token]] | 비동기 작업을 시작할 때 세대 번호를 찍고, 결과를 반영하기 전에 **그 세대가 아직 유효한지** 확인한다. | 세대 토큰, 세션 토큰, stale-response-guard, lb.gen, _session, GlucoseScanner.offer, show() |
@@ -51,10 +52,12 @@ tags: [index]
 | [[aggregate-hides-stratified-failure]] | 소수 층의 심각한 실패가 다수 층에 희석되어 **지표에서 사라진다.** 그리고 그 소수 층이 하필 제품에서 중요한 경우가 많다. | 층화, 평균에 묻힌다, stratify, 전체 정확도, 가로 화면, 소수 클래스, 대조군, control group, 표본이 작다 |
 | [[backup-list-by-importance-not-by-what-writes]] | 중요한 자산을 떠 놓고 안심한다. | 백업, 덮어쓰기, 무인 실행, 밤샘, 소실, 재생성 가능, 시드, np.random, synth_screens |
 | [[bounds-check-as-correctness-proof]] | 파손된 좌표를 보정할 때 **결과가 이미지 경계 안에 들어오는지**로 맞았는지 판정하는 것. | 경계 통과를 정답으로 오인, oob 검사 과신, audit_oob.py, oob, 경계 초과 |
+| [[comparison-across-different-denominators]] | 비교 출력이 두 수치를 나란히 인쇄한다. | 분모가 다른 비교, 다른 물건을 나란히, 같은 이름 다른 기준, denominator mismatch |
 | [[contract-guard-too-narrow]] | "이 메서드는 예외를 던지지 않는다"고 문서에 적어 두고, `try` 는 **위험해 보이는 호출 하나만** 감싸는 것. | 좁은 try, 계약보다 좁은 방어, GlucoseScanner.offer, _recognizeSafely, glucose_scanner.dart |
 | [[count-rows-not-entities]] | 아웃박스는 변경마다 행을 쌓지만, 서버로는 **현재 상태 한 번**만 간다. | 대기 n건 오표시, 큐 행 세기, pendingSyncCountProvider, syncMaxAttemptsProvider, syncOutboxRows, blockedCount, providers.dart |
 | [[coupled-budget-loop-defeats-per-element-tuning]] | "목표치에 닿을 때까지 뽑는다"는 루프에서는 요소들의 출현 확률이 **독립이 아니다.** | 총량 제약 루프, 확률만 조정, 밀도 채움 회귀, coupled budget loop, 풍선 효과 |
 | [[degradation-past-legibility]] | 증강은 강할수록 강건해진다는 직관이 있다. | 열화 상한, 증강 과다, 읽을 수 없는 표본, 라벨 잡음, illegible |
+| [[device-fixed-to-a-single-point]] | 합성 데이터에서 각 클래스(여기서는 기기)를 **측정 중앙값 한 점**으로 고정한다. | 기기 한 점 고정, 중앙값으로 못박기, 다양성 손실, single point per class |
 | [[display-and-selection-from-different-sources]] | 목록을 보여 주는 코드와 "지금 선택된 것"을 만드는 코드가 **다른 배열을 읽으면**, | 화면과 선택 불일치, 표시 목록과 조작 대상 분리, selection off-screen, viewOf memberOf, a 전체선택 사고, 보이지 않는 선택 |
 | [[distribution-matched-method-wrong]] | 합성물의 **통계 축**(밀도·대비·기하·비율)을 실물에 맞췄는데, **만드는 방식**이 | 분포는 맞고 방식은 틀림, 지표 통과 산출물 가짜, blind 비교, synthetic realism |
 | [[downscaled-view-as-evidence]] | 작게 줄인 이미지나 몇 장의 표본은 **판단이 가능해 보인다.** 틀렸다는 신호를 주지 않기 때문이다. | 축소본, 썸네일, 몽타주, 눈검, 해상도, resize, 미리보기로 판단, 표본이 작다 |
@@ -66,6 +69,8 @@ tags: [index]
 | [[improvement-parked-outside-the-pipeline]] | 기준선을 보존하려고 개선을 **별도 구현**으로 만드는 것은 옳다. | 곁가지 개선, 병렬 구현, 반영 안 된 개선, A/B 전용 코드, 기본 경로 |
 | [[irreversible-write-without-history]] | 원자적 저장(`.tmp` → `rename`)은 **쓰다 만 파일**을 막을 뿐, **틀린 내용으로 온전히 | 이력 없는 덮어쓰기, 원자적 저장의 함정, tmp rename, untracked 라벨, 백업 없는 사람 라벨, 재생 불가 자산 |
 | [[label-without-visual-ground-truth]] | 좌표만 저장하고, 저장된 좌표를 **다시 이미지에 그려 확인하는 경로 없이** 계속 진행하는 것. | 눈검증 없는 라벨링, 좌표만 저장, screen_boxes.jsonl, labeled.jsonl, /api/selftest, audit_oob.py |
+| [[lighting-dependent-metric-as-content-target]] | 실사진에서 잰 지표가 **화면의 내용이 아니라 촬영 조건**(조도·광원·그림자· | 조명 지표를 내용 목표로, 촬영 변인을 내용으로, 밀도 목표, density target |
+| [[measured-result-used-as-input]] | 실물에서 잰 값을 생성기의 **입력 파라미터**로 직접 넣는다. | 결과값을 입력으로, 측정값을 파라미터로, 구조 대신 숫자, result as parameter |
 | [[metric-path-not-under-test]] | 측정값이 나쁘면 **측정 대상**(모델·기하·데이터)에 대한 가설만 세우고, **측정하는 코드**(채점 스크립트·전처리 로더·GT 조립)는 옳다고 전제하는 것. | 계측 경로, 채점 스크립트, 평가 스크립트, eval_reader, 지표가 낮다, 모델이 나쁘다, 기준선 저평가, measurement bug, harness bug |
 | [[mixed-image-decode-conventions]] | `cv2.imread` 는 EXIF orientation 을 **자동 적용**하고, `PIL.Image.open` 은 **무시**한다. | EXIF 관례 불일치, cv2 vs PIL, exif_transpose, cv2.imread, getexif, orientation, build_cache_v2, golden_bench |
 | [[model-invents-what-it-cannot-see]] | 입력에 없는 것을 모델이 **높은 확신으로 만들어낸다.** 그리고 그 값이 그럴듯해서 안전망을 통과한다. | 지어낸다, 환각, hallucination, 안 보이는 자리, 사전분포, prior, 크롭 잘림, CTC, 마지막 자리, 없는 숫자 |
@@ -99,7 +104,7 @@ tags: [index]
 ## Statistics
 
 - Total concepts: 8
-- Total patterns: 14
-- Total anti-patterns: 39
+- Total patterns: 15
+- Total anti-patterns: 43
 - Total answers: 0
 - Last updated: 2026-09-13
