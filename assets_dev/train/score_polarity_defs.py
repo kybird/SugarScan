@@ -33,15 +33,21 @@ def main():
     print(f"정답 {len(gt)}장 중 자로 다시 잰 것 {len(rows)}장 "
           f"· 사람 반전 {sum(gt.values())}장\n")
 
-    defs = {"crop(현행)": 2, "out(밴드밖)": 3, "band(밴드안)": 9}
+    # bg 를 어디서 재는가로 갈리는 셋 + 물리('잉크는 소수파')에서 온 둘.
+    defs = {"crop(현행)": 2, "out(밴드밖)": 3, "band(밴드안)": 9,
+            "mode(밴드봉우리)": 10, "minority(소수파)": None}
     score = {k: [0, 0, 0] for k in defs}     # 맞힘, 반전을 정상으로, 정상을 반전으로
     wrong = {k: [] for k in defs}
     for img_id, r in rows.items():
         p5, p95 = r[4], r[5]
         truth = gt[img_id]
         for name, idx in defs.items():
-            bg = r[idx]
-            pred = abs(p95 - bg) > abs(p5 - bg)
+            if idx is None:
+                # 밝은 쪽 화소가 적으면 밝은 쪽이 잉크다 -> 반전
+                pred = r[11] < 0.5
+            else:
+                bg = r[idx]
+                pred = abs(p95 - bg) > abs(p5 - bg)
             if pred == truth:
                 score[name][0] += 1
             elif truth:
@@ -52,10 +58,10 @@ def main():
                 wrong[name].append((meta[img_id], r[1], "정상->반전"))
 
     n = len(rows)
-    print(f"{'정의':16} {'정확':>6} {'반전 놓침':>9} {'정상 오검':>9}")
+    print(f"{'정의':20} {'정확':>6} {'반전 놓침':>9} {'정상 오검':>9}")
     for name in defs:
         a, b, c = score[name]
-        print(f"{name:16} {a:3d}/{n:<3} {b:9d} {c:9d}")
+        print(f"{name:20} {a:3d}/{n:<3} {b:9d} {c:9d}")
     for name in defs:
         if wrong[name]:
             print(f"\n[{name}] 틀린 장 {len(wrong[name])}")

@@ -70,8 +70,19 @@ def rows_for(names):
         # 영향을 받지 않는다(국소 기준).
         bg_band = float(np.median(band))
         inv_band = abs(p95 - bg_band) > abs(p5 - bg_band)
+        # 넷째·다섯째 후보(2026-09-13, 사람 정답 채점에서 밴드중앙이 저대비
+        # 패널 셋을 놓친 뒤 추가). 둘 다 '잉크는 소수파'라는 물리에서 온다 —
+        # 7-세그 밴드는 면적의 대부분이 바탕이고 켜진 획은 일부다.
+        #   mode  바탕 = 밴드 히스토그램의 봉우리(중앙값보다 잉크에 덜 끌린다)
+        #   minority  p5~p95 중점을 기준으로 화소가 적은 쪽이 잉크다
+        hist = np.bincount(band.astype(np.uint8).ravel(), minlength=256)
+        k = np.ones(9) / 9.0
+        bg_mode = float(np.argmax(np.convolve(hist.astype(np.float64), k, "same")))
+        mid = (p5 + p95) / 2.0
+        bright_frac = float((band > mid).mean())
         out.append((b["id"], name, bg_crop, bg_out, p5, p95,
-                    bool(inv_ruler), bool(inv_band), contrast, bg_band))
+                    bool(inv_ruler), bool(inv_band), contrast, bg_band,
+                    bg_mode, bright_frac))
     return out
 
 
@@ -81,7 +92,7 @@ if __name__ == "__main__":
     rows = rows_for(names)
     per = defaultdict(lambda: [0, 0, 0])   # name -> [자 반전, 밴드중앙 반전, n]
     flips = 0
-    for i, n, bc, bo, p5, p95, ir, ib, c, bb in rows:
+    for i, n, bc, bo, p5, p95, ir, ib, c, bb, bm, bf in rows:
         flips += int(ir != ib)
         per[n][0] += int(ir)
         per[n][1] += int(ib)
