@@ -222,8 +222,24 @@ PROFILES = [
                   h_ratio=(0.12, 0.16), p=0.9),
         mem=dict(kind="memory", pos="top-left", p=0.6),
         daterow=dict(p=0.8),    # '7-1' '#5' — 기록번호 포함
-        bezel=dict(texts=["Performa", "Performa Nano"], edge="bottom", p=0.7),
+        bezel=dict(texts=["Performa"], edge="bottom", p=0.7),
         icons=[("battery", "top-right", 0.4), ("blood-drop", "right-mid", 0.3)],
+    ),
+    dict(
+        # Performa 와 이름만 형제다(사람 2026-09-13). 1019~1086 여덟 장은
+        # 파랗게 빛나는 백라이트 액정에 흰 숫자다 — 은색 Performa(1186 등
+        # 여덟 장, 반사식·검은 숫자)와 다른 물건이다. 한 프로파일로 묶어
+        # 극성을 평균(mixed 0.5) 내던 것을 쪼갠다. 기하는 측정이 두 기기를
+        # 합쳐 잰 값 하나뿐이라 당분간 같이 쓴다(별도 측정 전까지).
+        id="performa_nano", slots=3, align="right", italic=False,
+        digit_h=(0.40, 0.50),
+        evidence=["glucose_batch1/1019", "glucose_batch1/1060",
+                  "glucose_batch1/1073", "glucose_batch1/1086"],
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 10),
+                  h_ratio=(0.12, 0.16), p=0.9),
+        mem=dict(kind="memory", pos="top-left", p=0.9),
+        daterow=dict(p=0.9),
+        bezel=dict(texts=["Performa Nano"], edge="top", p=0.7),
     ),
     dict(
         id="accuchek_active", slots=3, align="center", italic=False,
@@ -294,6 +310,11 @@ LAYOUTS = {
     "performa_silver": dict(panel_ar=0.774, band_w=0.859, band_h=0.400,
                             band_cx=0.527, band_cy=0.432, weight="Light", font="hershey",
                             n=8),
+    # Nano 는 아직 따로 재지 않았다 — Performa 와 같은 값을 쓴다(측정 n=8 이
+    # 두 기기를 합쳐 잰 값이라 어차피 둘의 혼합이다).
+    "performa_nano": dict(panel_ar=0.774, band_w=0.859, band_h=0.400,
+                          band_cx=0.527, band_cy=0.432, weight="Regular",
+                          font="hershey", n=0),
     "accuchek_active": dict(panel_ar=0.808, band_w=0.850, band_h=0.420,
                             band_cx=0.495, band_cy=0.460, weight="Regular", font="hershey",
                             n=7),
@@ -301,6 +322,32 @@ LAYOUTS = {
                         band_cx=0.512, band_cy=0.407, weight="Regular", font="hershey",
                         n=0),
 }
+# ── 극성은 재는 것이 아니라 선언하는 것이다(사람 지시 2026-09-13) ─────────
+# 액정이 음각(반전)인지 양각인지는 기기의 성질이고 사람이 이미 안다. 사진에서
+# 달라 보이는 것은 극성이 아니라 대비이고, 대비는 별도 축으로 이미 재고 있다
+# (real_baseline.polarity.contrast, 렌더의 열화 계수).
+#
+# 측정으로 되찾으려던 시도는 실패했다 — 사람 정답 30장에 자를 채점했더니
+# 최선의 정의도 26/30 이고, 남은 오차가 하필 프로파일 기기에 몰렸다:
+# Green Doctor 3/4 반전(사진 4장 전부 정상) · ACURA PLUS 4/4 반전(3장 전부
+# 정상) · Gmate 1/4(4장 전부 정상). 자를 더 깎을 자리가 아니다.
+#
+# 근거는 각 값 옆 사진 id — 2026-09-13 에 사람이 눈으로 확인한 장들이다.
+PROFILE_INVERTED = {
+    "gmate": False,               # 842·843·731·727 검은 숫자
+    "onetouch_ultra": False,      # 1058
+    "gc_ms_one": False,           # 228
+    "acura_plus": False,          # 475·477·2357
+    "dorucos_premium": False,     # 120·694·695
+    "performa_silver": False,     # 1186 외 은색 반사식 8장
+    "green_doctor": False,        # 1759·1780·2500·648·1781
+    "accuchek_active": False,     # 1329·2502·2519·2520·2525·2601·2606
+    "gluneo_plus": False,         # 1435·1438·1449
+    "caresens_n_premier": True,   # 1911·819·1899 어두운 액정·밝은 숫자
+    "accuchek_instant": True,     # 267·270 검은 창·흰 숫자
+    "performa_nano": True,        # 1019~1086 백라이트 액정·흰 숫자
+}
+
 for _p in PROFILES:
     if _p["id"] in LAYOUTS:
         _p["layout"] = LAYOUTS[_p["id"]]

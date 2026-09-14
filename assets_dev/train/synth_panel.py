@@ -55,7 +55,7 @@ sys.path.insert(0, str(HERE))
 
 from synth_profiles import (  # noqa: E402
     PROFILES, DOT_FMTS, dot_text, _icon, _pick_variant, _glyph_mask,
-    device_identity, STATEFUL_ELEMENTS,
+    device_identity, STATEFUL_ELEMENTS, PROFILE_INVERTED,
 )
 from synth_lcd import (add_local_shadow,  # noqa: E402
                        seg_text, seg_text_width, seg_weight_from_variant,
@@ -151,47 +151,13 @@ BEZEL_TEXTS = {
 _BEZEL_FONTS = [cv2.FONT_HERSHEY_SIMPLEX, cv2.FONT_HERSHEY_TRIPLEX,
                 cv2.FONT_HERSHEY_COMPLEX]
 
-# 프로파일별 패널 속성 — 극성은 프로파일(기기) 속성이고 정본 real_baseline.json
-# polarity.by_device(n=264, 2026-09-12 재측정)에서 파생한다. 프로파일→기기 이름은
-# 각 프로파일의 evidence 사진 기종(device_labels)과 1:1 이다.
-# 임계값: 반전률 ≥0.75 → 항상 반전, 0.25~0.75 → mixed(렌더마다 실측 비율로),
-# <0.25 → 정상. n<2 기기와 매칭 안 된 프로파일은 정상이 기본이다(반전을 추측으로
-# 매기는 쪽이 더 위험하다 — 구판과 같은 원칙). performa_silver 는 베젤 문자가
-# Performa(0%, n=8)·Performa Nano(100%, n=8) 둘을 덜어 두 기기 평균 mixed 0.5.
-def _attrs_from_baseline():
-    by_dev = REAL_BASELINE["polarity"]["by_device"]
-
-    def rate(names):
-        rs = [d["inverted"] / d["n"] for n in names
-              if (d := by_dev.get(n)) and d["n"] >= 2]
-        return sum(rs) / len(rs) if rs else None
-
-    out = {}
-    for pid, names in _PROFILE_DEVICES.items():
-        r = rate(names)
-        if r is None:
-            continue
-        if r >= 0.75:
-            out[pid] = dict(inverted=True)
-        elif r >= 0.25:
-            out[pid] = dict(inverted="mixed", mixed_p=round(r, 3))
-    return out
-
-
-_PROFILE_DEVICES = {
-    "accuchek_instant": ["ACCU-CHEK Instant"],
-    "gmate": ["Gmate"],
-    "dorucos_premium": ["도루코S Premium"],
-    "green_doctor": ["GC 녹십자 MS Green Doctor"],
-    "onetouch_ultra": ["OneTouch Ultra"],
-    "gc_ms_one": ["GC 녹십자 MS ONE"],
-    "acura_plus": ["ACURA PLUS"],
-    "caresens_n_premier": ["CareSens N Premier"],
-    "performa_silver": ["ACCU-CHEK Performa", "ACCU-CHEK Performa Nano"],
-    "accuchek_active": ["ACCU-CHEK Active"],
-    "gluneo_plus": ["GluNEO plus"],
-}
-PANEL_ATTRS = _attrs_from_baseline()
+# 프로파일별 극성 — synth_profiles.PROFILE_INVERTED(사람 선언)를 그대로 쓴다.
+# 2026-09-13 이전에는 real_baseline.polarity.by_device 에서 파생했는데, 그
+# 값을 내는 자가 프로파일 기기 셋을 틀리게 찍었다(Green Doctor·ACURA PLUS·
+# Gmate — 사진은 전부 정상). 극성은 기기의 성질이라 재는 대상이 아니라
+# 라벨이다. 근거 사진 id 는 PROFILE_INVERTED 옆에 있다.
+PANEL_ATTRS = {pid: dict(inverted=inv)
+               for pid, inv in PROFILE_INVERTED.items()}
 # generic_v1(기기 미상 잔여 품)은 기기 속성이 없어 기기 일관성 제약도 없다 —
 # 렌더마다 실측 코퍼스 반전률로 뽑는다.
 GENERIC_INVERTED_P = REAL_BASELINE["polarity"]["inverted_pct"] / 100.0
@@ -389,18 +355,15 @@ def render_panel(value, rng, profile=None):
         profile = dict(id="generic_v1", slots=(2, 3), align="right",
                        italic=False)
         pid = "generic_v1"
-    attrs = PANEL_ATTRS.get(pid, {})
+    # mixed 상태는 없앴다(2026-09-13). '같은 이름 아래 두 기기'였던
+    # performa_silver 는 performa_silver / performa_nano 로 쪼갰다 — 평균
+    # 극성의 유령 기기를 만드는 대신 물건을 둘로 센다.
     if pid == "generic_v1":
+        # 기기 미상 익명 풀만 코퍼스 비율에서 뽑는다. 여기서는 특정 기기가
+        # 아니라 분포가 맞으면 된다.
         inverted = rng.random() < GENERIC_INVERTED_P
-    elif attrs.get("inverted") == "mixed":
-        # mixed 는 '이 기기가 장마다 뒤집힌다'가 아니라 '같은 이름 아래 두
-        # 기기가 섞였다'는 뜻이다(performa_silver = Performa 0% + Nano 100%).
-        # 그러니 렌더마다 뽑으면 안 된다 — 기기 형질로 한 번에 확정한다
-        # (사람 지침 2026-09-13: 같은 기기는 일관성을 유지한다).
-        inverted = (device_identity(pid)["polarity_u"]
-                    < attrs.get("mixed_p", 0.5))
     else:
-        inverted = bool(attrs.get("inverted", False))
+        inverted = bool(PANEL_ATTRS.get(pid, {}).get("inverted", False))
     target = REAL_DENSITY[rng.randrange(len(REAL_DENSITY))]
     fill = target
     best = None
