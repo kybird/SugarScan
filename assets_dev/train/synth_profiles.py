@@ -115,7 +115,9 @@ PROFILES = [
         bezel=dict(texts=["Gmate"], edge="top", p=0.9),
     ),
     dict(
-        id="dorucos_premium", slots=3, align="left", italic=False,
+        # align 은 right 다(2026-09-13 정정) — left 면 2자리 값의 빈 슬롯이
+        # 오른쪽에 생긴다. 실물은 숫자가 오른쪽에 맞고 빈칸이 왼쪽이다.
+        id="dorucos_premium", slots=3, align="right", italic=False,
         evidence=["glucose_batch1/120", "glucose_batch1/694",
                   "glucose_batch1/695"],
         # 도트 패널이 아니다(2026-09-13 정정). 근거 사진 120 을 3배 확대해
@@ -145,7 +147,10 @@ PROFILES = [
         unit=dict(texts=["mg/dL"], pos="below-right", gap=(8, 40), p=0.9),
         mem=dict(kind="mem", pos="top-right", p=0.4),
         time=dict(pos="below-left", p=0.5),
-        bezel=dict(texts=["ONETOUCH Ultra", "LIFESCAN"], edge="bottom", p=0.8),
+        # 실물 1058·2110: 화면 위에 'OneTouch Ultra', 아래에 'LIFESCAN' —
+        # 둘 중 하나가 아니라 둘 다 찍혀 있다(사람 지적 2026-09-13).
+        bezel=dict(per_edge={"top": "OneTouch Ultra", "bottom": "LIFESCAN"},
+                   texts=["OneTouch Ultra", "LIFESCAN"], p=1.0),
     ),
     dict(
         id="gc_ms_one", slots=3, align="right", italic=False,
@@ -154,8 +159,10 @@ PROFILES = [
         glulabel=dict(p=0.9),
         unit=dict(texts=["mg/dL"], pos="below-right", gap=(2, 8), p=0.9),
         mem=dict(kind="M-box", pos="top-left", p=0.9),
-        time=dict(pos="below-left", p=0.8),
-        dotrow_below=dict(fmts=DOT_FMTS[:4], p=0.4),
+        # 아래줄은 하나다 — 시간·날짜를 한 줄에 같이 쓴다(실물 228 의
+        # '9:10  3:22'). 구판은 time(0.8)과 dotrow_below(0.4)를 따로 굴려
+        # 같은 기기 안에서 아래줄이 장마다 달랐다(사람 지적 2026-09-13).
+        dotrow_below=dict(fmts=["{h02}:{m02}   {M}-{d}"], p=1.0),
         # 228 몸체 상단 'GC 녹십자MS / ONE' — 한글은 Hershey 가 못 그려
         # 라틴 부분만 쓴다(없는 글자를 지어내지 않는다).
         bezel=dict(texts=["ONE"], edge="top", p=0.8),

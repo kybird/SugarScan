@@ -95,20 +95,74 @@ def seg_weight_from_variant(variant):
 
 
 _HERSHEY_W = {}
+_GLYPH_CACHE = {}
+_LEGEND_FONT = {}
+
+# 인쇄 범례는 좁다 — 폭을 눌러 콘덴스드로 만든다(842·1058·267 눈검).
+LEGEND_SQUEEZE = 0.82
 
 
-def _hershey_metric(ch, h, thick):
-    """Hershey 글자 하나의 (폭, 전체높이, 베이스라인, 배율) — 높이 h 에
-    맞춘다. 글자를 Hershey 폰트로 그릴 때 쓴다(사람 지정 2026-09-13:
-    숫자는 7-세그, 글자는 폰트, 폰트는 기기별 프로파일이 고른다)."""
+def _legend_font(px):
+    """인쇄 범례용 TTF. Hershey 획 폰트는 글자가 둥글고 넓어 'mg/dL' 이
+    벌어져 보였다(사람 지적 세 번, 2026-09-13: "폰트 변경이 필요하면 변경하라").
+    DejaVuSans-Bold 는 sugartrain 환경의 matplotlib 이 이미 갖고 있고 라이선스가
+    허용적이다(Bitstream Vera 계열). 없으면 Hershey 로 떨어진다."""
+    if px in _LEGEND_FONT:
+        return _LEGEND_FONT[px]
+    f = None
+    try:
+        import matplotlib
+        from pathlib import Path as _P
+        from PIL import ImageFont
+        d = _P(matplotlib.__file__).parent / "mpl-data" / "fonts" / "ttf"
+        f = ImageFont.truetype(str(d / "DejaVuSans-Bold.ttf"), px)
+    except Exception:
+        f = None
+    _LEGEND_FONT[px] = f
+    return f
+
+
+def _letter_ink(ch, h, thick):
+    """글자 한 자의 (마스크, 잉크 폭, 베이스라인 오프셋).
+
+    세로 위치는 폰트 메트릭이 정한다 — 잉크 상자만 잘라 바닥에 맞추면
+    하이픈·마침표처럼 잉크가 작은 글자가 베이스라인으로 떨어진다
+    (2026-09-13 '2-25' 에서 그랬다). 글자를 고정 베이스라인에 그린 뒤
+    가로로만 잘라 내고, 그릴 때 베이스라인을 맞춘다."""
     key = (ch, h, thick)
-    if key not in _HERSHEY_W:
-        t = max(1, thick)
-        (w0, h0), b0 = cv2.getTextSize("M", cv2.FONT_HERSHEY_SIMPLEX, 1.0, t)
-        scale = h / max(1, h0 + b0)
-        (w, hh), bb = cv2.getTextSize(ch, cv2.FONT_HERSHEY_SIMPLEX, scale, t)
-        _HERSHEY_W[key] = (int(round(w)), int(round(hh + bb)), bb, scale)
-    return _HERSHEY_W[key]
+    if key in _GLYPH_CACHE:
+        return _GLYPH_CACHE[key]
+    font = _legend_font(max(6, int(round(h * 1.36))))
+    if font is not None:
+        from PIL import Image, ImageDraw
+        asc, desc = font.getmetrics()
+        box_h = asc + desc + 4
+        pil = Image.new("L", (int(h * 2.6) + 8, box_h), 0)
+        ImageDraw.Draw(pil).text((4, 0), ch, font=font, fill=255)
+        a = np.asarray(pil)
+        xs = np.nonzero(a.max(0) > 96)[0]
+        if len(xs):
+            m = a[:, xs.min():xs.max() + 1] > 96
+            w2 = max(2, int(round(m.shape[1] * LEGEND_SQUEEZE)))
+            m = cv2.resize(m.astype(np.uint8) * 255, (w2, m.shape[0]),
+                           interpolation=cv2.INTER_AREA) > 96
+            _GLYPH_CACHE[key] = (m, m.shape[1], asc)
+            return _GLYPH_CACHE[key]
+    t = max(1, thick)
+    (w0, h0), b0 = cv2.getTextSize("M", cv2.FONT_HERSHEY_SIMPLEX, 1.0, t)
+    scale = h / max(1, h0 + b0)
+    (w, hh), bb = cv2.getTextSize(ch, cv2.FONT_HERSHEY_SIMPLEX, scale, t)
+    pad = max(2, t + 2)
+    cv = np.zeros((hh + bb + 2 * pad, w + 2 * pad), np.uint8)
+    cv2.putText(cv, ch, (pad, pad + hh), cv2.FONT_HERSHEY_SIMPLEX, scale, 255,
+                t, cv2.LINE_AA)
+    xs = np.nonzero(cv.max(0) > 96)[0]
+    if len(xs) == 0:
+        _GLYPH_CACHE[key] = (None, 0, 0)
+    else:
+        m = cv[:, xs.min():xs.max() + 1] > 96
+        _GLYPH_CACHE[key] = (m, m.shape[1], pad + hh)
+    return _GLYPH_CACHE[key]
 
 
 def seg_char_advance(ch, h, slant=0.0, digit_w=None):
@@ -123,7 +177,8 @@ def seg_char_advance(ch, h, slant=0.0, digit_w=None):
     # 인쇄 범례는 글자끼리 거의 닿는다(842·1058·267 의 mg/dL). Hershey 는
     # 글리프 좌우에 자체 여백을 갖고 있어, 간격을 0 으로 둬도 벌어져 보인다 —
     # 그 여백만큼 당긴다(사람 지적 2026-09-13, 두 번째).
-    lgap = -int(round(h * 0.06))           # 글자·기호 — 인쇄 자간(음수=당김)
+    # 진폭이 잉크 폭이므로 간격은 실제 글자 사이 간격 그대로다.
+    lgap = max(1, int(round(h * 0.055)))   # 글자·기호 — 인쇄 자간
     if ch == " ":
         return int(round(h * 0.42))
     if ch == ":":
@@ -134,8 +189,7 @@ def seg_char_advance(ch, h, slant=0.0, digit_w=None):
         cell = digit_w if digit_w else h * 0.62
         gap = dgap
     else:                                  # 글자·기호 — 언제나 폰트
-        w, _, _, _ = _hershey_metric(ch, h, max(2, int(round(h * 0.11))))
-        cell = w
+        _m, cell, _ = _letter_ink(ch, h, max(2, int(round(h * 0.11))))
         gap = lgap
     lean = int(slant * h) if slant else 0   # 기운 글자가 위에서 차지하는 폭
     return int(round(cell)) + gap + lean
@@ -197,10 +251,14 @@ def _seg_draw_upright(canvas, x, y, text, h, thick, slant=0.0,
                            thickness=thick)
             cx += seg_char_advance(ch, h, slant, digit_w)
             continue
-        w, hh, bb, scale = _hershey_metric(ch, h, thick)
-        cv2.putText(canvas, ch, (cx, y + hh - bb),
-                    cv2.FONT_HERSHEY_SIMPLEX, scale, 255, thick,
-                    cv2.LINE_AA)
+        m, iw, base = _letter_ink(ch, h, thick)
+        if m is not None:
+            # 베이스라인을 글자 줄 바닥에 맞춘다.
+            oy = max(0, y + h - base)
+            reg = canvas[oy:oy + m.shape[0], cx:cx + m.shape[1]]
+            h2 = min(reg.shape[0], m.shape[0])
+            w2 = min(reg.shape[1], m.shape[1])
+            reg[:h2, :w2][m[:h2, :w2]] = 255
         cx += seg_char_advance(ch, h, slant, digit_w)
 
 

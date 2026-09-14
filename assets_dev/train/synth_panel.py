@@ -667,21 +667,25 @@ def _render_once(value, rng, profile, pid, inverted):
     # 녹십자MS ONE · 1781 GREEN Doctor · 1186 ACCU-CHEK Performa, 2026-09-13
     # 눈검). 그래서 기기 고정 기기는 확률 게이트 없이 항상 그린다 — 자리가
     # 모자라면(스트립이 얇은 크롭) 그때만 빠진다.
+    # 몸체 인쇄는 변마다 다를 수 있다 — OneTouch Ultra 는 화면 '위'에
+    # 'OneTouch Ultra', '아래'에 'LIFESCAN' 이다(실물 1058·2110). 구판은 둘 중
+    # 하나만 골라 한 변에 찍었다(사람 지적 2026-09-13: 베젤 렌더링 틀렸다).
     _bz_edges = (("top", mg_t), ("bottom", mg_b))
-    _e = None
+    _bz_map = {}
     if ident is not None:
-        _e = (profile.get("bezel") or {}).get("edge")
-        if _e == "bottom":
-            _bz_edges = (("bottom", mg_b), ("top", mg_t))
-        elif _e == "top":
-            _bz_edges = (("top", mg_t), ("bottom", mg_b))
+        _bz = profile.get("bezel") or {}
+        if _bz.get("per_edge"):
+            _bz_map = dict(_bz["per_edge"])
+        elif _bz.get("edge") and _bz.get("texts"):
+            _bz_map = {_bz["edge"]: _bz["texts"][
+                ident["bezel_i"] % len(_bz["texts"])]}
     for edge, m_side in _bz_edges:
         if ident is None:
             if edge == "top" and rng.random() >= 0.45:
                 continue
             if rng.random() >= 0.55:
                 continue
-        elif _e is not None and edge != _e:
+        elif _bz_map and edge not in _bz_map:
             continue          # 기기가 선언한 변에만 찍힌다
         if m_side < 14 or pid not in BEZEL_TEXTS:
             continue
@@ -690,9 +694,12 @@ def _render_once(value, rng, profile, pid, inverted):
         # 같이 변했다(사람 지적 2026-09-13).
         bh = (max(8, int((px1 - px0) * ident["bezel_h"])) if ident is not None
               else max(8, int(m_side * 0.45)))
-        _bt = BEZEL_TEXTS[pid]
-        text = _bt[(ident["bezel_i"] if ident is not None
-                    else rng.randrange(8)) % len(_bt)]
+        if ident is not None and _bz_map:
+            text = _bz_map[edge]
+        else:
+            _bt = BEZEL_TEXTS[pid]
+            text = _bt[(ident["bezel_i"] if ident is not None
+                        else rng.randrange(8)) % len(_bt)]
         scale = bh / 22.0
         (tw, thh), bl = cv2.getTextSize(text, _BEZEL_FONTS[0], scale, 1)
         if tw > (px1 - px0) * 0.95:
@@ -719,7 +726,8 @@ def _render_once(value, rng, profile, pid, inverted):
         cv2.putText(img, text, (bx, by + thh), _BEZEL_FONTS[0], scale,
                     t_ink, 1, cv2.LINE_AA)
         body_text = text
-        break
+        if not (ident is not None and len(_bz_map) > 1):
+            break   # 변마다 다른 글자를 선언한 기기만 둘 다 찍는다
 
     # 미터기 눈금(카드 「합성 글리프 네 결함」 AC#5) — LCD 창 '바깥' 오른쪽
     # 회색 띠에 인쇄된 점 열(약 10개). 근거 Instant 34장(2026-09-13): 점 열의
@@ -1035,15 +1043,26 @@ def _render_once(value, rng, profile, pid, inverted):
             return placer.place_fixed(x, y, w, h, name)
         return placer.try_place(x, y, w, h, name, alternates=alts)
 
-    def _below_y(x_, w_):
+    def _below_y(x_, w_, near=False):
+        """밴드 아래 요소의 y — 유리 '바닥'에 붙인다(사람 지적 2026-09-13:
+        아래 공백이 과장 더해 40%다). 구판은 밴드 바로 밑(band_bot+4)에
+        붙여서, 밴드가 화면 위쪽에 앉는 기기는 아래가 통째로 비었다.
+        두 줄이 겹치면 바닥에서 위로 쌓는다 — 실물도 맨 아래줄이 바닥에
+        붙고 그 위에 한 줄이 더 온다."""
         if lay is None:
             return band_bot + 4
-        row2 = band_bot + 4 + aux_h + 8
+        # near=True 는 '값 바로 아래' — 단위가 여기다. 단위는 날짜보다 혈당
+        # 표시에 가까워야 한다(사람 지시 2026-09-13). 날짜·시간은 바닥이다.
+        if near:
+            return band_bot + max(4, int(ph * 0.02))
+        _pad_b = max(4, int(ph * 0.03))
+        row1 = py1 - _pad_b - aux_h
+        row2 = row1 - aux_h - max(4, int(ph * 0.02))
         for bx0, bx1 in _below_row1:
             if x_ < bx1 + 6 and bx0 < x_ + w_ + 6:
-                return row2
+                return max(band_bot + 4, row2)
         _below_row1.append((x_, x_ + w_))
-        return band_bot + 4
+        return max(band_bot + 4, row1)
 
     def _gx(f):
         """캔버스가 아니라 유리의 좌표계 — 구판 int(W*f) 슬롯은 마진이 깊으면
@@ -1159,12 +1178,11 @@ def _render_once(value, rng, profile, pid, inverted):
         assert pos not in ("right-baseline", "right-mid", "left-mid"), \
             f"단위가 값과 같은 줄이다: {pid} pos={pos}"
         if pos == "below-right":
-            # 숫자 필드 오른끝에 맞춰 아래로. 밴드 아래가 막히면 유리 오른쪽
-            # 아래 구석으로 물러난다(잘라 그리지 않는다).
+            # 숫자 필드 오른끝에 맞춰 값 '바로 아래'. 단위는 날짜보다 값에
+            # 가깝다(사람 지시 2026-09-13).
             _ux = max(px0 + 2, min(px1 - 2 - tw, last_r - tw))
-            cands = [(_ux, _below_y(_ux, tw)),
-                     (_ux, band_bot + 4),
-                     (px1 - 2 - tw, band_bot + 4)]
+            cands = [(_ux, _below_y(_ux, tw, near=True)),
+                     (px1 - 2 - tw, _below_y(px1 - 2 - tw, tw, near=True))]
         elif pos == "right-baseline":
             cands = [(last_r + ug, y0 + dh - uh), (last_r + ug, y0 + (dh - uh) // 2)]
         elif pos == "right-mid":
