@@ -19,7 +19,7 @@ def _load(p):
     return [json.loads(l) for l in open(p, encoding="utf-8")]
 
 
-def collect():
+def collect(wide=False):
     quads = {r["id"]: r for r in _load(HERE / "gmscreen_quads_oriented.jsonl")}
     bands = _load(HERE / "band_boxes.jsonl")
     devs = {r["id"]: r for r in _load(HERE / "device_labels.jsonl")}
@@ -35,7 +35,9 @@ def collect():
         gx0, gx1 = q[:, 0].min(), q[:, 0].max()
         gy0, gy1 = q[:, 1].min(), q[:, 1].max()
         gw, gh = gx1 - gx0, gy1 - gy0
-        if gw / gh >= 1.0:      # 가로 크롭은 별도 가족 — 여기선 세로만
+        # 가로 크롭은 배치 가족이 다르다(숫자 왼쪽 + 오른쪽 정보 칼럼).
+        # --wide 로 그쪽만 따로 잰다(2026-09-13).
+        if (gw / gh >= 1.0) != wide:
             continue
         bx0, bx1 = gb[:, 0].min(), gb[:, 0].max()
         by0, by1 = gb[:, 1].min(), gb[:, 1].max()
@@ -51,10 +53,12 @@ def collect():
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--all", action="store_true")
+    ap.add_argument("--wide", action="store_true",
+                    help="가로 크롭만 잰다(기본: 세로)")
     args = ap.parse_args()
-    rows = collect()
-    from synth_panel import _PROFILE_DEVICES
-    targets = None if args.all else {n for names in _PROFILE_DEVICES.values()
+    rows = collect(wide=args.wide)
+    from synth_profiles import PROFILE_DEVICES
+    targets = None if args.all else {n for names in PROFILE_DEVICES.values()
                                      for n in names}
     groups = {}
     for r in rows:

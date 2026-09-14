@@ -291,6 +291,29 @@ LAYOUTS = {
 # 정상) · Gmate 1/4(4장 전부 정상). 자를 더 깎을 자리가 아니다.
 #
 # 근거는 각 값 옆 사진 id — 2026-09-13 에 사람이 눈으로 확인한 장들이다.
+# 프로파일 <-> 코퍼스 기기 이름. 극성 파생에 쓰던 표였는데 극성이 사람 선언으로
+# 바뀌면서 2026-09-13 에 같이 지웠다가 되살린다 — 파생용이 아니라 '이 프로파일이
+# 코퍼스의 어느 기기인가' 라는 사실 자체이고, 실측 자(device_layout_stats)가
+# 프로파일 기기만 골라 재는 데 쓴다.
+PROFILE_DEVICES = {
+    "accuchek_instant": ["ACCU-CHEK Instant"],
+    "gmate": ["Gmate"],
+    "dorucos_premium": ["도루코S Premium"],
+    "green_doctor": ["GC 녹십자 MS Green Doctor"],
+    "onetouch_ultra": ["OneTouch Ultra"],
+    "gc_ms_one": ["GC 녹십자 MS ONE"],
+    "acura_plus": ["ACURA PLUS"],
+    "caresens_n_premier": ["CareSens N Premier"],
+    "performa_silver": ["ACCU-CHEK Performa"],
+    "performa_nano": ["ACCU-CHEK Performa Nano"],
+    "accuchek_active": ["ACCU-CHEK Active"],
+    "gluneo_plus": ["GluNEO plus"],
+    # 가로형 — 프로파일은 아직 없다(2026-09-13). 실측 자가 이 이름으로
+    # 기하를 뽑을 수 있게 먼저 적어 둔다.
+    "onetouch_ultramini": ["OneTouch UltraMini"],
+    "wide_unknown": ["이름모를 가로형모델"],
+}
+
 PROFILE_INVERTED = {
     "gmate": False,               # 842·843·731·727 검은 숫자
     "onetouch_ultra": False,      # 1058
