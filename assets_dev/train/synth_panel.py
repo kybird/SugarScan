@@ -376,6 +376,13 @@ def render_panel(value, rng, profile=None):
         s = _render_once(value, rng, profile, pid, inverted, fill)
         s["target_density"] = round(target, 5)
         return s
+    # 주의 — 이 루프는 rng 소비 횟수를 '데이터'(측정된 밀도)로 가른다.
+    # 1e-5 의 부동소수 흔들림 하나가 재렌더 횟수를 바꾸고, 그 뒤 모든 패널이
+    # 어긋난다. 지금은 광학 노이즈까지 rng 파생이라 결정적이지만, 렌더 안에서
+    # 전역 난수(random.*, np.random.*)나 시간·파일순서 같은 외부 상태를 한 번만
+    # 건드리면 이 구조 때문에 그 뒤 코퍼스 전체가 갈라진다. 새 난수원을 들일
+    # 때는 반드시 rng 에서 파생시켜라(카드 「합성 생성이 같은 시드에서 같은
+    # 코퍼스를 내게 한다」 AC#2, 2026-09-13).
     for _ in range(3):
         s = _render_once(value, rng, profile, pid, inverted, fill)
         if best is None or s["density"] > best["density"]:
