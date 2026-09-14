@@ -77,6 +77,7 @@ tags: [index]
 | [[padding-as-content]] | CTC 라벨 배열의 blank(클래스 10)를 필터하지 않고 문자열로 조인해 `"90" + "10"` → `"9010"` 이 된 것. | blank 조인, 패딩 직렬화, greedy_decode, NUM_CLASSES, ctc_reader_v2.py, blank |
 | [[partial-update-desyncs-canonical]] | ```dart | 부분 수정, 정본 미갱신, GlucoseRepository.update, valueMgdl, enteredValue, Value.absent, glucose_repository.dart |
 | [[poison-row-blocks-pipeline]] | 관용의 단위가 **행이 아니라 배치**인 것. | 독행, 배치 단위 관용, 행 하나가 전체를 막음, ReadingDto.fromJson, _pull, syncOnce, fetchUpdatedSince, reading_dto.dart |
+| [[prediction-used-as-ground-truth]] | 어떤 모델의 출력 파일이 측정의 입력이 된다. | 예측을 실측으로, 모델 출력이 정답 행세, 사람 라벨을 두고 예측을 쓴다, prediction as GT |
 | [[presence-rate-quoted-as-accuracy]] | 파이프라인 단계가 **출력을 냈는지**를 세는 비율과, 그 출력이 **맞았는지**를 | 검출률, 존재율, 출력이 있었나, detection rate, 커버리지를 정확도로, n_ok |
 | [[proxy-metric-moves-against-the-goal]] | 최종 지표가 둔감할 때(파인튜닝이 효과를 덮을 때) 중간 단계를 재는 대리 지표를 | 대리 지표, 프록시 지표, pre-only 평가, 합성 val, 지표가 반대로 |
 | [[reset-clears-in-flight-lock]] | ```dart | reset 이 잠금을 푸는 것, _busy = false, FrameThrottler, frame_throttler.dart, _busy, reset(), isBusy |
@@ -105,6 +106,6 @@ tags: [index]
 
 - Total concepts: 8
 - Total patterns: 15
-- Total anti-patterns: 43
+- Total anti-patterns: 44
 - Total answers: 0
 - Last updated: 2026-09-13

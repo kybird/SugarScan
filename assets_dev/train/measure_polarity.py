@@ -21,6 +21,12 @@ import numpy as np
 from eval_reader import load_gray  # EXIF 규약 — 저장소 통일 로더
 
 HERE = Path(__file__).resolve().parent
+
+# GM 쿼드는 사람 라벨 우선이다(gm_quads.load_gm_quads, 2026-09-13).
+# 구판은 검출기 출력(gmscreen_quads_oriented)만 봤고 그걸 실측이라
+# 불렀다 — 사람이 그린 화면 상자 411행이 따로 있었는데 측정 경로
+# 어디도 쓰지 않았다.
+from gm_quads import quad_rows  # noqa: E402
 UPSTREAM = HERE.parent / "upstream" / "datumo"
 QUADS_ORIENTED = HERE / "gmscreen_quads_oriented.jsonl"   # 읽기 전용
 BAND_BOXES = HERE / "band_boxes.jsonl"                    # 읽기 전용
@@ -74,7 +80,7 @@ def polarity_of(crop, band_frac):
 def collect_polarity():
     """극성·대비 원본 — cmd_polarity 와 정본 기준선 생성기(make_real_baseline.py)
     가 같은 코드를 쓴다. -> dict(n, inverted(목록), contrast(목록), per_device)"""
-    quads = {r["id"]: r for r in _load_jsonl(QUADS_ORIENTED)}
+    quads = {r["id"]: r for r in quad_rows()}
     devices = {r["id"]: r for r in _load_jsonl(DEVICE_LABELS)}
     bands = _load_jsonl(BAND_BOXES)
     per_device = defaultdict(lambda: [0, 0])   # name -> [inverted, n]

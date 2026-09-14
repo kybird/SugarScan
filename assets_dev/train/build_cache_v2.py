@@ -10,6 +10,8 @@ import numpy as np
 from PIL import Image, ImageOps
 
 HERE = Path(__file__).resolve().parent
+
+from gm_quads import load_gm_quads  # noqa: E402
 IN_H, IN_W = 160, 320
 BLANK = 10
 MAX_LABEL = 3
@@ -184,11 +186,11 @@ def main() -> int:
     # ===== 실사진 rect =====
     # GM 쿼드 있는 전체 풀(2,007) × GT 값 → 시드 분할 train/holdout.
     # 밴드 라벨 304장에 한정하면 실데이터가 너무 적어 암기만 한다(실측).
-    quads = {}
-    for l in (data / "gmscreen_quads.jsonl").read_text(encoding="utf-8").splitlines():
-        if l.strip():
-            j = json.loads(l)
-            quads[j["id"]] = j["quad"]
+    # GM 쿼드는 사람 라벨 우선이다(2026-09-13). 구판은 검출기 출력만 봤다 —
+    # 기존 data_cache_v2.npz 는 그 시절 산물이라, 이 파일로 다시 구우면
+    # 실사진 팔의 프레이밍이 바뀐다. 리더는 2026-09-11 재구축 결정으로 어차피
+    # 처음부터 다시 만든다.
+    quads = {i: q.tolist() for i, q in load_gm_quads()[0].items()}
     readings = {}
     for l in (DATUMO / "labels.jsonl").read_text(encoding="utf-8").splitlines():
         if l.strip():

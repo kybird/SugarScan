@@ -29,6 +29,12 @@ from diag_cv_band import find_band, grow_box, DEFAULTS
 from train_band_detector import BandQuadNet, letterbox, quad_to_target, IMG_SIZE
 
 HERE = Path(__file__).resolve().parent
+
+# GM 쿼드는 사람 라벨 우선이다(gm_quads.load_gm_quads, 2026-09-13).
+# 구판은 검출기 출력(gmscreen_quads_oriented)만 봤고 그걸 실측이라
+# 불렀다 — 사람이 그린 화면 상자 411행이 따로 있었는데 측정 경로
+# 어디도 쓰지 않았다.
+from gm_quads import quad_rows  # noqa: E402
 UPSTREAM = HERE.parent / "upstream" / "datumo"
 QUADS_ORIENTED = HERE / "gmscreen_quads_oriented.jsonl"   # 읽기 전용
 BAND_BOXES = HERE / "band_boxes.jsonl"                    # 읽기 전용(게이트)
@@ -96,7 +102,7 @@ def main():
     model.load_state_dict(torch.load(args.ckpt, map_location=dev))
     model.eval()
 
-    quads = {r["id"]: r for r in _load_jsonl(QUADS_ORIENTED)}
+    quads = {r["id"]: r for r in quad_rows()}
     bands = _load_jsonl(BAND_BOXES)
     devices = {r["id"]: r for r in _load_jsonl(DEVICE_LABELS)}
 

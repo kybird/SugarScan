@@ -11,6 +11,8 @@ import numpy as np
 from measure_polarity import load_gray
 
 HERE = __import__("pathlib").Path(__file__).resolve().parent
+
+from gm_quads import quad_rows  # noqa: E402
 UP = HERE.parent / "upstream" / "datumo"
 
 
@@ -19,7 +21,7 @@ def _load(p):
 
 
 def digit_stats():
-    quads = {r["id"]: r for r in _load(HERE / "gmscreen_quads_oriented.jsonl")}
+    quads = {r["id"]: r for r in quad_rows()}
     bands = _load(HERE / "band_boxes.jsonl")
     devs = {r["id"]: r for r in _load(HERE / "device_labels.jsonl")}
     out = {}

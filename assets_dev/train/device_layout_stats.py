@@ -12,6 +12,12 @@ import json
 import numpy as np
 
 HERE = __import__("pathlib").Path(__file__).resolve().parent
+
+# GM 쿼드는 사람 라벨 우선이다(gm_quads.load_gm_quads, 2026-09-13).
+# 구판은 검출기 출력(gmscreen_quads_oriented)만 봤고 그걸 실측이라
+# 불렀다 — 사람이 그린 화면 상자 411행이 따로 있었는데 측정 경로
+# 어디도 쓰지 않았다.
+from gm_quads import quad_rows  # noqa: E402
 UP = HERE.parent / "upstream" / "datumo"
 
 
@@ -20,7 +26,7 @@ def _load(p):
 
 
 def collect(wide=False):
-    quads = {r["id"]: r for r in _load(HERE / "gmscreen_quads_oriented.jsonl")}
+    quads = {r["id"]: r for r in quad_rows()}
     bands = _load(HERE / "band_boxes.jsonl")
     devs = {r["id"]: r for r in _load(HERE / "device_labels.jsonl")}
     rows = []

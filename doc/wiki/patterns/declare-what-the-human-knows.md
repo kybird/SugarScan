@@ -56,6 +56,8 @@ Green Doctor 3/4 반전인데 사진 4장 전부 정상, ACURA PLUS 4/4 인데 3
 
 ## Related
 
+- [[prediction-used-as-ground-truth]] — 같은 실패의 더 나쁜 형태: 사람
+  라벨이 이미 있는데 모델 예측을 실측이라 부르며 썼다
 - [[label-without-visual-ground-truth]]
 - [[measured-result-used-as-input]]
 - [[metric-provenance]]

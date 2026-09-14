@@ -24,6 +24,12 @@ import cv2
 import numpy as np
 
 HERE = Path(__file__).resolve().parent
+
+# GM 쿼드는 사람 라벨 우선이다(gm_quads.load_gm_quads, 2026-09-13).
+# 구판은 검출기 출력(gmscreen_quads_oriented)만 봤고 그걸 실측이라
+# 불렀다 — 사람이 그린 화면 상자 411행이 따로 있었는데 측정 경로
+# 어디도 쓰지 않았다.
+from gm_quads import quad_rows  # noqa: E402
 UPSTREAM = HERE.parent / "upstream" / "datumo"
 QUADS_ORIENTED = HERE / "gmscreen_quads_oriented.jsonl"   # 읽기 전용 사본(보고서에 md5 기록)
 BAND_BOXES = HERE / "band_boxes.jsonl"                    # git 추적, 읽기 전용
@@ -50,7 +56,7 @@ def collect_aspect():
     (make_real_baseline.py)가 같은 코드를 쓴다. 자가 갈리면 두 수치는 비교
     대상이 아니다(2026-09-12 밀도 사고)."""
     ratios = []
-    for r in _load_jsonl(QUADS_ORIENTED):
+    for r in quad_rows():
         x0, y0, x1, y1 = _rect_of(r["quad"])
         ratios.append((x1 - x0) / max(1.0, y1 - y0))
     return ratios
@@ -75,7 +81,7 @@ def cmd_aspect():
 def collect_band():
     """밴드 기하 원본 — (joined, total, stats, pos). cmd_band 와 정본 기준선
     생성기가 같은 코드를 쓴다."""
-    quads = {r["id"]: r for r in _load_jsonl(QUADS_ORIENTED)}
+    quads = {r["id"]: r for r in quad_rows()}
     bands = _load_jsonl(BAND_BOXES)
     joined = 0
     stats = {"portrait": [], "wide": []}
@@ -191,7 +197,7 @@ def edge_density_outside(gray, band_rect_frac, exclude_frame=0.0):
 def collect_density(limit=0, frame_exc=0.0):
     """실사진 GM 크롭 밴드 밖 엣지 밀도값 목록 — cmd_density 와 정본 기준선
     생성기가 같은 코드를 쓴다. synth_panel.REAL_DENSITY 가 이 값을 재표본한다."""
-    quads = {r["id"]: r for r in _load_jsonl(QUADS_ORIENTED)}
+    quads = {r["id"]: r for r in quad_rows()}
     bands = _load_jsonl(BAND_BOXES)
     vals = []
     roots = [UPSTREAM / "extracted" / "TILDE"]
