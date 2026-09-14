@@ -719,10 +719,13 @@ def _render_once(value, rng, profile, pid, inverted):
         _bfx = (0.5 if ident is not None else rng.uniform(0.2, 0.55))
         bx = mg_l + max(6, int((W - mg_l - mg_r - tw) * _bfx))
         t_ink = int(bg_col * 0.6) if body_col > 110 else int(min(255, body_col + 70))
+        # 글자가 유리를 침범하면 안 된다(사람 지적 2026-09-13). 스트립이
+        # 얇아 잘릴 때는 캔버스 '바깥쪽'으로 잘리게 민다 — 구판은 스트립
+        # 가운데에 놓아 아래쪽이 액정으로 넘어갔다.
         if edge == "top":
-            by = (mg_t - (thh + bl)) // 2
+            by = min((mg_t - (thh + bl)) // 2, py0 - (thh + bl) - 1)
         else:
-            by = H - mg_b + (mg_b - (thh + bl)) // 2
+            by = max(H - mg_b + (mg_b - (thh + bl)) // 2, py1 + 1)
         cv2.putText(img, text, (bx, by + thh), _BEZEL_FONTS[0], scale,
                     t_ink, 1, cv2.LINE_AA)
         body_text = text

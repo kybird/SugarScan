@@ -294,7 +294,12 @@ def seg_text(img, x, y, text, h, ink, thick=None, slant=0.0,
     ov = t // 2 + 1          # 획 중심이 아닌 왼쪽 가장자리를 원점에 맞추는 몫
     w = seg_text_width(text, h, slant, digit_w)
     t_pad = t + 2
-    ch_box = h + 2 * t_pad                  # 14-세그는 내림글자가 없다
+    # 내림글자(g·p·y) 자리를 둔다 — 범례를 TTF 로 바꾸면서 내림획이 생겼고,
+    # 구판 상자(h + 2*t_pad)는 그걸 잘랐다(사람 지적 2026-09-13: mg/dL 의 g
+    # 아랫부분 잘림). 폰트 descent 만큼 더 준다.
+    _font = _legend_font(max(6, int(round(h * 1.36))))
+    _desc = _font.getmetrics()[1] if _font is not None else int(h * 0.25)
+    ch_box = h + 2 * t_pad + _desc
     canvas = np.zeros((ch_box + t_pad, w + 2 * t_pad), np.uint8)
     _seg_draw_upright(canvas, t_pad + lead + ov, t_pad, text, h, t, slant,
                       digit_mask, digit_w)

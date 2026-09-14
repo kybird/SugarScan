@@ -35,6 +35,9 @@ from synth_lcd import (  # 레거시 구성요소 재사용 + 세그먼트 스�
 # (모따기 끝단 근사), 굵기는 기기별로 Light/Regular/Bold 가 다 나오며,
 # 이탤릭 기기(OneTouch 계열)엔 Italic 변형, 일부 가는획 기기엔 Modern-Light.
 # 라이선스(RFN 'DSEG'): 폰트 파일은 수정·재배포하지 않고 렌더에만 쓴다.
+# 글리프 획 부풀림 비율(높이 대비). 0 이면 폰트 그대로.
+GLYPH_DILATE = 0.014
+
 FONT_DIR = Path(__file__).resolve().parent / "fonts" / "dseg"
 DSEG_FILES = {
     "Light": "DSEG7Classic-Light.ttf", "Regular": "DSEG7Classic-Regular.ttf",
@@ -66,8 +69,15 @@ def _glyph_mask(ch, variant, h):
     if len(xs) == 0:
         return None
     m = a[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
-    return cv2.resize(m, (max(2, int(m.shape[1] * h / m.shape[0])), h),
-                      interpolation=cv2.INTER_NEAREST) > 96
+    m = cv2.resize(m, (max(2, int(m.shape[1] * h / m.shape[0])), h),
+                   interpolation=cv2.INTER_NEAREST) > 96
+    # 획을 조금 굵힌다(사람 지시 2026-09-13: "DSEG 조금만 더 굵게"). DSEG 는
+    # 변형이 Light/Regular/Bold 셋뿐이라 그 사이를 폰트로는 못 낸다 — 마스크를
+    # 높이에 비례해 살짝 부풀린다. 세그먼트 사이 틈이 메워지지 않는 크기다.
+    k = max(1, int(round(h * GLYPH_DILATE)))
+    if k > 1:
+        m = cv2.dilate(m.astype(np.uint8), np.ones((k, k), np.uint8)) > 0
+    return m
 
 
 def _pick_variant(rng, italic):
