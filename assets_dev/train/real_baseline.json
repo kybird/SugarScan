@@ -1,6 +1,6 @@
 {
  "provenance": {
-  "generated_at": "2026-09-12T22:35-07:00",
+  "generated_at": "2026-09-13T17:35-07:00",
   "generator": "assets_dev/train/make_real_baseline.py",
   "rulers": [
    "measure_panel_stats.py",
@@ -1922,7 +1922,7 @@
  },
  "polarity": {
   "n": 264,
-  "inverted_pct": 33.71212121212121,
+  "inverted_pct": 29.166666666666668,
   "contrast_median": 99.0,
   "contrast_p10": 60.0,
   "contrast_p90": 177.70000000000002,
@@ -1934,7 +1934,7 @@
     "n": 8
    },
    "ACCU-CHEK Active": {
-    "inverted": 4,
+    "inverted": 1,
     "n": 7
    },
    "ACCU-CHEK Go": {
@@ -1958,7 +1958,7 @@
     "n": 4
    },
    "ACURA VIEW": {
-    "inverted": 1,
+    "inverted": 0,
     "n": 4
    },
    "Auto-chek plus": {
@@ -1978,11 +1978,11 @@
     "n": 4
    },
    "CareSens II Plus": {
-    "inverted": 0,
+    "inverted": 1,
     "n": 4
    },
    "CareSens N": {
-    "inverted": 0,
+    "inverted": 3,
     "n": 19
    },
    "CareSens N Premier": {
@@ -1990,11 +1990,11 @@
     "n": 4
    },
    "CareSens N Voice": {
-    "inverted": 2,
+    "inverted": 0,
     "n": 4
    },
    "CareSens PRO": {
-    "inverted": 4,
+    "inverted": 3,
     "n": 4
    },
    "Contour TS": {
@@ -2002,7 +2002,7 @@
     "n": 2
    },
    "Dr.Diary+": {
-    "inverted": 2,
+    "inverted": 1,
     "n": 4
    },
    "FORA": {
@@ -2010,11 +2010,11 @@
     "n": 4
    },
    "GC 녹십자 MS Green Check": {
-    "inverted": 0,
+    "inverted": 1,
     "n": 4
    },
    "GC 녹십자 MS Green Doctor": {
-    "inverted": 1,
+    "inverted": 3,
     "n": 4
    },
    "GC 녹십자 MS ONE": {
@@ -2022,15 +2022,15 @@
     "n": 4
    },
    "GluNEO plus": {
-    "inverted": 1,
+    "inverted": 0,
     "n": 4
    },
    "Gluco Dr.TOP": {
-    "inverted": 2,
+    "inverted": 1,
     "n": 4
    },
    "Gluco Navii GDH": {
-    "inverted": 2,
+    "inverted": 0,
     "n": 4
    },
    "Gluco Navii NFC": {
@@ -2042,7 +2042,7 @@
     "n": 1
    },
    "Gmate": {
-    "inverted": 0,
+    "inverted": 1,
     "n": 4
    },
    "HANDOK BAROZEN": {
@@ -2054,7 +2054,7 @@
     "n": 4
    },
    "INFOPIA": {
-    "inverted": 2,
+    "inverted": 1,
     "n": 4
    },
    "KOOKMIN Check": {
@@ -2062,7 +2062,7 @@
     "n": 4
    },
    "Link 0.3": {
-    "inverted": 1,
+    "inverted": 0,
     "n": 4
    },
    "MaeilzeN": {
@@ -2070,7 +2070,7 @@
     "n": 4
    },
    "NOCODING ONE": {
-    "inverted": 3,
+    "inverted": 2,
     "n": 4
    },
    "NOCODING ONE PLUS": {
@@ -2082,11 +2082,11 @@
     "n": 4
    },
    "OneTouch Ultra": {
-    "inverted": 1,
+    "inverted": 0,
     "n": 4
    },
    "OneTouch UltraMini": {
-    "inverted": 1,
+    "inverted": 0,
     "n": 30
    },
    "SD CHECK GOLD": {
@@ -2102,7 +2102,7 @@
     "n": 4
    },
    "STANDARD CHECK GOLD PLUS": {
-    "inverted": 2,
+    "inverted": 3,
     "n": 4
    },
    "VERI-Q": {
@@ -2114,23 +2114,23 @@
     "n": 4
    },
    "글루코 1004": {
-    "inverted": 1,
-    "n": 4
-   },
-   "도루코S Premium": {
-    "inverted": 2,
-    "n": 3
-   },
-   "미레 3.3G + II": {
     "inverted": 0,
     "n": 4
    },
+   "도루코S Premium": {
+    "inverted": 0,
+    "n": 3
+   },
+   "미레 3.3G + II": {
+    "inverted": 2,
+    "n": 4
+   },
    "오토-첵": {
-    "inverted": 1,
+    "inverted": 0,
     "n": 4
    },
    "이름모를 가로형모델": {
-    "inverted": 14,
+    "inverted": 12,
     "n": 14
    }
   }
