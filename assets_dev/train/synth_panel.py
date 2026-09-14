@@ -488,8 +488,14 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
     _wide_t = None
     _wide_row = False
     if wh >= 1.0:
-        _wr = REAL_BASELINE["band"]["wide_raw"]
-        _wide_t = _wr[rng.randrange(len(_wr))]
+        if lay is not None:
+            # 기기 고정 가로형은 자기 실측 기하를 쓴다 — 코퍼스 wide_raw 에서
+            # 뽑으면 같은 기기가 장마다 칼럼형·하단행형을 오간다(2026-09-13).
+            _wide_t = (lay["band_w"], lay["band_h"],
+                       lay["band_cx"], lay["band_cy"])
+        else:
+            _wr = REAL_BASELINE["band"]["wide_raw"]
+            _wide_t = _wr[rng.randrange(len(_wr))]
         _wide_row = _wide_t[0] >= 0.75
 
     # ── 몸체 + 액정 — GM 크롭과 같은 물건(카드 2026-09-12) ──────────────────
@@ -966,8 +972,28 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
     # 보조 글자의 굵기·기울기는 큰 숫자와 같은 DSEG 변형에서 파생(사람 리뷰
     # 2026-09-13: 세그먼트도 여러 종류). 한 패널 안에선 한 가지, 패널 사이엔
     # Light/Regular/Bold × 이탤릭이 섞인다(변형 분포는 _pick_variant 근거).
-    aux_t = max(2, int(round(aux_h * SEG_WEIGHTS[seg_weight_from_variant(variant)])))
     aux_slant = SEG_SLANT if "Italic" in variant else 0.0
+    # 가로형 칼럼은 폭이 좁다 — 가장 긴 항목(시간 '00:00 PM')이 들어가도록
+    # 보조 글자를 줄인다. 안 줄이면 단위·시간이 통째로 배치 실패로 빠져 칼럼이
+    # 비어 나온다(2026-09-13 실측: UltraMini 칼럼 폭 유리의 19%).
+    # 크기 종수는 늘지 않는다 — 가로형 패널의 보조 글자는 이 칼럼뿐이다.
+    if _wide_t is not None and not _wide_row:
+        _right_col = (fx0 + field_all_w / 2) < (px0 + px1) / 2
+        _cw_est = ((px1 - 4) - (band_r + max(6, int(dh * 0.12))) if _right_col
+                   else (band_l - max(6, int(dh * 0.12))) - (px0 + 4))
+        if _cw_est > 20:
+            # 실제로 들어갈 항목 중 가장 긴 것에 맞춘다(고정 문자열로 잡으면
+            # 기기 표기가 그보다 길 때 또 탈락한다).
+            _probe = [(profile.get("unit") or {}).get("texts", ["mg/dL"])[0],
+                      "00-00"]
+            _tf = (profile.get("time") or {}).get("fmts")
+            _probe.append(_tf[0].format(h02="00", m02="00", M="0", M02="00",
+                                        d="0", d02="00", am="pm", AM="PM")
+                          if _tf else "00:00 PM")
+            while (aux_h > 8 and max(seg_text_width(t, aux_h, aux_slant)
+                                     for t in _probe) > _cw_est):
+                aux_h -= 1
+    aux_t = max(2, int(round(aux_h * SEG_WEIGHTS[seg_weight_from_variant(variant)])))
     text_heights = {dh}   # 그은 글자 높이 기록(AC#3 — validate 하드 검사)
 
     # 기기 고정 배치 도구(2026-09-13 재구조): lay 는 요소 자리가 기기별로
@@ -1021,15 +1047,22 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
                 _cx1 = max(band_l - _cg, px0 + 10)
             _cw = _cx1 - _cx0
             if _cw > 26:
+                # 칼럼 항목도 기기 고정이다 — UltraMini 8장 전부 시간·날짜·
+                # 단위가 같은 자리에 쌓여 있다(1588·1590·1593·1596·1598·1602).
+                # 'M'(메모리 회상)만 상태성이다.
+                # 쌓는 순서는 실물대로 시간 -> 날짜 -> 단위다
+                # (1588 '7:10PM / 8-20 / mg/dL', 1596·1598·1602 동일).
                 _items = []
-                if rng.random() < 0.9:
-                    _items.append(("unit", _ut))
-                if rng.random() < 0.8:
-                    _items.append(("time", _dot_time_text(rng)))
-                if rng.random() < 0.6:
+                if _shown("wide:time", 0.8):
+                    _items.append(("time", _dot_time_text(
+                        rng, ident["time_fmt_i"] if ident else None,
+                        (profile.get("time") or {}).get("fmts"))))
+                if _shown("wide:date", 0.6):
                     _items.append(("date", f"{rng.randint(1, 12)}-"
                                            f"{rng.randint(1, 31)}"))
-                if rng.random() < 0.3:
+                if _shown("wide:unit", 0.9):
+                    _items.append(("unit", _ut))
+                if rng.random() < (0.5 if ident is not None else 0.3):
                     _items.append(("mem", "M"))
                 _cy_ = py0 + 6
                 for _nm, _txt in _items:
@@ -1316,7 +1349,10 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
             used_texts.add(txt)
 
     t = profile.get("time")
-    if t and _shown("time", t["p"]):
+    # 가로형은 시간·날짜·단위를 칼럼/하단행이 이미 그렸다(위) — 여기서 또
+    # 그리려다 배치에 실패하고 'time' 이 뺀 요소로 잡혔다(2026-09-13, n=150
+    # 에서 8건). 단위(unit)와 같은 규칙으로 세로형에만 건다.
+    if t and _wide_t is None and _shown("time", t["p"]):
         # 시간줄도 보조 글자 크기(AC#3 — 실사진 722 는 시간·단위가 같은 높이).
         # 7-세그 + 사각 점 콜론으로 그은다(구판 put_7seg_text 는 폭을 임의
         # 폭으로 늘려 숫자 비율이 깨졌다 — seg_text 는 글리프 비율 유지).

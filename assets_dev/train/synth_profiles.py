@@ -228,6 +228,33 @@ PROFILES = [
         bezel=dict(texts=["GluNEO plus"], edge="top", p=0.8),
     ),
     dict(
+        # 가로형 1 — 숫자 왼쪽 큰 자리 + 오른쪽 정보 칼럼(시간·날짜·mg/dL·M).
+        # 근거 1588·1590·1593·1596·1598·1602(8장 눈검 2026-09-13). 남색 몸체에
+        # 은색 띠, 브랜드는 화면 '왼쪽' 몸체에 인쇄돼 있어 상/하 베젤 경로로는
+        # 못 그린다 — bezel 을 선언하지 않는다. 극성은 정상(검은 숫자).
+        # 기하는 실측: device_layout_stats --wide, n=28.
+        id="onetouch_ultramini", slots=3, align="right", italic=False,
+        evidence=["glucose_batch1/1588", "glucose_batch1/1590",
+                  "glucose_batch1/1596", "glucose_batch1/1598",
+                  "glucose_batch1/1602"],
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 10), p=1.0),
+        mem=dict(kind="M", pos="right-of-digits", p=0.5),
+        # 칼럼의 시간은 시각만이다 — 날짜는 아래 별도 줄이다(1588 '7:10PM'
+        # + '8-20'). 전역 DOT_FMTS 에는 날짜까지 붙은 긴 형식이 섞여 있어
+        # 칼럼 폭을 넘겨 통째로 탈락했다.
+        time=dict(pos="column", fmts=["{h02}:{m02} {AM}"], p=1.0),
+    ),
+    dict(
+        # 가로형 2 — 같은 칼럼 가족인데 반전 액정(흰 숫자)이고 더 납작하다.
+        # 숫자가 화면 맨 왼쪽에 붙는다(실측 cx 0.092). 근거 1091·1094·1815·
+        # 1622·1624·1627·1822. 기종 미상이라 베젤 문자열이 없다.
+        id="wide_unknown", slots=3, align="left", italic=False,
+        evidence=["glucose_batch1/1091", "glucose_batch1/1094",
+                  "glucose_batch1/1815"],
+        unit=dict(texts=["mg /dL"], pos="below-right", gap=(4, 10), p=1.0),
+        time=dict(pos="column", fmts=["{h02}:{m02}{AM}"], p=1.0),
+    ),
+    dict(
         id="generic_v1", legacy=True, evidence=[],
         # 기존 무작위 레이아웃(synth_lcd.render_screen) 그대로. 8종 프로파일에
         # 없는 배치의 다양성 하한을 지킨다.
@@ -279,6 +306,14 @@ LAYOUTS = {
     "gluneo_plus": dict(panel_ar=0.792, band_w=0.888, band_h=0.447,
                         band_cx=0.512, band_cy=0.407, weight="Regular",
                         n=0),
+    # 가로형 — device_layout_stats.py --wide 실측(2026-09-13). 세로형과 같은
+    # 정의다: panel_ar 은 GM 쿼드 w/h, band_* 는 GM 쿼드 대비 비율.
+    "onetouch_ultramini": dict(panel_ar=2.129, band_w=0.591, band_h=0.806,
+                               band_cx=0.514, band_cy=0.520,
+                               weight="Regular", n=28),
+    "wide_unknown": dict(panel_ar=1.302, band_w=0.497, band_h=0.599,
+                         band_cx=0.092, band_cy=0.448,
+                         weight="Regular", n=5),
 }
 # ── 극성은 재는 것이 아니라 선언하는 것이다(사람 지시 2026-09-13) ─────────
 # 액정이 음각(반전)인지 양각인지는 기기의 성질이고 사람이 이미 안다. 사진에서
@@ -327,6 +362,8 @@ PROFILE_INVERTED = {
     "caresens_n_premier": True,   # 1911·819·1899 어두운 액정·밝은 숫자
     "accuchek_instant": True,     # 267·270 검은 창·흰 숫자
     "performa_nano": True,        # 1019~1086 백라이트 액정·흰 숫자
+    "onetouch_ultramini": False,  # 1588·1590·1596·1598·1602 검은 숫자
+    "wide_unknown": True,         # 1091·1094·1815 흰 숫자·어두운 액정
 }
 
 for _p in PROFILES:

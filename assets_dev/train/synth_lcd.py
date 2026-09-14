@@ -114,16 +114,24 @@ def _hershey_metric(ch, h, thick):
 def seg_char_advance(ch, h, slant=0.0):
     """글자 하나의 진폭(px) — 그리기와 폭 계산이 같은 값을 쓴다(단일 소스).
     1차 결함: seg_text_width 가 간격을 빼먹어 실제 그은 폭보다 적었다."""
-    gap = max(1, int(round(h * 0.13)))
+    # 자간은 글자 종류마다 다르다(2026-09-13). 7-세그 숫자는 칸 사이가 실제로
+    # 벌어져 있지만(실물 '103'·'125' 의 자리 간격), 인쇄 범례는 붙어 있다 —
+    # 842·1058·267 의 'mg/dL' 은 글자끼리 거의 닿는다. 구판은 둘 다 0.13h 를
+    # 써서 'mg/dL' 이 'm g / d L' 로 벌어졌고, 가로형 정보 칼럼에서는 그 폭
+    # 때문에 단위·시간이 통째로 배치 실패로 탈락했다(칼럼이 비어 나왔다).
+    dgap = max(1, int(round(h * 0.13)))    # 숫자·콜론 — 세그먼트 칸 간격
+    lgap = max(1, int(round(h * 0.04)))    # 글자·기호 — 인쇄 자간
     if ch == " ":
-        return int(round(h * 0.55))
+        return int(round(h * 0.42))
     if ch == ":":
-        return max(2, h // 7) * 2 + gap
+        return max(2, h // 7) * 2 + dgap
     if ch in SEG_MAP:                      # 숫자 — 언제나 7-세그
         cell = h * 0.62
+        gap = dgap
     else:                                  # 글자·기호 — 언제나 폰트
         w, _, _, _ = _hershey_metric(ch, h, max(2, int(round(h * 0.11))))
         cell = w
+        gap = lgap
     lean = int(slant * h) if slant else 0   # 기운 글자가 위에서 차지하는 폭
     return int(round(cell)) + gap + lean
 
