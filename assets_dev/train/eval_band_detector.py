@@ -95,6 +95,9 @@ def main():
     ap.add_argument("--ckpt", default=str(CKPT))
     ap.add_argument("--all-proposals", action="store_true",
                     help="게이트 통과 후 전량 제안(AC#1) — 결과는 _diag 로")
+    ap.add_argument("--tag", default=None,
+                    help="결과 디렉터리 이름. 기본은 체크포인트 파일명 어간 — "
+                         "여러 체크포인트를 재면서 서로 덮어쓰지 않게 한다")
     args = ap.parse_args()
 
     dev = "cuda" if torch.cuda.is_available() else "cpu"
@@ -182,7 +185,7 @@ def main():
             print(f"  {name:30s} n={len(vals):3d}  median={np.median(vals):.3f} "
                   f"min={min(vals):.3f}")
 
-    out = HERE / "_diag" / "band_det_v0"
+    out = HERE / "_diag" / (args.tag or Path(args.ckpt).stem)
     out.mkdir(parents=True, exist_ok=True)
     with open(out / "gate_results.jsonl", "w", encoding="utf-8") as f:
         for pid, v in per_id.items():
