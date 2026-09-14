@@ -16,25 +16,28 @@
 # 문자열에는 절대 넣지 않는다 — 모델이 그 자리에 blank 를 내도록 배운다.
 import json
 import random
+import zlib
 from pathlib import Path
 
 import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-from synth_lcd import (  # 레거시 구성요소 재사용 — 이 파일은 건드리지 않는다
-    draw_digit, put_7seg_text, render_screen,
+from synth_lcd import (  # 레거시 구성요소 재사용 + 세그먼트 스트로크 폰트(2026-09-13)
+    draw_digit, put_7seg_text, render_screen, seg_text, seg_text_width,
     add_local_shadow, add_reflection_stripe, apply_shear, apply_keystone,
 )
 
 # ── DSEG 글리프 렌더 — 「DSEG 폰트 기반 글리프 렌더러 교체」 카드 ────────────
-USE_DSEG = True   # False 면 rect 세그먼트 팔(직전 A/B 재현)
 # 폰트: DSEG v0.46 (keshikan, SIL OFL 1.1) — fonts/dseg/ 에 원문 라이선스 동봉.
 # 변형 선택 근거(눈 검증, _diag/synth_real_atlas/dseg_variant_check.png):
 # 실기기 8종 숫자 밴드와 나란히 놓아 Classic 계열이 전체적으로 가장 가깝고
 # (모따기 끝단 근사), 굵기는 기기별로 Light/Regular/Bold 가 다 나오며,
 # 이탤릭 기기(OneTouch 계열)엔 Italic 변형, 일부 가는획 기기엔 Modern-Light.
 # 라이선스(RFN 'DSEG'): 폰트 파일은 수정·재배포하지 않고 렌더에만 쓴다.
+# 글리프 획 부풀림 비율(높이 대비). 0 이면 폰트 그대로.
+GLYPH_DILATE = 0.0
+
 FONT_DIR = Path(__file__).resolve().parent / "fonts" / "dseg"
 DSEG_FILES = {
     "Light": "DSEG7Classic-Light.ttf", "Regular": "DSEG7Classic-Regular.ttf",
@@ -66,30 +69,15 @@ def _glyph_mask(ch, variant, h):
     if len(xs) == 0:
         return None
     m = a[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
-    return cv2.resize(m, (max(2, int(m.shape[1] * h / m.shape[0])), h),
-                      interpolation=cv2.INTER_NEAREST) > 96
-
-
-def draw_digit_dseg(img, x, y, h, ch, ink, variant="Regular", ghost=0.0):
-    """DSEG 숫자 한 자. ghost>0 이면 꺼진 세그먼트 잔상('8' 전체 획을 배경과
-    잉크 사이 옅은 농도로) 먼저 깔고 진한 글리프를 얹는다(카드 AC#3).
-    잔상은 '생각보다 훨씬 약하다'(2026-09-11 실사진 정정) — 확률적으로,
-    농도 흔들림 포함. 폭은 글리프 비율이 정한다(배치 계산 불변)."""
-    if ghost > 0:
-        g = _glyph_mask("8", variant, h)
-        if g is not None:
-            panel_est = img[max(0, y):y + h, x:x + g.shape[1]].astype(np.float32)
-            blend = panel_est * (1 - ghost) + ink * ghost
-            region = img[max(0, y):y + h, x:x + g.shape[1]]
-            region[g[:region.shape[0], :region.shape[1]]] = \
-                blend[:region.shape[0], :region.shape[1]][
-                    g[:region.shape[0], :region.shape[1]]].astype(np.uint8)
-    m = _glyph_mask(ch, variant, h)
-    if m is None:
-        return 0
-    region = img[y:y + h, x:x + m.shape[1]]
-    region[m[:region.shape[0], :region.shape[1]]] = ink
-    return m.shape[1]
+    m = cv2.resize(m, (max(2, int(m.shape[1] * h / m.shape[0])), h),
+                   interpolation=cv2.INTER_NEAREST) > 96
+    # 획 부풀림은 되돌렸다(사람 지시 2026-09-13) — 상/중/하 3분할로 숫자가
+    # 커지면 굵기도 같이 해결될 것이라는 판단이다. GLYPH_DILATE 를 0 보다
+    # 크게 두면 다시 켜진다.
+    k = max(1, int(round(h * GLYPH_DILATE)))
+    if GLYPH_DILATE > 0 and k > 1:
+        m = cv2.dilate(m.astype(np.uint8), np.ones((k, k), np.uint8)) > 0
+    return m
 
 
 def _pick_variant(rng, italic):
@@ -110,49 +98,52 @@ DOT_FMTS = [
 PROFILES = [
     dict(
         id="accuchek_instant", slots=3, align="right", italic=False,
-        digit_h=(0.30, 0.40),
         evidence=["glucose_batch1/267", "glucose_batch1/270",
                   "glucose_batch2/2610", "glucose_batch1/2492",
                   "glucose_batch1/2039"],
         # 화살표-끝자리 갭 실측 72~84px(스트립 12장) — 넓은 범위로 흔들어
         # '거의 닿는' 배치까지 재현한다(AC#5).
-        unit=dict(texts=["mg/dL"], pos="right-baseline", gap=(2, 80),
-                  h_ratio=(0.14, 0.20), p=0.9),
-        arrow=dict(kinds=["curved-right", "tri-right"], gap=(2, 80),
-                   size=(18, 30), p=0.95),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(2, 80), p=0.9),
+        # 미터기 지시 화살표(AC#5): 검은 창 안 오른쪽 가장자리의 흰 ▶ 이
+        # 몸체에 인쇄된 점 눈금 열을 가리킨다. 근거 Instant 34장 — 화살표는
+        # 값에 대응해 위로 오르고 v159+ 에서 상단에 포화된다(2026-09-13
+        # 실측). 단독 아이콘이 아니라 지시자라 kinds 는 tri-right 하나다.
+        arrow=dict(kinds=["tri-right"], gap=(2, 80), p=0.95),
+        meter=True,
         time=dict(pos="below-left", p=0.9),
+        bezel=dict(texts=["ACCU-CHEK", "Instant"], edge="top", p=0.9),
     ),
     dict(
         id="gmate", slots=3, align="right", italic=False,
-        digit_h=(0.42, 0.52),
         evidence=["glucose_batch1/842", "glucose_batch1/843",
                   "glucose_batch1/731", "glucose_batch1/727"],
         # 단위 글리프가 끝자리에 4~5px 로 붙는다(아틀라스 재고표) — 실패 서명.
-        unit=dict(texts=["mg/dL", "mg /dL"], pos="right-mid", gap=(3, 8),
-                  h_ratio=(0.16, 0.22), p=1.0),
+        unit=dict(texts=["mg/dL", "mg /dL"], pos="below-right", gap=(3, 8), p=1.0),
         meal=dict(texts=["AC", "PC"], p=0.3),
         mem=dict(kind="M", pos="below-left", p=0.5),
         time=dict(pos="below-left", p=0.85),
+        bezel=dict(texts=["Gmate"], edge="top", p=0.9),
     ),
     dict(
-        id="dorucos_premium", slots=3, align="left", italic=False,
-        digit_h=(0.50, 0.58),
+        # align 은 right 다(2026-09-13 정정) — left 면 2자리 값의 빈 슬롯이
+        # 오른쪽에 생긴다. 실물은 숫자가 오른쪽에 맞고 빈칸이 왼쪽이다.
+        id="dorucos_premium", slots=3, align="right", italic=False,
         evidence=["glucose_batch1/120", "glucose_batch1/694",
                   "glucose_batch1/695"],
-        unit=dict(texts=["mg/dL"], pos="left-mid", gap=(8, 14),
-                  h_ratio=(0.12, 0.16), p=0.9),
-        dotrow_above=dict(texts=["OK", "CHECK STRIP", "GLUCOSE"],
-                          glyph=(4, 6), p=1.0),
-        dotrow_below=dict(fmts=DOT_FMTS, glyph=(4, 6), p=0.8),
+        # 도트 패널이 아니다(2026-09-13 정정). 근거 사진 120 을 3배 확대해
+        # 보면 큰 숫자가 꼭짓점 뾰족한 7-세그먼트이고, 694·695 도 같다.
+        # 화면 아래 한 줄은 '3.21  08:41 AM' — 날짜+시간이고 역시 세그먼트다.
+        # 'OK'·'CHECK STRIP' 윗줄은 세 장 어디에도 없다. 도트 렌더를 쓰는
+        # 프로파일은 이제 하나도 없다.
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(8, 14), p=0.9),
+        dotrow_below=dict(fmts=["{M}.{d02}  {h02}:{m02} {AM}"], p=1.0),
         bezel=dict(texts=["Premium"], edge="bottom", p=1.0),
     ),
     dict(
         id="green_doctor", slots=3, align="right", italic=False,
-        digit_h=(0.36, 0.46),
         evidence=["glucose_batch1/1781", "glucose_batch1/2498"],
         glulabel=dict(p=0.9),
-        unit=dict(texts=["mg/dL"], pos="right-mid", gap=(6, 14),
-                  h_ratio=(0.14, 0.18), p=0.6),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(6, 14), p=0.6),
         mem=dict(kind="M-box", pos="top-left", p=0.7),
         icons=[("triangle", "top-left", 0.4), ("triangle", "top-right", 0.4),
                ("blood-drop", "right-mid", 0.3), ("bluetooth", "top-right", 0.2)],
@@ -162,92 +153,319 @@ PROFILES = [
     ),
     dict(
         id="onetouch_ultra", slots=3, align="right", italic=True,
-        digit_h=(0.34, 0.44),
         evidence=["glucose_batch1/1058", "glucose_batch1/2110"],
-        unit=dict(texts=["mg/dL"], pos="left-mid", gap=(8, 40),
-                  h_ratio=(0.14, 0.20), p=0.9),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(8, 40), p=0.9),
         mem=dict(kind="mem", pos="top-right", p=0.4),
         time=dict(pos="below-left", p=0.5),
-        bezel=dict(texts=["ONETOUCH Ultra", "LIFESCAN"], edge="bottom", p=0.8),
+        # 실물 1058·2110: 화면 위에 'OneTouch Ultra', 아래에 'LIFESCAN' —
+        # 둘 중 하나가 아니라 둘 다 찍혀 있다(사람 지적 2026-09-13).
+        bezel=dict(per_edge={"top": "OneTouch Ultra", "bottom": "LIFESCAN"},
+                   texts=["OneTouch Ultra", "LIFESCAN"], p=1.0),
     ),
     dict(
         id="gc_ms_one", slots=3, align="right", italic=False,
-        digit_h=(0.34, 0.44),
         evidence=["glucose_batch1/228", "glucose_batch1/373",
                   "glucose_batch1/800"],
         glulabel=dict(p=0.9),
-        unit=dict(texts=["mg/dL"], pos="right-baseline", gap=(2, 8),
-                  h_ratio=(0.12, 0.16), p=0.9),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(2, 8), p=0.9),
         mem=dict(kind="M-box", pos="top-left", p=0.9),
-        time=dict(pos="below-left", p=0.8),
-        dotrow_below=dict(fmts=DOT_FMTS[:4], glyph=(4, 6), p=0.4),
+        # 아래줄은 하나다 — 시간·날짜를 한 줄에 같이 쓴다(실물 228 의
+        # '9:10  3:22'). 구판은 time(0.8)과 dotrow_below(0.4)를 따로 굴려
+        # 같은 기기 안에서 아래줄이 장마다 달랐다(사람 지적 2026-09-13).
+        dotrow_below=dict(fmts=["{h02}:{m02}   {M}-{d}"], p=1.0),
+        # 228 몸체 상단 'GC 녹십자MS / ONE' — 한글은 Hershey 가 못 그려
+        # 라틴 부분만 쓴다(없는 글자를 지어내지 않는다).
+        bezel=dict(texts=["ONE"], edge="top", p=0.8),
     ),
     dict(
         id="acura_plus", slots=3, align="right", italic=False,
-        digit_h=(0.36, 0.46),
         evidence=["glucose_batch1/475", "glucose_batch1/477",
                   "glucose_batch1/2357"],
-        unit=dict(texts=["mg/dL"], pos="right-baseline", gap=(4, 12),
-                  h_ratio=(0.13, 0.18), p=0.8),
-        avgrow=dict(p=0.9),     # '07 DAY AVG 019' — 작은 7세그 + 인쇄 라벨 혼합
-        time=dict(pos="below-right", p=0.6),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 12), p=0.8),
+        # avgrow('07 DAY AVG 019') 철회(2026-09-13) — 근거 사진 475·477·
+        # 2357 어디에도 없다. 셋 다 화면 맨 아래가 '04-22  16:45'(날짜+시간)
+        # 한 줄이다. 배치 실패로 120장 중 12장에서 빠지던 요소이기도 했다.
+        dotrow_below=dict(fmts=["{M02}-{d02}   {h02}:{m02}"], p=1.0),
         bezel=dict(texts=["ACURA PLUS"], edge="top", p=1.0),
     ),
     dict(
         id="caresens_n_premier", slots=3, align="right", italic=False,
-        digit_h=(0.38, 0.48),
         evidence=["glucose_batch1/1911", "glucose_batch1/1903"],
-        unit=dict(texts=["mg/dL"], pos="right-mid", gap=(10, 18),
-                  h_ratio=(0.14, 0.18), p=0.9),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(10, 18), p=0.9),
         mem=dict(kind="M", pos="right-of-digits", p=0.5),
-        icons=[("mem-flag", "right-of-digits", 0.5), ("battery", "top-right", 0.3)],
-        dotrow_below=dict(fmts=DOT_FMTS, glyph=(4, 6), p=0.9),
+        icons=[("mem-flag", "right-of-digits", 0.5), ("battery", "top-right", 1.0)],
+        dotrow_below=dict(fmts=DOT_FMTS, p=0.9),
+        bezel=dict(texts=["CareSens N", "Premier"], edge="top", p=0.8),
     ),
     dict(
         id="performa_silver", slots=3, align="right", italic=False,
-        digit_h=(0.40, 0.50),
         evidence=["glucose_batch1/1186"],
-        unit=dict(texts=["mg/dL"], pos="above-right", gap=(4, 10),
-                  h_ratio=(0.12, 0.16), p=0.9),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 10), p=0.9),
         mem=dict(kind="memory", pos="top-left", p=0.6),
         daterow=dict(p=0.8),    # '7-1' '#5' — 기록번호 포함
-        bezel=dict(texts=["Performa", "Performa Nano"], edge="bottom", p=0.7),
-        icons=[("battery", "top-right", 0.4), ("blood-drop", "right-mid", 0.3)],
+        bezel=dict(texts=["Performa"], edge="bottom", p=0.7),
+        icons=[("battery", "top-right", 1.0), ("blood-drop", "right-mid", 0.3)],
+    ),
+    dict(
+        # Performa 와 이름만 형제다(사람 2026-09-13). 1019~1086 여덟 장은
+        # 파랗게 빛나는 백라이트 액정에 흰 숫자다 — 은색 Performa(1186 등
+        # 여덟 장, 반사식·검은 숫자)와 다른 물건이다. 한 프로파일로 묶어
+        # 극성을 평균(mixed 0.5) 내던 것을 쪼갠다. 기하는 측정이 두 기기를
+        # 합쳐 잰 값 하나뿐이라 당분간 같이 쓴다(별도 측정 전까지).
+        id="performa_nano", slots=3, align="right", italic=False,
+        evidence=["glucose_batch1/1019", "glucose_batch1/1060",
+                  "glucose_batch1/1073", "glucose_batch1/1086"],
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 10), p=0.9),
+        mem=dict(kind="memory", pos="top-left", p=0.9),
+        daterow=dict(p=0.9),
+        bezel=dict(texts=["Performa Nano"], edge="top", p=0.7),
     ),
     dict(
         id="accuchek_active", slots=3, align="center", italic=False,
-        digit_h=(0.48, 0.58),
         evidence=["glucose_batch1/1329", "glucose_batch2/2502",
                   "glucose_batch2/2513", "glucose_batch2/2519"],
         # 상단에 시간(왼쪽)·날짜(오른쪽) 작은 줄, 숫자는 중앙 대형,
         # mg/dL 은 숫자 아래 오른쪽(1329 '0:00 0-0' + 하단 mg/dL 관찰).
-        unit=dict(texts=["mg/dL"], pos="below", gap=(4, 12),
-                  h_ratio=(0.12, 0.16), p=0.9),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 12), p=0.9),
         time=dict(pos="top-left", p=0.85),
         daterow=dict(p=0.8),
         bezel=dict(texts=["Active"], edge="top", p=0.6),
     ),
     dict(
         id="gluneo_plus", slots=3, align="center", italic=False,
-        digit_h=(0.50, 0.60),
         evidence=["glucose_batch1/1435", "glucose_batch1/1438",
                   "glucose_batch1/1440", "glucose_batch1/1449"],
         # 대형 중앙 숫자, mg/dL 은 숫자 아래 오른쪽, 하단 줄 왼쪽에 아래
         # 화살표 아이콘 + 오른쪽 시간(1435~1449 전 관찰). 온도 표기 '28C' 는
         # 화이트리스트 밖이라 렌더하지 않는다(보고서 명시).
-        unit=dict(texts=["mg/dL"], pos="below", gap=(4, 12),
-                  h_ratio=(0.12, 0.16), p=0.9),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 12), p=0.9),
         time=dict(pos="below-right", p=0.9),
-        arrow=dict(kinds=["tri-down"], gap=(4, 10), size=(10, 16),
-                   pos="below-left", p=0.85),
+        # 구판의 '왼쪽 아래 아래화살표' 는 뺐다(2026-09-13). 실물
+        # 821·2016·838·2003 의 그 자리는 온도(29C) 옆 온도계 아이콘이지
+        # 화살표가 아니다. 화살표를 오른쪽으로 옮기면 없는 것을 지어내는
+        # 셈이라 선언 자체를 거둔다.
+        bezel=dict(texts=["GluNEO plus"], edge="top", p=0.8),
+    ),
+    dict(
+        # 가로형 1 — 숫자 왼쪽 큰 자리 + 오른쪽 정보 칼럼(시간·날짜·mg/dL·M).
+        # 근거 1588·1590·1593·1596·1598·1602(8장 눈검 2026-09-13). 남색 몸체에
+        # 은색 띠, 브랜드는 화면 '왼쪽' 몸체에 인쇄돼 있어 상/하 베젤 경로로는
+        # 못 그린다 — bezel 을 선언하지 않는다. 극성은 정상(검은 숫자).
+        # 기하는 실측: device_layout_stats --wide, n=28.
+        id="onetouch_ultramini", slots=3, align="right", italic=False,
+        family="column",
+        evidence=["glucose_batch1/1588", "glucose_batch1/1590",
+                  "glucose_batch1/1596", "glucose_batch1/1598",
+                  "glucose_batch1/1602"],
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 10), p=1.0),
+        mem=dict(kind="M", pos="right-of-digits", p=0.5),
+        # 칼럼의 시간은 시각만이다 — 날짜는 아래 별도 줄이다(1588 '7:10PM'
+        # + '8-20'). 전역 DOT_FMTS 에는 날짜까지 붙은 긴 형식이 섞여 있어
+        # 칼럼 폭을 넘겨 통째로 탈락했다.
+        time=dict(pos="column", fmts=["{h02}:{m02} {AM}"], p=1.0),
+    ),
+    dict(
+        # 가로형 2 — 같은 칼럼 가족인데 반전 액정(흰 숫자)이고 더 납작하다.
+        # 숫자가 화면 맨 왼쪽에 붙는다(실측 cx 0.092). 근거 1091·1094·1815·
+        # 1622·1624·1627·1822. 기종 미상이라 베젤 문자열이 없다.
+        id="wide_unknown", slots=3, align="left", italic=False,
+        family="column",
+        evidence=["glucose_batch1/1091", "glucose_batch1/1094",
+                  "glucose_batch1/1815"],
+        unit=dict(texts=["mg /dL"], pos="below-right", gap=(4, 10), p=1.0),
+        time=dict(pos="column", fmts=["{h02}:{m02}{AM}"], p=1.0),
     ),
     dict(
         id="generic_v1", legacy=True, evidence=[],
         # 기존 무작위 레이아웃(synth_lcd.render_screen) 그대로. 8종 프로파일에
         # 없는 배치의 다양성 하한을 지킨다.
-        slots=(2, 3),   # 익명 풀은 칸 수도 흔든다(카드 AC#3)
+        # 칸 수는 3 고정이다. 사람 밴드 라벨 규약이 '빈 앞칸을 포함한 슬롯
+        # 필드 전체'인데(2026-09-12 재측정: 2자리 밴드 폭이 3자리와 사실상
+        # 같다), slots=2 로 그리면 앞 빈칸이 없어 라벨 규약과 어긋난다
+        # (사람 지적 2026-09-13: "나한테는 라벨링할 때 빈자리 넣으라더니").
+        slots=3,
     ),
 ]
+
+
+# ── 기기 고정 레이아웃(사람 지침 2026-09-13) ──────────────────────────────
+# 하나의 디바이스는 레이아웃이 고정이다 — LCD 종횡비·밴드 기하·요소 자리를
+# 기기별로 통일하고, 랜덤은 촬영(프레이밍·광학)에만 남긴다. 값은 전부
+# device_layout_stats.py 의 실측 중앙값(device_labels + 밴드 라벨 join)이다.
+#   panel_ar 유리 w/h · band_w/h/cx/cy 밴드/유리 비(사람 밴드 라벨 기준)
+#   weight  세그먼트 굵기 3종 중 하나(초기 배정 — 아틀라스 눈검으로 조정)
+# p>=0.85 인 요소는 항상 렌더(always), 그 아래는 상태성 옵션으로 렌더마다
+# 결정된다(자리는 고정). gluneo_plus 는 밴드 라벨이 없어 전역 세로 중앙값
+# 폴백(real_baseline band portrait, n=217).
+# ── 기기 고정 레이아웃 — 실측 분포(p10, 중앙, p90) ────────────────────────
+# device_layout_stats.py --emit 산출을 그대로 붙인다(weight 만 손으로 잇는다 —
+# 실측 축이 아니라 눈검 배정이다). 숫자는 손으로 고치지 않는다.
+#
+# 2026-09-13 2차: 기기당 '한 점'(중앙값)이던 것을 세 점으로 바꿨다. 한 점으로
+# 못박으니 합성 코퍼스가 기기 수만큼의 점이 되고 검출기가 그 사이를 못 메웠다
+# — 실사진 게이트 IoU 가 0.717 -> 0.680 으로 떨어졌다(v0 vs v1, 2026-09-13).
+# 실물은 같은 기기도 촬영 각도·거리로 화면 종횡비와 밴드 비율이 흔들린다
+# (UltraMini ar p10/p90 1.627/2.463, 세로형은 대개 ±5~10%). 기기가 중심을
+# 정하고 촬영이 그 주위를 흔드는 구조로 되돌린다.
+#
+# 값은 전부 GM 쿼드 기준이다: ar = 쿼드 w/h, bw·bh·cx·cy = 쿼드 대비 비율.
+# 세로·가로를 한 번에 재므로 기기가 어느 쪽인지도 실측이 정한다 — gluneo_plus
+# 는 ar 1.161 로 가로형인데 구판은 세로 전용 측정의 폴백(0.792)을 쓰고 있었다.
+LAYOUTS = {
+    "onetouch_ultramini": dict(weight="Regular", ar=(1.627, 2.117, 2.463), bw=(0.45, 0.596, 0.849), bh=(0.721, 0.806, 0.868),
+                            cx=(0.125, 0.514, 0.578), cy=(0.499, 0.522, 0.553), n=30),
+    "wide_unknown": dict(weight="Regular", ar=(0.706, 0.797, 1.366), bw=(0.469, 0.837, 0.965), bh=(0.401, 0.446, 0.732),
+                      cx=(0.054, 0.454, 0.512), cy=(0.416, 0.445, 0.495), n=14),
+    "performa_nano": dict(weight="Regular", ar=(0.718, 0.824, 0.952), bw=(0.645, 0.746, 0.837), bh=(0.358, 0.39, 0.416),
+                       cx=(0.48, 0.497, 0.543), cy=(0.393, 0.433, 0.451), n=8),
+    "performa_silver": dict(weight="Light", ar=(0.716, 0.774, 0.793), bw=(0.841, 0.859, 0.895), bh=(0.374, 0.4, 0.438),
+                         cx=(0.493, 0.527, 0.572), cy=(0.416, 0.432, 0.452), n=8),
+    "accuchek_active": dict(weight="Regular", ar=(0.783, 0.808, 0.832), bw=(0.774, 0.85, 0.875), bh=(0.389, 0.42, 0.447),
+                         cx=(0.486, 0.495, 0.51), cy=(0.441, 0.46, 0.471), n=7),
+    "accuchek_instant": dict(weight="Bold", ar=(0.742, 0.775, 0.839), bw=(0.712, 0.814, 0.904), bh=(0.383, 0.386, 0.411),
+                          cx=(0.448, 0.524, 0.544), cy=(0.443, 0.459, 0.473), n=4),
+    "acura_plus": dict(weight="Bold", ar=(0.928, 0.941, 0.983), bw=(0.83, 0.884, 0.936), bh=(0.544, 0.585, 0.6),
+                    cx=(0.498, 0.502, 0.504), cy=(0.385, 0.394, 0.402), n=4),
+    "caresens_n_premier": dict(weight="Light", ar=(0.702, 0.76, 0.855), bw=(0.881, 0.918, 0.966), bh=(0.447, 0.473, 0.511),
+                            cx=(0.508, 0.514, 0.538), cy=(0.366, 0.384, 0.409), n=4),
+    "green_doctor": dict(weight="Regular", ar=(0.758, 0.8, 0.814), bw=(0.882, 0.919, 0.995), bh=(0.387, 0.402, 0.43),
+                      cx=(0.517, 0.548, 0.566), cy=(0.423, 0.467, 0.507), n=4),
+    "gc_ms_one": dict(weight="Regular", ar=(0.79, 0.836, 0.887), bw=(0.943, 0.989, 1.016), bh=(0.426, 0.473, 0.483),
+                   cx=(0.492, 0.508, 0.544), cy=(0.481, 0.5, 0.537), n=4),
+    "gmate": dict(weight="Regular", ar=(0.708, 0.71, 0.74), bw=(0.99, 0.995, 1.002), bh=(0.374, 0.39, 0.41),
+               cx=(0.492, 0.51, 0.531), cy=(0.386, 0.408, 0.451), n=4),
+    "onetouch_ultra": dict(weight="Light", ar=(0.926, 0.972, 1.032), bw=(0.848, 0.917, 0.966), bh=(0.408, 0.464, 0.505),
+                        cx=(0.494, 0.523, 0.549), cy=(0.382, 0.392, 0.404), n=4),
+    "gluneo_plus": dict(weight="Regular", ar=(1.111, 1.161, 1.213), bw=(0.712, 0.768, 0.859), bh=(0.402, 0.452, 0.478),
+                     cx=(0.508, 0.529, 0.544), cy=(0.356, 0.405, 0.422), n=4),
+    "dorucos_premium": dict(weight="Regular", ar=(0.822, 0.83, 0.833), bw=(0.878, 0.916, 0.924), bh=(0.451, 0.468, 0.486),
+                         cx=(0.51, 0.526, 0.528), cy=(0.395, 0.403, 0.424), n=3),
+}
+# ── 극성은 재는 것이 아니라 선언하는 것이다(사람 지시 2026-09-13) ─────────
+# 액정이 음각(반전)인지 양각인지는 기기의 성질이고 사람이 이미 안다. 사진에서
+# 달라 보이는 것은 극성이 아니라 대비이고, 대비는 별도 축으로 이미 재고 있다
+# (real_baseline.polarity.contrast, 렌더의 열화 계수).
+#
+# 측정으로 되찾으려던 시도는 실패했다 — 사람 정답 30장에 자를 채점했더니
+# 최선의 정의도 26/30 이고, 남은 오차가 하필 프로파일 기기에 몰렸다:
+# Green Doctor 3/4 반전(사진 4장 전부 정상) · ACURA PLUS 4/4 반전(3장 전부
+# 정상) · Gmate 1/4(4장 전부 정상). 자를 더 깎을 자리가 아니다.
+#
+# 근거는 각 값 옆 사진 id — 2026-09-13 에 사람이 눈으로 확인한 장들이다.
+# 프로파일 <-> 코퍼스 기기 이름. 극성 파생에 쓰던 표였는데 극성이 사람 선언으로
+# 바뀌면서 2026-09-13 에 같이 지웠다가 되살린다 — 파생용이 아니라 '이 프로파일이
+# 코퍼스의 어느 기기인가' 라는 사실 자체이고, 실측 자(device_layout_stats)가
+# 프로파일 기기만 골라 재는 데 쓴다.
+PROFILE_DEVICES = {
+    "accuchek_instant": ["ACCU-CHEK Instant"],
+    "gmate": ["Gmate"],
+    "dorucos_premium": ["도루코S Premium"],
+    "green_doctor": ["GC 녹십자 MS Green Doctor"],
+    "onetouch_ultra": ["OneTouch Ultra"],
+    "gc_ms_one": ["GC 녹십자 MS ONE"],
+    "acura_plus": ["ACURA PLUS"],
+    "caresens_n_premier": ["CareSens N Premier"],
+    "performa_silver": ["ACCU-CHEK Performa"],
+    "performa_nano": ["ACCU-CHEK Performa Nano"],
+    "accuchek_active": ["ACCU-CHEK Active"],
+    "gluneo_plus": ["GluNEO plus"],
+    # 가로형 — 프로파일은 아직 없다(2026-09-13). 실측 자가 이 이름으로
+    # 기하를 뽑을 수 있게 먼저 적어 둔다.
+    "onetouch_ultramini": ["OneTouch UltraMini"],
+    "wide_unknown": ["이름모를 가로형모델"],
+}
+
+PROFILE_INVERTED = {
+    "gmate": False,               # 842·843·731·727 검은 숫자
+    "onetouch_ultra": False,      # 1058
+    "gc_ms_one": False,           # 228
+    "acura_plus": False,          # 475·477·2357
+    "dorucos_premium": False,     # 120·694·695
+    "performa_silver": False,     # 1186 외 은색 반사식 8장
+    "green_doctor": False,        # 1759·1780·2500·648·1781
+    "accuchek_active": False,     # 1329·2502·2519·2520·2525·2601·2606
+    "gluneo_plus": False,         # 1435·1438·1449
+    "caresens_n_premier": True,   # 1911·819·1899 어두운 액정·밝은 숫자
+    "accuchek_instant": True,     # 267·270 검은 창·흰 숫자
+    "performa_nano": True,        # 1019~1086 백라이트 액정·흰 숫자
+    "onetouch_ultramini": False,  # 1588·1590·1596·1598·1602 검은 숫자
+    "wide_unknown": True,         # 1091·1094·1815 흰 숫자·어두운 액정
+}
+
+
+def lay_val(lay, key, rng):
+    """레이아웃 축 하나를 뽑는다 — (p10, 중앙, p90) 삼각분포.
+    한 렌더 안에서 축마다 한 번만 뽑아 재사용한다 — 같은 축을 두 번 뽑으면
+    밴드 폭과 위치가 서로 다른 장의 것이 섞인다."""
+    lo, mid, hi = lay[key]
+    if hi - lo < 1e-6:
+        return mid
+    return rng.triangular(lo, hi, mid)
+
+for _p in PROFILES:
+    if _p["id"] in LAYOUTS:
+        _p["layout"] = LAYOUTS[_p["id"]]
+
+
+# ── 기기 형질 / 촬영 변인의 분리(사람 지침 2026-09-13) ─────────────────────
+# 하나의 기기는 렌더마다 같아야 한다. 그런데 실측이 있는 축(유리 종횡비·밴드
+# 기하·세그먼트 굵기)만 LAYOUTS 로 고정돼 있고, 실측이 없는 축(몸체색·모서리
+# 반경·베젤 홈·칸 비율·표기 포맷·잔상)은 렌더마다 rng 에서 뽑혔다. 그래서 같은
+# 기기가 장마다 다른 물건으로 보였다.
+#
+# 해법은 '고정값을 정한다'가 아니다 — 실측이 없으니 정할 근거가 없다. 대신
+# **뽑는 시점을 기기로 옮긴다**: 기기 id 로 씨를 만들어 형질을 한 번 뽑고
+# 캐시한다. 프로세스·시드·렌더 순서와 무관하게 같은 기기는 같은 형질을 받는다
+# (crc32 는 파이썬 hash 와 달리 실행 간 안정적이다 — PYTHONHASHSEED 무관).
+#
+# 경계: 여기 있는 것은 전부 '기기가 가진 것'이다. 촬영이 바꾸는 것(프레이밍·
+# 각도·조명·대비·노이즈·반사)과 기기 상태가 바꾸는 것(mem 표기·식전후 마커·
+# 배터리·블루투스)은 여기 없다 — 그건 렌더 rng 가 계속 뽑는다.
+_IDENTITY_CACHE = {}
+
+
+def device_identity(pid):
+    """기기 고정 형질. 같은 pid 면 언제·어디서 불러도 같은 값을 돌려준다.
+    값은 0~1 분수로 준다 — 실제 범위(몸체색 50~190 등)는 소비처가 정한다."""
+    if pid in _IDENTITY_CACHE:
+        return _IDENTITY_CACHE[pid]
+    r = random.Random(zlib.crc32(("device:" + pid).encode("utf-8")))
+    t = dict(
+        body_u=r.random(),           # 몸체 플라스틱 톤(밝기 범위 안 위치)
+        panel_u=r.random(),          # 액정 바탕 톤
+        ink_u=r.random(),            # 잉크 톤(대비 열화 전)
+        corner_u=r.random() if r.random() < 0.45 else None,  # 라운드 반경(없으면 각진 몸체)
+        groove=r.random() < 0.45,    # 움푹한 베젤 홈 유무
+        groove_u=r.random(),         # 홈 깊이(있을 때)
+        glyph_in_cell=r.uniform(*GLYPH_IN_CELL_RANGE),       # 글리프 폭 / 칸 피치
+        ghost=r.uniform(0.04, 0.11) if r.random() < 0.15 else 0.0,
+        bezel_i=r.randrange(8),      # 베젤 인쇄 문자열 선택(소비처가 나머지 연산)
+        bezel_h=r.uniform(0.055, 0.085),   # 몸체 인쇄 글자 높이 / 유리 폭
+        mg_l=r.uniform(0.01, 0.07), mg_r=r.uniform(0.01, 0.07),
+        mg_t=r.uniform(0.04, 0.13), mg_b=r.uniform(0.04, 0.15),
+        time_fmt_i=r.randrange(len(DOT_FMTS)),
+        dotrow_i=r.randrange(8),
+        polarity_u=r.random(),       # mixed 기기의 극성을 한 번에 확정
+    )
+    _IDENTITY_CACHE[pid] = t
+    return t
+
+
+# 글리프 폭/칸 피치 — 육안 근거 범위(synth_panel.GLYPH_IN_CELL 과 같은 값).
+# 여기 둔 이유: 이 축은 촬영이 아니라 기기의 액정 셀 기하라서 기기 형질이다.
+GLYPH_IN_CELL_RANGE = (0.78, 0.84)
+
+# 상태성 요소 — 기기는 같아도 장마다 켜지고 꺼진다. 자리·크기·모양은 고정이고
+# 켜짐 여부만 렌더 rng 가 정한다. 근거: 메모리 표기는 회상 모드에서만(1058
+# mem), 식전후 마커는 태그가 있을 때만, 배터리·블루투스는 상태 표시다.
+# 미터기 화살표는 여기 없다 — Instant 34장 전부에 있고 값에 묶인 지시자다.
+# 배터리는 상태성이 아니다 — 기기가 가졌으면 언제나 표시한다(사람 지시
+# 2026-09-13). 실물 혈당계의 배터리 표시는 잔량계라 늘 켜져 있다.
+# 화살표는 상태성이 아니다 — 기기가 가졌으면 계속 표시한다(사람 지시
+# 2026-09-13). 나머지(mem·meal·bluetooth·mem-flag·blood-drop·smile)는 전부
+# 옵션이다: 켜 있을 수도 꺼 있을 수도 있다.
+STATEFUL_ELEMENTS = {"mem", "meal", "icon:bluetooth",
+                     "icon:mem-flag", "icon:blood-drop", "icon:smile"}
 
 
 def sample_corpus_value(rng):
@@ -284,12 +502,18 @@ def dot_text(img, x, y, text, glyph, ink):
 
 
 def _tri(img, cx, cy, s, ink, direction="right"):
-    """진행 삼각형(▶ 등) — fillPoly 자체 그림."""
+    """진행 삼각형(▶ 등) — fillPoly 자체 그림.
+    구판은 "right" 와 그 밖(=위)만 알았다. curved-right/left 아이콘이
+    "down" 을 넘기고 있었는데 위 삼각형이 그려졌다(2026-09-13 전수 검토)."""
     if direction == "right":
-        pts = np.array([[cx - s, cy - s], [cx - s, cy + s], [cx + s, cy]], np.int32)
+        pts = [[cx - s, cy - s], [cx - s, cy + s], [cx + s, cy]]
+    elif direction == "left":
+        pts = [[cx + s, cy - s], [cx + s, cy + s], [cx - s, cy]]
+    elif direction == "down":
+        pts = [[cx - s, cy - s], [cx + s, cy - s], [cx, cy + s]]
     else:  # up
-        pts = np.array([[cx, cy - s], [cx - s, cy + s], [cx + s, cy + s]], np.int32)
-    cv2.fillPoly(img, [pts], ink)
+        pts = [[cx, cy - s], [cx - s, cy + s], [cx + s, cy + s]]
+    cv2.fillPoly(img, [np.array(pts, np.int32)], ink)
 
 
 def _icon(img, kind, cx, cy, s, ink):
@@ -310,12 +534,16 @@ def _icon(img, kind, cx, cy, s, ink):
     elif kind in ("tri-right", "triangle"):
         _tri(img, cx, cy, max(3, s // 2), ink, "right")
     elif kind == "battery":
+        # 722(Gmate) 상단 우측: 얇은 외곽선 + 오른쪽 돌기 + 부분 채움(가는
+        # 세로 막대 2개). 구판의 통짜 블록 둘은 진행 막대처럼 보였다(사람
+        # blind 8/8 지적, 카드 2026-09-13 AC#4).
         cv2.rectangle(img, (cx - s, cy - s // 3), (cx + s, cy + s // 3), ink, 1)
         cv2.rectangle(img, (cx + s + 1, cy - s // 6), (cx + s + 3, cy + s // 6),
                       ink, -1)
+        bw = max(2, s // 3)
         for k in range(2):
-            x1 = cx - s + 3 + k * (2 * s - 6) // 2
-            cv2.rectangle(img, (x1, cy - s // 6), (x1 + (s - 6) // 2, cy + s // 6),
+            bx = cx - s + 3 + k * (bw + 2)
+            cv2.rectangle(img, (bx, cy - s // 3 + 3), (bx + bw, cy + s // 3 - 3),
                           ink, -1)
     elif kind == "blood-drop":
         cv2.ellipse(img, (cx, cy + s // 4), (s // 3, s // 3), 0, 0, 360, ink, 1)
@@ -337,285 +565,18 @@ def _icon(img, kind, cx, cy, s, ink):
         cv2.ellipse(img, (cx, cy + s // 10), (s // 3, s // 5), 0, 20, 160, ink, 1)
 
 
-def render_profiled(value, rng, profile, size=(320, 160)):
-    """프로파일 렌더. 라벨은 언제나 str(value) — 다른 요소는 라벨에 없다."""
-    W, H = size
-    label = str(value)
-    panel = int(rng.uniform(150, 215))
-    img = np.full((H, W), panel, dtype=np.uint8)
-    polarity = rng.random() < 0.5
-    if polarity:
-        panel = int(rng.uniform(35, 95))
-        ink_digit = int(rng.uniform(185, 245))
-        ink_small = int(rng.uniform(150, 210))
-    else:
-        panel = int(rng.uniform(150, 215))
-        ink_digit = int(rng.uniform(20, 90))
-        ink_small = int(rng.uniform(60, 130))
-    bez = int(rng.uniform(2, 8))
-    cv2.rectangle(img, (0, 0), (W - 1, H - 1), int(rng.uniform(40, 90)),
-                  thickness=bez)
-
-    # 숫자 필드: slots 칸 전체(값이 아니라 칸 — 밴드 정의 2026-09-11 과 동일).
-    # 앞쪽 빈 칸은 꺼진 슬롯으로 남는다. slots 에 튜플을 허용한다 — 카드
-    # 「프로파일 확장」 AC#3: 칸 수가 3으로 고정되지 않게(익명 풀 등).
-    slots_spec = profile.get("slots") or len(label)
-    slots = rng.choice(list(slots_spec)) if isinstance(slots_spec, (tuple,
-                                                                    list)) \
-        else slots_spec
-    slots = max(slots, len(label))
-    dh = int(H * rng.uniform(*profile["digit_h"]))
-    dw = int(dh * 0.58)
-    pitch = dw + int(dw * 0.25)
-    field_w = slots * dw + int(dw * 0.25) * (slots - 1)
-    align = profile.get("align", "right")
-    if align == "right":
-        x0 = W - int(W * rng.uniform(0.04, 0.12)) - field_w
-    elif align == "left":
-        x0 = int(W * rng.uniform(0.06, 0.16))
-    else:
-        x0 = (W - field_w) // 2
-    y0 = int(H * rng.uniform(0.18, 0.34))
-    lead = slots - len(label)
-    if USE_DSEG:
-        # DSEG 팔 — 굵기·이탤릭은 표본마다 한 번 뽑고 화면 내내 일정(AC#2).
-        # 잔상: 15% 표본에서만, 농도는 0.08~0.20 흔들림(2026-09-11 정정 —
-        # 실물 잔상은 '생각보다 훨씬 약하다', 없음이 기본).
-        variant = _pick_variant(rng, bool(profile.get("italic")))
-        ghost = rng.uniform(0.08, 0.20) if rng.random() < 0.15 else 0.0
-        for s in range(slots):
-            if s < lead:
-                continue
-            draw_digit_dseg(img, x0 + s * pitch, y0, dh, label[s - lead],
-                            ink_digit, variant, ghost)
-        # 이탤릭은 폰트 변형이 담당 — 패널을 기울이는 전역 shear 는 쓰지
-        # 않는다(광학 카드의 지적 그대로).
-    else:
-        for s in range(slots):
-            if s < lead:
-                continue
-            draw_digit(img, x0 + s * pitch, y0, dw, dh, label[s - lead], ink_digit)
-        if profile.get("italic"):   # rect 팔 — 기존 동작 재현
-            sh = rng.uniform(0.18, 0.30)
-            img = cv2.warpAffine(img, np.float32([[1, sh, -sh * H / 2], [0, 1, 0]]),
-                                 (W, H), borderMode=cv2.BORDER_REPLICATE)
-    last_r = x0 + field_w
-
-    if profile.get("glulabel", {}).get("p", 0) > rng.random():
-        gh = max(8, int(dh * 0.2))
-        cv2.putText(img, "GLU", (x0 + int(field_w * rng.uniform(0.0, 0.3)),
-                                 max(12, y0 - int(H * rng.uniform(0.04, 0.10)))),
-                    cv2.FONT_HERSHEY_SIMPLEX, gh / 26.0, ink_small, 1, cv2.LINE_AA)
-
-    # 단위 — 표기 변형을 섞는다(하나로 몰지 않는다, 카드 Notes).
-    u = profile.get("unit")
-    unit_right = last_r + int(dw * 0.3)
-    if u and rng.random() < u["p"]:
-        ut = u["texts"][rng.randrange(len(u["texts"]))]
-        uh = max(7, int(dh * rng.uniform(*u["h_ratio"])))
-        gap = int(rng.uniform(*u["gap"]))
-        pos = u["pos"]
-        if pos == "right-baseline":
-            ux, uy = last_r + gap, y0 + dh - uh
-        elif pos == "right-mid":
-            ux, uy = last_r + gap, y0 + (dh - uh) // 2
-        elif pos == "left-mid":
-            ux = max(2, x0 - gap - int(uh * 2.4))
-            uy = y0 + (dh - uh) // 2
-        elif pos == "above-right":
-            ux, uy = last_r - int(uh * 2.2), max(9, y0 - int(H * rng.uniform(0.05, 0.12)))
-        else:  # below
-            ux, uy = int(W * rng.uniform(0.5, 0.62)), y0 + dh + int(H * 0.05)
-        cv2.putText(img, ut, (ux, uy + uh), cv2.FONT_HERSHEY_SIMPLEX,
-                    uh / 26.0, ink_small, 1, cv2.LINE_AA)
-        unit_right = ux + int(uh * 2.6)
-
-    # 식전·식후 마커. 실물 관례 표기(AC/PC) — 이 40장 표본에서 관찰은 0건이고
-    # AC#5 요건으로 렌더한다(보고서에 관찰 0건 명시).
-    meal = profile.get("meal")
-    if meal and rng.random() < meal["p"]:
-        mh = max(7, int(dh * 0.16))
-        cv2.putText(img, meal["texts"][rng.randrange(2)],
-                    (min(W - 20, unit_right + 4), y0 + dh - mh),
-                    cv2.FONT_HERSHEY_SIMPLEX, mh / 26.0, ink_small, 1, cv2.LINE_AA)
-
-    m = profile.get("mem")
-    if m and rng.random() < m["p"]:
-        mh = max(8, int(dh * 0.22))
-        if m["pos"] == "top-left":
-            mx, my = int(W * 0.06), int(H * 0.14)
-        elif m["pos"] == "top-right":
-            mx, my = int(W * 0.72), int(H * 0.14)
-        elif m["pos"] == "below-left":
-            mx, my = int(W * 0.08), y0 + dh + int(H * 0.08)
-        else:  # right-of-digits
-            mx, my = last_r + int(dw * 0.4), y0 + (dh - mh) // 2 + mh
-        if m["kind"] == "M-box":
-            cv2.rectangle(img, (mx - 2, my - mh - 2), (mx + mh + 2, my + 2),
-                          ink_small, 1)
-        cv2.putText(img, m["kind"][:3] if m["kind"] != "M-box" else "M",
-                    (mx, my), cv2.FONT_HERSHEY_SIMPLEX, mh / 24.0,
-                    ink_small, 1, cv2.LINE_AA)
-
-    a = profile.get("arrow")
-    if a and rng.random() < a["p"]:
-        s = int(rng.uniform(*a["size"]))
-        gap = int(rng.uniform(*a["gap"]))
-        kind = a["kinds"][rng.randrange(len(a["kinds"]))]
-        if a.get("pos") == "below-left":
-            # 숫자 아래 왼쪽 — GluNEO plus 하단 화살표(1435 등 4장 관찰)
-            ax = int(W * rng.uniform(0.06, 0.14))
-            ay = y0 + dh + int(H * rng.uniform(0.05, 0.09))
-        else:
-            ax = min(W - s, last_r + gap)
-            ay = y0 + int(dh * rng.uniform(0.15, 0.55))
-        _icon(img, kind, ax, ay, s, ink_small)
-
-    for kind, pos, p in profile.get("icons", []):
-        if rng.random() > p:
-            continue
-        s = max(8, int(dh * rng.uniform(0.28, 0.4)))
-        if pos == "top-right":
-            cx, cy = W - int(W * rng.uniform(0.06, 0.12)), int(H * rng.uniform(0.08, 0.16))
-        elif pos == "top-left":
-            cx, cy = int(W * rng.uniform(0.05, 0.10)), int(H * rng.uniform(0.08, 0.16))
-        else:  # right-mid — 숫자 밴드 오른쪽(혈액방울 실측 285~315,60~90)
-            cx, cy = W - int(W * rng.uniform(0.04, 0.10)), y0 + int(dh * rng.uniform(0.3, 0.6))
-        _icon(img, kind, cx, cy, s, ink_small)
-
-    da = profile.get("dotrow_above")
-    if da and rng.random() < da["p"]:
-        g = int(rng.uniform(*da["glyph"]))
-        dot_text(img, int(W * rng.uniform(0.05, 0.30)), int(H * rng.uniform(0.06, 0.14)),
-                 da["texts"][rng.randrange(len(da["texts"]))], g, ink_small)
-    db = profile.get("dotrow_below")
-    if db and rng.random() < db["p"]:
-        g = int(rng.uniform(*db["glyph"]))
-        fmt = db["fmts"][rng.randrange(len(db["fmts"]))]
-        txt = fmt.format(h02=f"{rng.randint(0, 12):02d}", m02=f"{rng.randint(0, 59):02d}",
-                         M=f"{rng.randint(1, 12)}", M02=f"{rng.randint(1, 12):02d}",
-                         d=f"{rng.randint(1, 31)}", d02=f"{rng.randint(1, 31):02d}",
-                         am=random.choice(["am", "pm"]), AM=random.choice(["AM", "PM"]))
-        dot_text(img, int(W * rng.uniform(0.05, 0.35)),
-                 y0 + dh + int(H * rng.uniform(0.05, 0.10)), txt, g, ink_small)
-
-    t = profile.get("time")
-    if t and rng.random() < t["p"]:
-        th = int(dh * rng.uniform(0.28, 0.42))
-        ty = y0 + dh + int(H * rng.uniform(0.04, 0.08))
-        hh = f"{rng.randint(0, 23):02d}:{rng.randint(0, 59):02d}"
-        if t["pos"] == "below-right":
-            tx = int(W * rng.uniform(0.5, 0.65))
-        elif t["pos"] == "top-left":
-            # 숫자 위 왼쪽 — ACCU-CHEK Active 상단 시간줄(1329·2519 관찰)
-            tx = int(W * rng.uniform(0.06, 0.15))
-            ty = max(th, y0 - int(H * rng.uniform(0.10, 0.16)))
-        elif t["pos"] == "top-right":
-            tx = int(W * rng.uniform(0.68, 0.80))
-            ty = max(th, y0 - int(H * rng.uniform(0.10, 0.16)))
-        elif t["pos"] == "below-right":
-            pass
-        else:
-            tx = int(W * rng.uniform(0.06, 0.30))
-        put_7seg_text(img, tx, ty, int(W * 0.3), th, hh, ink_small)
-
-    if profile.get("avgrow", {}).get("p", 0) > rng.random():
-        ah = int(dh * rng.uniform(0.24, 0.34))
-        ay2 = y0 + dh + int(H * rng.uniform(0.05, 0.09))
-        cv2.putText(img, f"{rng.randint(1, 30):02d} DAY AVG",
-                    (int(W * rng.uniform(0.08, 0.20)), ay2 + ah),
-                    cv2.FONT_HERSHEY_SIMPLEX, ah / 26.0, ink_small, 1, cv2.LINE_AA)
-        put_7seg_text(img, int(W * rng.uniform(0.45, 0.60)), ay2, int(W * 0.2), ah,
-                      f"{rng.randint(1, 999):03d}", ink_small)
-
-    if profile.get("daterow", {}).get("p", 0) > rng.random():
-        rh = max(7, int(dh * 0.18))
-        ry = y0 + dh + int(H * rng.uniform(0.08, 0.13))
-        cv2.putText(img, f"{rng.randint(1, 12)}-{rng.randint(1, 31)}  #{rng.randint(1, 9)}",
-                    (int(W * rng.uniform(0.06, 0.25)), ry),
-                    cv2.FONT_HERSHEY_SIMPLEX, rh / 24.0, ink_small, 1, cv2.LINE_AA)
-
-    b = profile.get("bezel")
-    if b and rng.random() < b["p"]:
-        face = [cv2.FONT_HERSHEY_SIMPLEX, cv2.FONT_HERSHEY_TRIPLEX,
-                cv2.FONT_HERSHEY_COMPLEX][rng.randrange(3)]
-        text = b["texts"][rng.randrange(len(b["texts"]))]
-        if b["edge"] == "top":
-            bx, by = int(W * rng.uniform(0.25, 0.6)), int(H * 0.10)
-        else:
-            bx, by = int(W * rng.uniform(0.2, 0.55)), H - 6
-        cv2.putText(img, text, (bx, by), face, 0.42, ink_small, 1, cv2.LINE_AA)
-    if profile.get("buttons"):
-        for bxx in (int(W * 0.2), int(W * 0.78)):
-            _tri(img, bxx, H - 8, 5, ink_small, "up")
-
-    # 광학·노이즈·기하 계층 — 레거시와 같은 배치·같은 확률(변인 통제).
-    img = np.clip(img.astype(np.float32)
-                  + np.random.normal(0, rng.uniform(2, 9), img.shape),
-                  0, 255).astype(np.uint8)
-    if rng.random() < 0.4:
-        img = cv2.GaussianBlur(img, (3, 3), rng.uniform(0.3, 1.0))
-    if rng.random() < 0.3:
-        img = cv2.GaussianBlur(img, (5, 5), rng.uniform(0.5, 1.2))
-    a_, b_ = rng.uniform(0.75, 1.25), rng.uniform(-25, 25)
-    img = np.clip(img.astype(np.float32) * a_ + b_, 0, 255).astype(np.uint8)
-    for _ in range(rng.randint(0, 2)):
-        ex, ey = rng.randint(0, W - 1), rng.randint(0, H - 1)
-        ax_, ay_ = rng.randint(W // 12, W // 5), rng.randint(H // 12, H // 5)
-        glare = int(min(255, panel + rng.uniform(50, 100)))
-        msk = np.zeros((H, W), np.float32)
-        cv2.ellipse(msk, (ex, ey), (ax_, ay_), rng.uniform(0, 180), 0, 360, 1, -1)
-        msk *= rng.uniform(0.15, 0.3)
-        img = np.clip(img.astype(np.float32) * (1 - msk) + glare * msk,
-                      0, 255).astype(np.uint8)
-    yy, xx = np.mgrid[0:H, 0:W]
-    d2 = ((xx - W / 2) / (W / 2)) ** 2 + ((yy - H / 2) / (H / 2)) ** 2
-    img = np.clip(img.astype(np.float32) * (1.0 - rng.uniform(0.08, 0.22) * d2),
-                  0, 255).astype(np.uint8)
-    if rng.random() < 0.35:
-        img = add_local_shadow(img, rng)
-    if rng.random() < 0.30:
-        img = add_reflection_stripe(img, rng)
-    if rng.random() < 0.15:   # 프로파일은 자릿수 이탤릭을 별도 처리하므로 전역
-        img = apply_shear(img, rng)   # shear 확률을 0.20 -> 0.15 로 낮춘다
-    if rng.random() < 0.25:
-        img = apply_keystone(img, rng)
-    if rng.random() < 0.7:
-        M2 = cv2.getRotationMatrix2D((W / 2, H / 2), rng.uniform(-1.5, 1.5), 1.0)
-        img = cv2.warpAffine(img, M2, (W, H), borderValue=int(rng.uniform(30, 80)))
-    return img, label
-
-
-def render_any(value, rng, size=(320, 160), profile=None):
-    """프로파일 지정 렌더. None 이면 PROFILES 에서 균등 추출."""
-    if profile is None:
-        profile = PROFILES[rng.randrange(len(PROFILES))]
-    if profile.get("legacy"):
-        return render_screen(value, rng, size)
-    return render_profiled(value, rng, profile, size)
-
-
-def generate_profiled(count, seed0, out_dir, size=(320, 160)):
-    """균등 프로파일(레거시 generic_v1 포함). 산출 형식은 synth_lcd.generate 와
-    동일(images/*.png + labels_{seed}.json) — build_cache_v2 가 그대로 흡수한다."""
-    rng = random.Random(seed0)
-    out = Path(out_dir)
-    (out / "images").mkdir(parents=True, exist_ok=True)
-    labels = {}
-    for i in range(count):
-        val = sample_corpus_value(rng)
-        img, label = render_any(val, rng, size)
-        name = f"synth_{seed0}_{i}"
-        cv2.imwrite(str(out / "images" / f"{name}.png"), img)
-        labels[name] = label
-    (out / f"labels_{seed0}.json").write_text(
-        json.dumps(labels, ensure_ascii=False, indent=0), encoding="utf-8")
-    print(f"generated {count} profiled -> {out}")
-
-
-if __name__ == "__main__":
-    import sys
-    count = int(sys.argv[1]) if len(sys.argv) > 1 else 3000
-    seed = int(sys.argv[2]) if len(sys.argv) > 2 else 19000
-    out = sys.argv[3] if len(sys.argv) > 3 else "synth_screens_profiled"
-    generate_profiled(count, seed, out)
+# ── 은퇴한 320x160 렌더러(2026-09-13) ────────────────────────────────────
+# render_profiled / render_any / generate_profiled 를 여기서 지웠다.
+#
+# 리더의 합성 팔이 이 함수들을 썼고, 검출기의 합성 팔은 synth_panel 을 썼다.
+# 두 렌더러가 같은 축에서 서로 다른 답을 들고 있었다 — 극성(여기: rng<0.5
+# 동전던지기 / 저기: 사람 선언), 글리프 폭 비율(0.58·dh / 0.78~0.84·피치),
+# 단위 자리(숫자 옆 / 숫자 아래), 기기 개념(없음 / 12종 형질 고정).
+# 리더를 다시 구우면 두 모델이 서로 다른 세계를 배우게 돼 있었다.
+#
+# 이제 리더도 synth_panel 을 본다(build_profiled_cache -> render_panel ->
+# reader_view). 프레이밍도 실사진 팔과 같은 함수를 통과한다
+# (build_cache_v2.framed_src_rect, BOX_MARGIN 10%).
+#
+# 되살릴 일이 있으면 git 에서 꺼낸다 — 커밋 메시지에 이 사정이 적혀 있다.
+# draw_digit_dseg 와 USE_DSEG 도 이 경로 전용이라 함께 나갔다.

@@ -85,6 +85,48 @@ def band_crop_box(x0, y0, x1, y1, cid, rotated_ids):
     return x0, y0, x1, y0 + BAND_CROP_BOTTOM * h0
 
 
+# ── 리더 프레이밍 — 학습 캐시·평가·합성이 같은 자를 쓴다 ──────────────────
+# 2026-09-13 에 eval_reader 에서 옮겨 왔다. 여기가 BOX_MARGIN 의 집이고,
+# reader_onnx_spec.md 가 모바일에 요구하는 전처리 체인도 이 함수의 규약이다.
+# 옮긴 이유: 합성 렌더러(synth_panel.reader_view)가 같은 프레이밍을 써야 하는데
+# eval_reader 를 import 하면 tensorflow 가 딸려 온다.
+def framed_src_rect(gray, quad, cid=None, bandcrop=False, rotated_ids=None):
+    """GM 쿼드의 축정렬 박스를 BOX_MARGIN 만큼 넓힌 크롭 사각형(TL,TR,BR,BL).
+
+    프레이밍 규약은 학습 캐시와 **같아야 한다** — 정본은 build_cache_v2.BOX_MARGIN.
+    (왼, 오른, 위, 아래) 변마다 여유가 다르다. 기준 폭·높이는 **원본 박스** 것을
+    쓴다 — 좌측 여유로 x0 이 움직인 뒤의 폭을 쓰면 오른쪽 여유가 좌측 값에
+    영향을 받는다(순서 의존). 이미지 경계로 클램프한다.
+
+    bandcrop=True 면 마진 **전에** G30 세로형 크롭을 먼저 적용한다(build_cache_v2
+    와 같은 순서·같은 함수). 기본(False)이면 크롭 없이 종래 프레이밍 그대로다.
+    """
+    q = np.array(quad, dtype=np.float32)
+    xs, ys = q[:, 0], q[:, 1]
+    bx0, by0 = float(xs.min()), float(ys.min())
+    bx1, by1 = float(xs.max()), float(ys.max())
+    if bandcrop:
+        bx0, by0, bx1, by1 = band_crop_box(
+            bx0, by0, bx1, by1, cid, rotated_ids or frozenset())
+    w0, h0 = bx1 - bx0, by1 - by0
+    ml, mr, mt, mb = BOX_MARGIN
+    bx0, by0 = max(0.0, bx0 - w0 * ml), max(0.0, by0 - h0 * mt)
+    bx1 = min(float(gray.shape[1] - 1), bx1 + w0 * mr)
+    by1 = min(float(gray.shape[0] - 1), by1 + h0 * mb)
+    return np.array(
+        [[bx0, by0], [bx1, by0], [bx1, by1], [bx0, by1]], dtype=np.float32)
+
+
+def frame_crop(gray, quad, cid=None, bandcrop=False, rotated_ids=None):
+    """load_gray 결과 + GM 쿼드 → 리더 입력(320x160) 워프."""
+    src = framed_src_rect(gray, quad, cid, bandcrop, rotated_ids)
+    dst = np.array(
+        [[0, 0], [IN_W - 1, 0], [IN_W - 1, IN_H - 1], [0, IN_H - 1]],
+        dtype=np.float32)
+    return cv2.warpPerspective(
+        gray, cv2.getPerspectiveTransform(src, dst), (IN_W, IN_H))
+
+
 def encode_label(s: str):
     ids = [int(ch) for ch in s]
     padded = ids + [BLANK] * (MAX_LABEL - len(ids))

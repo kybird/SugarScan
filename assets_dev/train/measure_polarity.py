@@ -53,7 +53,19 @@ def polarity_of(crop, band_frac):
     if x1 - x0 < 8 or y1 - y0 < 8:
         return None
     band = crop[y0:y1, x0:x1]
-    bg = float(np.median(crop.astype(np.float32)))
+    # 배경은 '밴드 히스토그램의 봉우리'다(2026-09-13 교체). 구판은 GM 크롭
+    # 전체의 중앙값을 썼는데, 크롭에 어두운 베젤·몸체가 섞이면 중앙값이 그쪽
+    # 으로 끌려가 밝은 꼬리가 '항상' 더 멀어졌다 — 어두운 테두리를 가진 기기가
+    # 통째로 반전으로 찍혔다. 사람 정답 30장 채점(score_polarity_defs.py):
+    #   crop(구판) 19/30 — 정상 25장 중 11장을 반전으로 셌다
+    #   mode(이것) 26/30 — 반전 놓침 0, 정상 오검 4
+    # 근거: 7-세그 밴드는 면적의 대부분이 바탕이라 봉우리가 곧 바탕이다.
+    # 중앙값은 큰 숫자가 밴드를 채우면 잉크 쪽으로 끌려간다(정답 07번).
+    # 남은 오차는 전부 저대비 패널이고 후보 셋(mode·밴드중앙·소수파)이 30장
+    # 으로는 안 갈렸다 — 표본이 늘면 다시 채점한다.
+    hist = np.bincount(band.astype(np.uint8).ravel(), minlength=256)
+    bg = float(np.argmax(np.convolve(hist.astype(np.float64),
+                                     np.ones(9) / 9.0, "same")))
     p5, p95 = (float(np.percentile(band.astype(np.float32), q)) for q in (5, 95))
     inverted = abs(p95 - bg) > abs(p5 - bg)
     return inverted, abs(p95 - p5)
