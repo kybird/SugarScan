@@ -75,7 +75,7 @@ def main():
                    glyph_plane_check=s["glyph_plane_check"],
                    text_heights=s["text_heights"],
                    density=round(float(s["density"]), 5),
-                   target_density=s["target_density"], margin=m,
+                   margin=m,
                    bezel=s["bezel"], dropped=s["dropped"],
                    rects=[[round(float(v), 1) for v in r[:4]] + [r[4]]
                           for r in s["rects"]])

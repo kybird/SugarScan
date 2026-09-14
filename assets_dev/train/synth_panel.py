@@ -88,8 +88,15 @@ ASPECT_BINS = [
     ((2.3, 2.4), 3 * 2), ((2.4, 2.5), 4 * 2), ((2.6, 2.7), 1 * 2),
     ((2.8, 2.9), 1 * 2),
 ]
-_BINS = [b for b, _ in ASPECT_BINS]
-_WEIGHTS = np.asarray([n for _, n in ASPECT_BINS], np.float64)
+# 가로형은 학습에서 제외한다(사람 지시 2026-09-13). 회전 보정 경로가 없고
+# (band_rotation.jsonl 의 사람 노트와 같은 사유), 가로형 프로파일을 넣어도
+# 검출기 성적이 안 움직였다(v2: UltraMini 0.554 — 구판 0.548·0.591 과 동급).
+# 익명 풀의 종횡비 히스토그램도 세로 구간만 남긴다.
+EXCLUDE_WIDE = True
+
+_AB = [(b, n) for b, n in ASPECT_BINS if not (EXCLUDE_WIDE and b[1] > 1.0)]
+_BINS = [b for b, _ in _AB]
+_WEIGHTS = np.asarray([n for _, n in _AB], np.float64)
 
 # 밴드 기하 — 정본 real_baseline.json 의 p10~p90(n=264 재측정: 세로 217·가로 47,
 # make_real_baseline.py). 값은 정본에서 읽는다 — 여기 베끼면 기준선이 다시 갈라진다.
@@ -158,6 +165,11 @@ _BEZEL_FONTS = [cv2.FONT_HERSHEY_SIMPLEX, cv2.FONT_HERSHEY_TRIPLEX,
 # 라벨이다. 근거 사진 id 는 PROFILE_INVERTED 옆에 있다.
 PANEL_ATTRS = {pid: dict(inverted=inv)
                for pid, inv in PROFILE_INVERTED.items()}
+
+# 학습 코퍼스가 쓰는 프로파일 — 가로형(칼럼/행 가족)은 뺀다. 프로파일 정의는
+# 지우지 않는다: 기기 지식이고, 가로형을 다시 넣을 때 근거가 거기 있다.
+TRAIN_PROFILES = [p for p in PROFILES
+                  if not (EXCLUDE_WIDE and p.get("family") in ("column", "row"))]
 # generic_v1(기기 미상 잔여 품)은 기기 속성이 없어 기기 일관성 제약도 없다 —
 # 렌더마다 실측 코퍼스 반전률로 뽑는다.
 GENERIC_INVERTED_P = REAL_BASELINE["polarity"]["inverted_pct"] / 100.0
@@ -352,7 +364,7 @@ def render_panel(value, rng, profile=None):
     밀도는 광학 뒤에 재서 목표에 못 미치면 부족분을 올려 최대 3회 재렌더한다 —
     계수 추측으로 맞추지 않는다(1판의 교훈)."""
     if profile is None:
-        profile = PROFILES[rng.randrange(len(PROFILES))]
+        profile = TRAIN_PROFILES[rng.randrange(len(TRAIN_PROFILES))]
     pid = profile.get("id", "generic_v1")
     if profile.get("legacy"):
         profile = dict(id="generic_v1", slots=(2, 3), align="right",
@@ -367,31 +379,17 @@ def render_panel(value, rng, profile=None):
         inverted = rng.random() < GENERIC_INVERTED_P
     else:
         inverted = bool(PANEL_ATTRS.get(pid, {}).get("inverted", False))
-    target = REAL_DENSITY[rng.randrange(len(REAL_DENSITY))]
-    fill = target
-    best = None
-    if profile.get("layout") is not None:
-        # 기기 고정 레이아웃은 채움 필러가 없다 — 밀도 재시도(최대 3회 중
-        # 최고 밀도 선택)가 의미가 없어 1회 렌더로 끝낸다.
-        s = _render_once(value, rng, profile, pid, inverted, fill)
-        s["target_density"] = round(target, 5)
-        return s
-    # 주의 — 이 루프는 rng 소비 횟수를 '데이터'(측정된 밀도)로 가른다.
-    # 1e-5 의 부동소수 흔들림 하나가 재렌더 횟수를 바꾸고, 그 뒤 모든 패널이
-    # 어긋난다. 지금은 광학 노이즈까지 rng 파생이라 결정적이지만, 렌더 안에서
-    # 전역 난수(random.*, np.random.*)나 시간·파일순서 같은 외부 상태를 한 번만
-    # 건드리면 이 구조 때문에 그 뒤 코퍼스 전체가 갈라진다. 새 난수원을 들일
-    # 때는 반드시 rng 에서 파생시켜라(카드 「합성 생성이 같은 시드에서 같은
-    # 코퍼스를 내게 한다」 AC#2, 2026-09-13).
-    for _ in range(3):
-        s = _render_once(value, rng, profile, pid, inverted, fill)
-        if best is None or s["density"] > best["density"]:
-            best = s
-        if best["density"] >= fill:
-            break
-        fill = fill + (target - best["density"])   # 광학 감쇠분을 보탠다
-    best["target_density"] = round(target, 5)
-    return best
+    # 밀도를 합성의 '목표'로 쓰지 않는다(사람 지시 2026-09-13).
+    # 실사진의 엣지 밀도는 화면 내용이 아니라 조도·광원·그림자에 크게 좌우된다
+    # — 그 값을 합성에 대입하면 렌더러가 조명 때문에 생긴 숫자를 '내용'으로
+    # 맞추려 들고, 근거 없는 요소를 채워 넣게 된다. 실제로 그랬다: 밀도가
+    # 목표에 못 미치면 최대 3회 다시 그려 가장 밀도 높은 장을 골랐고(여백
+    # 분포가 두꺼운 몸체 쪽으로 기울었다), 모자라면 도트줄·mem·아이콘을 48회
+    # 시도로 채워 넣었다.
+    #
+    # 렌더는 이제 1회다. 화면에 무엇이 있는지는 기기가 정하고, 밀도는 그
+    # 결과를 재서 보고만 한다(manifest.density).
+    return _render_once(value, rng, profile, pid, inverted)
 
 
 def _gpc_bg_contrast(img, quad, glass_rect):
@@ -434,7 +432,7 @@ def glyph_plane_score(img, quad, glyph_warped, glass_rect, ink_thr=None):
     return float((ink & sel).sum()) / max(1, sel.sum())
 
 
-def _render_once(value, rng, profile, pid, inverted, fill_target):
+def _render_once(value, rng, profile, pid, inverted):
     label = str(value)
     assert label.isdigit(), f"라벨 오염: {label!r}"
 
@@ -1414,111 +1412,11 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
                       heights=text_heights, thick=aux_t, slant=aux_slant)
             used_texts.add(txt)
 
-    # ── 밀도 채움 — 실관찰 요소만(인쇄 라벨·도트 시간줄·아이콘), Placer 검사.
-    #    목표는 실사진 84장 분포에서 재표본한 값. 자는 measure_panel_stats 와
-    #    동일(AC#4).
-    # 채움 문자열은 근거가 있는 자리에서만 쓴다(2026-09-12 정정). GLU 는 위쪽
-    # 전용 배치 경로가 따로 있고(green_doctor·gc_ms_one 근거), OK/CHECK STRIP 은
-    # 도루코 도트줄(120·694·695)에서만 관찰된 문자열이다. 아무 데나 뿌리면
-    # 실물에 없는 배치를 가르친다 — 1판에서 GLU 가 우하단에 떠다녔다.
-    # 실사진에서 자유롭게 떠다니는 짧은 라벨은 메모리 표기 계열뿐이다. 밀도는
-    # 도트 시간/날짜줄과 아이콘이 채워야 한다 — 텍스트로 채우면 같은 단어가
-    # 거의 매 장에 붙는다(2026-09-12 1차 수정의 부작용: mem 이 12장 중 11장).
-    # 도트 시간/날짜줄은 실사진에서 보통 한 줄, 많아야 두 줄이다. 밀도를
-    # 도트줄로 채우게 바꾸니 한 화면에 서너 개가 붙었다(2026-09-12 부작용).
-    # 도트줄 총량 제한(2026-09-12 부작용 방지)은 '프로파일 행 + 채움 필러'를
-    # 합쳐 센다 — 구판 카운터는 자기 필러만 세어 time/daterow 가 이미 있는
-    # 패널에 필러를 더 붙여 한 화면에 세 줄이 나왔다(몽타주 눈검 지적,
-    # 2026-09-12 칼럼 카드). 실사진은 보통 한 줄, 많아야 두 줄.
-    if lay is not None:
-        # 밀도 채움은 참고용으로만 사용(사람 지침 2026-09-13) — 기기 고정
-        # 레이아웃과 정면 충돌하는 무작위 배치 필러를 끈다. 밀도는 렌더 뒤
-        # 측정값(manifest density)으로 보고만 한다.
-        dot_rows = 99
-        filler_pool = []
-    else:
-        dot_rows = sum(1 for _a, _b, _c, _d, nm in placer.rects
-                       if nm in ("time", "daterow", "avgrow",
-                                 "dotrow_above", "dotrow_below"))
-        filler_pool = ["mem", "memory"]
-    # 'OK'·'CHECK STRIP' 은 근거 사진 120·694·695 어디에도 없다(2026-09-13
-    # 눈검). dotrow_above 를 철회하면서 필러 쪽에 남아 있던 것도 뺀다.
-    for attempt in range(0 if lay is not None else 48):
-        if attempt % 3 == 0 or attempt == 47:
-            d = _density_outside(img, quad)
-            if d is not None and d >= fill_target:
-                break
-        kind = rng.random()
-        if kind < 0.62 and dot_rows < 2:
-            text = _dot_time_text(rng, ident["time_fmt_i"] if ident else None)
-            if _dotp:
-                # 도트 패널 기기만 도트 양자화(AC#1) — 필러 양자는 aux_h 에서
-                # 파생한다(재조준 2026-09-12 의 정밀도 의도는 유지: 도트 판의
-                # 글리프 0.09~0.14dh 대신 (aux_h-4)//2 로 귀결).
-                glyph = max(4, (aux_h - 4) // 2)
-                wpx = max(16, int(len(text) * glyph * 1.2))
-                hpx = glyph * 2 + 4
-            else:
-                glyph = None
-                wpx = max(16, seg_text_width(text, aux_h, aux_slant))
-                hpx = aux_h
-            draw = ("row", text, glyph)
-        elif kind < 0.70:   # 텍스트 채움은 드물게 — 후보가 적어 반복이 티난다
-            fresh = [t for t in filler_pool if t not in used_texts]
-            if not fresh:
-                continue
-            text = fresh[rng.randrange(len(fresh))]
-            wpx = seg_text_width(text, aux_h, aux_slant)
-            hpx = aux_h
-            draw = ("text", text, None)
-        else:
-            icon = LCD_ICONS[rng.randrange(len(LCD_ICONS))]
-            s = max(8, int(dh * (0.24 if lay is not None
-                             else rng.uniform(0.18, 0.30))))
-            wpx = hpx = 2 * s
-            draw = ("icon", icon, s)
-        # 남은 영역: 밴드 위/아래(세로 패널은 넉넉히), 밴드 좌/우(가로 패널)
-        regions = []
-        top_h = band_top - 4 - (py0 + 4) - hpx
-        bot_h = (py1 - 4) - band_bot - hpx
-        left_w = band_l - (px0 + 4) - wpx
-        right_w = (px1 - 4) - band_r - wpx
-        if top_h > 4:
-            regions.append(((px1 - px0) * top_h, px0 + 4, px1 - 4 - wpx,
-                            py0 + 4, band_top - 4 - hpx))
-        if bot_h > 4:
-            regions.append(((px1 - px0) * bot_h, px0 + 4, px1 - 4 - wpx,
-                            band_bot + 4, py1 - 4 - hpx))
-        if left_w > 4:
-            regions.append((left_w * max(dh, 40), px0 + 4, band_l - 4 - wpx,
-                            y0, y0 + max(4, dh - hpx)))
-        if right_w > 4:
-            regions.append((right_w * max(dh, 40), band_r + 4,
-                            px1 - 4 - wpx, y0, y0 + max(4, dh - hpx)))
-        if not regions:
-            continue
-        _, x_lo, x_hi, y_lo, y_hi = regions[rng.randrange(len(regions))]
-        px = int(rng.uniform(x_lo, max(x_lo, x_hi)))
-        py = int(rng.uniform(y_lo, max(y_lo, y_hi)))
-        if placer.try_place(px, py, wpx, hpx, f"filler{attempt}"):
-            r = placer.rects[-1]
-            if draw[0] == "row":
-                if draw[2] is not None:
-                    dot_text(img, r[0], r[1], draw[1], draw[2], ink_small)
-                else:
-                    _lcd_text(img, r[0], r[1], draw[1], aux_h, ink_small,
-                              "filler", heights=text_heights, thick=aux_t, slant=aux_slant)
-                used_texts.add(draw[1])
-                dot_rows += 1
-            elif draw[0] == "text":
-                _lcd_text(img, r[0], r[1], draw[1], aux_h, ink_small,
-                          "filler", heights=text_heights, thick=aux_t, slant=aux_slant)
-                used_texts.add(draw[1])
-                if draw[1] in _MEM_VARIANTS:
-                    used_texts |= _MEM_VARIANTS
-            else:
-                _icon(img, draw[1], (r[0] + r[2]) // 2, (r[1] + r[3]) // 2,
-                      draw[2], ink_small)
+    # 밀도 채움 블록은 지웠다(2026-09-13, 사람 지시). 실사진 엣지 밀도는
+    # 조도·광원·그림자가 크게 좌우하는 값이라 합성의 목표로 쓸 수 없다 —
+    # 목표로 쓰면 렌더러가 조명 때문에 생긴 숫자를 '내용'으로 맞추려 들고,
+    # 근거 없는 도트줄·mem·아이콘을 화면에 채워 넣는다. 화면에 무엇이 있는지는
+    # 기기가 정한다. 밀도는 렌더 뒤에 재서 보고만 한다(manifest.density).
 
     # ── 광학 — 노이즈·블러·명암·비네팅·국소 그림자·연한 반사패치(결함 (7)) ──
     # 광학 노이즈도 넘겨받은 rng 에서 파생시킨다 — np.random 전역을 쓰면
@@ -1725,7 +1623,6 @@ def generate(count, seed0, out_dir, with_reader=False):
             inverted=s["inverted"], glyph_plane_check=s["glyph_plane_check"],
             text_heights=s["text_heights"],
             density=round(float(s["density"]), 5),
-            target_density=s["target_density"],
             rects=[[round(float(v), 1) for v in r[:4]] + [r[4]]
                    for r in s["rects"]],
             dropped=s["dropped"], overlaps=viol,
