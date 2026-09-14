@@ -92,7 +92,11 @@ ASPECT_BINS = [
 # (band_rotation.jsonl 의 사람 노트와 같은 사유), 가로형 프로파일을 넣어도
 # 검출기 성적이 안 움직였다(v2: UltraMini 0.554 — 구판 0.548·0.591 과 동급).
 # 익명 풀의 종횡비 히스토그램도 세로 구간만 남긴다.
-EXCLUDE_WIDE = True
+# 2026-09-13: 가로형을 다시 넣는다. 뺐던 이유는 '가로형 프로파일을 넣어도
+# 검출기가 안 움직였다'였는데, 그때 프로파일의 종횡비가 검출기 예측 쿼드에서
+# 나온 값이라 가로형 기기를 세로로 그리고 있었다(ar 0.797). 사람 라벨로
+# 바로잡아 2.103 이 됐으니 이제서야 제대로 된 가로형을 만들 수 있다.
+EXCLUDE_WIDE = False
 
 _AB = [(b, n) for b, n in ASPECT_BINS if not (EXCLUDE_WIDE and b[1] > 1.0)]
 _BINS = [b for b, _ in _AB]
