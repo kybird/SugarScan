@@ -451,11 +451,21 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
         if name in STATEFUL_ELEMENTS:
             return rng.random() < p
         return True
-    wh = sample_wh(rng)
-    if lay and wh >= 1.0:
-        # 레이아웃 고정 기기는 전부 세로 액정 기기다 — 가로형(칼럼/하단행)은
-        # 실측에서 별도 기기 가족이므로 여기선 세로 크롭만 허용한다.
-        wh = rng.uniform(0.70, 0.98)
+    # 캔버스(=GM 크롭) 종횡비. 기기 고정 기기는 코퍼스 히스토그램에서 뽑지
+    # 않는다 — 그 히스토그램은 54종이 섞인 분포라 한 기기에 씌우면 같은 기기의
+    # 크롭이 0.70~0.98 로 흔들리고, 유리 종횡비는 고정인데 캔버스가 흔들리니
+    # 남는 몸체 스트립 두께가 장마다 달라진다(사람 지적 2026-09-13: 같은
+    # acura_plus 인데 LCD 비율과 브랜드 글자 크기가 다르다). 캔버스는 유리에
+    # 마진을 더한 것이므로 그 순서로 만든다: 유리 종횡비(기기) + 마진 비율
+    # (기기) -> 캔버스 종횡비. 촬영이 흔드는 것은 아래 '크롭 여유' 하나다.
+    if lay is not None:
+        _gwr = lay["panel_ar"]                    # 유리 w/h
+        _z = rng.uniform(0.55, 1.0)               # 크롭 여유(타이트~여유)
+        _fl, _fr = ident["mg_l"] * _z, ident["mg_r"] * _z
+        _ft, _fb = ident["mg_t"] * _z, ident["mg_b"] * _z
+        wh = (_gwr * (1 + _fl + _fr)) / (1 + _ft + _fb)
+    else:
+        wh = sample_wh(rng)
     if wh >= 1.0:
         W, H = LONG_SIDE, max(64, int(round(LONG_SIDE / wh)))
     else:
@@ -486,18 +496,13 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
     # (≤ ~0.73) → ≤ ~0.14 여유. 비대칭 확대: 좌우 1~7%, 상 3~12%·하 3~14%.
     # 30% 는 타이트 크롭(전변 0.5~2%, 실물 타이트 GM 박스).
     if lay:
-        # 유리 크기는 기기 고정(사람 지침: "하나의 프로필이면 LCD 크기 통일")
-        # — 유리 종횡비를 실측값에 못 박고, 마진만 흔들어 프레이밍 재현.
-        _ph_t = H * rng.uniform(0.74, 0.90)
-        _pw_t = _ph_t * lay["panel_ar"]
-        if _pw_t > W * 0.95:
-            _pw_t = W * rng.uniform(0.82, 0.95)
-            _ph_t = _pw_t / lay["panel_ar"]
-        _sx, _sy = W - _pw_t, H - _ph_t
-        mg_l = int(rng.uniform(0.3, 0.7) * _sx)
-        mg_r = int(_sx) - mg_l
-        mg_t = int(rng.uniform(0.3, 0.7) * _sy)
-        mg_b = int(_sy) - mg_t
+        # 마진은 위에서 캔버스 종횡비를 낼 때 이미 정해졌다 — 같은 비율을
+        # 그대로 픽셀로 옮긴다. 그래야 유리 종횡비도 스트립 두께도 기기에
+        # 붙어 있고, 장마다 달라지는 것은 크롭 여유(_z)뿐이다.
+        mg_l = max(2, int(round(W * _fl / (1 + _fl + _fr))))
+        mg_r = max(2, int(round(W * _fr / (1 + _fl + _fr))))
+        mg_t = max(2, int(round(H * _ft / (1 + _ft + _fb))))
+        mg_b = max(2, int(round(H * _fb / (1 + _ft + _fb))))
     elif rng.random() < 0.30:
         mg_t = int(H * rng.uniform(0.005, 0.02))
         mg_b = int(H * rng.uniform(0.005, 0.02))
@@ -654,14 +659,28 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
             continue          # 기기가 선언한 변에만 찍힌다
         if m_side < 14 or pid not in BEZEL_TEXTS:
             continue
-        bh = max(8, int(m_side * 0.45))
+        # 글자 높이는 몸체의 성질이라 유리 폭에 비례한다. 구판은 스트립
+        # 두께(m_side)에 비례시켜, 크롭이 달라질 때마다 브랜드명 크기가
+        # 같이 변했다(사람 지적 2026-09-13).
+        bh = (max(8, int((px1 - px0) * ident["bezel_h"])) if ident is not None
+              else max(8, int(m_side * 0.45)))
         _bt = BEZEL_TEXTS[pid]
         text = _bt[(ident["bezel_i"] if ident is not None
                     else rng.randrange(8)) % len(_bt)]
         scale = bh / 22.0
         (tw, thh), bl = cv2.getTextSize(text, _BEZEL_FONTS[0], scale, 1)
-        if tw >= px1 - px0 - 8 or thh + bl + 4 > m_side:
-            continue
+        if tw > (px1 - px0) * 0.95:
+            # 긴 이름은 유리 폭에 맞춰 줄인다(구판은 그냥 포기했다).
+            scale *= (px1 - px0) * 0.95 / tw
+            bh = max(8, int(22.0 * scale))
+            (tw, thh), bl = cv2.getTextSize(text, _BEZEL_FONTS[0], scale, 1)
+        if thh + bl + 4 > m_side:
+            # 스트립이 글자보다 얇으면 '안 그린다'가 아니라 '잘려 찍힌다'.
+            # 실물 GM 크롭이 그렇다 — 475·267 도 브랜드명 윗동이 잘려 있다.
+            # 구판은 여기서 포기해 몸체 인쇄가 78장 -> 19장으로 줄었다
+            # (유리 폭 기준으로 글자를 키운 직후, 2026-09-13).
+            if m_side < (thh + bl) * 0.35:
+                continue
         # 인쇄 자리도 기기의 것이다 — 같은 기기에서 브랜드명이 좌우로 떠다니면
         # 다른 물건으로 보인다. 실물은 대개 중앙이다(842·1058·475·267).
         _bfx = (0.5 if ident is not None else rng.uniform(0.2, 0.55))

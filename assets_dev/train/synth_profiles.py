@@ -386,6 +386,9 @@ def device_identity(pid):
         glyph_in_cell=r.uniform(*GLYPH_IN_CELL_RANGE),       # 글리프 폭 / 칸 피치
         ghost=r.uniform(0.04, 0.11) if r.random() < 0.15 else 0.0,
         bezel_i=r.randrange(8),      # 베젤 인쇄 문자열 선택(소비처가 나머지 연산)
+        bezel_h=r.uniform(0.055, 0.085),   # 몸체 인쇄 글자 높이 / 유리 폭
+        mg_l=r.uniform(0.01, 0.07), mg_r=r.uniform(0.01, 0.07),
+        mg_t=r.uniform(0.04, 0.13), mg_b=r.uniform(0.04, 0.15),
         time_fmt_i=r.randrange(len(DOT_FMTS)),
         dotrow_i=r.randrange(8),
         polarity_u=r.random(),       # mixed 기기의 극성을 한 번에 확정
