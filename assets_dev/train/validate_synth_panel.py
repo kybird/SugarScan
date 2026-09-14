@@ -27,6 +27,10 @@ from measure_panel_stats import edge_density_outside  # noqa: E402
 # 키 이름은 아래 인쇄문의 것을 그대로 쓴다.
 with open(HERE / "real_baseline.json", encoding="utf-8") as _f:
     _RB = json.load(_f)
+# 밴드 기하 실측(정본 band.portrait/wide) — 분모는 GM 쿼드다
+# (measure_panel_stats.collect_band: bw/gw, bh/gh). 합성에서 그에 대응하는
+# 것은 캔버스가 아니라 유리(glass_quad)다.
+REAL_BAND = {k: _RB["band"][k] for k in ("portrait", "wide")}
 REAL = dict(
     wh_median=round(_RB["aspect"]["wh_median"], 3),
     wh_p10=round(_RB["aspect"]["wh_p10"], 3),
@@ -130,7 +134,17 @@ def main():
     cv2.imwrite(str(out / "reader_strip.png"), np.hstack(strip))
 
     # ── 분포 비교 ────────────────────────────────────────────────────
-    wh = np.asarray([r["wh"] for r in manifest])
+    # 종횡비 — 실측 자(measure_panel_stats.collect_aspect)는 GM 쿼드(=화면)
+    # w/h 다. 합성에서 같은 물건은 유리(glass_quad)이고, 캔버스는 유리에 몸체
+    # 마진을 더한 것이라 언제나 더 좁다. 2026-09-13 이전에는 캔버스를 실측
+    # GM 과 나란히 찍어 '합성이 좁다'는 결론이 계속 나왔다(카드 「검증기가
+    # 합성 캔버스를 실측 GM 쿼드와 비교한다」). seed 31000 n=300 에서
+    # 캔버스 0.734 · 유리 0.800 · 실측 0.792.
+    gq = np.asarray([r["glass_quad"] for r in manifest], float)
+    gw = gq[:, :, 0].max(1) - gq[:, :, 0].min(1)
+    gh = gq[:, :, 1].max(1) - gq[:, :, 1].min(1)
+    wh = gw / gh                      # 유리 w/h — 실측과 같은 물건
+    canvas_wh = np.asarray([r["wh"] for r in manifest])
     dens = np.asarray([r["density"] for r in manifest])
     gpc = np.asarray([r["glyph_plane_check"] for r in manifest])
     inv = np.mean([r["inverted"] for r in manifest]) * 100
@@ -152,11 +166,17 @@ def main():
     contrasts = np.asarray(contrasts)
 
     print(f"== 합성 n={len(manifest)} (seed {args.seed}) vs 실측 기준선 ==")
-    print(f"종횡비 w/h   합성 median={np.median(wh):.3f} p10={p(wh, 10):.3f} "
-          f"p90={p(wh, 90):.3f} | 실측 {REAL['wh_median']} "
-          f"[{REAL['wh_p10']}, {REAL['wh_p90']}]")
+    print(f"종횡비 w/h(유리=GM쿼드)  합성 median={np.median(wh):.3f} "
+          f"p10={p(wh, 10):.3f} p90={p(wh, 90):.3f} | 실측 "
+          f"{REAL['wh_median']} [{REAL['wh_p10']}, {REAL['wh_p90']}]")
+    print(f"  참고: 캔버스 w/h median={np.median(canvas_wh):.3f} — 유리에 몸체"
+          f" 마진을 더한 값이다. 실측 대응물이 없다(GM 크롭의 여백 분포는 "
+          f"아직 안 쟀다)")
+    # 가로형 비율 — ASPECT_BINS 의 x2 부스트는 이제 generic_v1(익명 풀)에만
+    # 닿는다. 기기 고정 12종은 유리 종횡비를 LAYOUTS 에서 받고 전부 세로다
+    # (실측에서 가로형은 별도 기기 가족이라 프로파일이 아직 없다).
     print(f"세로(<1)     합성 {np.mean(wh < 1) * 100:.1f}% | 실측 "
-          f"{REAL['portrait']}%  (가로 x2 부스트 반영)")
+          f"{REAL['portrait']}%  (가로형 프로파일 0종 — 익명 풀만 가로가 난다)")
     print(f"매우 가로(>2) 합성 {np.mean(wh > 2) * 100:.1f}% | 실측 "
           f"{REAL['very_wide']}%")
     print(f"밀도(밴드 밖) 합성 median={np.median(dens):.4f} "
@@ -168,6 +188,24 @@ def main():
           f"{np.mean(contrasts < 40) * 100:.1f}% vs 실측 {REAL['contrast_lt40']}%")
     print(f"극성 반전     합성 {inv:.1f}% | 실측 {REAL['inverted']}%")
     print(f"2자리 값      합성 {d2:.1f}% | 실측 {REAL['digits2']}%")
+    # 밴드 기하 4축 — 분모는 실측과 같은 유리(GM 쿼드)다.
+    q_all = np.asarray([r["quad"] for r in manifest], float)
+    bw = (q_all[:, :, 0].max(1) - q_all[:, :, 0].min(1)) / gw
+    bh = (q_all[:, :, 1].max(1) - q_all[:, :, 1].min(1)) / gh
+    bcx = ((q_all[:, :, 0].max(1) + q_all[:, :, 0].min(1)) / 2
+           - gq[:, :, 0].min(1)) / gw
+    bcy = ((q_all[:, :, 1].max(1) + q_all[:, :, 1].min(1)) / 2
+           - gq[:, :, 1].min(1)) / gh
+    for key, m in (("portrait", wh < 1.0), ("wide", wh >= 1.0)):
+        if m.sum() == 0:
+            print(f"밴드 기하({key}) 합성 n=0 — 표본 없음")
+            continue
+        r = REAL_BAND[key]
+        print(f"밴드/유리({key}) 합성 n={int(m.sum())} "
+              f"w={np.median(bw[m]):.3f} h={np.median(bh[m]):.3f} "
+              f"cx={np.median(bcx[m]):.3f} cy={np.median(bcy[m]):.3f} | 실측 "
+              f"n={r['n']} w={r['w_median']:.3f} h={r['h_median']:.3f} "
+              f"cx={r['cx_median']:.3f} cy={r['cy_median']:.3f}")
     print(f"글리프 평면   gpc median={np.median(gpc):.4f} "
           f"p10={p(gpc, 10):.4f} min={gpc.min():.4f}  (0.9 미만 "
           f"{np.mean(gpc < 0.9) * 100:.1f}%)")
