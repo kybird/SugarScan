@@ -176,7 +176,7 @@ PROFILES = [
         evidence=["glucose_batch1/1911", "glucose_batch1/1903"],
         unit=dict(texts=["mg/dL"], pos="below-right", gap=(10, 18), p=0.9),
         mem=dict(kind="M", pos="right-of-digits", p=0.5),
-        icons=[("mem-flag", "right-of-digits", 0.5), ("battery", "top-right", 0.3)],
+        icons=[("mem-flag", "right-of-digits", 0.5), ("battery", "top-right", 1.0)],
         dotrow_below=dict(fmts=DOT_FMTS, p=0.9),
         bezel=dict(texts=["CareSens N", "Premier"], edge="top", p=0.8),
     ),
@@ -187,7 +187,7 @@ PROFILES = [
         mem=dict(kind="memory", pos="top-left", p=0.6),
         daterow=dict(p=0.8),    # '7-1' '#5' — 기록번호 포함
         bezel=dict(texts=["Performa"], edge="bottom", p=0.7),
-        icons=[("battery", "top-right", 0.4), ("blood-drop", "right-mid", 0.3)],
+        icons=[("battery", "top-right", 1.0), ("blood-drop", "right-mid", 0.3)],
     ),
     dict(
         # Performa 와 이름만 형제다(사람 2026-09-13). 1019~1086 여덟 장은
@@ -440,7 +440,9 @@ GLYPH_IN_CELL_RANGE = (0.78, 0.84)
 # 켜짐 여부만 렌더 rng 가 정한다. 근거: 메모리 표기는 회상 모드에서만(1058
 # mem), 식전후 마커는 태그가 있을 때만, 배터리·블루투스는 상태 표시다.
 # 미터기 화살표는 여기 없다 — Instant 34장 전부에 있고 값에 묶인 지시자다.
-STATEFUL_ELEMENTS = {"mem", "meal", "arrow", "icon:battery", "icon:bluetooth",
+# 배터리는 상태성이 아니다 — 기기가 가졌으면 언제나 표시한다(사람 지시
+# 2026-09-13). 실물 혈당계의 배터리 표시는 잔량계라 늘 켜져 있다.
+STATEFUL_ELEMENTS = {"mem", "meal", "arrow", "icon:bluetooth",
                      "icon:mem-flag", "icon:blood-drop", "icon:smile"}
 
 
