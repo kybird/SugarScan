@@ -14,8 +14,10 @@
 #   (6) 패널이 정사각형 -> 종횡비를 실측 히스토그램(2,497장)에서 뽑는다
 #   (7) 글레어가 대각선 흰 줄 하나 -> 가장자리에 붙은 연한 타원 반사패치로 바꾸고
 #           전폭 강선은 폐지
-#   (8) 극성 반전 58%(실물 21~27%) -> 극성은 프로파일 속성. 실사진 84장에서
-#           기기별로 재서 반전 기기에만 inverted 를 매긴다(measure_polarity.py)
+#   (8) 극성 반전 58%(실물 21~27%) -> 극성은 프로파일 속성이다. 2026-09-13
+#           재개정: 재는 것이 아니라 사람이 선언한다(synth_profiles.
+#           PROFILE_INVERTED). 자로 되찾으려던 시도는 사람 정답 30장 채점에서
+#           최선이 26/30 이었고 오차가 하필 프로파일 기기에 몰렸다
 #   (9) 브랜드명을 액정 안에 그림 -> 베젤 인쇄는 패널 바깥 링에만 그린다.
 #           액정 문자열은 화이트리스트 토큰으로 assert 고정한다
 #
@@ -33,10 +35,10 @@
 # 파일(band_boxes 277행·54종, 2026-09-12 재측정)에서 생성한다. 이 파일 머리말에
 # 수치를 베끼지 않는다: 세 소비처(이 파일·validate_synth_panel·GLM_TASKS 3.8)가
 # 각자 값을 들면 기준선이 다시 갈라진다(2026-09-12 밀도 사고, 카드 「밴드 라벨
-# 확장 뒤 합성 밀도·기하 기준선을 재고정한다」). 아래 상수 중 BAND_GEOM·
-# GENERIC_INVERTED_P·PANEL_ATTRS 는 아직 n=84 시절 분포를 담고 있다 — 재조준
-# 카드가 real_baseline.json 값으로 갱신한다. 칸 폭(피치) 근거는 밴드 라벨이
-# 아니라 육안+DSEG 측정이라 그대로 둔다:
+# 확장 뒤 합성 밀도·기하 기준선을 재고정한다」). BAND_GEOM 과
+# GENERIC_INVERTED_P 는 정본에서 읽는다. PANEL_ATTRS 는 더 이상 정본에서
+# 파생하지 않는다 — 사람 선언이다(2026-09-13, PROFILE_INVERTED).
+# 칸 폭(피치) 근거는 밴드 라벨이 아니라 육안+DSEG 측정이라 그대로 둔다:
 #   칸 폭    실사진 밴드 크롭 육안 + DSEG 측정: 칸 피치 ≈ 0.50~0.60·높이,
 #            글리프 폭 ≈ 피치의 0.78~0.84, DSEG7 '8' 자연 폭 0.615·높이,
 #            '1' 0.065~0.18·높이(균일 압축으로 상대 폭 보존)
@@ -333,8 +335,12 @@ def _dot_time_text(rng, fmt_i=None, fmts=None):
                       m02=f"{rng.randint(0, 59):02d}",
                       M=f"{rng.randint(1, 12)}", M02=f"{rng.randint(1, 12):02d}",
                       d=f"{rng.randint(1, 31)}", d02=f"{rng.randint(1, 31):02d}",
-                      am=random.choice(["am", "pm"]),
-                      AM=random.choice(["AM", "PM"]))
+                      # 전역 random 이 아니라 넘겨받은 rng 여야 한다 —
+                      # 구판은 여기서만 모듈 전역 난수를 써서 같은 시드로도
+                      # 프로세스마다 am/pm 이 달라졌다(재현성 구멍, 2026-09-13
+                      # 전수 검토). 렌더러 비결정성 카드의 한 갈래다.
+                      am=rng.choice(["am", "pm"]),
+                      AM=rng.choice(["AM", "PM"]))
 
 
 def render_panel(value, rng, profile=None):
@@ -1393,8 +1399,8 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
                        if nm in ("time", "daterow", "avgrow",
                                  "dotrow_above", "dotrow_below"))
         filler_pool = ["mem", "memory"]
-    if profile.get("id") == "dorucos_premium":
-        filler_pool = filler_pool + ["OK", "CHECK STRIP"]
+    # 'OK'·'CHECK STRIP' 은 근거 사진 120·694·695 어디에도 없다(2026-09-13
+    # 눈검). dotrow_above 를 철회하면서 필러 쪽에 남아 있던 것도 뺀다.
     for attempt in range(0 if lay is not None else 48):
         if attempt % 3 == 0 or attempt == 47:
             d = _density_outside(img, quad)
@@ -1475,8 +1481,13 @@ def _render_once(value, rng, profile, pid, inverted, fill_target):
                       draw[2], ink_small)
 
     # ── 광학 — 노이즈·블러·명암·비네팅·국소 그림자·연한 반사패치(결함 (7)) ──
+    # 광학 노이즈도 넘겨받은 rng 에서 파생시킨다 — np.random 전역을 쓰면
+    # 호출자가 np.random.seed 를 부른 경우에만 재현되고, 그렇지 않은 경로
+    # (synth_panel.py gen)는 같은 시드로도 매번 다른 그림을 낸다(2026-09-13
+    # 전수 검토). 렌더러 비결정성 카드의 나머지 갈래다.
+    _npr = np.random.default_rng(rng.getrandbits(63))
     img = np.clip(img.astype(np.float32)
-                  + np.random.normal(0, rng.uniform(2, 9), img.shape),
+                  + _npr.normal(0, rng.uniform(2, 9), img.shape),
                   0, 255).astype(np.uint8)
     if rng.random() < 0.4:
         img = cv2.GaussianBlur(img, (3, 3), rng.uniform(0.3, 1.0))

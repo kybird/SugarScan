@@ -443,12 +443,18 @@ def dot_text(img, x, y, text, glyph, ink):
 
 
 def _tri(img, cx, cy, s, ink, direction="right"):
-    """진행 삼각형(▶ 등) — fillPoly 자체 그림."""
+    """진행 삼각형(▶ 등) — fillPoly 자체 그림.
+    구판은 "right" 와 그 밖(=위)만 알았다. curved-right/left 아이콘이
+    "down" 을 넘기고 있었는데 위 삼각형이 그려졌다(2026-09-13 전수 검토)."""
     if direction == "right":
-        pts = np.array([[cx - s, cy - s], [cx - s, cy + s], [cx + s, cy]], np.int32)
+        pts = [[cx - s, cy - s], [cx - s, cy + s], [cx + s, cy]]
+    elif direction == "left":
+        pts = [[cx + s, cy - s], [cx + s, cy + s], [cx - s, cy]]
+    elif direction == "down":
+        pts = [[cx - s, cy - s], [cx + s, cy - s], [cx, cy + s]]
     else:  # up
-        pts = np.array([[cx, cy - s], [cx - s, cy + s], [cx + s, cy + s]], np.int32)
-    cv2.fillPoly(img, [pts], ink)
+        pts = [[cx, cy - s], [cx - s, cy + s], [cx + s, cy + s]]
+    cv2.fillPoly(img, [np.array(pts, np.int32)], ink)
 
 
 def _icon(img, kind, cx, cy, s, ink):
