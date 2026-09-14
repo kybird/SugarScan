@@ -88,31 +88,27 @@ DOT_FMTS = [
 PROFILES = [
     dict(
         id="accuchek_instant", slots=3, align="right", italic=False,
-        digit_h=(0.30, 0.40),
         evidence=["glucose_batch1/267", "glucose_batch1/270",
                   "glucose_batch2/2610", "glucose_batch1/2492",
                   "glucose_batch1/2039"],
         # 화살표-끝자리 갭 실측 72~84px(스트립 12장) — 넓은 범위로 흔들어
         # '거의 닿는' 배치까지 재현한다(AC#5).
-        unit=dict(texts=["mg/dL"], pos="below-right", gap=(2, 80),
-                  h_ratio=(0.14, 0.20), p=0.9),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(2, 80), p=0.9),
         # 미터기 지시 화살표(AC#5): 검은 창 안 오른쪽 가장자리의 흰 ▶ 이
         # 몸체에 인쇄된 점 눈금 열을 가리킨다. 근거 Instant 34장 — 화살표는
         # 값에 대응해 위로 오르고 v159+ 에서 상단에 포화된다(2026-09-13
         # 실측). 단독 아이콘이 아니라 지시자라 kinds 는 tri-right 하나다.
-        arrow=dict(kinds=["tri-right"], gap=(2, 80), size=(18, 30), p=0.95),
+        arrow=dict(kinds=["tri-right"], gap=(2, 80), p=0.95),
         meter=True,
         time=dict(pos="below-left", p=0.9),
         bezel=dict(texts=["ACCU-CHEK", "Instant"], edge="top", p=0.9),
     ),
     dict(
         id="gmate", slots=3, align="right", italic=False,
-        digit_h=(0.42, 0.52),
         evidence=["glucose_batch1/842", "glucose_batch1/843",
                   "glucose_batch1/731", "glucose_batch1/727"],
         # 단위 글리프가 끝자리에 4~5px 로 붙는다(아틀라스 재고표) — 실패 서명.
-        unit=dict(texts=["mg/dL", "mg /dL"], pos="below-right", gap=(3, 8),
-                  h_ratio=(0.16, 0.22), p=1.0),
+        unit=dict(texts=["mg/dL", "mg /dL"], pos="below-right", gap=(3, 8), p=1.0),
         meal=dict(texts=["AC", "PC"], p=0.3),
         mem=dict(kind="M", pos="below-left", p=0.5),
         time=dict(pos="below-left", p=0.85),
@@ -120,7 +116,6 @@ PROFILES = [
     ),
     dict(
         id="dorucos_premium", slots=3, align="left", italic=False,
-        digit_h=(0.50, 0.58),
         evidence=["glucose_batch1/120", "glucose_batch1/694",
                   "glucose_batch1/695"],
         # 도트 패널이 아니다(2026-09-13 정정). 근거 사진 120 을 3배 확대해
@@ -128,19 +123,15 @@ PROFILES = [
         # 화면 아래 한 줄은 '3.21  08:41 AM' — 날짜+시간이고 역시 세그먼트다.
         # 'OK'·'CHECK STRIP' 윗줄은 세 장 어디에도 없다. 도트 렌더를 쓰는
         # 프로파일은 이제 하나도 없다.
-        unit=dict(texts=["mg/dL"], pos="below-right", gap=(8, 14),
-                  h_ratio=(0.12, 0.16), p=0.9),
-        dotrow_below=dict(fmts=["{M}.{d02}  {h02}:{m02} {AM}"],
-                          glyph=(4, 6), p=1.0),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(8, 14), p=0.9),
+        dotrow_below=dict(fmts=["{M}.{d02}  {h02}:{m02} {AM}"], p=1.0),
         bezel=dict(texts=["Premium"], edge="bottom", p=1.0),
     ),
     dict(
         id="green_doctor", slots=3, align="right", italic=False,
-        digit_h=(0.36, 0.46),
         evidence=["glucose_batch1/1781", "glucose_batch1/2498"],
         glulabel=dict(p=0.9),
-        unit=dict(texts=["mg/dL"], pos="below-right", gap=(6, 14),
-                  h_ratio=(0.14, 0.18), p=0.6),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(6, 14), p=0.6),
         mem=dict(kind="M-box", pos="top-left", p=0.7),
         icons=[("triangle", "top-left", 0.4), ("triangle", "top-right", 0.4),
                ("blood-drop", "right-mid", 0.3), ("bluetooth", "top-right", 0.2)],
@@ -150,36 +141,30 @@ PROFILES = [
     ),
     dict(
         id="onetouch_ultra", slots=3, align="right", italic=True,
-        digit_h=(0.34, 0.44),
         evidence=["glucose_batch1/1058", "glucose_batch1/2110"],
-        unit=dict(texts=["mg/dL"], pos="below-right", gap=(8, 40),
-                  h_ratio=(0.14, 0.20), p=0.9),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(8, 40), p=0.9),
         mem=dict(kind="mem", pos="top-right", p=0.4),
         time=dict(pos="below-left", p=0.5),
         bezel=dict(texts=["ONETOUCH Ultra", "LIFESCAN"], edge="bottom", p=0.8),
     ),
     dict(
         id="gc_ms_one", slots=3, align="right", italic=False,
-        digit_h=(0.34, 0.44),
         evidence=["glucose_batch1/228", "glucose_batch1/373",
                   "glucose_batch1/800"],
         glulabel=dict(p=0.9),
-        unit=dict(texts=["mg/dL"], pos="below-right", gap=(2, 8),
-                  h_ratio=(0.12, 0.16), p=0.9),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(2, 8), p=0.9),
         mem=dict(kind="M-box", pos="top-left", p=0.9),
         time=dict(pos="below-left", p=0.8),
-        dotrow_below=dict(fmts=DOT_FMTS[:4], glyph=(4, 6), p=0.4),
+        dotrow_below=dict(fmts=DOT_FMTS[:4], p=0.4),
         # 228 몸체 상단 'GC 녹십자MS / ONE' — 한글은 Hershey 가 못 그려
         # 라틴 부분만 쓴다(없는 글자를 지어내지 않는다).
         bezel=dict(texts=["ONE"], edge="top", p=0.8),
     ),
     dict(
         id="acura_plus", slots=3, align="right", italic=False,
-        digit_h=(0.36, 0.46),
         evidence=["glucose_batch1/475", "glucose_batch1/477",
                   "glucose_batch1/2357"],
-        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 12),
-                  h_ratio=(0.13, 0.18), p=0.8),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 12), p=0.8),
         # avgrow('07 DAY AVG 019') 철회(2026-09-13) — 근거 사진 475·477·
         # 2357 어디에도 없다. 셋 다 화면 맨 아래가 '04-22  16:45'(날짜+시간)
         # 한 줄이다. 배치 실패로 120장 중 12장에서 빠지던 요소이기도 했다.
@@ -188,21 +173,17 @@ PROFILES = [
     ),
     dict(
         id="caresens_n_premier", slots=3, align="right", italic=False,
-        digit_h=(0.38, 0.48),
         evidence=["glucose_batch1/1911", "glucose_batch1/1903"],
-        unit=dict(texts=["mg/dL"], pos="below-right", gap=(10, 18),
-                  h_ratio=(0.14, 0.18), p=0.9),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(10, 18), p=0.9),
         mem=dict(kind="M", pos="right-of-digits", p=0.5),
         icons=[("mem-flag", "right-of-digits", 0.5), ("battery", "top-right", 0.3)],
-        dotrow_below=dict(fmts=DOT_FMTS, glyph=(4, 6), p=0.9),
+        dotrow_below=dict(fmts=DOT_FMTS, p=0.9),
         bezel=dict(texts=["CareSens N", "Premier"], edge="top", p=0.8),
     ),
     dict(
         id="performa_silver", slots=3, align="right", italic=False,
-        digit_h=(0.40, 0.50),
         evidence=["glucose_batch1/1186"],
-        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 10),
-                  h_ratio=(0.12, 0.16), p=0.9),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 10), p=0.9),
         mem=dict(kind="memory", pos="top-left", p=0.6),
         daterow=dict(p=0.8),    # '7-1' '#5' — 기록번호 포함
         bezel=dict(texts=["Performa"], edge="bottom", p=0.7),
@@ -215,40 +196,34 @@ PROFILES = [
         # 극성을 평균(mixed 0.5) 내던 것을 쪼갠다. 기하는 측정이 두 기기를
         # 합쳐 잰 값 하나뿐이라 당분간 같이 쓴다(별도 측정 전까지).
         id="performa_nano", slots=3, align="right", italic=False,
-        digit_h=(0.40, 0.50),
         evidence=["glucose_batch1/1019", "glucose_batch1/1060",
                   "glucose_batch1/1073", "glucose_batch1/1086"],
-        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 10),
-                  h_ratio=(0.12, 0.16), p=0.9),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 10), p=0.9),
         mem=dict(kind="memory", pos="top-left", p=0.9),
         daterow=dict(p=0.9),
         bezel=dict(texts=["Performa Nano"], edge="top", p=0.7),
     ),
     dict(
         id="accuchek_active", slots=3, align="center", italic=False,
-        digit_h=(0.48, 0.58),
         evidence=["glucose_batch1/1329", "glucose_batch2/2502",
                   "glucose_batch2/2513", "glucose_batch2/2519"],
         # 상단에 시간(왼쪽)·날짜(오른쪽) 작은 줄, 숫자는 중앙 대형,
         # mg/dL 은 숫자 아래 오른쪽(1329 '0:00 0-0' + 하단 mg/dL 관찰).
-        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 12),
-                  h_ratio=(0.12, 0.16), p=0.9),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 12), p=0.9),
         time=dict(pos="top-left", p=0.85),
         daterow=dict(p=0.8),
         bezel=dict(texts=["Active"], edge="top", p=0.6),
     ),
     dict(
         id="gluneo_plus", slots=3, align="center", italic=False,
-        digit_h=(0.50, 0.60),
         evidence=["glucose_batch1/1435", "glucose_batch1/1438",
                   "glucose_batch1/1440", "glucose_batch1/1449"],
         # 대형 중앙 숫자, mg/dL 은 숫자 아래 오른쪽, 하단 줄 왼쪽에 아래
         # 화살표 아이콘 + 오른쪽 시간(1435~1449 전 관찰). 온도 표기 '28C' 는
         # 화이트리스트 밖이라 렌더하지 않는다(보고서 명시).
-        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 12),
-                  h_ratio=(0.12, 0.16), p=0.9),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 12), p=0.9),
         time=dict(pos="below-right", p=0.9),
-        arrow=dict(kinds=["tri-down"], gap=(4, 10), size=(10, 16),
+        arrow=dict(kinds=["tri-down"], gap=(4, 10),
                    pos="below-left", p=0.85),
         bezel=dict(texts=["GluNEO plus"], edge="top", p=0.8),
     ),
@@ -272,38 +247,37 @@ PROFILES = [
 # 폴백(real_baseline band portrait, n=217).
 LAYOUTS = {
     "accuchek_instant": dict(panel_ar=0.775, band_w=0.814, band_h=0.386,
-                             band_cx=0.524, band_cy=0.459, weight="Bold", font="hershey",
+                             band_cx=0.524, band_cy=0.459, weight="Bold",
                              n=4),
     "gmate": dict(panel_ar=0.710, band_w=0.995, band_h=0.390,
-                  band_cx=0.510, band_cy=0.408, weight="Regular", font="hershey", n=4),
+                  band_cx=0.510, band_cy=0.408, weight="Regular", n=4),
     "dorucos_premium": dict(panel_ar=0.830, band_w=0.916, band_h=0.468,
-                            band_cx=0.526, band_cy=0.403, weight="Regular", font="hershey",
+                            band_cx=0.526, band_cy=0.403, weight="Regular",
                             n=3),
     "green_doctor": dict(panel_ar=0.800, band_w=0.919, band_h=0.402,
-                         band_cx=0.548, band_cy=0.467, weight="Regular", font="hershey", n=4),
+                         band_cx=0.548, band_cy=0.467, weight="Regular", n=4),
     "onetouch_ultra": dict(panel_ar=0.950, band_w=0.965, band_h=0.471,
-                           band_cx=0.519, band_cy=0.391, weight="Light", font="hershey",
+                           band_cx=0.519, band_cy=0.391, weight="Light",
                            n=3),
     "gc_ms_one": dict(panel_ar=0.836, band_w=0.989, band_h=0.473,
-                      band_cx=0.508, band_cy=0.500, weight="Regular", font="hershey", n=4),
+                      band_cx=0.508, band_cy=0.500, weight="Regular", n=4),
     "acura_plus": dict(panel_ar=0.941, band_w=0.884, band_h=0.585,
-                       band_cx=0.502, band_cy=0.394, weight="Bold", font="hershey", n=4),
+                       band_cx=0.502, band_cy=0.394, weight="Bold", n=4),
     "caresens_n_premier": dict(panel_ar=0.760, band_w=0.918, band_h=0.473,
-                               band_cx=0.514, band_cy=0.384, weight="Light", font="hershey",
+                               band_cx=0.514, band_cy=0.384, weight="Light",
                                n=4),
     "performa_silver": dict(panel_ar=0.774, band_w=0.859, band_h=0.400,
-                            band_cx=0.527, band_cy=0.432, weight="Light", font="hershey",
+                            band_cx=0.527, band_cy=0.432, weight="Light",
                             n=8),
     # Nano 는 아직 따로 재지 않았다 — Performa 와 같은 값을 쓴다(측정 n=8 이
     # 두 기기를 합쳐 잰 값이라 어차피 둘의 혼합이다).
     "performa_nano": dict(panel_ar=0.774, band_w=0.859, band_h=0.400,
-                          band_cx=0.527, band_cy=0.432, weight="Regular",
-                          font="hershey", n=0),
+                          band_cx=0.527, band_cy=0.432, weight="Regular", n=0),
     "accuchek_active": dict(panel_ar=0.808, band_w=0.850, band_h=0.420,
-                            band_cx=0.495, band_cy=0.460, weight="Regular", font="hershey",
+                            band_cx=0.495, band_cy=0.460, weight="Regular",
                             n=7),
     "gluneo_plus": dict(panel_ar=0.792, band_w=0.888, band_h=0.447,
-                        band_cx=0.512, band_cy=0.407, weight="Regular", font="hershey",
+                        band_cx=0.512, band_cy=0.407, weight="Regular",
                         n=0),
 }
 # ── 극성은 재는 것이 아니라 선언하는 것이다(사람 지시 2026-09-13) ─────────

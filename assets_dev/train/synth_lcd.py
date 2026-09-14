@@ -67,56 +67,17 @@ def put_7seg_text(img, x, y, w, h, text, ink, gap_ratio=0.25):
 # 글자를 계산기식 블록 형태로 바꾸고 폭 계산을 seg_char_advance 단일 소스로
 # 통일했다. 굵기·이탤릭 변형은 큰 숫자의 DSEG 변형(_pick_variant)과 같은
 # 계열을 따른다 — 한 패널 안에서 숫자와 보조 글자의 굵기·기울기가 일치.
-# ── 14-세그먼트 글자 행렬(2026-09-13 3차) ─────────────────────────────────
-# 사람 지적: 2차의 손그림 스트로크 폰트는 세그먼트가 아니었다(숫자와 시각
-# 언어가 다르고 'g' 가 안 읽혔다). 순수 7-세그로는 m·w 를 아예 못 쓰므로,
-# 실제 알파넘메릭 LCD(DSEG14 계열)가 쓰는 14-세그 행렬로 글자를 그린다:
-# 7-세그(a~g) + 분할 가로획(a1·a2·d1·d2·g1·g2) + 중심 대각선 4개(h·i·j·l).
-# 숫자는 기존 7-세그(SEG_MAP) 그대로 — 큰 숫자의 DSEG 과 같은 관계다.
-SEG14_GEO = {   # 셀 안 0..1 (x 오른쪽, y 아래)
-    "a1": (0, 0, .5, 0), "a2": (.5, 0, 1, 0),
-    "f": (0, 0, 0, .5), "b": (1, 0, 1, .5),
-    "g1": (0, .5, .5, .5), "g2": (.5, .5, 1, .5),
-    "e": (0, .5, 0, 1), "c": (1, .5, 1, 1),
-    "d1": (0, 1, .5, 1), "d2": (.5, 1, 1, 1),
-    "h": (0, 0, .5, .5), "i": (1, 0, .5, .5),
-    "j": (0, 1, .5, .5), "l": (1, 1, .5, .5),
-}
-SEG14_MAP = {   # 토큰에 쓰이는 글자만 — 14-세그 표기 관례
-    "A": ("a1", "a2", "b", "c", "e", "f", "g1", "g2"),
-    "C": ("a1", "a2", "d1", "d2", "e", "f"),
-    "D": ("a1", "a2", "b", "c", "f", "g2", "d2"),
-    "E": ("a1", "a2", "d1", "d2", "e", "f", "g1", "g2"),
-    "F": ("a1", "a2", "e", "f", "g1", "g2"),
-    "G": ("a1", "a2", "c", "d1", "d2", "e", "f", "g2"),
-    "H": ("b", "c", "e", "f", "g1", "g2"),
-    "K": ("e", "f", "i", "j"),
-    "L": ("d1", "d2", "e", "f"),
-    "M": ("e", "f", "b", "c", "h", "i"),
-    "O": ("a1", "a2", "b", "c", "d1", "d2", "e", "f"),
-    "P": ("a1", "a2", "b", "e", "f", "g1", "g2"),
-    "R": ("a1", "a2", "b", "e", "f", "g1", "g2", "l"),
-    "S": ("a1", "a2", "f", "g1", "g2", "c", "d1", "d2"),
-    "U": ("e", "f", "b", "c", "d1", "d2"),
-    "V": ("e", "f", "b", "c", "j", "l"),
-    # 소문자 — 14-seg 관례: 내림/올림 없이 행렬 안 근사(g≈9형, m≈M형)
-    "a": ("a1", "a2", "b", "c", "e", "f", "g1", "g2"),
-    "c": ("a1", "a2", "d1", "d2", "e", "f"),
-    "d": ("b", "c", "d1", "d2", "e", "g1", "g2"),
-    "e": ("a2", "f", "g1", "g2", "e", "d1", "d2"),
-    "g": ("a1", "a2", "b", "c", "d1", "d2", "f", "g1", "g2"),
-    "l": ("e", "f"),
-    "m": ("e", "f", "b", "c", "h", "i"),
-    "o": ("c", "d1", "d2", "e", "g1", "g2"),
-    "p": ("a1", "a2", "b", "e", "f", "g1", "g2"),
-    "r": ("e", "g1"),
-    "u": ("b", "c", "d1", "d2", "e", "g1", "g2"),
-    "y": ("f", "g1", "g2", "b", "c", "d1", "d2"),
-    # 기호는 원시 스트로크(아래), 숫자는 SEG_MAP(7-세그)
-}
-SEG14_RAW = set("/-.#+")
-# 글자별 셀 폭(높이 대비). 없는 글자는 0.72(일반 글자), 숫자는 0.62.
-SEG_CELL = {"-": .55, ".": .30, "/": .50, "+": .95, "#": 1.05}
+# ── 작은 글자는 세그먼트가 아니다(2026-09-13 확정) ───────────────────────
+# 한때 14-세그 행렬(SEG14_GEO/SEG14_MAP/SEG14_RAW)로 알파벳을 그렸다. 근거로
+# 든 사진 722(Gmate)를 확대해 보니 반대였다 — 722·713·842 셋 다 날짜·시간
+# '숫자'는 세그먼트인데 'mg/dL'·'pm'·'Review'·'Average' 는 일반 폰트다
+# ('g' 의 내림획, 'R' 의 곡선). 물리적으로도 그렇다: 그 글자들은 유리에 인쇄된
+# 고정 범례이고, 세그먼트로 구동되는 것은 값이 변하는 자리(숫자)뿐이다.
+#
+# 그래서 행렬과 font 파라미터를 지웠다. 규칙은 하나로 남는다:
+#   숫자·콜론 -> 세그먼트 · 글자·기호 -> 폰트
+# 행렬이 필요해지면 git 에서 꺼낸다(기호 / - . # 항목이 없어 미완성이었다 —
+# seg14 모드에서 폭만 예약하고 잉크는 안 그렸다).
 # 굵기 변형 — 큰 숫자의 DSEG 변형(DSEG_WEIGHTS, 실기기 8종 눈검 근거)과
 # 같은 3계열. 두께/높이 비율.
 SEG_WEIGHTS = {"Light": .08, "Regular": .11, "Bold": .15}
@@ -150,7 +111,7 @@ def _hershey_metric(ch, h, thick):
     return _HERSHEY_W[key]
 
 
-def seg_char_advance(ch, h, slant=0.0, font="seg14"):
+def seg_char_advance(ch, h, slant=0.0):
     """글자 하나의 진폭(px) — 그리기와 폭 계산이 같은 값을 쓴다(단일 소스).
     1차 결함: seg_text_width 가 간격을 빼먹어 실제 그은 폭보다 적었다."""
     gap = max(1, int(round(h * 0.13)))
@@ -160,11 +121,9 @@ def seg_char_advance(ch, h, slant=0.0, font="seg14"):
         return max(2, h // 7) * 2 + gap
     if ch in SEG_MAP:                      # 숫자 — 언제나 7-세그
         cell = h * 0.62
-    elif font == "hershey":
+    else:                                  # 글자·기호 — 언제나 폰트
         w, _, _, _ = _hershey_metric(ch, h, max(2, int(round(h * 0.11))))
         cell = w
-    else:
-        cell = h * SEG_CELL.get(ch, 0.72)
     lean = int(slant * h) if slant else 0   # 기운 글자가 위에서 차지하는 폭
     return int(round(cell)) + gap + lean
 
@@ -181,22 +140,22 @@ def _seg_trailing(h, slant=0.0):
     return int(round(h * 0.15)) + 4 + (int(round(h * 0.05)) if slant else 0)
 
 
-def seg_text_width(text, h, slant=0.0, font="seg14"):
+def seg_text_width(text, h, slant=0.0):
     """seg_text 가 그을 폭(px) — 배치 사각형 계산용. seg_char_advance 합
     + 줄 끝 여유. seg_text 반환값과 같은 공식이다."""
-    return sum(seg_char_advance(ch, h, slant, font) for ch in text) \
+    return sum(seg_char_advance(ch, h, slant) for ch in text) \
         + _seg_trailing(h, slant)
 
 
-def _seg_draw_upright(canvas, x, y, text, h, thick, slant=0.0, font="seg14"):
+def _seg_draw_upright(canvas, x, y, text, h, thick, slant=0.0):
     """오프스크린 캔버스에 정자로 그린다(값 255). 이탤릭 전단은 seg_text
     에서 한다 — 다만 진폭은 slant 를 포함해 잡아 전단 뒤 글자끼리 겹치지
     않게 한다(이탤릭 활자가 넓은 이유와 같다). 숫자는 7-세그, 콜론은 사각
-    점 두 개(근거 722), 글자는 font 지정(seg14 행렬 / hershey 폰트)."""
+    점 두 개(근거 722), 글자·기호는 폰트."""
     cx = x
     for ch in text:
         if ch == " ":
-            cx += seg_char_advance(ch, h, slant, font)
+            cx += seg_char_advance(ch, h, slant)
             continue
         if ch == ":":
             r = max(2, h // 7)
@@ -204,55 +163,36 @@ def _seg_draw_upright(canvas, x, y, text, h, thick, slant=0.0, font="seg14"):
                           (cx + 2 * r, y + int(h * .30) + 2 * r), 255, -1)
             cv2.rectangle(canvas, (cx, y + int(h * .68)),
                           (cx + 2 * r, y + int(h * .68) + 2 * r), 255, -1)
-            cx += seg_char_advance(ch, h, slant, font)
+            cx += seg_char_advance(ch, h, slant)
             continue
         if ch in SEG_MAP:
             dw = int(h * 0.62)
             draw_digit(canvas, cx, y, dw, h, ch, 255, thickness=thick)
-            cx += seg_char_advance(ch, h, slant, font)
+            cx += seg_char_advance(ch, h, slant)
             continue
-        if font == "hershey":
-            w, hh, bb, scale = _hershey_metric(ch, h, thick)
-            cv2.putText(canvas, ch, (cx, y + hh - bb),
-                        cv2.FONT_HERSHEY_SIMPLEX, scale, 255, thick,
-                        cv2.LINE_AA)
-            cx += seg_char_advance(ch, h, slant, font)
-            continue
-        spec = SEG14_MAP.get(ch)
-        if spec is None:
-            continue
-        cw = int(h * SEG_CELL.get(ch, 0.72))
-        if ch in SEG14_RAW:            # 기호(/ - . # +)는 원시 스트로크
-            for sx0, sy0, sx1, sy1 in spec:
-                p0 = (cx + int(sx0 * cw), y + int(sy0 * h))
-                p1 = (cx + int(sx1 * cw), y + int(sy1 * h))
-                cv2.line(canvas, p0, p1, 255, thick, cv2.LINE_AA)
-        else:                          # 글자는 14-세그먼트
-            for seg in spec:
-                gx0, gy0, gx1, gy1 = SEG14_GEO[seg]
-                p0 = (cx + int(gx0 * cw), y + int(gy0 * h))
-                p1 = (cx + int(gx1 * cw), y + int(gy1 * h))
-                cv2.line(canvas, p0, p1, 255, thick, cv2.LINE_AA)
-        cx += seg_char_advance(ch, h, slant, font)
+        w, hh, bb, scale = _hershey_metric(ch, h, thick)
+        cv2.putText(canvas, ch, (cx, y + hh - bb),
+                    cv2.FONT_HERSHEY_SIMPLEX, scale, 255, thick,
+                    cv2.LINE_AA)
+        cx += seg_char_advance(ch, h, slant)
 
 
-def seg_text(img, x, y, text, h, ink, thick=None, slant=0.0, font="seg14"):
+def seg_text(img, x, y, text, h, ink, thick=None, slant=0.0):
     """세그먼트 보조 글자 줄. 숫자는 7-세그(SEG_MAP), 콜론은 사각 점
-    두 개(put_7seg_text 와 같은 관례, 근거 722 '1:27'). 글자·기호는
-    font 지정 — "seg14"=14-세그 행렬, "hershey"=Hershey 폰트. 폰트는
-    기기별 프로파일이 고른다(사람 지정 2026-09-13).
+    두 개(put_7seg_text 와 같은 관례, 근거 722 '1:27'). 글자·기호는 폰트다 —
+    실물에서 그 자리는 세그먼트가 아니라 유리에 인쇄된 고정 범례다
+    (722·713·842, 2026-09-13).
     thick: 획 두께(기본 Regular). slant: 이탤릭 전단(0.17 ≈ DSEG Italic) —
     숫자·콜론까지 통째로 기울인다(오프스크린 전단). 반환값: 그은 폭 px.
     폭은 seg_char_advance 단일 소스라 seg_text_width 와 어긋나지 않는다."""
     t = thick or max(2, int(round(h * SEG_WEIGHTS["Regular"])))
     lead = _seg_lead(h)
     ov = t // 2 + 1          # 획 중심이 아닌 왼쪽 가장자리를 원점에 맞추는 몫
-    w = seg_text_width(text, h, slant, font)
+    w = seg_text_width(text, h, slant)
     t_pad = t + 2
     ch_box = h + 2 * t_pad                  # 14-세그는 내림글자가 없다
     canvas = np.zeros((ch_box + t_pad, w + 2 * t_pad), np.uint8)
-    _seg_draw_upright(canvas, t_pad + lead + ov, t_pad, text, h, t, slant,
-                      font)
+    _seg_draw_upright(canvas, t_pad + lead + ov, t_pad, text, h, t, slant)
     if slant:
         sh = slant * (canvas.shape[0] - 1)
         M = np.float32([[1, -slant, sh], [0, 1, 0]])
