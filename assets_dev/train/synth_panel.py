@@ -770,7 +770,32 @@ def _render_once(value, rng, profile, pid, inverted):
     pw, ph = px1 - px0, py1 - py0
     # _wide_t/_wide_row 는 캔버스 직후(스트립 얇힘과 공유)에서 이미 뽑았다.
     if lay is not None:
-        band_h = _L["bh"] * ph             # 기기 실측 분포에서 뽑은 이 장의 값
+        # ── 상/중/하 3분할(사람 설계 2026-09-13) ─────────────────────────
+        # "세로 레이아웃이니 혈당을 60~70% 가량 차지하게 하고 상하에 추가정보,
+        #  가운데에 혈당정보를 표시하겠다."
+        #
+        # 밴드 높이를 실측에서 '뽑는' 대신, 위·아래 정보줄이 쓰는 높이를 빼고
+        # 남는 가운데를 값이 채우게 한다. 구판은 실측 bh(0.39~0.47)를 그대로
+        # 써서 숫자가 작고 아래가 비었다 — 그 실측값 자체가 '아래에 두 줄이
+        # 오는 화면'의 결과라, 줄 수에서 역산하는 쪽이 layout 을 제대로 쓴다.
+        _aux0 = max(7, int(ph * 0.085))        # 정보줄 글자 높이(잠정)
+        _row = int(_aux0 * 1.45)               # 줄 하나가 쓰는 높이
+        _n_top = 1 if (profile.get("glulabel")
+                       or (profile.get("mem") or {}).get("pos", "").startswith("top")
+                       or any(pos.startswith("top")
+                              for _k, pos, _p in profile.get("icons", []))) else 0
+        _n_bot = 0
+        if (profile.get("unit") or {}).get("pos", "").startswith("below"):
+            _n_bot += 1
+        if (profile.get("time") or profile.get("daterow")
+                or profile.get("dotrow_below") or profile.get("avgrow")):
+            _n_bot += 1
+        _pad_z = max(4, int(ph * 0.025))
+        _top_h = _n_top * _row + _pad_z
+        _bot_h = _n_bot * _row + _pad_z
+        _mid_h = max(int(ph * 0.30), ph - _top_h - _bot_h)
+        band_h = _mid_h * 0.96
+        _zone_cy = py0 + _top_h + _mid_h / 2.0
     elif _wide_t is not None:
         band_h_frac = _wide_t[1]
         band_h = band_h_frac * H
@@ -878,7 +903,8 @@ def _render_once(value, rng, profile, pid, inverted):
         field_all_w = field_w + ghost_w
     if lay is not None:
         cx = px0 + _L["cx"] * pw           # 유리 좌표계 — 이 장의 값
-        cy = py0 + _L["cy"] * ph
+        # 세로형은 3분할 가운데에 앉힌다. 칼럼/행형 가로 기기는 실측 cy 그대로.
+        cy = (py0 + _L["cy"] * ph) if _fam in ("column", "row") else _zone_cy
     elif _wide_t is not None:
         cx = _wide_t[2] * W
         cy = _wide_t[3] * H
