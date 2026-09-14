@@ -111,7 +111,7 @@ def _hershey_metric(ch, h, thick):
     return _HERSHEY_W[key]
 
 
-def seg_char_advance(ch, h, slant=0.0):
+def seg_char_advance(ch, h, slant=0.0, digit_w=None):
     """글자 하나의 진폭(px) — 그리기와 폭 계산이 같은 값을 쓴다(단일 소스).
     1차 결함: seg_text_width 가 간격을 빼먹어 실제 그은 폭보다 적었다."""
     # 자간은 글자 종류마다 다르다(2026-09-13). 7-세그 숫자는 칸 사이가 실제로
@@ -120,13 +120,18 @@ def seg_char_advance(ch, h, slant=0.0):
     # 써서 'mg/dL' 이 'm g / d L' 로 벌어졌고, 가로형 정보 칼럼에서는 그 폭
     # 때문에 단위·시간이 통째로 배치 실패로 탈락했다(칼럼이 비어 나왔다).
     dgap = max(1, int(round(h * 0.13)))    # 숫자·콜론 — 세그먼트 칸 간격
-    lgap = max(1, int(round(h * 0.04)))    # 글자·기호 — 인쇄 자간
+    # 인쇄 범례는 글자끼리 거의 닿는다(842·1058·267 의 mg/dL). Hershey 는
+    # 글리프 좌우에 자체 여백을 갖고 있어, 간격을 0 으로 둬도 벌어져 보인다 —
+    # 그 여백만큼 당긴다(사람 지적 2026-09-13, 두 번째).
+    lgap = -int(round(h * 0.06))           # 글자·기호 — 인쇄 자간(음수=당김)
     if ch == " ":
         return int(round(h * 0.42))
     if ch == ":":
-        return max(2, h // 7) * 2 + dgap
-    if ch in SEG_MAP:                      # 숫자 — 언제나 7-세그
-        cell = h * 0.62
+        # 콜론은 획 굵기와 같은 사각 점 두 개다. 앞뒤로 숫자 간격을 준다 —
+        # 구판은 뒤에만 줘서 앞 글자에 붙어 나왔다(사람 지적 3회, 2026-09-13).
+        return max(2, int(round(h * 0.12))) + 2 * dgap
+    if ch in SEG_MAP:                      # 숫자 — 큰 숫자와 같은 글리프
+        cell = digit_w if digit_w else h * 0.62
         gap = dgap
     else:                                  # 글자·기호 — 언제나 폰트
         w, _, _, _ = _hershey_metric(ch, h, max(2, int(round(h * 0.11))))
@@ -148,14 +153,15 @@ def _seg_trailing(h, slant=0.0):
     return int(round(h * 0.15)) + 4 + (int(round(h * 0.05)) if slant else 0)
 
 
-def seg_text_width(text, h, slant=0.0):
+def seg_text_width(text, h, slant=0.0, digit_w=None):
     """seg_text 가 그을 폭(px) — 배치 사각형 계산용. seg_char_advance 합
     + 줄 끝 여유. seg_text 반환값과 같은 공식이다."""
-    return sum(seg_char_advance(ch, h, slant) for ch in text) \
+    return sum(seg_char_advance(ch, h, slant, digit_w) for ch in text) \
         + _seg_trailing(h, slant)
 
 
-def _seg_draw_upright(canvas, x, y, text, h, thick, slant=0.0):
+def _seg_draw_upright(canvas, x, y, text, h, thick, slant=0.0,
+                      digit_mask=None, digit_w=None):
     """오프스크린 캔버스에 정자로 그린다(값 255). 이탤릭 전단은 seg_text
     에서 한다 — 다만 진폭은 slant 를 포함해 잡아 전단 뒤 글자끼리 겹치지
     않게 한다(이탤릭 활자가 넓은 이유와 같다). 숫자는 7-세그, 콜론은 사각
@@ -163,29 +169,43 @@ def _seg_draw_upright(canvas, x, y, text, h, thick, slant=0.0):
     cx = x
     for ch in text:
         if ch == " ":
-            cx += seg_char_advance(ch, h, slant)
+            cx += seg_char_advance(ch, h, slant, digit_w)
             continue
         if ch == ":":
-            r = max(2, h // 7)
-            cv2.rectangle(canvas, (cx, y + int(h * .30)),
-                          (cx + 2 * r, y + int(h * .30) + 2 * r), 255, -1)
-            cv2.rectangle(canvas, (cx, y + int(h * .68)),
-                          (cx + 2 * r, y + int(h * .68) + 2 * r), 255, -1)
-            cx += seg_char_advance(ch, h, slant)
+            # 사각 점 두 개 — 크기는 획 굵기, 자리는 획이 놓이는 높이다.
+            r = max(2, int(round(h * 0.12)))
+            gx = cx + max(1, int(round(h * 0.13)))
+            for fy in (0.28, 0.62):
+                cv2.rectangle(canvas, (gx, y + int(h * fy)),
+                              (gx + r, y + int(h * fy) + r), 255, -1)
+            cx += seg_char_advance(ch, h, slant, digit_w)
             continue
         if ch in SEG_MAP:
-            dw = int(h * 0.62)
-            draw_digit(canvas, cx, y, dw, h, ch, 255, thickness=thick)
-            cx += seg_char_advance(ch, h, slant)
+            # 작은 숫자도 큰 숫자와 같은 글리프를 쓴다(digit_mask 주입).
+            # 구판은 여기서만 사각형 세그먼트(draw_digit)를 그려, 한 화면에
+            # 두 가지 글리프 체계가 섞였다(사람 지적 2026-09-13: 큰 숫자는
+            # DSEG 인데 시간줄은 다른 물건으로 보인다).
+            if digit_mask is not None:
+                m = digit_mask(ch, h)
+                if m is not None:
+                    reg = canvas[y:y + m.shape[0], cx:cx + m.shape[1]]
+                    hh = min(reg.shape[0], m.shape[0])
+                    ww = min(reg.shape[1], m.shape[1])
+                    reg[:hh, :ww][m[:hh, :ww]] = 255
+            else:
+                draw_digit(canvas, cx, y, int(h * 0.62), h, ch, 255,
+                           thickness=thick)
+            cx += seg_char_advance(ch, h, slant, digit_w)
             continue
         w, hh, bb, scale = _hershey_metric(ch, h, thick)
         cv2.putText(canvas, ch, (cx, y + hh - bb),
                     cv2.FONT_HERSHEY_SIMPLEX, scale, 255, thick,
                     cv2.LINE_AA)
-        cx += seg_char_advance(ch, h, slant)
+        cx += seg_char_advance(ch, h, slant, digit_w)
 
 
-def seg_text(img, x, y, text, h, ink, thick=None, slant=0.0):
+def seg_text(img, x, y, text, h, ink, thick=None, slant=0.0,
+             digit_mask=None, digit_w=None):
     """세그먼트 보조 글자 줄. 숫자는 7-세그(SEG_MAP), 콜론은 사각 점
     두 개(put_7seg_text 와 같은 관례, 근거 722 '1:27'). 글자·기호는 폰트다 —
     실물에서 그 자리는 세그먼트가 아니라 유리에 인쇄된 고정 범례다
@@ -196,11 +216,12 @@ def seg_text(img, x, y, text, h, ink, thick=None, slant=0.0):
     t = thick or max(2, int(round(h * SEG_WEIGHTS["Regular"])))
     lead = _seg_lead(h)
     ov = t // 2 + 1          # 획 중심이 아닌 왼쪽 가장자리를 원점에 맞추는 몫
-    w = seg_text_width(text, h, slant)
+    w = seg_text_width(text, h, slant, digit_w)
     t_pad = t + 2
     ch_box = h + 2 * t_pad                  # 14-세그는 내림글자가 없다
     canvas = np.zeros((ch_box + t_pad, w + 2 * t_pad), np.uint8)
-    _seg_draw_upright(canvas, t_pad + lead + ov, t_pad, text, h, t, slant)
+    _seg_draw_upright(canvas, t_pad + lead + ov, t_pad, text, h, t, slant,
+                      digit_mask, digit_w)
     if slant:
         sh = slant * (canvas.shape[0] - 1)
         M = np.float32([[1, -slant, sh], [0, 1, 0]])
