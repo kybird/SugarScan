@@ -80,6 +80,76 @@ class BandQuadNet(nn.Module):
         return self.head(self.features(x))
 
 
+class BandQuadHeat(nn.Module):
+    """모서리 네 개를 히트맵으로 내고 soft-argmax 로 좌표를 뽑는다.
+
+    구판(BandQuadNet)은 8x8x128 을 Flatten 해 Linear(8192,512) 로 받았다 —
+    파라미터 491만 중 419만(85%)이 그 한 줄이었고, 납작하게 펴는 순간 '어느
+    칸에서 온 값인가'가 구조에서 사라져 FC 가 위치를 weight 로 외워야 했다.
+    기울기(밴드 양 끝의 미세한 y 차이)가 40k 가 되어서야 배워진 것이 그
+    비용으로 보인다(band_det_corner_error.py, corr 0.057 -> 0.616 -> 0.910).
+
+    바꾸는 축은 머리부 하나뿐이다. 특징부는 구판과 같은 블록을 쓰되 마지막
+    stride 를 빼 격자를 8x8 -> 16x16 으로 올렸다. soft-argmax 는 칸 안의
+    소수점 위치까지 연속으로 내므로 격자 해상도가 상한이 아니다.
+
+    출력 규약은 구판과 동일 — 레터박스 캔버스 0~1 정규화, TL-TR-BR-BL.
+    """
+
+    def __init__(self, temp=1.0):
+        super().__init__()
+
+        def blk(ci, co, stride=2):
+            return nn.Sequential(
+                nn.Conv2d(ci, co, 3, stride=stride, padding=1),
+                nn.BatchNorm2d(co), nn.ReLU(inplace=True),
+                nn.Conv2d(co, co, 3, padding=1),
+                nn.BatchNorm2d(co), nn.ReLU(inplace=True),
+            )
+        self.features = nn.Sequential(
+            blk(1, 24),      # 128
+            blk(24, 48),     # 64
+            blk(48, 96),     # 32
+            blk(96, 128),    # 16
+        )
+        self.head = nn.Sequential(
+            nn.Conv2d(128, 128, 3, padding=1),
+            nn.BatchNorm2d(128), nn.ReLU(inplace=True),
+            nn.Conv2d(128, 4, 1),          # 모서리 4개의 히트맵
+        )
+        self.temp = temp
+
+    def forward(self, x):
+        h = self.head(self.features(x))            # [N,4,G,G]
+        n, c, gh, gw = h.shape
+        p = torch.softmax(h.reshape(n, c, gh * gw) / self.temp, dim=-1)
+        p = p.reshape(n, c, gh, gw)
+        # 격자 중심을 0~1 로 — 칸 크기의 절반만큼 안으로 들어온다
+        ys = (torch.arange(gh, device=h.device, dtype=h.dtype) + 0.5) / gh
+        xs = (torch.arange(gw, device=h.device, dtype=h.dtype) + 0.5) / gw
+        ex = (p.sum(dim=2) * xs).sum(dim=-1)       # [N,4]
+        ey = (p.sum(dim=3) * ys).sum(dim=-1)
+        return torch.stack([ex, ey], dim=-1).reshape(n, 8)
+
+
+ARCHS = {"fc": BandQuadNet, "heat": BandQuadHeat}
+
+
+def load_detector(ckpt, dev="cpu"):
+    """체크포인트에서 구조를 알아내 모델을 세운다.
+
+    구판 체크포인트 아홉 개는 arch 를 안 적고 저장됐다. state_dict 의 머리부
+    모양으로 가른다 — fc 는 head.1.weight 가 (512, 8192), heat 는 머리부가
+    전부 Conv 다. 파일에 이름을 적는 방식은 옛 파일에 소급이 안 된다.
+    """
+    sd = torch.load(ckpt, map_location=dev)
+    arch = "fc" if sd.get("head.1.weight", torch.empty(0)).dim() == 2 else "heat"
+    model = ARCHS[arch]().to(dev)
+    model.load_state_dict(sd)
+    model.eval()
+    return model, arch
+
+
 class SynthBandSet(Dataset):
     def __init__(self, root, ids, train):
         self.root = Path(root)
@@ -116,6 +186,9 @@ def main():
     ap.add_argument("--lr", type=float, default=3e-4)
     ap.add_argument("--val", type=int, default=150, help="학습 건전성용 분리")
     ap.add_argument("--out", default="band_det_v0.pt")
+    ap.add_argument("--arch", default="fc", choices=sorted(ARCHS),
+                    help="fc=구판(Flatten+Linear) · heat=히트맵+soft-argmax. "
+                         "구판 체크포인트 아홉 개가 fc 라 기본을 바꾸지 않는다")
     args = ap.parse_args()
 
     rows = [json.loads(l) for l in
@@ -131,7 +204,9 @@ def main():
                     batch_size=args.batch, num_workers=2)
 
     dev = "cuda" if torch.cuda.is_available() else "cpu"
-    model = BandQuadNet().to(dev)
+    model = ARCHS[args.arch]().to(dev)
+    print(f"arch={args.arch}  파라미터 "
+          f"{sum(p.numel() for p in model.parameters()):,}")
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, args.epochs)
     lossf = nn.SmoothL1Loss()

@@ -22,7 +22,7 @@ import cv2
 import numpy as np
 import torch
 
-from train_band_detector import BandQuadNet
+from train_band_detector import load_detector
 from eval_band_detector import det_predict, poly_iou
 
 HERE = Path(__file__).resolve().parent
@@ -43,9 +43,7 @@ def main():
     args = ap.parse_args()
 
     dev = "cuda" if torch.cuda.is_available() else "cpu"
-    model = BandQuadNet().to(dev)
-    model.load_state_dict(torch.load(HERE / args.ckpt, map_location=dev))
-    model.eval()
+    model, _arch = load_detector(HERE / args.ckpt, dev)
 
     root = HERE / args.data
     rows = [json.loads(l) for l in open(root / "manifest.jsonl", encoding="utf-8")]

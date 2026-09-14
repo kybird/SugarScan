@@ -26,7 +26,8 @@ import torch
 
 from eval_reader import load_gray
 from diag_cv_band import find_band, grow_box, DEFAULTS
-from train_band_detector import BandQuadNet, letterbox, quad_to_target, IMG_SIZE
+from train_band_detector import (BandQuadNet, load_detector, letterbox,
+                                 quad_to_target, IMG_SIZE)
 
 HERE = Path(__file__).resolve().parent
 
@@ -101,9 +102,7 @@ def main():
     args = ap.parse_args()
 
     dev = "cuda" if torch.cuda.is_available() else "cpu"
-    model = BandQuadNet().to(dev)
-    model.load_state_dict(torch.load(args.ckpt, map_location=dev))
-    model.eval()
+    model, _arch = load_detector(args.ckpt, dev)
 
     quads = {r["id"]: r for r in quad_rows()}
     bands = _load_jsonl(BAND_BOXES)
