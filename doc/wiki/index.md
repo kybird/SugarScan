@@ -70,6 +70,7 @@ tags: [index]
 | [[guard-threshold-absolute-while-input-widens]] | 자가검사·가드가 **고정 문턱**(절대값)을 쓰는데, 나중에 다른 작업이 **입력 | 고정 문턱 가드, 절대 문턱, 자가검사 무력화, guard threshold, glyph_plane_check |
 | [[image-level-split-on-session-corpus]] | 같은 촬영 세션(같은 기기·구도·조명)의 사진이 여러 장 있는 코퍼스를 이미지 단위로 | 이미지 단위 분할, 랜덤 분할 누수, 세션 누수, data leakage, near-duplicate leakage, burst corpus split, 그룹 분할 안 함 |
 | [[improvement-parked-outside-the-pipeline]] | 기준선을 보존하려고 개선을 **별도 구현**으로 만드는 것은 옳다. | 곁가지 개선, 병렬 구현, 반영 안 된 개선, A/B 전용 코드, 기본 경로 |
+| [[initializer-scoped-helper-called-by-global-render]] | `boot()`/`init()` 같은 초기화 함수 **안에** 정의한 헬퍼를, 그 밖의 전역 렌더 | drawPred 스코프 사고, boot 내부 함수를 전역이 부른다, 부분 렌더, strict mode ReferenceError, 히어로만 뜨고 스트립이 비었다 |
 | [[irreversible-write-without-history]] | 원자적 저장(`.tmp` → `rename`)은 **쓰다 만 파일**을 막을 뿐, **틀린 내용으로 온전히 | 이력 없는 덮어쓰기, 원자적 저장의 함정, tmp rename, untracked 라벨, 백업 없는 사람 라벨, 재생 불가 자산 |
 | [[label-schema-wider-than-its-values]] | 라벨 파일의 **모양**은 어떤 정보를 담을 수 있게 생겼는데, 실제 값은 전부 | 스키마는 넓은데 값은 좁다, 쿼드인데 축정렬, 담을 수 있게 생겼다, 도구가 못 그린다, schema wider than values |
 | [[label-without-visual-ground-truth]] | 좌표만 저장하고, 저장된 좌표를 **다시 이미지에 그려 확인하는 경로 없이** 계속 진행하는 것. | 눈검증 없는 라벨링, 좌표만 저장, screen_boxes.jsonl, labeled.jsonl, /api/selftest, audit_oob.py |
@@ -110,6 +111,6 @@ tags: [index]
 
 - Total concepts: 9
 - Total patterns: 16
-- Total anti-patterns: 46
+- Total anti-patterns: 47
 - Total answers: 0
-- Last updated: 2026-09-14
+- Last updated: 2026-09-15
