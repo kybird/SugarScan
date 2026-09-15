@@ -89,7 +89,7 @@ def tile(gray, p, title, cell=150):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ckpt", default="band_det_heat40k.pt")
-    ap.add_argument("--synth", default="synth_night_5000")
+    ap.add_argument("--synth", default="synth_r2_10000")
     ap.add_argument("--n", type=int, default=6)
     ap.add_argument("--stats-n", type=int, default=200)
     ap.add_argument("--stats-only", action="store_true")

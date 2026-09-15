@@ -8,9 +8,12 @@
 # 모서리 오차는 밴드 높이로 정규화해 인쇄한다(장마다 해상도가 달라 픽셀
 # 절대값은 비교가 안 된다).
 #
-# 주의: --data 가 그 체크포인트의 학습 코퍼스면 홀드아웃이 아니다. 밤샘 스윕의
-# synth_night_5000 은 n5k 의 학습셋이고 n10k 이상에는 홀드아웃이다(시드 75000
-# vs 110000).
+# 주의: --data 가 그 체크포인트의 학습 코퍼스면 홀드아웃이 아니다.
+#
+# 2026-09-15: 합성기를 영역 모델로 리팩토링하면서 옛 코퍼스(synth_night_* ·
+# synth_wide40_* · synth_band_det_v4, 197,600장)를 전부 지웠다. 옛 합성기로
+# 구운 데이터와 새 합성기 수치를 나란히 두면 무엇이 원인인지 못 가린다.
+# 기본 홀드아웃은 synth_r2_10000 이다.
 #
 # 사용: python band_det_corner_error.py --ckpt band_det_n40k_ep60.pt \
 #          --data synth_night_5000 [--n 800]
@@ -38,7 +41,7 @@ def quad_angle(q):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ckpt", default="band_det_n40k_ep60.pt")
-    ap.add_argument("--data", default="synth_night_5000")
+    ap.add_argument("--data", default="synth_r2_10000")
     ap.add_argument("--n", type=int, default=800)
     args = ap.parse_args()
 
