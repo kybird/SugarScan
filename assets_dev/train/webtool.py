@@ -527,6 +527,11 @@ def api_failures(qs):
     # 밴드 라벨 전수 검토 — 같은 스크립트. 자릿수별 중앙에서 벗어난 순이라
     # 중간에 멈춰도 이상한 것은 이미 다 본 상태가 된다.
     review, review_note = _queue("band_review_queue.json")
+    # 가로형 밴드 전수 검토 — make_wide_review_queue.py. 그 기기 자신의 중앙값
+    # 에서 벗어난 순이다(기기마다 밴드 폭이 다르므로 전체 분포로 재면 정상
+    # 기기가 통째로 걸린다). 2026-09-15 밤샘: 세로형은 0.780->0.859 로 올랐는데
+    # 가로형만 0.69 에서 안 움직였다 — 라벨을 의심할 차례다.
+    wide2, wide2_note = _queue("band_wide_queue.json")
     # 테스트 holdout — 라벨링하면 개선을 잴 데가 없어진다. 큐에서 빼는 것으로는
     # 부족하고(전체 큐로 들어올 수 있다) 화면에 경고를 띄운다.
     hold, _ = _queue("lcd_fix_holdout.json")
@@ -541,6 +546,7 @@ def api_failures(qs):
             "band_seed": seed, "band_seed_note": seed_note,
             "band_slot_fix": slotfix, "band_slot_fix_note": slotfix_note,
             "band_review": review, "band_review_note": review_note,
+            "band_wide": wide2, "band_wide_note": wide2_note,
             "lcd_holdout": hold}
 
 

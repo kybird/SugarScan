@@ -38,6 +38,12 @@
   #hero { flex: 1; min-height: 0; background: #0d0f12; display: flex; align-items: center;
           justify-content: center; position: relative; }
   #hero img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  /* 밴드 검출기 예측 오버레이 — 사진 위에 정확히 겹친다(2026-09-15).
+     object-fit: contain 이라 렌더 박스가 사진보다 클 수 있어, 실제 그려진
+     사각형을 계산해서 캔버스를 거기에 맞춘다. */
+  #heroOv { position: absolute; pointer-events: none; }
+  #predTog { position: absolute; left: 8px; top: 8px; background: #0009;
+             padding: 3px 8px; border-radius: 4px; font-size: 12px; }
   #heroCap { position: absolute; left: 8px; bottom: 8px; background: #0009; padding: 3px 8px;
              border-radius: 4px; font-family: Consolas, monospace; font-size: 12px; }
   #heroLbl { position: absolute; right: 8px; top: 8px; background: #0009; padding: 3px 8px;
@@ -148,6 +154,8 @@
   <div id="viewer">
     <div id="hero">
       <img id="heroImg" alt="">
+      <canvas id="heroOv"></canvas>
+      <label id="predTog"><input type="checkbox" id="chkPred" checked> 모델 예측</label>
       <span id="heroCap" class="muted"></span>
       <span id="heroLbl"></span>
     </div>
@@ -369,6 +377,70 @@ const vocabText = v => [v.brand, v.model, v.variant ? '· ' + v.variant : '']
   .join(' ').replace(/\s+/g, ' ').trim();
 
 async function boot() {
+  // ── 밴드 검출기 예측 오버레이 (2026-09-15) ──────────────────────────────
+  // 좌표는 **원본 사진 픽셀**(band_quads_pred.jsonl 규약). 화면에 그리려면
+  // 그 사진의 원본 크기(ow)가 필요한데 /photo 는 바이트만 준다 — /api/image
+  // 가 {url, ow, oh} 를 주므로 그걸로 배율을 잡는다. 배율을 빼먹으면 쿼드가
+  // 좌상단으로 쏠린다(좌표계 혼동).
+  const PRED = { quads: null, size: {} };
+
+  async function loadPred() {
+    if (PRED.quads) return PRED.quads;
+    try {
+      const r = await (await fetch('/api/quads?kind=band')).json();
+      PRED.quads = r.quads || {};
+    } catch (e) { PRED.quads = {}; }
+    return PRED.quads;
+  }
+
+  async function sizeOf(id) {
+    if (PRED.size[id]) return PRED.size[id];
+    try {
+      const m = await (await fetch('/api/image?id=' + encodeURIComponent(id)
+                                   + '&w=1100')).json();
+      if (m && m.ow) PRED.size[id] = { ow: m.ow, oh: m.oh };
+    } catch (e) { /* 없으면 안 그린다 */ }
+    return PRED.size[id];
+  }
+
+  async function drawPred(id) {
+    const cv = $('#heroOv'), img = $('#heroImg');
+    const ctx = cv.getContext('2d');
+    cv.width = cv.width;                       // 비우기
+    if (!$('#chkPred').checked || !id || !img.clientWidth) return;
+    const quads = await loadPred();
+    const q = quads[id];
+    if (!q) return;
+    const sz = await sizeOf(id);
+    if (!sz) return;
+    // object-fit: contain 이 실제로 그린 사각형을 구한다
+    const box = img.getBoundingClientRect(), hero = $('#hero').getBoundingClientRect();
+    const sc = Math.min(box.width / sz.ow, box.height / sz.oh);
+    const dw = sz.ow * sc, dh = sz.oh * sc;
+    const ox = box.left - hero.left + (box.width - dw) / 2;
+    const oy = box.top - hero.top + (box.height - dh) / 2;
+    cv.width = Math.round(dw); cv.height = Math.round(dh);
+    cv.style.left = ox + 'px'; cv.style.top = oy + 'px';
+    cv.style.width = dw + 'px'; cv.style.height = dh + 'px';
+    ctx.setLineDash([10, 7]);
+    ctx.lineWidth = Math.max(2, dw / 260);
+    ctx.strokeStyle = '#4da3ff';
+    ctx.beginPath();
+    q.forEach((p, i) => i ? ctx.lineTo(p[0] * sc, p[1] * sc)
+                          : ctx.moveTo(p[0] * sc, p[1] * sc));
+    ctx.closePath(); ctx.stroke();
+  }
+
+  // 사진이 실제로 뜬 뒤/창이 바뀐 뒤에 다시 그린다 — src 를 바꾼 직후에는
+  // clientWidth 가 아직 0 이라 한 번으로는 안 맞는다.
+  $('#heroImg').addEventListener('load', () => drawPred(heroId));
+  $('#chkPred').addEventListener('change', () => drawPred(heroId));
+  let _predRz;
+  window.addEventListener('resize', () => {
+    clearTimeout(_predRz);
+    _predRz = setTimeout(() => drawPred(heroId), 120);
+  });
+
   const j = await (await fetch('/api/devicetags')).json();
   ROWS = j.rows; MEMBERS = j.members || {}; VOCAB = j.vocab || [];
   LABELS = j.labels || {}; NEAR = j.near || {}; PRIO = j.review_priority || {};
@@ -634,6 +706,7 @@ function renderStrip() {
   const slice = mem.slice(stripPage * PER_STRIP, (stripPage + 1) * PER_STRIP);
   if (!heroId || !mem.includes(heroId)) heroId = slice[0];
   $('#heroImg').src = '/photo?id=' + encodeURIComponent(heroId) + '&w=1100';
+  drawPred(heroId);
   $('#heroCap').textContent = `${mem.indexOf(heroId) + 1} / ${mem.length}   ${heroId}`;
   const hj = LABELS[heroId];
   $('#heroLbl').innerHTML = hj ? `<span class="pill ${hj.status === 'unknown' ? 'unknown' : 'human'}">` +
@@ -730,6 +803,7 @@ function renderSugg() {
       }
       heroId = o.rep;
       $('#heroImg').src = '/photo?id=' + encodeURIComponent(o.rep) + '&w=1100';
+      drawPred(o.rep);
       $('#heroCap').textContent = cid + ' (후보)';
     };
     box.appendChild(f);
