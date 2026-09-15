@@ -5,6 +5,7 @@
 import sys
 
 from lcd_layout import (Rect, build_layout, place_in, slot_field,
+                        band_quad, BAND_MARGIN,
                         TOP, MID, BOTTOM, TRACK_R, COLUMN_R)
 
 GLASS = Rect(0, 0, 600, 800)
@@ -85,6 +86,21 @@ try:
     ok(False, "mid 없는 선언은 거부한다")
 except ValueError:
     ok(True, "mid 없는 선언은 거부한다")
+
+
+print("── 밴드 여백은 규약이 정한다(측정이 아니라) ──")
+f4, dh4, _ = slot_field(lay[MID], slots=3, aspect=0.62)
+bq = band_quad(f4, dh4)
+ok(near(f4.x0 - bq.x0, BAND_MARGIN * dh4), "왼쪽 여백 = margin*digit_h")
+ok(near(bq.x1 - f4.x1, BAND_MARGIN * dh4), "오른쪽도 같다")
+ok(near(f4.y0 - bq.y0, BAND_MARGIN * dh4), "위도 같다")
+ok(near(bq.y1 - f4.y1, BAND_MARGIN * dh4), "아래도 같다")
+ok(bq.contains(f4), "밴드가 슬롯 필드를 담는다")
+
+tight = Rect(f4.x0 + 1, f4.y0 + 1, f4.x1 - 1, f4.y1 - 1)   # 유리가 더 좁은 상황
+bq2 = band_quad(f4, dh4, clip=tight)
+ok(bq2.contains(f4), "유리로 잘라도 내용은 안 자른다")
+ok(bq2.x0 >= bq.x0 and bq2.x1 <= bq.x1, "여백만 줄어든다")
 
 print()
 if _fail:
