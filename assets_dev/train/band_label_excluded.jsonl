@@ -1,3 +1,5 @@
 {"id": "glucose_batch1/2431", "source": "human", "ts": "2026-09-14", "reason": "frame-cuts-digit-field", "note": "사진이 LCD 를 화면 밖까지 잘라 찍었다. 값 85, 앞 빈자리가 프레임 밖이다(여유/칸폭 0.24). 사람 판정."}
 {"id": "glucose_batch1/2489", "source": "human", "ts": "2026-09-14", "reason": "frame-cuts-digit-field", "note": "값 139 로 세 자리가 다 보이지만 숫자칸 영역이 프레임에 잘렸다. 빈칸이라도 잘리면 제외한다 — 사람 판정 2026-09-14."}
 {"id": "glucose_batch1/1826", "source": "human", "ts": "2026-09-14", "reason": "frame-cuts-digit-field", "note": "빈칸이라도 잘렸다 — 사람 판정 2026-09-14."}
+{"id": "glucose_batch1/1564", "source": "human", "ts": "2026-09-14", "reason": "no-upright-normalization", "note": "가로형 기기를 90도 돌려 찍었다(digit_top=right). 밴드 상자가 세로로 길다(w/h 0.517). 합성이 이 분포를 사실상 안 만든다(w/h<1.0 이 0.18%) — 검출기가 본 적 없는 장이라 맞힐 수 없다. 회전 정규화는 밴드 검출기가 아니라 그 앞단에서 풀 문제다. 정규화 단계가 생기면 되돌린다. 사람 판정 2026-09-14."}
+{"id": "glucose_batch1/1565", "source": "human", "ts": "2026-09-14", "reason": "no-upright-normalization", "note": "1564 와 같은 기기·같은 사유(digit_top=right, w/h 0.574). 빈칸이 왼쪽이 아니라 위쪽이라 폭 기준 슬롯 감사가 오탐을 낸다. 사람 판정 2026-09-14."}

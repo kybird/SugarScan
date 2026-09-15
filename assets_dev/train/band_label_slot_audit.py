@@ -10,6 +10,15 @@
 # 자릿수는 상위 값 라벨(upstream/datumo/labels.jsonl 의 reading)에서 온다.
 # 화면 쿼드는 gm_quads 로더(사람 라벨 우선).
 #
+# 한계(2026-09-14, 수정 작업 뒤 확인): 문턱이 '3자리 중앙 w/h 의 80%' 라는
+# **상대 기준**이라 0 이 나올 수 없다. 라벨을 전부 고쳐도 분포가 통째로 올라가면
+# 문턱도 따라 올라 하위 몇 장이 계속 걸린다. 기기마다 숫자 간격이 달라 w/h 하나로
+# 슬롯 수를 판정할 수 없는 것이 근본 이유다.
+#
+# 그러므로 **걸린 장 수를 합격 기준으로 쓰지 마라.** 판정 신호는 아래 한 줄이다:
+# 걸린 무리의 게이트 IoU 가 나머지보다 눌려 있으면 진짜 결함이고, 같거나 높으면
+# 문턱의 오탐이다. 이 자는 결함을 **찾는** 데 쓰고 **합격을 선언하는** 데 쓰지 않는다.
+#
 # 사용: python band_label_slot_audit.py [--thresh 0.80] [--list]
 import argparse
 import json
@@ -79,9 +88,11 @@ def main():
         o = [r["iou_det"] for r in g if r["id"] not in bad_ids]
         if not t:
             continue
+        mt, mo = float(np.median(t)), float(np.median(o))
+        verdict = "진짜 결함" if mt < mo - 0.05 else "문턱 오탐(결함 아님)"
         print(f"  {d.parent.name:<22} 전체 {np.median(t + o):.3f}  "
-              f"슬롯부족 {np.median(t):.3f}(n={len(t)})  "
-              f"나머지 {np.median(o):.3f}(n={len(o)})")
+              f"슬롯부족 {mt:.3f}(n={len(t)})  "
+              f"나머지 {mo:.3f}(n={len(o)})   → {verdict}")
 
 
 if __name__ == "__main__":
