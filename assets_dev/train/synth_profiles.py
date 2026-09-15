@@ -230,7 +230,12 @@ PROFILES = [
         bezel=dict(texts=["Performa Nano"], edge="top", p=0.7),
     ),
     dict(
-        id="accuchek_active", slots=3, align="center", italic=False,
+        # 세그먼트 표시는 칸이 고정이고 값이 **오른쪽부터** 채워진다
+        # (사람 지적 2026-09-15: "segment 를 왼쪽 정렬이 말이 되냐").
+        # center/left 면 자릿수가 바뀔 때 숫자가 통째로 움직인다 — 고정
+        # 칸이라는 물리와 어긋난다. 2자리 값은 앞 칸이 비는 것이지
+        # 숫자가 가운데로 모이는 것이 아니다.
+        id="accuchek_active", slots=3, align="right", italic=False,
         evidence=["glucose_batch1/1329", "glucose_batch2/2502",
                   "glucose_batch2/2513", "glucose_batch2/2519"],
         # 상단에 시간(왼쪽)·날짜(오른쪽) 작은 줄, 숫자는 중앙 대형,
@@ -241,7 +246,12 @@ PROFILES = [
         bezel=dict(texts=["Active"], edge="top", p=0.6),
     ),
     dict(
-        id="gluneo_plus", slots=3, align="center", italic=False,
+        # 세그먼트 표시는 칸이 고정이고 값이 **오른쪽부터** 채워진다
+        # (사람 지적 2026-09-15: "segment 를 왼쪽 정렬이 말이 되냐").
+        # center/left 면 자릿수가 바뀔 때 숫자가 통째로 움직인다 — 고정
+        # 칸이라는 물리와 어긋난다. 2자리 값은 앞 칸이 비는 것이지
+        # 숫자가 가운데로 모이는 것이 아니다.
+        id="gluneo_plus", slots=3, align="right", italic=False,
         evidence=["glucose_batch1/1435", "glucose_batch1/1438",
                   "glucose_batch1/1440", "glucose_batch1/1449"],
         # 대형 중앙 숫자, mg/dL 은 숫자 아래 오른쪽, 하단 줄 왼쪽에 아래
@@ -280,7 +290,12 @@ PROFILES = [
         # 가로형 2 — 같은 칼럼 가족인데 반전 액정(흰 숫자)이고 더 납작하다.
         # 숫자가 화면 맨 왼쪽에 붙는다(실측 cx 0.092). 근거 1091·1094·1815·
         # 1622·1624·1627·1822. 기종 미상이라 베젤 문자열이 없다.
-        id="wide_unknown", slots=3, align="left", italic=False,
+        # align 은 right 다(2026-09-15 정정). 구판은 left 였고 근거가 "숫자가
+        # 화면 맨 왼쪽에 붙는다(실측 cx 0.092)" 였는데, 그 실측이 **첫 자리를
+        # 자른 라벨**에서 나온 값이다(1091·1046·606 의 밴드 폭 0.336~0.349 vs
+        # 정상 라벨 0.561~0.622). left 로 두면 2자리 값의 빈 칸이 오른쪽으로
+        # 가서 앞자리가 잘린 실물 사진을 그대로 따라 그리게 된다.
+        id="wide_unknown", slots=3, align="right", italic=False,
         family="column",
         evidence=["glucose_batch1/1091", "glucose_batch1/1094",
                   "glucose_batch1/1815"],
@@ -659,9 +674,15 @@ def _icon(img, kind, cx, cy, s, ink, pos=None):
 # mid 가 숫자 자리다. 미터기 기기는 오른쪽 트랙을 따로 떼고, 가로형은
 # 오른쪽 정보 칼럼을 뗀다.
 #
-# 초안은 실측(LAYOUTS 의 bh·cy·bw)에서 유도했다 — 구조를 바꾸면서
-# 그림까지 튀면 무엇이 원인인지 못 가린다. 기기별 조정은 사진을 보고
-# 사람이 한다.
+# 초안은 실측(LAYOUTS 의 bh·cy·bw)에서 유도했다 — 구조를 바꾸면서 그림까지
+# 튀면 무엇이 원인인지 못 가린다.
+#
+# 그 뒤 조정은 **실사진 수치가 아니라 화면을 보고** 한다(사람 지침 2026-09-15:
+# "실사진에 자를 대지말자. 실사진에는 자가 안들어"). 실사진 라벨은 사람이 그린
+# 것이라 기계적 일관성이 없고 촬영 변인이 얹힌다 — 그걸 목표로 삼으면 기준이
+# 손떨림이 된다. 합성이 기준을 정하고 실사진은 눈으로 확인만 한다.
+# 가로형 pad 가 그 예다: 2026-09-15 에 사람이 "배치는 좋은데 패딩이 없다"고
+# 해서 0.03 -> 0.05/0.04/0.10/0.10 으로 올렸다. 잰 값이 아니다.
 REGIONS = {
     "accuchek_instant": dict(pad=(0.104, 0.020, 0.060, 0.060), rows=(0.188, 0.439, 0.253), track_right=0.12),
     "gmate": dict(pad=(0.020, 0.020, 0.060, 0.060), rows=(0.153, 0.390, 0.337)),
@@ -677,6 +698,6 @@ REGIONS = {
     "gluneo_plus": dict(pad=(0.104, 0.104, 0.060, 0.060), rows=(0.128, 0.466, 0.286)),
     # 가로형에도 상단 줄을 둔다 — M 이 좌측 상단에 오는데(사람 판정 2026-09-15)
     # rows=(0,1,0) 이면 갈 자리가 없어 밴드 위에 겹쳤다.
-    "onetouch_ultramini": dict(pad=(0.03, 0.03, 0.042, 0.028), column_right=0.444, rows=(0.16, 0.84, 0.0)),
-    "wide_unknown": dict(pad=(0.03, 0.03, 0.031, 0.037), column_right=0.361, rows=(0.16, 0.84, 0.0)),
+    "onetouch_ultramini": dict(pad=(0.05, 0.04, 0.10, 0.10), column_right=0.42, rows=(0.16, 0.84, 0.0)),
+    "wide_unknown": dict(pad=(0.05, 0.04, 0.10, 0.10), column_right=0.34, rows=(0.16, 0.84, 0.0)),
 }

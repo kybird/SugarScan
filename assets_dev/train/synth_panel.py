@@ -1259,12 +1259,25 @@ def _render_once(value, rng, profile, pid, inverted):
             # 칼럼 쪽: 밴드가 유리 왼쪽에 치우쳤으면 오른쪽, 아니면 왼쪽
             _right = (fx0 + field_all_w / 2) < (px0 + px1) / 2
             _cg = max(6, int(dh * 0.12))
-            if _right:
+            # 칼럼도 **영역**이 있으면 그 영역을 쓴다(2026-09-15). 구판은
+            # px0/px1 에서 4px 만 띄워 유리 가장자리에 바로 붙었고, 세로로도
+            # py0+6 에서 시작해 위쪽에 딱 붙었다 — 사람 지적: "오른쪽 날짜와
+            # 시간 같은 게 패딩이 없어서 위로 붙은 게 문제. 이런 걸 디바이스
+            # 프로파일에 넣으라고". 패딩은 REGIONS 의 pad 가 정한다.
+            _creg = (_region_lay[LCOLUMN_R]
+                     if _region_lay is not None and _region_lay.has(LCOLUMN_R)
+                     else None)
+            if _creg is not None:
+                _cx0, _cx1 = int(round(_creg.x0)), int(round(_creg.x1))
+                _cy_top, _cy_bot = int(round(_creg.y0)), int(round(_creg.y1))
+            elif _right:
                 _cx0 = min(band_r + _cg, px1 - 10)
                 _cx1 = px1 - 4
+                _cy_top, _cy_bot = py0 + 6, py1 - 2
             else:
                 _cx0 = px0 + 4
                 _cx1 = max(band_l - _cg, px0 + 10)
+                _cy_top, _cy_bot = py0 + 6, py1 - 2
             _cw = _cx1 - _cx0
             if _cw > 26:
                 # 칼럼 항목도 기기 고정이다 — UltraMini 8장 전부 시간·날짜·
@@ -1290,15 +1303,15 @@ def _render_once(value, rng, profile, pid, inverted):
                 # 꺼진 칸은 그냥 비어 있다 — 세그먼트가 안 켜질 뿐이다.
                 _ORDER = ("time", "date", "unit", "mem")
                 _slot_h = max(aux_h + 2,
-                              int((py1 - py0 - 12) / float(len(_ORDER))))
+                              int((_cy_bot - _cy_top) / float(len(_ORDER))))
                 _on = dict(_items)
                 for _si, _nm in enumerate(_ORDER):
                     if _nm not in _on:
                         continue          # 그 칸은 비워 둔다
                     _txt = _on[_nm]
-                    _cy_ = py0 + 6 + _si * _slot_h
+                    _cy_ = _cy_top + _si * _slot_h
                     _tw_ = seg_text_width(_txt, aux_h, aux_slant, _dw(aux_h))
-                    if _tw_ > _cw or _cy_ + aux_h > py1 - 2:
+                    if _tw_ > _cw or _cy_ + aux_h > _cy_bot:
                         continue
                     if maybe(placer.try_place(_cx0 + (_cw - _tw_) // 2, _cy_,
                                               _tw_, aux_h, f"wide:{_nm}"),
