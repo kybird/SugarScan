@@ -1815,25 +1815,48 @@ def _render_once(value, rng, profile, pid, inverted):
     gp0 = glyph_plane.copy()
     pre = img.copy()
     fillc = int(body_col)   # 워프 경계색 — 몸체 톤(구판 베젤 링 잔여)
-    do_key = rng.random() < 0.35
-    fx = [rng.uniform(0, 0.05) for _ in range(4)]
-    fy = [rng.uniform(0, 0.05) for _ in range(4)]
-    do_rot = rng.random() < 0.7
-    ang = rng.uniform(-1.5, 1.5)
+    # ── 카메라 포즈에서 호모그래피 (2026-09-15) ────────────────────────────
+    # 구판은 네 모서리를 각각 독립 난수로 밀어 사다리꼴을 만들었다(fx·fy 8개).
+    # 자유도가 8 이라 카메라로는 나올 수 없는 구도가 섞였다 — 사람 지적:
+    # "퍼스펙티브 말고 카메라로 찍었을 때 나올 수 없는 구도가 보인다".
+    # 실제 카메라의 자유도는 **회전 3 + 거리 1** 이다. 평면을 그 포즈로 투영하면
+    # 나오는 사다리꼴만 나온다 — 물리적으로 가능한 구도만 생성된다.
+    #
+    # roll 이 구판의 회전(ang)을 흡수한다. 따로 돌리지 않는다 — 회전과 원근을
+    # 두 단계로 나누면 그 조합이 다시 카메라 밖으로 나갈 수 있다.
+    do_pose = rng.random() < 0.85
+    cam_yaw = rng.uniform(-9.0, 9.0)      # 좌우로 비스듬히(도)
+    cam_pitch = rng.uniform(-9.0, 9.0)    # 위아래로 비스듬히
+    cam_roll = rng.uniform(-1.5, 1.5)     # 손목 비틀림
+    cam_fk = rng.uniform(1.6, 3.2)        # 초점거리 / 긴 변 (폰 렌즈 대역)
     src = np.float32([[0, 0], [W - 1, 0], [W - 1, H - 1], [0, H - 1]])
 
     def _mats(shrink):
-        Mk = Mr = None
-        if do_key and shrink > 0:
-            dst = np.float32([
-                [fx[0] * shrink * W, fy[0] * shrink * H],
-                [(W - 1) - fx[1] * shrink * W, fy[1] * shrink * H],
-                [(W - 1) - fx[2] * shrink * W, (H - 1) - fy[2] * shrink * H],
-                [fx[3] * shrink * W, (H - 1) - fy[3] * shrink * H],
-            ])
-            Mk = cv2.getPerspectiveTransform(src, dst)
-        if do_rot and shrink > 0:
-            Mr = cv2.getRotationMatrix2D((W / 2, H / 2), ang * shrink, 1.0)
+        """반환 (Mk, Mr) — 뒤쪽 코드가 두 단계를 기대하므로 모양을 맞춘다.
+        이제 원근에 전부 담고 Mr 은 늘 None 이다."""
+        if not do_pose or shrink <= 0:
+            return None, None
+        ry, rx, rz = (np.radians(cam_yaw * shrink),
+                      np.radians(cam_pitch * shrink),
+                      np.radians(cam_roll * shrink))
+        cy_, sy_ = np.cos(ry), np.sin(ry)
+        cp_, sp_ = np.cos(rx), np.sin(rx)
+        cr_, sr_ = np.cos(rz), np.sin(rz)
+        Ry = np.array([[cy_, 0, sy_], [0, 1, 0], [-sy_, 0, cy_]])
+        Rx = np.array([[1, 0, 0], [0, cp_, -sp_], [0, sp_, cp_]])
+        Rz = np.array([[cr_, -sr_, 0], [sr_, cr_, 0], [0, 0, 1]])
+        R = Rz @ Rx @ Ry
+        f = cam_fk * max(W, H)
+        d = f                      # 화면이 대략 원래 크기로 보이는 거리
+        out = []
+        for (x_, y_) in src:
+            P = np.array([x_ - W / 2.0, y_ - H / 2.0, 0.0])
+            Q = R @ P + np.array([0.0, 0.0, d])
+            if Q[2] <= 1e-6:
+                return None, None
+            out.append([f * Q[0] / Q[2] + W / 2.0, f * Q[1] / Q[2] + H / 2.0])
+        Mk = cv2.getPerspectiveTransform(src, np.float32(out))
+        Mr = None
         return Mk, Mr
 
     def _warp_img(im, interp, Mk, Mr, border=None):
