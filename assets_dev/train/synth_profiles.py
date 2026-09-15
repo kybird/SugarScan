@@ -482,6 +482,11 @@ def device_identity(pid):
         time_fmt_i=r.randrange(len(DOT_FMTS)),
         dotrow_i=r.randrange(8),
         polarity_u=r.random(),       # mixed 기기의 극성을 한 번에 확정
+        # 칸 피치(숫자 높이 대비)도 액정 셀의 기하라 기기 형질이다. 구판은
+        # 세로형에서 렌더마다 rng.uniform 을 뽑아 같은 기기의 칸 비례가
+        # 장마다 흔들렸다. **맨 끝에 추가한다** — 중간에 넣으면 뒤따르는
+        # 형질의 난수가 전부 밀려 기존 기기 외형이 통째로 바뀐다.
+        pitch_u=r.random(),
     )
     _IDENTITY_CACHE[pid] = t
     return t

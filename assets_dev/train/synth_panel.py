@@ -55,10 +55,13 @@ import numpy as np
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
+from lcd_layout import (  # noqa: E402
+    Rect as LRect, build_layout, slot_field, band_quad, BAND_MARGIN,
+    MID as LMID, TOP as LTOP, BOTTOM as LBOTTOM, TRACK_R as LTRACK_R,
+    COLUMN_R as LCOLUMN_R, place_in as lplace)
 from synth_profiles import (  # noqa: E402
     PROFILES, DOT_FMTS, dot_text, _icon, _pick_variant, _glyph_mask,
-    device_identity, STATEFUL_ELEMENTS, PROFILE_INVERTED, lay_val,
-)
+    device_identity, STATEFUL_ELEMENTS, PROFILE_INVERTED, lay_val, REGIONS)
 from synth_lcd import (add_local_shadow,  # noqa: E402
                        seg_text, seg_text_width, seg_weight_from_variant,
                        SEG_WEIGHTS, SEG_SLANT)
@@ -1027,12 +1030,49 @@ def _render_once(value, rng, profile, pid, inverted):
                            [fx0 + field_all_w + pad_x, y0 - pad_y],
                            [fx0 + field_all_w + pad_x, y0 + dh + pad_y],
                            [fx0 - pad_x, y0 + dh + pad_y]])
-    if lay is not None:
-        # 기기 고정 레이아웃: 밴드 예약은 '보이는 숫자 필드'만 — 단위·meal·
-        # 화살표는 밴드 패딩 안이 원래 자리라 쿼드 전체를 예약하면 못 들어간다.
-        placer.reserve(x0, y0, x0 + field_w, y0 + dh, "band")
-    else:
-        placer.reserve(*(quad[0][0], quad[0][1], quad[2][0], quad[2][1]), "band")
+    # ── 영역 모델로 밴드를 다시 잡는다 (2026-09-15) ────────────────────────
+    # 위 계산은 실측 기하에서 역산하면서 패딩·예약을 섞어 빼느라 숫자가 작아지고
+    # (유리 폭의 0.62~0.70), 쿼드가 내용과 어긋났다. 영역이 먼저 정해지면
+    # 슬롯 필드가 mid 폭을 다 쓰고 쿼드는 그 필드 + 규약 여백이 된다.
+    # REGIONS 에 선언이 있는 기기만 탄다 — 없으면 옛 경로 그대로.
+    _region_lay = None
+    if lay is not None and pid in REGIONS and not _wide_row:
+        _region_lay = build_layout(
+            LRect(float(px0), float(py0), float(px1), float(py1)), REGIONS[pid])
+        _mid = _region_lay[LMID]
+        # 칸 기하는 기기 형질이다 — 한 기기의 칸 비례가 장마다 흔들리면 안 된다.
+        _cell_r = (_fix("pitch_u", *PITCH_RATIO) if ident is not None
+                   else rng.uniform(*PITCH_RATIO))
+        _asp = _cell_r * _g_r                 # 글리프 폭 / 숫자 높이
+        _gap_r = _cell_r * (1.0 - _g_r)       # 칸 사이 간격 / 숫자 높이
+        _field, _dh_f, _pitch_f = slot_field(_mid, slots, _asp, _gap_r)
+        dh = max(8, int(round(_dh_f)))
+        pitch = max(2, int(round(_pitch_f)))
+        glyph_w = max(2, int(round(_dh_f * _asp)))
+        gap = max(0, pitch - glyph_w)
+        field_w = n_vis * pitch - gap
+        ghost_w = lead * pitch
+        field_all_w = field_w + ghost_w
+        fx0 = int(round(_field.x0))
+        x0 = fx0 + (ghost_w if align != "left" else 0)
+        y0 = int(round(_field.y0))
+        pad_x = max(2, int(round(BAND_MARGIN * dh)))
+        pad_y = pad_x
+        _bq = band_quad(LRect(float(fx0), float(y0),
+                              float(fx0 + field_all_w), float(y0 + dh)), dh,
+                        clip=LRect(float(px0), float(py0),
+                                   float(px1), float(py1)))
+        quad = np.float32([[_bq.x0, _bq.y0], [_bq.x1, _bq.y0],
+                           [_bq.x1, _bq.y1], [_bq.x0, _bq.y1]])
+        band_h = _bq.h
+        qx0, qy0, qw = _bq.x0, _bq.y0, _bq.w
+
+    # 밴드 예약 = **슬롯 필드**. 경로마다 다르게 예약하던 것을 통일한다
+    # (2026-09-15). 구판은 기기 고정 경로가 '보이는 숫자'만, 무명 풀이 '쿼드
+    # 전체'를 예약했다. 쿼드를 슬롯 필드에서 유도하도록 바꾼 뒤로는 무명 풀의
+    # 예약이 쿼드보다 넓어져 불변식 1 이 26장 깨졌다. 규약이 하나면 예약도 하나다.
+    _rx0 = (x0 - ghost_w) if align != "left" else x0
+    placer.reserve(_rx0, y0, _rx0 + field_all_w, y0 + dh, "band")
 
     # ── 숫자 — DSEG, 균일 압축. 이탤릭은 폰트 변형(전역 shear 없음) ────────
     if lay is not None:
@@ -1396,8 +1436,12 @@ def _render_once(value, rng, profile, pid, inverted):
             ay = y0 + int(dh * 0.30)
             cands = [(last_r + ag, ay), (px1 - 2 - _ab, ay),
                      (px1 - 2 - _ab, band_top - _ab - 4)]
-        if maybe(_place(cands[0][0], cands[0][1], _ab, _ab, "arrow",
-                        alts=cands[1:]), "arrow"):
+        # 이름을 미터기 여부로 가른다 — 미터기 화살표는 값에 따라 움직이는
+        # 지시자라 자리 안정성 검사에서 면제된다(synth_check.MOVES_BY_DESIGN).
+        # 일반 화살표는 고정이어야 하므로 면제되면 안 된다.
+        _aname = "meter_arrow" if profile.get("meter") else "arrow"
+        if maybe(_place(cands[0][0], cands[0][1], _ab, _ab, _aname,
+                        alts=cands[1:]), _aname):
             r = placer.rects[-1]
             _icon(img, kinds[0] if ident is not None
                   else kinds[rng.randrange(len(kinds))],
@@ -1761,7 +1805,13 @@ def _render_once(value, rng, profile, pid, inverted):
     return dict(panel=img, quad=np.asarray(quad, np.float32), label=label,
                 band_clip=int(_band_clip[0]),
                 glass_quad=np.asarray(glass_quad, np.float32),
-                rects=placer.rects, dropped=dropped, wh=W / H, W=W, H=H,
+                # rects 는 **워프 전 패널 좌표**다(그리는 동안 기록한다).
+                # quad·glass_quad 는 워프 후다. 두 좌표계를 섞어 비교하면
+                # 기울어진 장에서 허위 위반이 난다(2026-09-15에 실제로 냈다) —
+                # 그래서 워프 전 밴드 쿼드를 quad_panel 로 같이 남긴다.
+                # [[unnamed-coordinate-frame]]
+                rects=placer.rects, quad_panel=np.asarray(quad0, np.float32),
+                dropped=dropped, wh=W / H, W=W, H=H,
                 profile=pid, inverted=bool(inverted),
                 glyph_plane_check=round(gpc, 4),
                 glyph_warped=glyph_warped,
@@ -1829,6 +1879,7 @@ def generate(count, seed0, out_dir, with_reader=False):
             inverted=s["inverted"], glyph_plane_check=s["glyph_plane_check"],
             text_heights=s["text_heights"],
             density=round(float(s["density"]), 5),
+            quad_panel=np.round(s["quad_panel"], 2).tolist(),
             rects=[[round(float(v), 1) for v in r[:4]] + [r[4]]
                    for r in s["rects"]],
             dropped=s["dropped"], overlaps=viol,

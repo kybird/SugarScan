@@ -38,6 +38,11 @@ BAND_EL = "band"
 # 밴드 줄에 있어도 숫자가 아닌 것 — 밴드 쿼드에 들어오면 안 된다.
 NON_DIGIT = ("unit", "mem", "meal", "arrow", "meter_arrow", "glulabel",
              "time", "daterow", "dotrow_above", "dotrow_below", "avgrow")
+# 자리가 움직이는 것이 설계인 요소 — 5번 검사에서 면제한다.
+#   band         값 자릿수에 따라 폭이 달라진다
+#   meter_arrow  미터기 지시자다. 세로 위치가 곧 값이다(accuchek_instant,
+#                실측 34장: v100 하단 ~ v159+ 상단 포화). 고정되면 오히려 틀린다.
+MOVES_BY_DESIGN = {"band", "meter_arrow"}
 GRID = 3            # 자리 안정성: 유리를 GRID x GRID 칸으로
 FILL_GRID = 6       # 빈 면: 유리를 FILL_GRID x FILL_GRID 칸으로
 
@@ -80,8 +85,13 @@ def check(rows, verbose=False):
 
     for r in rows:
         rid = r["id"]
-        quad = _rect_of(r["quad"])
-        glass = _rect_of(r["glass_quad"]) if r.get("glass_quad") else None
+        # rects 는 워프 전 패널 좌표다. 같은 좌표계인 quad_panel 로 비교한다 —
+        # 워프 후 quad 와 섞으면 기울어진 장에서 허위 위반이 난다.
+        quad = _rect_of(r.get("quad_panel") or r["quad"])
+        # 유리도 워프 전 좌표가 필요하다. glass_quad 는 워프 후라 못 쓴다 —
+        # 대신 패널 좌표의 유리 사각형을 manifest 에 넣기 전까지는 캔버스로
+        # 대신한다(캔버스 밖으로 나간 요소만 잡는다. 유리 밖 검사는 약해진다).
+        glass = (0.0, 0.0, float(r["w"] - 1), float(r["h"] - 1))
         rects = r.get("rects") or []
         band = [x for x in rects if x[4] == BAND_EL]
 
@@ -136,8 +146,8 @@ def check(rows, verbose=False):
     unstable = []
     for pid, els in sorted(slots.items()):
         for el, cells in sorted(els.items()):
-            if el == BAND_EL:
-                continue            # 밴드는 값 자릿수에 따라 움직인다
+            if el in MOVES_BY_DESIGN:
+                continue
             if len(cells) > 1:
                 unstable.append(f"{pid}:{el} -> {sorted(cells)}")
     if unstable:
