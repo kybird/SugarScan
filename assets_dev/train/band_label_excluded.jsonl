@@ -1,0 +1,3 @@
+{"id": "glucose_batch1/2431", "source": "human", "ts": "2026-09-14", "reason": "frame-cuts-digit-field", "note": "사진이 LCD 를 화면 밖까지 잘라 찍었다. 값 85, 앞 빈자리가 프레임 밖이다(여유/칸폭 0.24). 사람 판정."}
+{"id": "glucose_batch1/2489", "source": "human", "ts": "2026-09-14", "reason": "frame-cuts-digit-field", "note": "값 139 로 세 자리가 다 보이지만 숫자칸 영역이 프레임에 잘렸다. 빈칸이라도 잘리면 제외한다 — 사람 판정 2026-09-14."}
+{"id": "glucose_batch1/1826", "source": "human", "ts": "2026-09-14", "reason": "frame-cuts-digit-field", "note": "빈칸이라도 잘렸다 — 사람 판정 2026-09-14."}

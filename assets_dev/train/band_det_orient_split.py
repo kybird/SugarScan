@@ -20,6 +20,7 @@ from pathlib import Path
 
 import numpy as np
 
+from band_exclusions import load_excluded
 from gm_quads import load_gm_quads
 
 HERE = Path(__file__).resolve().parent
@@ -36,9 +37,12 @@ def split(tag, quads):
     f = HERE / "_diag" / tag / "gate_results.jsonl"
     if not f.exists():
         return None
+    ex = load_excluded()
     port, land, miss = [], [], 0
     for line in open(f, encoding="utf-8"):
         r = json.loads(line)
+        if r["id"] in ex:
+            continue
         q = quads.get(r["id"])
         if q is None:
             miss += 1

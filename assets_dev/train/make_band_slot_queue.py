@@ -23,6 +23,7 @@ from pathlib import Path
 
 import numpy as np
 
+from band_exclusions import load_excluded
 from gm_quads import load_gm_quads
 
 HERE = Path(__file__).resolve().parent
@@ -50,6 +51,12 @@ def rows():
 
 def main():
     rs = rows()
+    ex = load_excluded()
+    if ex:
+        n0 = len(rs)
+        rs = [r for r in rs if r["id"] not in ex]
+        print(f"사람 선언 제외 {n0 - len(rs)}장: " +
+              ", ".join(f"{k}({v})" for k, v in ex.items()))
     med = {nd: float(np.median([r["wh"] for r in rs if r["nd"] == nd]))
            for nd in {r["nd"] for r in rs}}
     cut = med[3] * THRESH

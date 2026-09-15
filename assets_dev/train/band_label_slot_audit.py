@@ -17,6 +17,7 @@ from pathlib import Path
 
 import numpy as np
 
+from band_exclusions import load_excluded
 from gm_quads import load_gm_quads
 
 HERE = Path(__file__).resolve().parent
@@ -33,11 +34,12 @@ def main():
     vals = {json.loads(l)["id"]: json.loads(l)["reading"]
             for l in open(UP / "labels.jsonl", encoding="utf-8")}
     gm, st = load_gm_quads()
+    ex = load_excluded()
     rows = []
     for line in open(HERE / "band_boxes.jsonl", encoding="utf-8"):
         b = json.loads(line)
         v, G = vals.get(b["id"]), gm.get(b["id"])
-        if v is None or G is None:
+        if v is None or G is None or b["id"] in ex:
             continue
         q = np.asarray(b["quad"], float)
         bw = q[:, 0].max() - q[:, 0].min()
@@ -47,6 +49,7 @@ def main():
                          wh=bw / max(bh, 1e-6), share=bw / max(gw, 1e-6)))
 
     print(f"GM 쿼드 출처 — 사람 {st['human']} · 검출기 {st['detector']}")
+    print(f"사람 선언 제외 {len(ex)}장 — 분모가 제외 전과 다르다")
     print(f"{'자리':>3} {'n':>4} {'w/h p5':>8} {'p25':>8} {'median':>8} {'p95':>8}")
     by = {}
     for nd in sorted({r["nd"] for r in rows}):

@@ -36,6 +36,7 @@ HERE = Path(__file__).resolve().parent
 # 불렀다 — 사람이 그린 화면 상자 411행이 따로 있었는데 측정 경로
 # 어디도 쓰지 않았다.
 from gm_quads import quad_rows  # noqa: E402
+from band_exclusions import drop  # noqa: E402
 UPSTREAM = HERE.parent / "upstream" / "datumo"
 QUADS_ORIENTED = HERE / "gmscreen_quads_oriented.jsonl"   # 읽기 전용
 BAND_BOXES = HERE / "band_boxes.jsonl"                    # 읽기 전용(게이트)
@@ -106,6 +107,9 @@ def main():
 
     quads = {r["id"]: r for r in quad_rows()}
     bands = _load_jsonl(BAND_BOXES)
+    # 사람이 '숫자칸이 프레임에 잘렸다'고 선언한 장은 뺀다(2026-09-14).
+    # 분모가 바뀌므로 제외 전 수치와 나란히 인용하면 안 된다 — drop 이 인쇄한다.
+    bands = drop(bands, where="gate")
     devices = {r["id"]: r for r in _load_jsonl(DEVICE_LABELS)}
 
     per_id = {}
