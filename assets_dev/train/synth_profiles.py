@@ -675,6 +675,8 @@ REGIONS = {
     "performa_nano": dict(pad=(0.113, 0.113, 0.060, 0.060), rows=(0.181, 0.395, 0.303)),
     "accuchek_active": dict(pad=(0.075, 0.075, 0.060, 0.060), rows=(0.190, 0.420, 0.270)),
     "gluneo_plus": dict(pad=(0.104, 0.104, 0.060, 0.060), rows=(0.128, 0.466, 0.286)),
-    "onetouch_ultramini": dict(pad=(0.03, 0.03, 0.042, 0.028), column_right=0.444, rows=(0.0, 1.0, 0.0)),
-    "wide_unknown": dict(pad=(0.03, 0.03, 0.031, 0.037), column_right=0.361, rows=(0.0, 1.0, 0.0)),
+    # 가로형에도 상단 줄을 둔다 — M 이 좌측 상단에 오는데(사람 판정 2026-09-15)
+    # rows=(0,1,0) 이면 갈 자리가 없어 밴드 위에 겹쳤다.
+    "onetouch_ultramini": dict(pad=(0.03, 0.03, 0.042, 0.028), column_right=0.444, rows=(0.16, 0.84, 0.0)),
+    "wide_unknown": dict(pad=(0.03, 0.03, 0.031, 0.037), column_right=0.361, rows=(0.16, 0.84, 0.0)),
 }

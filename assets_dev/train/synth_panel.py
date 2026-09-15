@@ -364,7 +364,13 @@ def _draw_digit_uniform(img, x, y, dh, ch, w_target, ink, variant, glyph_cache,
         interp = cv2.INTER_AREA if w_ch < m.shape[1] else cv2.INTER_NEAREST
         m = cv2.resize(m.astype(np.uint8) * 255, (w_ch, dh),
                        interpolation=interp) > 96
-    gx = x + (w_target - w_ch) // 2
+    # 좁은 글리프는 칸 **오른쪽**에 붙는다(2026-09-15). 실물 7-seg 의 '1' 은
+    # 세그먼트 b·c — 칸 오른쪽 두 세로획이다. 칸 가운데에 놓으면 실물에 없는
+    # 자리에 획이 서고, 끝자리가 1인 값에서 밴드 오른쪽에 없는 여백이 생긴다
+    # (실측: 끝자리 1 의 오른쪽 여백 0.232 vs 나머지 0.063~0.094).
+    # _glyph_mask 가 잉크 경계로 잘라내므로 폰트의 원래 자리 정보가 사라진다 —
+    # 여기서 되살린다.
+    gx = x + (w_target - w_ch)
     region = img[y:y + dh, gx:gx + w_ch]
     hh = min(region.shape[0], dh)
     ww = min(region.shape[1], w_ch)
@@ -374,11 +380,16 @@ def _draw_digit_uniform(img, x, y, dh, ch, w_target, ink, variant, glyph_cache,
         preg[:hh, :ww][m[:hh, :ww]] = 255
 
 
-def _dot_time_text(rng, fmt_i=None, fmts=None):
+def _dot_time_text(rng, fmt_i=None, fmts=None, widest=False):
     """시간·날짜 줄. 표기 포맷(구분자·12/24시·am 표기)은 기기의 것이라
     fmt_i 로 고정하고, 숫자 내용만 렌더마다 뽑는다(사람 지침 2026-09-13)."""
     pool = fmts or DOT_FMTS
     fmt = pool[rng.randrange(len(pool)) if fmt_i is None else fmt_i % len(pool)]
+    if widest:
+        # 자리 예약용 — 그 형식이 낼 수 있는 가장 넓은 문자열. 난수를 쓰지
+        # 않는다(예약이 렌더마다 흔들리면 예약하는 의미가 없다).
+        return fmt.format(h02="88", m02="88", M="12", M02="12",
+                          d="31", d02="31", am="pm", AM="PM")
     return fmt.format(h02=f"{rng.randint(0, 12):02d}",
                       m02=f"{rng.randint(0, 59):02d}",
                       M=f"{rng.randint(1, 12)}", M02=f"{rng.randint(1, 12):02d}",
@@ -1048,7 +1059,9 @@ def _render_once(value, rng, profile, pid, inverted):
         _field, _dh_f, _pitch_f = slot_field(_mid, slots, _asp, _gap_r)
         dh = max(8, int(round(_dh_f)))
         pitch = max(2, int(round(_pitch_f)))
-        glyph_w = max(2, int(round(_dh_f * _asp)))
+        # slot_field 가 폭을 채우려고 칸을 늘렸을 수 있다 — 반환된 pitch 에서
+        # 되읽는다. _asp 를 그대로 쓰면 글리프가 칸보다 좁아 빈틈이 생긴다.
+        glyph_w = max(2, int(round(_pitch_f * _g_r)))
         gap = max(0, pitch - glyph_w)
         field_w = n_vis * pitch - gap
         ghost_w = lead * pitch
@@ -1407,6 +1420,11 @@ def _render_once(value, rng, profile, pid, inverted):
         mh = aux_h
         mtxt = {"mem": "mem", "memory": "memory", "M": "M"}.get(mk["kind"], "M")
         mtw = seg_text_width(mtxt, mh, aux_slant)
+        _mp = None
+        if mk["pos"] in ("top-left", "top-right"):
+            _mp = _rplace(LTOP, mtw, mh, "mem",
+                          align="left" if mk["pos"].endswith("left") else "right",
+                          valign="middle")
         if mk["pos"] == "top-left":
             cands = ((_gx(0.06), py0 + 4), (_gx(0.08), band_top - mh - 4))
         elif mk["pos"] == "top-right":
@@ -1418,8 +1436,10 @@ def _render_once(value, rng, profile, pid, inverted):
             cands = ((last_r + int(glyph_w * 0.4), y0 + (dh - mh) // 2),
                      (last_r + int(glyph_w * 0.4), py0 + 4))
         cands = [(cx_, cy_) for cx_, cy_ in cands]
-        if maybe(_place(cands[0][0], cands[0][1], mtw, mh, "mem",
-                        alts=cands[1:]), "mem"):
+        if _mp is None:
+            _mp = _place(cands[0][0], cands[0][1], mtw, mh, "mem",
+                         alts=cands[1:])
+        if maybe(_mp, "mem"):
             r = placer.rects[-1]
             if mk["kind"] == "M-box":
                 # 상자 폭은 실제 그은 폭(seg_text_width) 기준 — 구판 mh+2 는
@@ -1570,13 +1590,20 @@ def _render_once(value, rng, profile, pid, inverted):
     if db and _shown("dotrow_below", db["p"]):
         txt = _dot_time_text(rng, ident["time_fmt_i"] if ident else None,
                              db.get("fmts"))
+        # 자리는 고정, 켜지는 세그먼트만 바뀐다(2026-09-15). 실제 문자열 폭으로
+        # 예약하면 '9-1' 과 '12-31' 에서 줄 폭이 달라져 같은 기기의 점줄이
+        # 장마다 다른 자리에 잡힌다(검사 5: gc_ms_one:dotrow_below [6, 7]).
+        # 액정의 점줄은 칸 수가 정해져 있고 짧은 값은 칸을 비울 뿐이다 —
+        # 그래서 **그 형식이 낼 수 있는 가장 넓은 문자열**로 폭을 예약한다.
+        _txt_wide = _dot_time_text(rng, ident["time_fmt_i"] if ident else None,
+                                   db.get("fmts"), widest=True)
         if _dotp:
             glyph = max(3, (aux_h - 4) // 2)
-            wpx = int(len(txt) * glyph * 1.2)
+            wpx = int(len(_txt_wide) * glyph * 1.2)
             hpx = glyph * 2 + 4
         else:
             glyph = None
-            wpx = seg_text_width(txt, aux_h, aux_slant, _dw(aux_h))
+            wpx = seg_text_width(_txt_wide, aux_h, aux_slant, _dw(aux_h))
             hpx = aux_h
         _db0 = _gx(0.06)
         if maybe(_place(_db0, _below_y(_db0, wpx), wpx, hpx,
@@ -1699,13 +1726,14 @@ def _render_once(value, rng, profile, pid, inverted):
     # 숫자는 여백이 너무 크면 안 된다"). 앞자리가 1이면 칸은 그대로 있고 잉크만
     # 좁다 — 잉크에 맞추면 그 칸이 사라진다.
     #
-    # 좌우 패딩은 붙이지 않는다. 슬롯 필드의 양 끝이 곧 밴드의 양 끝이다.
-    # (전에는 pad_x 를 덧붙여 오른쪽 끝에 없는 여백이 생겼다.)
-    _qx0, _qx1 = _bx0, _bx1
-    _qy0, _qy1 = _by0, _by1
-    # 캔버스 밖으로는 못 나간다(쿼드 어서션이 뒤에서 잡는다).
-    _qx0 = max(0.0, _qx0); _qy0 = max(0.0, _qy0)
-    _qx1 = min(float(W - 1), _qx1); _qy1 = min(float(H - 1), _qy1)
+    # 여백은 lcd_layout.BAND_MARGIN 하나가 정하고, 붙이는 곳은 band_quad
+    # **한 군데뿐**이다(2026-09-15). 전에는 여기서 따로 패딩을 더하거나 빼면서
+    # 위 영역 블록이 붙인 여백을 덮어썼다 — 실측하니 쿼드가 슬롯 필드와 한
+    # 픽셀도 다르지 않았다(63~654 vs 63~654). 규약이 하나면 구현도 하나다.
+    _bq2 = band_quad(LRect(_bx0, _by0, _bx1, _by1), float(dh),
+                     clip=LRect(float(px0), float(py0), float(px1), float(py1)))
+    _qx0 = max(0.0, _bq2.x0); _qy0 = max(0.0, _bq2.y0)
+    _qx1 = min(float(W - 1), _bq2.x1); _qy1 = min(float(H - 1), _bq2.y1)
     if _qx1 - _qx0 >= 8 and _qy1 - _qy0 >= 8:
         quad = np.float32([[_qx0, _qy0], [_qx1, _qy0],
                            [_qx1, _qy1], [_qx0, _qy1]])

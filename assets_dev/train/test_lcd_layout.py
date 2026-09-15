@@ -54,8 +54,12 @@ ok(near(lw.covered_fraction(), 1.0, 1e-6), "가로형도 100% 덮는다")
 print("── 슬롯 필드는 mid 폭을 다 쓴다 ──")
 f, dh, pitch = slot_field(lay[MID], slots=3, aspect=0.62)
 ok(lay[MID].contains(f), "슬롯 필드가 mid 안에 있다")
-ok(f.w >= lay[MID].w * 0.98 or near(dh, lay[MID].h),
-   "폭을 꽉 쓰거나 높이에 걸려 멈춘다")
+# 계약이 바뀌었다(2026-09-15): 영역을 꽉 채우는 것은 **밴드**(필드+여백)다.
+# 필드만 채우면 여백 자리가 안 남아 band_quad 의 clip 이 여백을 깎는다.
+_bq_f = band_quad(f, dh)
+ok(_bq_f.w >= lay[MID].w * 0.98 or near(_bq_f.h, lay[MID].h, 1.0),
+   "밴드가 폭을 꽉 쓰거나 높이에 걸려 멈춘다")
+ok(lay[MID].contains(_bq_f), "밴드가 mid 를 벗어나지 않는다")
 f2, dh2, _ = slot_field(lay[MID], slots=2, aspect=0.62)
 ok(dh2 > dh, "칸이 적으면 숫자가 커진다")
 tall = build_layout(GLASS, dict(pad=(0.0,) * 4, rows=(0.0, 1.0, 0.0)))
@@ -101,6 +105,15 @@ tight = Rect(f4.x0 + 1, f4.y0 + 1, f4.x1 - 1, f4.y1 - 1)   # 유리가 더 좁�
 bq2 = band_quad(f4, dh4, clip=tight)
 ok(bq2.contains(f4), "유리로 잘라도 내용은 안 자른다")
 ok(bq2.x0 >= bq.x0 and bq2.x1 <= bq.x1, "여백만 줄어든다")
+
+
+print("── 슬롯 필드는 여백 자리까지 남긴다 ──")
+f5, dh5, _ = slot_field(lay[MID], slots=3, aspect=0.62)
+bq5 = band_quad(f5, dh5)
+ok(lay[MID].contains(bq5), "밴드(필드+여백)가 mid 안에 들어간다")
+ok(bq5.w >= lay[MID].w * 0.98 or near(bq5.h, lay[MID].h, 1.0),
+   "밴드가 mid 폭을 꽉 쓰거나 높이에 걸린다")
+ok(near(f5.x0 - bq5.x0, BAND_MARGIN * dh5), "여백이 깎이지 않는다")
 
 print()
 if _fail:

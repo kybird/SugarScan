@@ -216,7 +216,8 @@ def place_in(region, w, h, align="center", valign="middle",
     return r
 
 
-def slot_field(region, slots, aspect, gap_ratio=0.12, fill=1.0):
+def slot_field(region, slots, aspect, gap_ratio=0.12, fill=1.0,
+               margin=None):
     """mid 영역 안의 숫자 슬롯 필드. **영역 폭을 다 쓴다**(액정 설계 원칙:
     유리에 빈 면을 남기지 않는다 — 사람 지침 2026-09-15).
 
@@ -228,12 +229,27 @@ def slot_field(region, slots, aspect, gap_ratio=0.12, fill=1.0):
     반환 (field_rect, digit_h, pitch). 높이와 폭 중 먼저 걸리는 쪽에 맞춘다.
     """
     gap_h = gap_ratio
-    # 폭 기준: slots*aspect*h + (slots-1)*gap_h*h = W  ->  h = W / (...)
-    denom = slots * aspect + (slots - 1) * gap_h
+    # **밴드 여백까지 포함해** 영역에 들어가게 푼다(2026-09-15). 필드만 영역
+    # 폭에 맞추면 여백 자리가 안 남아 band_quad 의 clip 이 여백을 깎는다 —
+    # dorucos_premium·acura_plus 에서 좌우 여백이 0 이 됐다. 밴드(필드+여백)가
+    # 영역을 꽉 채우는 것이 맞다.
+    m = BAND_MARGIN if margin is None else margin
+    # 폭: slots*asp*h + (slots-1)*gap*h + 2*m*h = W
+    denom = slots * aspect + (slots - 1) * gap_h + 2 * m
     h_by_w = (region.w * fill) / max(denom, 1e-6)
-    h = min(region.h, h_by_w)
-    pitch = h * aspect + h * gap_h
-    field_w = slots * h * aspect + (slots - 1) * h * gap_h
+    h_by_h = region.h / (1.0 + 2 * m)
+    h = min(h_by_h, h_by_w)
+    asp = aspect
+    if h_by_h < h_by_w:
+        # 높이에 먼저 걸렸다 — 폭이 남는다. 칸을 옆으로 늘려 영역을 채운다
+        # (2026-09-15). 액정 설계자는 빈 면을 남기지 않는다: 납작한 가로형
+        # 화면에서 숫자는 높이에 맞춘 뒤 옆으로 퍼지지, 가운데 모여 있고
+        # 옆이 비지 않는다. 합성 가로형 밴드가 폭의 0.41~0.47 만 쓰고 있었다
+        # (실사진 정상 라벨은 0.56~0.62).
+        avail = region.w * fill - 2 * m * h - (slots - 1) * gap_h * h
+        asp = max(aspect, avail / max(slots * h, 1e-6))
+    pitch = h * asp + h * gap_h
+    field_w = slots * h * asp + (slots - 1) * h * gap_h
     x = region.x0 + (region.w - field_w) / 2.0
     y = region.y0 + (region.h - h) / 2.0
     return Rect(x, y, x + field_w, y + h), h, pitch
