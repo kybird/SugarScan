@@ -515,6 +515,13 @@ def api_failures(qs):
     # CareSens N 19 · 이름모를 가로형 14) 54종 중 39종이 0장이었다. 이 큐는
     # 0장 기기부터 한 장씩 돈다 — 중간에 멈춰도 기기 다양성이 유지된다.
     seed, seed_note = _queue("band_seed_queue.json")
+    # 빈자리 누락 수정 — make_band_slot_queue.py. 2자리 값인데 상자가 두 자리만
+    # 감싼 장이다(2026-09-14). 규약은 빈 앞자리까지 넣는 것이고 합성기도 그렇게
+    # 그린다 — 그 15장에서 검출기는 맞게 내고도 IoU 0.6 에 갇힌다.
+    slotfix, slotfix_note = _queue("band_slot_fix_queue.json")
+    # 밴드 라벨 전수 검토 — 같은 스크립트. 자릿수별 중앙에서 벗어난 순이라
+    # 중간에 멈춰도 이상한 것은 이미 다 본 상태가 된다.
+    review, review_note = _queue("band_review_queue.json")
     # 테스트 holdout — 라벨링하면 개선을 잴 데가 없어진다. 큐에서 빼는 것으로는
     # 부족하고(전체 큐로 들어올 수 있다) 화면에 경고를 띄운다.
     hold, _ = _queue("lcd_fix_holdout.json")
@@ -527,6 +534,8 @@ def api_failures(qs):
             "wide_band": wideband, "wide_band_note": wideband_note,
             "label_audit": audit, "label_audit_note": audit_note,
             "band_seed": seed, "band_seed_note": seed_note,
+            "band_slot_fix": slotfix, "band_slot_fix_note": slotfix_note,
+            "band_review": review, "band_review_note": review_note,
             "lcd_holdout": hold}
 
 

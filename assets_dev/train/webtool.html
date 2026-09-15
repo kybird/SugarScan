@@ -183,6 +183,8 @@ tr.miss td.mono { color: var(--bad); }
         <option value="lcdfix">LCD 재라벨 (GM 실패·가로)</option>
         <option value="wideband">밴드 · 가로형 LCD</option>
         <option value="labelaudit">밴드 라벨 감사 (빈 여백 큰 순)</option>
+        <option value="slotfix">밴드 수정 · 빈 앞자리 누락 (15장)</option>
+        <option value="bandreview">밴드 라벨 전수 검토 (의심 순)</option>
         <option value="unlabeled">라벨 없음만</option>
       </select>
     </label>
@@ -376,6 +378,8 @@ const lb = {
   allItems: null,
   fail: { gm: new Set(), reader: new Set(), pilot: new Set(), lcdfix: new Set(),
           bandseed: new Set(),
+          slotfix: new Set(),
+          bandreview: new Set(),
           risky: new Set(), safe: new Set(), blank: new Set(),
           rejected: new Set() },
   readerNote: {},
@@ -414,10 +418,14 @@ async function boot() {
     lb.fail.wideband = new Set(f.wide_band || []);
     lb.fail.labelaudit = new Set(f.label_audit || []);
     lb.fail.bandseed = new Set(f.band_seed || []);
+    lb.fail.slotfix = new Set(f.band_slot_fix || []);
+    lb.fail.bandreview = new Set(f.band_review || []);
     lb.holdout = new Set(f.lcd_holdout || []);
     lb.pilotNote = Object.assign({}, f.band_pilot_note || {}, f.lcd_fix_note || {},
                                  f.wide_band_note || {}, f.label_audit_note || {},
-                                 f.band_seed_note || {});
+                                 f.band_seed_note || {},
+                                 f.band_slot_fix_note || {},
+                                 f.band_review_note || {});
   } catch (e) { /* /api/failures 없는 구형 서버 */ }
   try {
     const p = await api("/api/preds_holdout");
@@ -479,6 +487,20 @@ function applyQueueFilter() {
   } else if (q === "labelaudit" && lb.fail.labelaudit && lb.fail.labelaudit.size) {
     // 여백이 큰 순서를 유지한다. 관례가 갈리는지 보려는 것이라 순서가 곧 증거다.
     const order = [...lb.fail.labelaudit];
+    const rank = new Map(order.map((id, i) => [id, i]));
+    lb.meta.items = lb.meta.items
+      .filter(it => rank.has(it.id))
+      .sort((a, b) => rank.get(a.id) - rank.get(b.id));
+  } else if (q === "slotfix" && lb.fail.slotfix && lb.fail.slotfix.size) {
+    // 좁은 순서를 유지한다 — 앞쪽이 가장 확실한 위반이다.
+    const order = [...lb.fail.slotfix];
+    const rank = new Map(order.map((id, i) => [id, i]));
+    lb.meta.items = lb.meta.items
+      .filter(it => rank.has(it.id))
+      .sort((a, b) => rank.get(a.id) - rank.get(b.id));
+  } else if (q === "bandreview" && lb.fail.bandreview && lb.fail.bandreview.size) {
+    // 자릿수별 중앙에서 벗어난 순. 중간에 멈춰도 이상한 것은 이미 다 봤다.
+    const order = [...lb.fail.bandreview];
     const rank = new Map(order.map((id, i) => [id, i]));
     lb.meta.items = lb.meta.items
       .filter(it => rank.has(it.id))
@@ -606,7 +628,8 @@ async function show(idx) {
         pn.style.color = q === "risky" ? "#e06c6c" : "#d8a657";
       } else {
         pn.textContent = ((q === "bandseed" || q === "pilot" || q === "lcdfix" || q === "wideband"
-                         || q === "labelaudit") && note) ? `· ${note}` : "";
+                         || q === "labelaudit" || q === "slotfix"
+                         || q === "bandreview") && note) ? `· ${note}` : "";
         pn.style.color = "#8ab4f8";
       }
     }
