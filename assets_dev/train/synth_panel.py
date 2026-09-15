@@ -1176,6 +1176,32 @@ def _render_once(value, rng, profile, pid, inverted):
             return placer.place_fixed(x, y, w, h, name)
         return placer.try_place(x, y, w, h, name, alternates=alts)
 
+    _region_used = {}
+
+    def _rplace(region, w, h, name, align="center", valign="middle", pad=None):
+        """영역 안에 놓는다 — 자리가 영역으로 정해지므로 장마다 흔들리지
+        않는다(2026-09-15). 못 놓으면 False 를 돌려주고 **밀어내지 않는다**.
+
+        구판은 `_place(x0, band_top - h - 4, ..., alts=((x0, band_bot + 4),))`
+        처럼 밴드 기준 좌표에 후보를 달았다. x0 는 값의 자릿수에 따라 움직이고
+        (2자리면 한 칸 오른쪽) 후보가 막히면 위/아래가 뒤바뀌어서, 같은 기기인데
+        장마다 GLU 가 다른 칸에 떴다(검사 5 slot-stable).
+
+        영역이 없으면(무명 풀·가로형 행형) None 을 돌려 옛 경로가 받게 한다.
+        """
+        if _region_lay is None or not _region_lay.has(region):
+            return None
+        reg = _region_lay[region]
+        m = pad if pad is not None else max(2.0, 0.02 * reg.h)
+        used = _region_used.setdefault(region, [])
+        r = lplace(reg, float(w), float(h), align=align, valign=valign,
+                   margin=m, used=tuple(used))
+        if r is None:
+            return False
+        used.append(r)
+        return placer.place_fixed(int(round(r.x0)), int(round(r.y0)),
+                                  int(w), int(h), name)
+
     def _below_y(x_, w_, near=False):
         """밴드 아래 요소의 y — 유리 '바닥'에 붙인다(사람 지적 2026-09-13:
         아래 공백이 과장 더해 40%다). 구판은 밴드 바로 밑(band_bot+4)에
@@ -1245,10 +1271,21 @@ def _render_once(value, rng, profile, pid, inverted):
                     _items.append(("unit", _ut))
                 if rng.random() < (0.5 if ident is not None else 0.3):
                     _items.append(("mem", "M"))
-                _cy_ = py0 + 6
-                for _nm, _txt in _items:
+                # 칸을 고정한다(2026-09-15). 구판은 켜진 항목만 위에서부터
+                # 쌓아서, 시간이 꺼진 장은 날짜가 시간 자리로 올라왔다
+                # (검사 5: wide:date -> [2, 5]). 실물 액정은 칸이 고정이고
+                # 꺼진 칸은 그냥 비어 있다 — 세그먼트가 안 켜질 뿐이다.
+                _ORDER = ("time", "date", "unit", "mem")
+                _slot_h = max(aux_h + 2,
+                              int((py1 - py0 - 12) / float(len(_ORDER))))
+                _on = dict(_items)
+                for _si, _nm in enumerate(_ORDER):
+                    if _nm not in _on:
+                        continue          # 그 칸은 비워 둔다
+                    _txt = _on[_nm]
+                    _cy_ = py0 + 6 + _si * _slot_h
                     _tw_ = seg_text_width(_txt, aux_h, aux_slant, _dw(aux_h))
-                    if _tw_ > _cw:
+                    if _tw_ > _cw or _cy_ + aux_h > py1 - 2:
                         continue
                     if maybe(placer.try_place(_cx0 + (_cw - _tw_) // 2, _cy_,
                                               _tw_, aux_h, f"wide:{_nm}"),
@@ -1331,8 +1368,17 @@ def _render_once(value, rng, profile, pid, inverted):
             cands = [(_ux0, _below_y(_ux0, tw)), (px0 + 2, band_bot + 4)]
         if lay is None:
             cands = cands + [(px0 + 2, band_bot + 4), (px1 - 2 - tw, band_bot + 4)]
-        if maybe(_place(cands[0][0], cands[0][1], tw, uh + 2, "unit",
-                        alts=cands[1:]), "unit"):
+        # below-* 단위는 bottom 영역이 자리다 — 밴드 기준 좌표를 쓰면 값
+        # 자릿수·이웃 줄에 따라 흔들린다(검사 5: onetouch_ultra:unit [7,8]).
+        _up = None
+        if pos.startswith("below"):
+            _up = _rplace(LBOTTOM, tw, uh + 2, "unit",
+                          align="right" if pos.endswith("right") else "left",
+                          valign="top")
+        if _up is None:
+            _up = _place(cands[0][0], cands[0][1], tw, uh + 2, "unit",
+                         alts=cands[1:])
+        if maybe(_up, "unit"):
             r = placer.rects[-1]
             _lcd_text(img, r[0], r[1], ut, uh, ink_small, "unit",
                       heights=text_heights, thick=aux_t, slant=aux_slant,
@@ -1396,8 +1442,12 @@ def _render_once(value, rng, profile, pid, inverted):
     gl = profile.get("glulabel")
     if gl and _shown("glulabel", gl.get("p", 0)):
         gtw = seg_text_width("GLU", aux_h, aux_slant, _dw(aux_h))
-        if maybe(_place(x0, max(py0 + 2, band_top - aux_h - 4), gtw, aux_h,
-                        "glulabel", alts=((x0, band_bot + 4),)), "glulabel"):
+        # 자리는 top 영역의 왼쪽이다 — 값 자릿수에 따라 움직이지 않는다.
+        _gp = _rplace(LTOP, gtw, aux_h, "glulabel", align="left", valign="middle")
+        if _gp is None:
+            _gp = _place(x0, max(py0 + 2, band_top - aux_h - 4), gtw, aux_h,
+                         "glulabel", alts=((x0, band_bot + 4),))
+        if maybe(_gp, "glulabel"):
             r = placer.rects[-1]
             _lcd_text(img, r[0], r[1], "GLU", aux_h, ink_small, "glulabel",
                       heights=text_heights, thick=aux_t, slant=aux_slant,

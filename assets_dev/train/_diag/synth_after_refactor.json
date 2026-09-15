@@ -1,0 +1,23 @@
+{
+ "corpus": "synth_fix_1200",
+ "n": 1200,
+ "fail": {},
+ "empty_median": 0.25,
+ "empty_by_profile": {
+  "dorucos_premium": 0.16666666666666663,
+  "gc_ms_one": 0.13888888888888884,
+  "green_doctor": 0.19444444444444442,
+  "gmate": 0.36111111111111116,
+  "performa_nano": 0.2777777777777778,
+  "generic_v1": 0.5,
+  "gluneo_plus": 0.5,
+  "wide_unknown": 0.11111111111111116,
+  "acura_plus": 0.16666666666666663,
+  "onetouch_ultramini": 0.08333333333333337,
+  "accuchek_instant": 0.25,
+  "onetouch_ultra": 0.33333333333333337,
+  "accuchek_active": 0.25,
+  "caresens_n_premier": 0.2777777777777778,
+  "performa_silver": 0.2222222222222222
+ }
+}

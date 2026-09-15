@@ -43,6 +43,9 @@ NON_DIGIT = ("unit", "mem", "meal", "arrow", "meter_arrow", "glulabel",
 #   meter_arrow  미터기 지시자다. 세로 위치가 곧 값이다(accuchek_instant,
 #                실측 34장: v100 하단 ~ v159+ 상단 포화). 고정되면 오히려 틀린다.
 MOVES_BY_DESIGN = {"band", "meter_arrow"}
+# 자리 고정을 요구하지 않는 프로파일 — 한 기기가 아니라 여러 기기를 뭉뚱그린
+# 풀이다. 고정하면 실물에 없는 기기 하나를 가르치게 된다.
+POOL_PROFILES = {"generic_v1"}
 GRID = 3            # 자리 안정성: 유리를 GRID x GRID 칸으로
 FILL_GRID = 6       # 빈 면: 유리를 FILL_GRID x FILL_GRID 칸으로
 
@@ -145,6 +148,8 @@ def check(rows, verbose=False):
     # 5 집계: 한 요소가 두 칸 이상에 나타나면 자리가 흔들린 것
     unstable = []
     for pid, els in sorted(slots.items()):
+        if pid in POOL_PROFILES:
+            continue
         for el, cells in sorted(els.items()):
             if el in MOVES_BY_DESIGN:
                 continue
