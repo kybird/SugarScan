@@ -77,3 +77,5 @@ confidence: 5
 - `doc/raw/2026-09-13.md#case-11`
 - `assets_dev/train/validate_synth_panel.py`
 - `hash:904c266`
+- `doc/raw/2026-09-14.md#case-7` — 사람 선언으로 5장을 빼면서 분모가
+  276→271 로 바뀌었다. `band_exclusions.drop()` 이 뺀 수를 매번 인쇄한다

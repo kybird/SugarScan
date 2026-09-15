@@ -87,3 +87,5 @@ confidence: 5
 
 - `doc/raw/2026-09-13.md#case-17`
 - `assets_dev/train/gm_quads.py` — 사람 410 · 검출기 2,101
+- `doc/raw/2026-09-14.md#case-2` — 층을 가르는 기준을 사람 GM 쿼드 종횡비로
+  두었다. 검출기 출력으로 가르면 같은 실패를 다시 밟는다

@@ -68,3 +68,7 @@ Green Doctor 3/4 반전인데 사진 4장 전부 정상, ACURA PLUS 4/4 인데 3
 - `doc/raw/2026-09-13.md#case-10`
 - `assets_dev/train/polarity_gt.jsonl` · `score_polarity_defs.py`
 - `hash:31d070d`
+- `doc/raw/2026-09-14.md#case-7` — 사진이 숫자칸을 잘랐는지는 기하로 못
+  가른다. 내가 2489 를 '오탐'이라 판정했다가 사람이 뒤집었다: 세 자리가 다
+  보인다는 것과 숫자칸이 온전하다는 것은 다른 말이었다
+- `assets_dev/train/band_exclusions.py` · `band_label_excluded.jsonl`

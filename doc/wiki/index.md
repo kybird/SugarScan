@@ -15,6 +15,7 @@ tags: [index]
 | [[coordinate-frame]] | 좌표 4개짜리 배열은 **그 자체로는 아무 의미가 없다.** `(559, 345)` 는 "어느 이미지의, 어느 크기·방향 공간에서" 잰 값인지가 붙어야 비로소 위치를 가리킨다. | 좌표계, frame, 표시 좌표계, cross-space-comparison, lb.ow, exif_transpose, quad, screen_boxes.jsonl, oriented |
 | [[experiment-budget-parity]] | A/B 로 **구조**(프레이밍·전처리·아키텍처)를 비교하려면 두 팔이 같은 만큼 | 학습 예산, 에폭 수, 예산 일치, budget parity, 대조군 예산, A/B 공정성, fair comparison, 수렴 부족, undertrained |
 | [[knowledge-retrieval-shape]] | 지식 베이스의 가치는 **쓰여 있는가**가 아니라 **필요한 순간에 그 사람이 던지는 질의 모양으로 걸리는가**로 정해진다. | 검색 질의 모양, llm-wiki search, grep 폴백, retrieval |
+| [[late-learned-low-amplitude-signal]] | 출력의 어떤 축이 **다른 축보다 훨씬 작은 진폭**을 가지면, 모델은 큰 축이 | 저진폭 신호, 늦게 배우는 축, 데이터가 모자라서 못 배운 것, 기울기를 못 배운다, 능력이 없다고 결론내기, late-learned signal |
 | [[live-query]] | Drift 의 `watch()` 는 테이블이 바뀔 때마다 **처음 만든 SQL 을 그대로 다시 돌린다.** 파라미터를 다시 계산하지 않는다. | 살아 있는 질의, Drift watch, 스트림 질의, StreamProvider, watchBetween, autoDispose, Drift watch() |
 | [[metric-provenance]] | 숫자는 출처를 달고 다니지 않는다. | 수치 출처, 지표 출처, 무엇을 잰 값인가, metric provenance, 비교 가능성 |
 | [[project-resource-vs-branch-resource]] | 저장소 안의 파일은 기본적으로 **브랜치 자원**이다. | 프로젝트 자원, 브랜치 자원, 공유 상태, 무엇을 어디에 두나, worktree |
@@ -27,6 +28,7 @@ tags: [index]
 | 패턴 | 설명 | 별칭 |
 |------|------|------|
 | [[build-fingerprint]] | 돌고 있는 클라이언트가 **어느 빌드인지** 화면에서 읽히게 한다. | 빌드 지문, stale-tab-detection, /api/build, _build_stamp, checkBuild, Cache-Control: no-store |
+| [[check-ruler-noise-before-building-it]] | 새 측정 경로를 만들기로 결정하기 전에, **그 자가 낼 수 있는 최선의 정밀도**를 | 자의 잡음을 먼저 계산한다, 분해능, 사람 손을 쓰기 전에, 라벨링 정밀도, ruler noise floor |
 | [[contract-boundary-equals-method-boundary]] | "이 메서드는 예외를 던지지 않는다"는 계약을 걸었으면, `try` 는 **메서드 전체**를 감싸야 한다. | 계약 경계, never-throws, GlucoseScanner.offer, _recognizeSafely, ScanUnavailable |
 | [[cursor-holdback-for-skipped-rows]] | 델타 커서를 어디까지 미느냐는 **왜 건너뛰었는지에 따라 정반대**다. | 커서 홀드백, delta cursor, SyncCursorStore, _pull, _apply, updated_at, skippedFrom |
 | [[declare-what-the-human-knows]] | 도메인 사실(기기의 성질·부품의 종류·문서의 종류)을 사람이 이미 안다면, | 사람이 아는 것은 선언한다, 재지 말고 라벨, 도메인 사실은 라벨, declare not measure |
@@ -58,6 +60,7 @@ tags: [index]
 | [[coupled-budget-loop-defeats-per-element-tuning]] | "목표치에 닿을 때까지 뽑는다"는 루프에서는 요소들의 출현 확률이 **독립이 아니다.** | 총량 제약 루프, 확률만 조정, 밀도 채움 회귀, coupled budget loop, 풍선 효과 |
 | [[degradation-past-legibility]] | 증강은 강할수록 강건해진다는 직관이 있다. | 열화 상한, 증강 과다, 읽을 수 없는 표본, 라벨 잡음, illegible |
 | [[device-fixed-to-a-single-point]] | 합성 데이터에서 각 클래스(여기서는 기기)를 **측정 중앙값 한 점**으로 고정한다. | 기기 한 점 고정, 중앙값으로 못박기, 다양성 손실, single point per class |
+| [[discovery-ruler-used-as-acceptance-gate]] | 이상한 것을 **골라내려고** 만든 자는 대개 상대 기준이다. | 발견용 자를 합격 판정에 쓴다, 상대 문턱, 0 이 안 나오는 자, 걸린 장 수, 남은 다섯장, discovery ruler as gate |
 | [[display-and-selection-from-different-sources]] | 목록을 보여 주는 코드와 "지금 선택된 것"을 만드는 코드가 **다른 배열을 읽으면**, | 화면과 선택 불일치, 표시 목록과 조작 대상 분리, selection off-screen, viewOf memberOf, a 전체선택 사고, 보이지 않는 선택 |
 | [[distribution-matched-method-wrong]] | 합성물의 **통계 축**(밀도·대비·기하·비율)을 실물에 맞췄는데, **만드는 방식**이 | 분포는 맞고 방식은 틀림, 지표 통과 산출물 가짜, blind 비교, synthetic realism |
 | [[downscaled-view-as-evidence]] | 작게 줄인 이미지나 몇 장의 표본은 **판단이 가능해 보인다.** 틀렸다는 신호를 주지 않기 때문이다. | 축소본, 썸네일, 몽타주, 눈검, 해상도, resize, 미리보기로 판단, 표본이 작다 |
@@ -68,6 +71,7 @@ tags: [index]
 | [[image-level-split-on-session-corpus]] | 같은 촬영 세션(같은 기기·구도·조명)의 사진이 여러 장 있는 코퍼스를 이미지 단위로 | 이미지 단위 분할, 랜덤 분할 누수, 세션 누수, data leakage, near-duplicate leakage, burst corpus split, 그룹 분할 안 함 |
 | [[improvement-parked-outside-the-pipeline]] | 기준선을 보존하려고 개선을 **별도 구현**으로 만드는 것은 옳다. | 곁가지 개선, 병렬 구현, 반영 안 된 개선, A/B 전용 코드, 기본 경로 |
 | [[irreversible-write-without-history]] | 원자적 저장(`.tmp` → `rename`)은 **쓰다 만 파일**을 막을 뿐, **틀린 내용으로 온전히 | 이력 없는 덮어쓰기, 원자적 저장의 함정, tmp rename, untracked 라벨, 백업 없는 사람 라벨, 재생 불가 자산 |
+| [[label-schema-wider-than-its-values]] | 라벨 파일의 **모양**은 어떤 정보를 담을 수 있게 생겼는데, 실제 값은 전부 | 스키마는 넓은데 값은 좁다, 쿼드인데 축정렬, 담을 수 있게 생겼다, 도구가 못 그린다, schema wider than values |
 | [[label-without-visual-ground-truth]] | 좌표만 저장하고, 저장된 좌표를 **다시 이미지에 그려 확인하는 경로 없이** 계속 진행하는 것. | 눈검증 없는 라벨링, 좌표만 저장, screen_boxes.jsonl, labeled.jsonl, /api/selftest, audit_oob.py |
 | [[lighting-dependent-metric-as-content-target]] | 실사진에서 잰 지표가 **화면의 내용이 아니라 촬영 조건**(조도·광원·그림자· | 조명 지표를 내용 목표로, 촬영 변인을 내용으로, 밀도 목표, density target |
 | [[measured-result-used-as-input]] | 실물에서 잰 값을 생성기의 **입력 파라미터**로 직접 넣는다. | 결과값을 입력으로, 측정값을 파라미터로, 구조 대신 숫자, result as parameter |
@@ -104,8 +108,8 @@ tags: [index]
 
 ## Statistics
 
-- Total concepts: 8
-- Total patterns: 15
-- Total anti-patterns: 44
+- Total concepts: 9
+- Total patterns: 16
+- Total anti-patterns: 46
 - Total answers: 0
-- Last updated: 2026-09-13
+- Last updated: 2026-09-14
