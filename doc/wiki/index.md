@@ -36,11 +36,13 @@ tags: [index]
 | [[frame-provenance-binding]] | 좌표를 다루는 상태에는 **그 좌표계가 누구의 것인지**를 함께 들고 다닌다. | 프레임 이름표, frame-id-binding, 좌표계 귀속, applyImage, frameGuard, lb.frameId, webtool.html |
 | [[generation-token]] | 비동기 작업을 시작할 때 세대 번호를 찍고, 결과를 반영하기 전에 **그 세대가 아직 유효한지** 확인한다. | 세대 토큰, 세션 토큰, stale-response-guard, lb.gen, _session, GlucoseScanner.offer, show() |
 | [[measure-the-premise-not-just-the-claim]] | 기록된 결정은 "무엇을 정했나"와 "왜 그렇게 정했나"를 함께 담는다. | 전제, 근거가 낡았다, 결론은 맞는데 이유가 틀렸다, D-2, 상태 공간, 결정 재검토 |
+| [[no-real-photo-ruler-for-synth]] | 합성 데이터의 설계값(요소 자리, 여백, 간격, 기기 속성)을 실촬 사진을 재서 |  |
 | [[open-upper-bound-for-live-window]] | "최근 N일" 같은 살아 있는 기간 질의는 **위쪽 경계를 열어 둔다.** 상한에 "지금"을 넣지 않는다. | 열린 상한, 기간 질의, statsReadingsProvider, watchBetween, refreshStatsProvider |
 | [[push-over-pull-for-prevention]] | **검색은 pull 이다 — 물어볼 줄 알아야 걸린다.** 예방이 목적이라면 검색에 기대면 안 된다. | 푸시 우선, 트리거 표, CLAUDE.md 표, AGENTS.md, 예방은 검색으로 안 된다 |
 | [[row-level-decode-tolerance]] | 배치에서 행 하나를 해석하지 못했다고 배치 전체를 실패시키지 않는다. **관용의 단위는 행이다.** | 행 단위 관용, poison-row 방어, ReadingPage, fetchUpdatedSince, fetchedRows, malformed, ReadingDto.fromJson |
 | [[scene-component-split]] | 세션 메타데이터(촬영 시각·기기 id)가 없는 코퍼스에서는 **픽셀 유사도의 연결요소**를 | 장면 성분 분할, 그룹 분할, 연결요소 분할, scene split, session-aware split, grouped split |
 | [[server-side-write-verification]] | 클라이언트가 "무엇을 기준으로 만든 값인지"를 함께 보내게 하고, **서버가 정본에서 직접 재확인한 뒤에만** 기록한다. | 저장 검문, 쓰기 검증, 409 거부, _verify_frame, /api/label, webtool.py, 409 |
+| [[target-defined-by-the-label-not-the-generator]] | 합성으로 학습해 실촬을 맞히는 것이 목표라면, **무엇을 맞힐 것인가의 정의는 |  |
 | [[tolerant-decode-with-preservation]] | 모르는 값을 만나면 **관용하되 보존한다.** 기본값으로 치환하고 그대로 되돌려 쓰면, 관용이 곧 데이터 파괴가 된다. | 관용 디코드, unknown 보존, additive-only, fromWireName, orElse, MeasurementTag, ReadingSource, GlucoseUnit |
 | [[verify-premises-before-executing]] | 지시서를 받으면 **적힌 대로 하기 전에 전제가 사실인지 먼저 잰다.** 지시서를 쓴 | 전제 실측, 지시서 검증, 요약 먼저, 위임 안전장치 |
 
@@ -91,6 +93,7 @@ tags: [index]
 | [[stale-baseline-quoted-as-current]] | 파이프라인을 갈아엎고 나면 옛 성적은 **다른 모델이 다른 데이터로 다른 시험지를 | 옛 기준선 인용, 폐기된 수치, 기준선 혼동, stale baseline, 재구축 전 수치, 갈아엎기 전 성적, 옛 모델 수치 |
 | [[stale-client-writes]] | 브라우저에 어느 버전의 JS 가 떠 있는지 **아무도 모르는 상태**로 저장 요청을 받는 것. | 낡은 탭 쓰기, stale build, Cache-Control, no-store, webtool.html, /api/build |
 | [[string-identity-for-label-class]] | 도메인에서 같은 것(같은 annunciator, 같은 표시등)이 **표기 변형** 때문에 문자열로는 | 문자열 동일성, 표기 변형 중복, used_texts, string identity, 라벨 부류 |
+| [[synthetic-target-differs-from-label-definition]] | 합성 데이터로 학습하고 사람 라벨로 채점한다. |  |
 | [[tolerance-without-preservation]] | `values.firstWhere(..., orElse: () => SomeDefault)` — 관용처럼 보이지만, 그 값을 나중에 서버로 되돌려 쓰는 순간 **다른 기기의 데이터를 파괴한다.** | 모르는 값 치환, orElse 기본값, silent-normalization, fromWireName, orElse, firstWhere, MeasurementTag, ReadingSource, measurement_tag.dart |
 | [[uncontrolled-budget-in-ab-comparison]] | 바꾼 변인(크롭·워프·증강)과 **함께 움직이지 않은 변인**(에폭 수·사전학습 체크포인트· | 예산 불일치 A/B, 에폭 예산, 학습 예산 비교, budget parity, epoch-mismatch, unfair A/B |
 | [[unnamed-coordinate-frame]] | 좌표 배열만 저장하고, **그 좌표가 어느 프레임에서 만들어졌는지**는 저장하지 않는 것. | 이름 없는 좌표계, 프레임 미기록, lb.ow, lb.frameId, applyImage, screen_boxes.jsonl, labeled.jsonl |
@@ -110,7 +113,7 @@ tags: [index]
 ## Statistics
 
 - Total concepts: 9
-- Total patterns: 16
-- Total anti-patterns: 47
+- Total patterns: 18
+- Total anti-patterns: 48
 - Total answers: 0
 - Last updated: 2026-09-15
