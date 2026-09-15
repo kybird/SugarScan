@@ -187,6 +187,10 @@ def main():
     ap.add_argument("--lr", type=float, default=3e-4)
     ap.add_argument("--val", type=int, default=150, help="학습 건전성용 분리")
     ap.add_argument("--out", default="band_det_v0.pt")
+    ap.add_argument("--ckpt-every", type=int, default=0,
+                    help="N 에폭마다 체크포인트를 남긴다(0=끝에만). 밤샘 학습이 "
+                         "중간에 죽어도 거기까지가 남고, 과적합 구간을 "
+                         "되짚을 수 있다. 파일명은 <out 어간>_e<에폭>.pt")
     ap.add_argument("--arch", default="fc", choices=sorted(ARCHS),
                     help="fc=구판(Flatten+Linear) · heat=히트맵+soft-argmax. "
                          "구판 체크포인트 아홉 개가 fc 라 기본을 바꾸지 않는다")
@@ -232,6 +236,11 @@ def main():
                 vn += len(xb)
         print(f"epoch {ep + 1:3d}  train {tot / max(1, n):.5f}  "
               f"sanity-val {vt / max(1, vn):.5f}", flush=True)
+        if args.ckpt_every and (ep + 1) % args.ckpt_every == 0                 and (ep + 1) < args.epochs:
+            _p = Path(args.out)
+            _mid = _p.with_name(f"{_p.stem}_e{ep + 1}{_p.suffix}")
+            torch.save(model.state_dict(), _mid)
+            print(f"saved {_mid}", flush=True)
     torch.save(model.state_dict(), args.out)
     print(f"saved {args.out}")
 
