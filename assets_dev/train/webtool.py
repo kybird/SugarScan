@@ -33,6 +33,7 @@ HERE = Path(__file__).resolve().parent
 DATUMO = HERE.parent / "upstream" / "datumo"
 IMAGES = DATUMO / "extracted" / "TILDE"
 CACHE = HERE / "cache"
+SYNTH_HTML = HERE / "synth_view.html"   # 합성 코퍼스 열람 — 읽기 전용
 # 밴드 라벨은 **새 파일에 쌓는다.** 옛 `labeled.jsonl` 358장 중 300장이
 # 프레임 검증(`ow`/`oh`, 2026-09-02) 이전에 저장돼 좌표를 신뢰할 수 없다 —
 # 그 크롭으로 읽히면 14.6%(GM 화면 크롭은 96.6%). 같은 파일에 이어 쓰면 옛
@@ -43,7 +44,11 @@ BAND_FILE = HERE / "band_boxes.jsonl"
 BAND_LEGACY = HERE / "labeled.jsonl"   # 보존만. 읽지도 쓰지도 않는다.
 LCD_FILE = HERE / "screen_boxes.jsonl"
 GT_FIX = HERE / "gt_corrections.jsonl"
-BAND_QUADS = HERE / "datumo_quads_v2.jsonl"  # v2 밴드 모델 예측(도메인 AP50 98.4)
+# 밴드 예측 오버레이. 재구축 뒤 새 검출기 산물을 먼저 쓰고, 없으면 옛 v2 파일로
+# 떨어진다(그 파일은 재구축 때 사라졌다 — 그래서 오버레이가 빈 채로 돌고 있었다).
+# predict_band_quads.py 가 만든다. **예측**이지 라벨이 아니다 — 행마다 source·ckpt.
+_BAND_PRED = HERE / "band_quads_pred.jsonl"
+BAND_QUADS = _BAND_PRED if _BAND_PRED.exists() else HERE / "datumo_quads_v2.jsonl"
 # 라벨러 힌트 전용(점선 제안). 표시(EXIF 적용) 좌표계 — convert_quads_oriented.py
 # 의 정정문 참조. **캐시 정본인 gmscreen_quads.jsonl 과 별개다** — 이 파일을
 # 바꿔도 data_cache_v2.npz 는 영향받지 않는다(build_cache_v2.py:146 은 정본을 읽는다).
@@ -565,6 +570,64 @@ def _oriented_size(p: Path):
         _OSIZE_MEMO.clear()
     _OSIZE_MEMO[key] = (w, h)
     return w, h
+
+
+# ===== 합성 코퍼스 열람 (읽기 전용) =====
+# 합성에는 사람 라벨이 없다 — 생성기가 밴드 쿼드를 알고 manifest 에 적는다.
+# 여기서 보는 것은 '모델이 무엇을 정답으로 보고 배우는가' 그 자체다.
+# 라벨링 경로(/api/labels, /api/rect)와 완전히 분리해 둔다: 합성에 사람이
+# 손대는 순간 정답의 출처가 둘이 되고, 그러면 무엇으로 배웠는지 알 수 없게 된다.
+
+def _synth_dirs():
+    out = []
+    for d in sorted(HERE.glob("synth_*")):
+        m = d / "manifest.jsonl"
+        if d.is_dir() and m.exists():
+            out.append(d.name)
+    return out
+
+
+_SYNTH_CACHE = {}
+
+
+def _synth_rows(name):
+    if name in _SYNTH_CACHE:
+        return _SYNTH_CACHE[name]
+    d = HERE / name
+    if ".." in name or "/" in name or not (d / "manifest.jsonl").exists():
+        return []
+    rows = [json.loads(l) for l in
+            (d / "manifest.jsonl").read_text(encoding="utf-8").splitlines() if l.strip()]
+    _SYNTH_CACHE[name] = rows
+    return rows
+
+
+@route("/api/synth/corpora")
+def api_synth_corpora(qs):
+    out = []
+    for n in _synth_dirs():
+        rows = _synth_rows(n)
+        profs = sorted({r.get("profile", "?") for r in rows})
+        out.append({"name": n, "count": len(rows), "profiles": profs})
+    return {"corpora": out}
+
+
+@route("/api/synth/list")
+def api_synth_list(qs):
+    name = qs.get("dir", [""])[0]
+    prof = qs.get("profile", [""])[0]
+    off = int(qs.get("offset", ["0"])[0])
+    lim = min(400, int(qs.get("limit", ["60"])[0]))
+    rows = _synth_rows(name)
+    if prof:
+        rows = [r for r in rows if r.get("profile") == prof]
+    sl = rows[off:off + lim]
+    return {"total": len(rows), "offset": off, "items": [
+        {"id": r["id"], "profile": r.get("profile"), "label": r.get("label"),
+         "w": r["w"], "h": r["h"], "quad": r["quad"],
+         "glass_quad": r.get("glass_quad"), "inverted": r.get("inverted"),
+         "dropped": r.get("dropped"), "rects": r.get("rects")}
+        for r in sl]}
 
 
 @route("/api/image")
@@ -1095,6 +1158,26 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(200, HTML.read_bytes(), "text/html; charset=utf-8")
             else:
                 self._send(404, "webtool.html 없음 — 서버 옆에 만들 것".encode(), "text/plain")
+            return
+        if u.path == "/synth":
+            if SYNTH_HTML.exists():
+                self._send(200, SYNTH_HTML.read_bytes(), "text/html; charset=utf-8")
+            else:
+                self._send(404, "synth_view.html 없음".encode(), "text/plain")
+            return
+        if u.path == "/synthimg":
+            # 합성 PNG 를 그대로 낸다. 리사이즈하지 않는다 — 좌표가 manifest
+            # 원본 화소 기준이고, 화면에서 캔버스가 비율대로 맞춘다.
+            d = qs.get("dir", [""])[0]
+            cid = qs.get("id", [""])[0]
+            if ".." in d or ".." in cid or "/" in d or "/" in cid:
+                self._send(400, b"bad id", "text/plain")
+                return
+            f = HERE / d / "images" / (cid + ".png")
+            if not f.exists():
+                self._send(404, b"not found", "text/plain")
+                return
+            self._send(200, f.read_bytes(), "image/png")
             return
         if u.path == "/devices":
             if DEVICES_HTML.exists():

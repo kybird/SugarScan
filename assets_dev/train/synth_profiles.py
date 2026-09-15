@@ -36,7 +36,11 @@ from synth_lcd import (  # 레거시 구성요소 재사용 + 세그먼트 스�
 # 이탤릭 기기(OneTouch 계열)엔 Italic 변형, 일부 가는획 기기엔 Modern-Light.
 # 라이선스(RFN 'DSEG'): 폰트 파일은 수정·재배포하지 않고 렌더에만 쓴다.
 # 글리프 획 부풀림 비율(높이 대비). 0 이면 폰트 그대로.
-GLYPH_DILATE = 0.0
+# 획 부풀림 — 글리프 높이 대비 비율. 0 이면 끈다.
+# 2026-09-14 재측정: 합성 획굵기/밴드높이 median 0.061 vs 실사진 0.093 (n=272).
+# 실사진 p25(0.085)가 합성 p75(0.069)보다 커서 분포가 거의 겹치지 않았다.
+# 값은 추측하지 않고 스윕으로 맞춘다 — SYNTH_GLYPH_DILATE 로 덮어 잰다.
+GLYPH_DILATE = float(__import__("os").environ.get("SYNTH_GLYPH_DILATE", "0.0"))
 
 FONT_DIR = Path(__file__).resolve().parent / "fonts" / "dseg"
 DSEG_FILES = {
@@ -81,7 +85,7 @@ def _glyph_mask(ch, variant, h):
 
 
 def _pick_variant(rng, italic):
-    w = DSEG_WEIGHTS[rng.randrange(len(DSEG_WEIGHTS))]
+    w = __import__("os").environ.get("SYNTH_FORCE_WEIGHT") or         DSEG_WEIGHTS[rng.randrange(len(DSEG_WEIGHTS))]
     if rng.random() < 0.12:            # 가는획+둥근끝 소수 기기
         return "ModernLight"
     if italic:
@@ -145,8 +149,11 @@ PROFILES = [
         glulabel=dict(p=0.9),
         unit=dict(texts=["mg/dL"], pos="below-right", gap=(6, 14), p=0.6),
         mem=dict(kind="M-box", pos="top-left", p=0.7),
-        icons=[("triangle", "top-left", 0.4), ("triangle", "top-right", 0.4),
-               ("blood-drop", "right-mid", 0.3), ("bluetooth", "top-right", 0.2)],
+        # 자리는 기기 안에서 고정돼야 한다(사람 지적 2026-09-15: 어떤 장은
+        # 좌상단에 삼각형, 어떤 장은 M 이 떴다). mem 이 top-left 를 쓰므로
+        # 삼각형은 top-right 하나만 둔다 — 한 자리를 둘이 다투지 않게.
+        icons=[("triangle", "top-right", 0.4),
+               ("blood-drop", "right-mid", 0.3)],
         time=dict(pos="below-left", p=0.7),
         bezel=dict(texts=["GREEN Doctor"], edge="top", p=0.8),
         buttons=True,
@@ -192,7 +199,9 @@ PROFILES = [
         id="caresens_n_premier", slots=3, align="right", italic=False,
         evidence=["glucose_batch1/1911", "glucose_batch1/1903"],
         unit=dict(texts=["mg/dL"], pos="below-right", gap=(10, 18), p=0.9),
-        mem=dict(kind="M", pos="right-of-digits", p=0.5),
+        # 세로형에서 M 은 숫자 옆이 아니라 상단이다(사람 판정 2026-09-15).
+        # 근거 사진 1911·1903 을 다시 볼 것 — 선언을 바꾼 것이라 확인이 필요하다.
+        mem=dict(kind="M", pos="top-left", p=0.5),
         icons=[("mem-flag", "right-of-digits", 0.5), ("battery", "top-right", 1.0)],
         dotrow_below=dict(fmts=DOT_FMTS, p=0.9),
         bezel=dict(texts=["CareSens N", "Premier"], edge="top", p=0.8),
@@ -258,7 +267,10 @@ PROFILES = [
                   "glucose_batch1/1596", "glucose_batch1/1598",
                   "glucose_batch1/1602"],
         unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 10), p=1.0),
-        mem=dict(kind="M", pos="right-of-digits", p=0.5),
+        # M 은 좌측 상단이다(사람 판정 2026-09-15). 가로형이라도 그렇다 —
+        # 오른쪽은 시간·날짜·단위가 쌓인 정보 칼럼이라 M 이 낄 자리가 아니고,
+        # 숫자 옆은 단위를 딴 데 두고 M 만 붙는 셈이라 앞뒤가 안 맞는다.
+        mem=dict(kind="M", pos="top-left", p=0.5),
         # 칼럼의 시간은 시각만이다 — 날짜는 아래 별도 줄이다(1588 '7:10PM'
         # + '8-20'). 전역 DOT_FMTS 에는 날짜까지 붙은 긴 형식이 섞여 있어
         # 칼럼 폭을 넘겨 통째로 탈락했다.
@@ -540,8 +552,29 @@ def _tri(img, cx, cy, s, ink, direction="right"):
     cv2.fillPoly(img, [np.array(pts, np.int32)], ink)
 
 
-def _icon(img, kind, cx, cy, s, ink):
-    """아이콘 — 실사진 관찰 묘사를 단순 벡터로 흉내(외부 자산 아님, 자체 그림)."""
+def tri_dir_for(pos):
+    """자리 이름에서 삼각형이 향할 방향을 정한다(사람 규칙 2026-09-15):
+    오른쪽에 있으면 오른쪽, 왼쪽이면 왼쪽, 혈당 아래면 아래, 위면 위.
+
+    전에는 `triangle` 이 자리와 무관하게 늘 오른쪽을 가리켰다 — green_doctor
+    왼쪽 위 삼각형이 오른쪽을 향했다. 방향은 자리에서 나오는 것이지 종류에
+    붙는 성질이 아니다."""
+    p = (pos or "").lower()
+    if "left" in p:
+        return "left"
+    if "right" in p:
+        return "right"
+    if p.startswith("below") or "bottom" in p or "down" in p:
+        return "down"
+    if p.startswith("top") or "above" in p:
+        return "up"
+    return "right"
+
+
+def _icon(img, kind, cx, cy, s, ink, pos=None):
+    """아이콘 — 실사진 관찰 묘사를 단순 벡터로 흉내(외부 자산 아님, 자체 그림).
+
+    pos 를 주면 방향성 아이콘(triangle)이 그 자리에 맞는 쪽을 향한다."""
     if kind == "curved-right":
         cv2.ellipse(img, (cx - s // 3, cy), (s // 2, s // 2), 0, -75, 75,
                     ink, 1, cv2.LINE_AA)
@@ -555,7 +588,10 @@ def _icon(img, kind, cx, cy, s, ink):
         pts = np.array([[cx, cy + s], [cx - s, cy - s], [cx + s, cy - s]],
                        np.int32)
         cv2.fillPoly(img, [pts], ink)
-    elif kind in ("tri-right", "triangle"):
+    elif kind == "triangle":
+        # 방향은 자리에서 나온다 — pos 가 없으면 옛 기본값(오른쪽).
+        _tri(img, cx, cy, max(3, s // 2), ink, tri_dir_for(pos))
+    elif kind == "tri-right":
         _tri(img, cx, cy, max(3, s // 2), ink, "right")
     elif kind == "battery":
         # 722(Gmate) 상단 우측: 얇은 외곽선 + 오른쪽 돌기 + 부분 채움(가는
@@ -570,9 +606,16 @@ def _icon(img, kind, cx, cy, s, ink):
             cv2.rectangle(img, (bx, cy - s // 3 + 3), (bx + bw, cy + s // 3 - 3),
                           ink, -1)
     elif kind == "blood-drop":
-        cv2.ellipse(img, (cx, cy + s // 4), (s // 3, s // 3), 0, 0, 360, ink, 1)
-        pts = np.array([[cx, cy - s // 2], [cx - s // 4, cy + s // 8],
-                        [cx + s // 4, cy + s // 8]], np.int32)
+        # 구판은 '원 테두리 + 그 위에 뜬 삼각형' 이라 물방울로 안 보였다
+        # (사람 지적 2026-09-15: "원 위에 검은 삼각형 올려논건 뭘 표현하고
+        # 싶은거지?"). 아래 둥근 몸통과 위 뾰족한 꼭지가 **한 덩어리**로
+        # 이어져야 물방울이다 — 채운 원과 채운 삼각형을 겹쳐 붙인다.
+        r = max(2, s // 3)
+        bx, by = cx, cy + s // 5
+        cv2.circle(img, (bx, by), r, ink, -1)
+        pts = np.array([[cx, cy - s // 2],
+                        [bx - r, by - r // 3],
+                        [bx + r, by - r // 3]], np.int32)
         cv2.fillPoly(img, [pts], ink)
     elif kind == "bluetooth":
         cv2.circle(img, (cx, cy), s // 2, ink, 1)

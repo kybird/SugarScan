@@ -165,12 +165,13 @@ class SynthBandSet(Dataset):
                          cv2.IMREAD_GRAYSCALE)
         x, sc, px, py = letterbox(img)
         y = quad_to_target(r["quad"], sc, px, py)
-        if self.train and random.random() < 0.5:
-            x = np.ascontiguousarray(x[:, ::-1])
-            xs = y.reshape(4, 2)[:, 0].copy()
-            y = y.reshape(4, 2)
-            y[:, 0] = 1.0 - xs           # 좌우 반전 — TL<->TR, BL<->BR
-            y = y[[1, 0, 3, 2]].reshape(-1)
+        # 좌우 반전 증강은 뺐다(2026-09-14). 거울상 혈당계는 존재하지 않는다 —
+        # 단위가 왼쪽에, mem 이 왼쪽에, 숫자가 왼쪽 정렬된 기기를 학습의 절반에서
+        # 보여 주고 있었다. 실물에 없는 배치를 가르치는 것도 문제지만, 더 나쁜
+        # 것은 "오른쪽 끝에 단위가 있으니 숫자는 그 앞에서 끝난다" 같은 단서를
+        # 쓸 수 없게 만든다는 점이다. 지금 실패가 정확히 오른쪽 경계였다
+        # (예측/라벨 면적 0.947, 밴드가 클수록 더 작게 그린다 corr -0.563).
+        # 되돌릴 거면 여기 한 블록만 되살리면 된다.
         if self.train:
             x = np.clip(x * random.uniform(0.85, 1.15)
                         + random.uniform(-0.08, 0.08), 0, 1)

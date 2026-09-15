@@ -496,15 +496,29 @@ def _render_once(value, rng, profile, pid, inverted):
             return rng.uniform(lo, hi)
         return lo + (hi - lo) * ident[key]
 
+    _shown_memo = {}
+
     def _shown(name, p):
         """요소를 이 장에 그리는가. 기기 고정 기기에서 '기기가 가진 요소'는
         항상 그린다 — 있다 없다 하면 같은 기기로 안 보인다. 상태성 요소만
-        장마다 켜고 끈다(STATEFUL_ELEMENTS)."""
+        장마다 켜고 끈다(STATEFUL_ELEMENTS).
+
+        이름별로 답을 기억한다(2026-09-15). 밴드 안 요소의 자리(_allow)를
+        떼려면 '그릴지'를 배치 **전에** 알아야 하는데, 결정은 300줄 뒤
+        그리는 자리에서 났다. 그래서 안 그리는 장에서도 자리는 떼어 놓았고,
+        숫자가 그만큼 왼쪽으로 밀려 오른쪽에 빈 자리가 남았다.
+        메모이즈하면 먼저 물어봐도 나중 호출이 같은 답을 받는다 — 난수는
+        한 번만 소비된다(호출 순서가 바뀌므로 옛 코퍼스는 재현되지 않는다)."""
+        if name in _shown_memo:
+            return _shown_memo[name]
         if ident is None:
-            return rng.random() < p
-        if name in STATEFUL_ELEMENTS:
-            return rng.random() < p
-        return True
+            v = rng.random() < p
+        elif name in STATEFUL_ELEMENTS:
+            v = rng.random() < p
+        else:
+            v = True
+        _shown_memo[name] = v
+        return v
     # 캔버스(=GM 크롭) 종횡비. 기기 고정 기기는 코퍼스 히스토그램에서 뽑지
     # 않는다 — 그 히스토그램은 54종이 섞인 분포라 한 기기에 씌우면 같은 기기의
     # 크롭이 0.70~0.98 로 흔들리고, 유리 종횡비는 고정인데 캔버스가 흔들리니
@@ -911,6 +925,11 @@ def _render_once(value, rng, profile, pid, inverted):
         # 폭이 피치 상한(0.85)으로 못 채우는 기기는 폭이 약간 짧아진다 —
         # 숫자를 무한히 납작하게 늘리는 것보다 낫다.
         _pad_x_t = max(6, int(dh * 0.20))
+        # _allow 는 배치용 예약이고, **이 장에 실제로 그릴 요소만** 센다
+        # (2026-09-15). 쿼드만 내용에 맞춰 줄이고 이걸 안 고치면, 숫자는
+        # 그대로 왼쪽으로 밀린 채 쿼드만 오므라들어 빈 자리가 유리 쪽으로
+        # 옮겨 갈 뿐이다 — 사람 지적: accuchek_instant 오른쪽 유리 여백이
+        # 왼쪽의 2.8배(0.226 vs 0.081)였다.
         # 밴드 안 요소(단위·mem) 폭을 먼저 뗀다 — 실측 band_w 는 사람 라벨로
         # 단위까지 끌어안은 기기(gmate 0.995, 단위가 끝자리에 4~5px)가 있어
         # 숫자 필드가 밴드 전폭을 쓰면 단위가 들어갈 자리가 없다.
@@ -918,19 +937,23 @@ def _render_once(value, rng, profile, pid, inverted):
         _aux_est = max(7, int(dh * 0.17))
         _allow = 0
         _u_el = profile.get("unit")
-        if _u_el is not None and _u_el.get("pos") in (
-                "right-baseline", "right-mid", "left-mid"):
+        if (_u_el is not None and _u_el.get("pos") in (
+                "right-baseline", "right-mid", "left-mid")
+                and _wide_t is None and _shown("unit", _u_el["p"])):
             _uts = _u_el.get("texts") or LCD_UNITS
             _ut = _uts[zlib.crc32(pid.encode("utf-8")) % len(_uts)]
             _allow += (seg_text_width(_ut, _aux_est, _sl)
                        + int(sum(_u_el["gap"]) / 2))
         _mk_el = profile.get("mem")
-        if _mk_el is not None and _mk_el.get("pos") == "right-of-digits":
+        if (_mk_el is not None and _mk_el.get("pos") == "right-of-digits"
+                and _shown("mem", _mk_el["p"])):
             _mt = {"mem": "mem", "memory": "memory", "M": "M"}.get(
                 _mk_el.get("kind", "M"), "M")
             _allow += seg_text_width(_mt, _aux_est, _sl) + int(dh * 0.1)
-        if profile.get("meter"):
-            _allow += int(dh * 0.24) + 4      # 미터기 화살표(유리 오른끝 트랙)
+        # 미터기 화살표 자리는 더 이상 떼지 않는다(2026-09-15). 화살표는 유리
+        # 오른쪽 끝 트랙에 있고 숫자 옆이 아니다 — 여기서 폭을 떼면 숫자만
+        # 왼쪽으로 밀리고 그만큼이 유리 오른쪽 여백으로 남는다. 겹침은
+        # placer 가 막는다.
         _inner = _L["bw"] * pw - 2 * _pad_x_t - _allow
         _pr = _inner / max(1.0, dh * (slots - 1 + _g_r))
         pitch_r = min(0.85, max(0.21, _pr))
@@ -1015,7 +1038,8 @@ def _render_once(value, rng, profile, pid, inverted):
     if lay is not None:
         # 세그먼트 종류도 기기 고정(사람 지침 2026-09-13) — weight 3종 중
         # 프로파일이 정한 하나. 랜덤 변형은 무명 풀(generic_v1)만.
-        variant = lay.get("weight", "Regular")
+        variant = (__import__("os").environ.get("SYNTH_FORCE_WEIGHT")
+                   or lay.get("weight", "Regular"))
         if profile.get("italic"):
             variant = "Italic" if variant == "Regular" else variant + "Italic"
     else:
@@ -1028,6 +1052,7 @@ def _render_once(value, rng, profile, pid, inverted):
     ghost = (ident["ghost"] if ident is not None
              else (rng.uniform(0.04, 0.11) if rng.random() < 0.15 else 0.0))
     glyph_cache = {}
+    _band_clip = [0]        # 밴드 쿼드가 숫자 필드를 잘랐는가(자가검사)
     glyph_plane = np.zeros((H, W), np.uint8)
     for j in range(n_vis):
         ch = label[j]
@@ -1402,7 +1427,7 @@ def _render_once(value, rng, profile, pid, inverted):
             if _placed:
                 r = placer.rects[-1]
                 _icon(img, kind, (r[0] + r[2]) // 2, (r[1] + r[3]) // 2, s,
-                      ink_small)
+                      ink_small, pos=pos)
             maybe(_placed, f"icon:{kind}")
             continue
         _sh = (2 * s - _ib) // 2
@@ -1418,7 +1443,7 @@ def _render_once(value, rng, profile, pid, inverted):
                         f"icon:{kind}", alts=cands[1:]), f"icon:{kind}"):
             r = placer.rects[-1]
             _icon(img, kind, (r[0] + r[2]) // 2, (r[1] + r[3]) // 2, s,
-                  ink_small)
+                  ink_small, pos=pos)
 
     # 도트매트릭스 줄은 실제로 도트 패널인 기기만(AC#1) — dorucos_premium
     # (dot_panel, 근거 120·694·695). 다른 프로파일의 dotrow_* 요소는 실사진이
@@ -1530,6 +1555,66 @@ def _render_once(value, rng, profile, pid, inverted):
     # 목표로 쓰면 렌더러가 조명 때문에 생긴 숫자를 '내용'으로 맞추려 들고,
     # 근거 없는 도트줄·mem·아이콘을 화면에 채워 넣는다. 화면에 무엇이 있는지는
     # 기기가 정한다. 밀도는 렌더 뒤에 재서 보고만 한다(manifest.density).
+
+    # ── 밴드 쿼드를 실제로 그려진 것에서 다시 만든다 (2026-09-14) ──────────
+    # 그 전에는 쿼드 폭을 실측 분포(_L["bw"])에서 먼저 뽑고 숫자를 그 안에
+    # 오른쪽 정렬로 끼워 넣었다. 그래서 쿼드와 내용이 어긋날 수 있었고,
+    # _allow(단위·mem·화살표 자리)를 프로파일 '선언' 기준으로 떼어 놓은 탓에
+    # 그 요소가 이 장에 안 그려지면 오른쪽에 빈 자리가 남았다. 그 빈 자리가
+    # 그대로 정답이 되어 "저기까지가 숫자줄이다" 를 가르쳤다.
+    #   측정(40k): 오른쪽 여백/밴드높이 median
+    #     onetouch_ultramini 0.461 · caresens_n_premier 0.443 · accuchek_instant 0.397
+    #     나머지 11종 0.13~0.19 (= pad_x, 좌우 대칭이라 정상)
+    # 이제 순서를 뒤집는다 — 다 그린 뒤에 그린 것을 감싼다. 여백은 좌우 대칭
+    # 패딩 하나뿐이고, 예약해 놓고 안 쓴 자리는 쿼드에 들어오지 않는다.
+    #
+    # 감싸는 것: 슬롯 필드 전체(빈 앞자리 포함 — 사람 라벨 규약과 같다) +
+    # 밴드 줄에 실제로 놓인 요소(단위·mem·meal·화살표). '밴드 줄'은 세로
+    # 중심이 숫자 높이 안에 든 것으로 판정한다 — 아래 정보줄을 끌어들이지 않는다.
+    # 슬롯 필드는 **실제로 숫자가 놓인 x0** 에서 잡는다. fx0 를 쓰면 안 된다 —
+    # fx0 는 옛 밴드(_bw_eff)의 왼쪽 + 패딩이라 숫자가 어디 놓였는지와 무관하고,
+    # 그걸 기준으로 삼으면 옛 밴드의 남는 폭을 그대로 물려받는다(2026-09-15,
+    # 사람 지적: acura_plus · caresens_n_premier · accuchek_instant ·
+    # wide_unknown · onetouch_ultramini 에서 우측 여백이 그대로였다).
+    # 빈 슬롯(ghost_w)은 정렬 방향의 반대편에 붙는다 — 오른쪽 정렬이면 왼쪽에.
+    if align != "left":
+        _bx0, _bx1 = float(x0 - ghost_w), float(x0 + field_w)
+    else:
+        _bx0, _bx1 = float(x0), float(x0 + field_w + ghost_w)
+    _by0, _by1 = float(y0), float(y0 + dh)
+    # 세로로 겹친다고 다 넣으면 안 된다 — 미터기 화살표는 유리 오른쪽 끝
+    # '트랙'에 있는 지시자라 숫자줄에서 멀리 떨어져 있는데, 세로 중심만 보면
+    # 밴드 줄에 든 것으로 잡혀 그 사이 빈 공간까지 통째로 삼킨다
+    # (2026-09-15 사람 지적: accuchek_instant, 유리 오른쪽 여백이 왼쪽의
+    # 2.7배). 그래서 **가로로 붙어 있는 것만** 넣는다.
+    # 화살표는 아예 넣지 않는다(2026-09-15). 거리 조건(dh*0.6)으로 걸러 봤지만
+    # accuchek_instant 처럼 트랙이 숫자에 가까운 기기에서는 여전히 들어왔다.
+    # 화살표는 값을 가리키는 **지시자**이지 숫자줄의 일부가 아니다 — 거리로
+    # 판정할 일이 아니라 종류로 뺄 일이었다.
+    # 밴드는 **숫자줄**이다. 단위·M·식사표시는 넣지 않는다(2026-09-15).
+    # 넣어 봤더니 M 이 숫자 옆에 있는 기기에서 쿼드가 M 까지 감쌌고, 사람이
+    # "단위는 딴 데 두고 M 만 숫자 옆? 넌센스" 라고 지적했다. 무엇을 넣을지
+    # 거리로 판정하려던 것부터가 틀렸다 — 규약이 '숫자줄' 하나면 규칙도 하나다.
+    # 규약을 '숫자+단위' 로 바꾸기로 하면 여기 한 줄만 되살리면 된다.
+    # 유리로 클램프하되 **패딩만** 줄인다. 내용 경계를 넘어 자르면 안 된다 —
+    # 숫자가 유리 가장자리에 가까운 기기에서 밴드가 숫자를 잘라 먹는다
+    # (2026-09-15 사람 지적: caresens_n_premier · accuchek_instant ·
+    # acura_plus). min(_b*, ...) 이 그 하한을 지킨다.
+    _qx0 = min(_bx0, max(px0 + 1.0, _bx0 - pad_x))
+    _qx1 = max(_bx1, min(px1 - 1.0, _bx1 + pad_x))
+    _qy0 = min(_by0, max(py0 + 1.0, _by0 - pad_y))
+    _qy1 = max(_by1, min(py1 - 1.0, _by1 + pad_y))
+    # 캔버스 밖으로는 못 나간다(쿼드 어서션이 뒤에서 잡는다).
+    _qx0 = max(0.0, _qx0); _qy0 = max(0.0, _qy0)
+    _qx1 = min(float(W - 1), _qx1); _qy1 = min(float(H - 1), _qy1)
+    if _qx1 - _qx0 >= 8 and _qy1 - _qy0 >= 8:
+        quad = np.float32([[_qx0, _qy0], [_qx1, _qy0],
+                           [_qx1, _qy1], [_qx0, _qy1]])
+        # 자가검사: 밴드 쿼드는 숫자 필드를 통째로 담아야 한다. 사람이 눈으로
+        # 찾아야 했던 결함이라 여기서 센다 — generate() 가 합계를 인쇄한다.
+        if not (_qx0 <= _bx0 + 0.5 and _qx1 >= _bx1 - 0.5
+                and _qy0 <= _by0 + 0.5 and _qy1 >= _by1 - 0.5):
+            _band_clip[0] += 1
 
     # ── 광학 — 노이즈·블러·명암·비네팅·국소 그림자·연한 반사패치(결함 (7)) ──
     # 광학 노이즈도 넘겨받은 rng 에서 파생시킨다 — np.random 전역을 쓰면
@@ -1669,6 +1754,7 @@ def _render_once(value, rng, profile, pid, inverted):
 
     dens = _density_outside(img, quad)
     return dict(panel=img, quad=np.asarray(quad, np.float32), label=label,
+                band_clip=int(_band_clip[0]),
                 glass_quad=np.asarray(glass_quad, np.float32),
                 rects=placer.rects, dropped=dropped, wh=W / H, W=W, H=H,
                 profile=pid, inverted=bool(inverted),
@@ -1715,6 +1801,7 @@ def generate(count, seed0, out_dir, with_reader=False):
     rng = random.Random(seed0)
     manifest = []
     viol_total = 0
+    clip_total = 0          # 밴드 쿼드가 숫자 필드를 자른 장 수(자가검사)
     for i in range(count):
         val = sample_value(rng)
         s = render_panel(val, rng)
@@ -1728,6 +1815,7 @@ def generate(count, seed0, out_dir, with_reader=False):
         assert s["label"].isdigit()
         viol = _count_overlaps(s["rects"])
         viol_total += viol
+        clip_total += int(s.get("band_clip", 0))
         rec = dict(
             id=name, profile=s["profile"], w=s["W"], h=s["H"],
             wh=round(s["wh"], 4), quad=q.tolist(), label=s["label"],
@@ -1755,6 +1843,7 @@ def generate(count, seed0, out_dir, with_reader=False):
             f.write(json.dumps(m, ensure_ascii=False) + "\n")
     print(f"generated {count} panels -> {out}")
     print(f"layout overlap violations: {viol_total}")
+    print(f"band quad clipped digits: {clip_total}")
     return viol_total
 
 

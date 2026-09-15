@@ -1,0 +1,167 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>합성 코퍼스 열람 — 모델이 무엇을 정답으로 배우는가</title>
+<!--
+  합성에는 사람 라벨이 없다. 생성기가 밴드 쿼드를 알고 manifest.jsonl 에 적는다.
+  이 화면이 보여 주는 초록 상자가 곧 **검출기의 학습 정답**이다.
+  읽기 전용이다 — 여기서 고칠 수 있는 것은 없고, 고쳐야 할 것은 synth_panel.py 다.
+-->
+<style>
+  :root { color-scheme: dark; }
+  body { margin:0; background:#15171a; color:#e6e6e6;
+         font:13px/1.5 system-ui,"Segoe UI",sans-serif; }
+  header { position:sticky; top:0; z-index:5; background:#1c1f24;
+           border-bottom:1px solid #2c3037; padding:10px 14px;
+           display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+  h1 { font-size:14px; margin:0 10px 0 0; font-weight:600; }
+  select, button, input { background:#23262c; color:#e6e6e6; border:1px solid #363a42;
+           border-radius:5px; padding:4px 8px; font:inherit; }
+  button:hover { background:#2c3037; cursor:pointer; }
+  .legend { margin-left:auto; display:flex; gap:12px; align-items:center; font-size:12px; }
+  .sw { display:inline-block; width:22px; height:3px; vertical-align:middle;
+        margin-right:5px; border-radius:2px; }
+  #grid { display:grid; gap:12px; padding:14px;
+          grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); }
+  figure { margin:0; background:#1c1f24; border:1px solid #2c3037; border-radius:7px;
+           overflow:hidden; }
+  figure.sel { border-color:#6ea8fe; }
+  canvas { display:block; width:100%; height:auto; background:#0e1012; cursor:zoom-in; }
+  figcaption { padding:6px 8px; font-size:11px; color:#9aa2ad;
+               display:flex; justify-content:space-between; gap:8px; }
+  figcaption b { color:#d6dce4; font-weight:600; }
+  #big { position:fixed; inset:0; background:rgba(8,9,11,.94); display:none;
+         align-items:center; justify-content:center; z-index:20; }
+  #big canvas { max-width:94vw; max-height:88vh; width:auto; cursor:zoom-out; }
+  #bigcap { position:fixed; bottom:12px; left:0; right:0; text-align:center;
+            color:#c7ced8; font-size:12px; }
+  .muted { color:#8b929c; }
+</style>
+
+<header>
+  <h1>합성 코퍼스</h1>
+  <label>코퍼스 <select id="corpus"></select></label>
+  <label>프로파일 <select id="profile"><option value="">전체</option></select></label>
+  <label><input type="checkbox" id="showGlass" checked> 유리(화면) 경계</label>
+  <label><input type="checkbox" id="showRects"> 배치 사각형</label>
+  <label>한 쪽 <select id="pagesize">
+    <option>24</option><option selected>60</option><option>120</option><option>240</option>
+  </select></label>
+  <button id="first">⏮</button>
+  <button id="prev">◀</button>
+  <span id="pos" class="muted"></span>
+  <button id="next">▶</button>
+  <button id="last">⏭</button>
+  <label>이동 <input id="jump" type="number" min="1" style="width:80px"> </label>
+  <button id="go">가기</button>
+  <div class="legend">
+    <span><i class="sw" style="background:#32d74b"></i>밴드 쿼드 = 학습 정답</span>
+    <span><i class="sw" style="background:#ff9f0a"></i>유리(화면)</span>
+    <span><i class="sw" style="background:#5ac8fa"></i>배치 사각형</span>
+  </div>
+</header>
+
+<div id="grid"></div>
+<div id="big"><canvas id="bigc"></canvas><div id="bigcap"></div></div>
+
+<script>
+let PAGE = 60;
+let st = { dir:"", profile:"", offset:0, total:0, items:[] };
+
+const $ = id => document.getElementById(id);
+const api = async u => (await fetch(u)).json();
+
+function drawQuad(ctx, q, color, w) {
+  if (!q) return;
+  ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineJoin = "round";
+  ctx.beginPath();
+  q.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]));
+  ctx.closePath(); ctx.stroke();
+}
+
+function paint(cv, it, img, scale) {
+  // manifest 좌표는 생성 당시 화소 기준이다. 캔버스를 그 크기로 두고 CSS 로만
+  // 줄인다 — 좌표를 스케일하면 어긋날 자리가 생긴다(좌표계 혼동 방지).
+  cv.width = it.w; cv.height = it.h;
+  const ctx = cv.getContext("2d");
+  ctx.drawImage(img, 0, 0, it.w, it.h);
+  const lw = Math.max(2, Math.round(it.w / 260));
+  if ($("showRects").checked && it.rects) {
+    ctx.strokeStyle = "#5ac8fa"; ctx.lineWidth = Math.max(1, lw - 1);
+    for (const r of it.rects) ctx.strokeRect(r[0], r[1], r[2] - r[0], r[3] - r[1]);
+  }
+  if ($("showGlass").checked) drawQuad(ctx, it.glass_quad, "#ff9f0a", lw);
+  drawQuad(ctx, it.quad, "#32d74b", lw + 1);
+}
+
+function tile(it) {
+  const fig = document.createElement("figure");
+  const cv = document.createElement("canvas");
+  const cap = document.createElement("figcaption");
+  const bw = (it.quad[1][0] - it.quad[0][0]);
+  const bh = (it.quad[3][1] - it.quad[0][1]);
+  cap.innerHTML = `<span><b>${it.label}</b> · ${it.profile}` +
+    (it.inverted ? ' · <span style="color:#ff9f0a">반전</span>' : "") + `</span>` +
+    `<span class="muted">밴드 ${Math.round(bw)}×${Math.round(bh)}` +
+    (it.dropped && it.dropped.length ? ` · 탈락 ${it.dropped.length}` : "") + `</span>`;
+  fig.append(cv, cap);
+  const img = new Image();
+  img.onload = () => paint(cv, it, img, 1);
+  img.src = `/synthimg?dir=${encodeURIComponent(st.dir)}&id=${encodeURIComponent(it.id)}`;
+  cv.onclick = () => {
+    const bc = $("bigc"); paint(bc, it, img, 1);
+    $("bigcap").textContent = `${it.id} · 값 ${it.label} · ${it.profile} · ${it.w}×${it.h}`;
+    $("big").style.display = "flex";
+  };
+  return fig;
+}
+
+async function load() {
+  const q = new URLSearchParams({ dir: st.dir, profile: st.profile,
+                                  offset: st.offset, limit: PAGE });
+  const r = await api("/api/synth/list?" + q);
+  st.total = r.total; st.items = r.items;
+  $("pos").textContent = `${r.offset + 1}–${r.offset + r.items.length} / ${r.total}`;
+  const g = $("grid"); g.innerHTML = "";
+  r.items.forEach(it => g.append(tile(it)));
+}
+
+async function boot() {
+  const r = await api("/api/synth/corpora");
+  const cs = r.corpora || [];
+  if (!cs.length) { $("grid").innerHTML =
+      '<p class="muted">합성 코퍼스가 없다 — synth_panel.py gen 으로 먼저 굽는다.</p>';
+    return; }
+  const sel = $("corpus");
+  cs.forEach(c => sel.append(new Option(`${c.name} (${c.count})`, c.name)));
+  st.dir = cs[0].name;
+  const fill = () => {
+    const c = cs.find(x => x.name === st.dir);
+    const p = $("profile"); p.innerHTML = '<option value="">전체</option>';
+    (c.profiles || []).forEach(x => p.append(new Option(x, x)));
+  };
+  fill(); await load();
+  sel.onchange = async () => { st.dir = sel.value; st.offset = 0;
+                               st.profile = ""; fill(); await load(); };
+  $("profile").onchange = async e => { st.profile = e.target.value;
+                                       st.offset = 0; await load(); };
+  $("prev").onclick = async () => { st.offset = Math.max(0, st.offset - PAGE); await load(); };
+  $("next").onclick = async () => {
+    if (st.offset + PAGE < st.total) { st.offset += PAGE; await load(); } };
+  $("first").onclick = async () => { st.offset = 0; await load(); };
+  $("last").onclick = async () => {
+    st.offset = Math.max(0, Math.floor((st.total - 1) / PAGE) * PAGE); await load(); };
+  $("go").onclick = async () => {
+    const v = parseInt($("jump").value, 10);
+    if (!isNaN(v)) { st.offset = Math.max(0, Math.min(st.total - 1, v - 1)); await load(); } };
+  $("pagesize").onchange = async e => { PAGE = parseInt(e.target.value, 10);
+                                        st.offset = 0; await load(); };
+  for (const id of ["showGlass", "showRects"]) $(id).onchange = load;
+  $("big").onclick = () => { $("big").style.display = "none"; };
+  document.onkeydown = e => {
+    if (e.key === "Escape") $("big").style.display = "none";
+    if (e.key === "ArrowRight") $("next").click();
+    if (e.key === "ArrowLeft") $("prev").click();
+  };
+}
+boot();
+</script>
