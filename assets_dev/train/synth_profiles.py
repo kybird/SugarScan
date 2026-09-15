@@ -647,3 +647,29 @@ def _icon(img, kind, cx, cy, s, ink, pos=None):
 #
 # 되살릴 일이 있으면 git 에서 꺼낸다 — 커밋 메시지에 이 사정이 적혀 있다.
 # draw_digit_dseg 와 USE_DSEG 도 이 경로 전용이라 함께 나갔다.
+
+
+# ── 영역 선언 — 액정 설계자가 화면을 잡는 방식(lcd_layout.build_layout)
+# 유리 안쪽 패딩을 두고, 남은 면을 top/mid/bottom 이 **빈틈없이** 나눈다.
+# mid 가 숫자 자리다. 미터기 기기는 오른쪽 트랙을 따로 떼고, 가로형은
+# 오른쪽 정보 칼럼을 뗀다.
+#
+# 초안은 실측(LAYOUTS 의 bh·cy·bw)에서 유도했다 — 구조를 바꾸면서
+# 그림까지 튀면 무엇이 원인인지 못 가린다. 기기별 조정은 사진을 보고
+# 사람이 한다.
+REGIONS = {
+    "accuchek_instant": dict(pad=(0.104, 0.020, 0.060, 0.060), rows=(0.188, 0.439, 0.253), track_right=0.12),
+    "gmate": dict(pad=(0.020, 0.020, 0.060, 0.060), rows=(0.153, 0.390, 0.337)),
+    "dorucos_premium": dict(pad=(0.042, 0.042, 0.059, 0.060), rows=(0.110, 0.468, 0.303)),
+    "green_doctor": dict(pad=(0.049, 0.049, 0.060, 0.060), rows=(0.207, 0.427, 0.245)),
+    "onetouch_ultra": dict(pad=(0.041, 0.041, 0.056, 0.060), rows=(0.104, 0.464, 0.316)),
+    "gc_ms_one": dict(pad=(0.020, 0.020, 0.060, 0.060), rows=(0.223, 0.462, 0.195)),
+    "acura_plus": dict(pad=(0.058, 0.058, 0.036, 0.060), rows=(0.066, 0.585, 0.254)),
+    "caresens_n_premier": dict(pad=(0.055, 0.055, 0.054, 0.060), rows=(0.100, 0.471, 0.316)),
+    "performa_silver": dict(pad=(0.071, 0.071, 0.060, 0.060), rows=(0.172, 0.400, 0.308)),
+    "performa_nano": dict(pad=(0.113, 0.113, 0.060, 0.060), rows=(0.181, 0.395, 0.303)),
+    "accuchek_active": dict(pad=(0.075, 0.075, 0.060, 0.060), rows=(0.190, 0.420, 0.270)),
+    "gluneo_plus": dict(pad=(0.104, 0.104, 0.060, 0.060), rows=(0.128, 0.466, 0.286)),
+    "onetouch_ultramini": dict(pad=(0.03, 0.03, 0.042, 0.028), column_right=0.444, rows=(0.0, 1.0, 0.0)),
+    "wide_unknown": dict(pad=(0.03, 0.03, 0.031, 0.037), column_right=0.361, rows=(0.0, 1.0, 0.0)),
+}

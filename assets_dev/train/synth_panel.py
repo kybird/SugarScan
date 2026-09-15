@@ -1600,10 +1600,15 @@ def _render_once(value, rng, profile, pid, inverted):
     # 숫자가 유리 가장자리에 가까운 기기에서 밴드가 숫자를 잘라 먹는다
     # (2026-09-15 사람 지적: caresens_n_premier · accuchek_instant ·
     # acura_plus). min(_b*, ...) 이 그 하한을 지킨다.
-    _qx0 = min(_bx0, max(px0 + 1.0, _bx0 - pad_x))
-    _qx1 = max(_bx1, min(px1 - 1.0, _bx1 + pad_x))
-    _qy0 = min(_by0, max(py0 + 1.0, _by0 - pad_y))
-    _qy1 = max(_by1, min(py1 - 1.0, _by1 + pad_y))
+    # 밴드 = **슬롯 필드**다. 잉크가 아니라 칸이 기준이다(사람 지침 2026-09-15:
+    # "7-seg 니까 왼쪽이 1로 시작하면 여백을 충분히 줘야지. 반대로 오른쪽 끝
+    # 숫자는 여백이 너무 크면 안 된다"). 앞자리가 1이면 칸은 그대로 있고 잉크만
+    # 좁다 — 잉크에 맞추면 그 칸이 사라진다.
+    #
+    # 좌우 패딩은 붙이지 않는다. 슬롯 필드의 양 끝이 곧 밴드의 양 끝이다.
+    # (전에는 pad_x 를 덧붙여 오른쪽 끝에 없는 여백이 생겼다.)
+    _qx0, _qx1 = _bx0, _bx1
+    _qy0, _qy1 = _by0, _by1
     # 캔버스 밖으로는 못 나간다(쿼드 어서션이 뒤에서 잡는다).
     _qx0 = max(0.0, _qx0); _qy0 = max(0.0, _qy0)
     _qx1 = min(float(W - 1), _qx1); _qy1 = min(float(H - 1), _qy1)
