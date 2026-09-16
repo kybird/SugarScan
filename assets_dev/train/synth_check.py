@@ -37,7 +37,8 @@ import numpy as np
 BAND_EL = "band"
 # 밴드 줄에 있어도 숫자가 아닌 것 — 밴드 쿼드에 들어오면 안 된다.
 NON_DIGIT = ("unit", "mem", "meal", "arrow", "meter_arrow", "glulabel",
-             "time", "daterow", "dotrow_above", "dotrow_below", "avgrow")
+             "time", "ampm", "timedate", "daterow", "dotrow_above",
+             "dotrow_below", "avgrow")
 # 자리가 움직이는 것이 설계인 요소 — 5번 검사에서 면제한다.
 #   band         값 자릿수에 따라 폭이 달라진다
 #   meter_arrow  미터기 지시자다. 세로 위치가 곧 값이다(accuchek_instant,
@@ -84,6 +85,7 @@ def _cell(glass, r, n):
 def check(rows, verbose=False):
     fail = defaultdict(list)
     slots = defaultdict(lambda: defaultdict(set))   # profile -> element -> cells
+    centers = defaultdict(lambda: defaultdict(list))  # 같은 키 -> 정규화 중심
     empty_frac = defaultdict(list)
 
     for r in rows:
@@ -125,9 +127,17 @@ def check(rows, verbose=False):
             if not _contains(glass, x[:4], tol=1.5):
                 fail["4 inside-glass"].append(f"{rid}:{x[4]}")
 
-        # 5 자리 안정성 — 나중에 프로파일별로 합산
+        # 5 자리 안정성 — 칸과 **중심 좌표**를 함께 모은다. 칸만 보면 격자선
+        # 위에 앉은 요소가 1px 흔들림에도 걸린다(2026-09-15: gmate:unit 이
+        # y=0.6615 로 경계 0.6667 바로 아래라 61장 중 13장이 선을 넘었다.
+        # 실제 퍼짐은 캔버스 높이의 2.6% 였다). 칸은 '어디쯤인가'를 보여 주고,
+        # 판정은 퍼짐으로 한다.
         for x in rects:
             slots[r["profile"]][x[4]].add(_cell(glass, x[:4], GRID))
+            gx0, gy0, gx1, gy1 = glass
+            centers[r["profile"]][x[4]].append(
+                (((x[0] + x[2]) / 2 - gx0) / max(gx1 - gx0, 1e-6),
+                 ((x[1] + x[3]) / 2 - gy0) / max(gy1 - gy0, 1e-6)))
 
         # 6 빈 면 — 어떤 요소도 닿지 않는 칸의 비율
         gx0, gy0, gx1, gy1 = glass
@@ -153,8 +163,16 @@ def check(rows, verbose=False):
         for el, cells in sorted(els.items()):
             if el in MOVES_BY_DESIGN:
                 continue
-            if len(cells) > 1:
-                unstable.append(f"{pid}:{el} -> {sorted(cells)}")
+            if len(cells) <= 1:
+                continue
+            # 반 칸(1/(2*GRID))보다 더 퍼졌을 때만 위반이다. 그 아래면 격자선
+            # 위에 앉은 것이지 자리가 옮겨 다니는 것이 아니다.
+            c = np.asarray(centers[pid][el], float)
+            sx = float(c[:, 0].max() - c[:, 0].min())
+            sy = float(c[:, 1].max() - c[:, 1].min())
+            if max(sx, sy) > 0.5 / GRID:
+                unstable.append(f"{pid}:{el} -> {sorted(cells)} "
+                                f"퍼짐 x{sx:.3f} y{sy:.3f}")
     if unstable:
         fail["5 slot-stable"] = unstable
 

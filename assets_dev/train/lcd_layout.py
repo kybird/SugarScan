@@ -72,6 +72,11 @@ class Rect:
 # 양쪽을 같이 바꾼다.
 BAND_MARGIN = 0.10
 
+# 7-seg 칸의 폭/높이가 물리적으로 놓이는 범위. 영역을 채우려고 칸 비율을 풀
+# 때 이 밖으로 나가지 않는다 — 벗어나면 숫자가 납작하거나 홀쭉해져 실물에
+# 없는 글자가 된다. 그럴 때는 채우기를 포기하고 남는 면을 둔다.
+ASPECT_MIN, ASPECT_MAX = 0.42, 0.78
+
 
 def band_quad(field, digit_h, clip=None, margin=BAND_MARGIN):
     """슬롯 필드 -> 밴드 쿼드. 사방에 margin*digit_h.
@@ -236,18 +241,33 @@ def slot_field(region, slots, aspect, gap_ratio=0.12, fill=1.0,
     m = BAND_MARGIN if margin is None else margin
     # 폭: slots*asp*h + (slots-1)*gap*h + 2*m*h = W
     denom = slots * aspect + (slots - 1) * gap_h + 2 * m
-    h_by_w = (region.w * fill) / max(denom, 1e-6)
-    h_by_h = region.h / (1.0 + 2 * m)
-    h = min(h_by_h, h_by_w)
-    asp = aspect
-    if h_by_h < h_by_w:
-        # 높이에 먼저 걸렸다 — 폭이 남는다. 칸을 옆으로 늘려 영역을 채운다
-        # (2026-09-15). 액정 설계자는 빈 면을 남기지 않는다: 납작한 가로형
-        # 화면에서 숫자는 높이에 맞춘 뒤 옆으로 퍼지지, 가운데 모여 있고
-        # 옆이 비지 않는다. 합성 가로형 밴드가 폭의 0.41~0.47 만 쓰고 있었다
-        # (실사진 정상 라벨은 0.56~0.62).
-        avail = region.w * fill - 2 * m * h - (slots - 1) * gap_h * h
-        asp = max(aspect, avail / max(slots * h, 1e-6))
+    # 밴드는 **영역을 양쪽으로 채운다**(2026-09-15). 숫자 높이는 영역 높이가
+    # 정하고(여백 제외), 칸 비율은 그 높이에서 폭을 채우도록 푼다.
+    #
+    # 왜 양방향인가: 한쪽만 채우면 반대쪽이 논다. 처음에는 높이에 걸릴 때만
+    # 폭을 늘렸는데, 그 반대(폭에 걸려 세로가 남는 경우)를 안 고쳤다 —
+    # accuchek_instant·acura_plus 가 mid 높이의 81% 만 쓰고 18.7% 를 놀렸다.
+    # 그래서 검출기가 세로로 짧은 밴드를 배웠고, 실사진에서 **위아래로 숫자를
+    # 잘랐다**(사람 검토 2026-09-15: "위아래에서 잘리네. 좌우는 넉넉한데").
+    # 액정 설계자는 어느 방향으로도 빈 면을 남기지 않는다.
+    h = region.h / (1.0 + 2 * m)
+    avail = region.w * fill - 2 * m * h - (slots - 1) * gap_h * h
+    asp = avail / max(slots * h, 1e-6)
+    # 칸 비율이 물리적 범위를 벗어나면 그쪽에 맞춘다 — 숫자를 납작하거나
+    # 홀쭉하게 찌그러뜨리지 않는다.
+    asp = min(ASPECT_MAX, max(ASPECT_MIN, asp))
+    need_w = slots * h * asp + (slots - 1) * h * gap_h + 2 * m * h
+    if need_w > region.w * fill:
+        h = (region.w * fill) / max(slots * asp + (slots - 1) * gap_h + 2 * m, 1e-6)
+    elif slots > 1 and need_w < region.w * fill:
+        # 폭이 남으면 **자간을 늘려 채운다**(사람 지침 2026-09-15: "자간을
+        # 늘려서 폭을 채우는 방법도 있지"). 구판은 남는 면을 그냥 뒀고, 그건
+        # 액정 설계 원칙과 어긋난다 — 유리에 빈 면을 남기지 않는다.
+        #
+        # 글리프를 늘리는 것과 다르다: 숫자 모양(asp)은 그대로 두고 **칸 사이
+        # 간격만** 벌린다. 7-seg 는 글리프가 고정 너비라 늘리면 모양이 깨진다.
+        slack = region.w * fill - need_w
+        gap_h = gap_h + slack / ((slots - 1) * h)
     pitch = h * asp + h * gap_h
     field_w = slots * h * asp + (slots - 1) * h * gap_h
     x = region.x0 + (region.w - field_w) / 2.0

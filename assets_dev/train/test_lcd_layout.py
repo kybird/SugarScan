@@ -60,8 +60,18 @@ _bq_f = band_quad(f, dh)
 ok(_bq_f.w >= lay[MID].w * 0.98 or near(_bq_f.h, lay[MID].h, 1.0),
    "밴드가 폭을 꽉 쓰거나 높이에 걸려 멈춘다")
 ok(lay[MID].contains(_bq_f), "밴드가 mid 를 벗어나지 않는다")
+# 새 계약(2026-09-15): 숫자 높이는 **영역 높이**가 정한다 — 칸 수와 무관하다.
+# 실물 액정도 셀 높이는 유리가 정하고 칸 수는 기기 속성이다. 칸이 적으면
+# 높이가 아니라 칸 폭이 넓어지거나(비율 한계까지) 필드가 좁아진다.
 f2, dh2, _ = slot_field(lay[MID], slots=2, aspect=0.62)
-ok(dh2 > dh, "칸이 적으면 숫자가 커진다")
+ok(abs(dh2 - dh) <= 1.0, "칸 수가 달라도 숫자 높이는 같다(영역이 정한다)")
+# 계약이 바뀌었다(2026-09-15): 폭이 남으면 **자간을 늘려 채운다**. 구판은
+# 남는 면을 그냥 뒀는데 그건 "LCD 에 빈 공간 남기는 게 말이 되냐"와 어긋난다.
+# 그래서 칸이 적어도 필드는 영역 폭을 쓴다 — 넓어지는 것은 글리프가 아니라
+# **칸 사이 간격**이다(숫자 높이는 위에서 확인한 대로 그대로다).
+ok(f2.w >= min(f.w, lay[MID].w * 0.9) - 0.5,
+   "칸이 적으면 자간이 벌어져 폭을 채운다")
+ok(lay[MID].contains(band_quad(f2, dh2)), "칸이 적어도 밴드가 영역 안")
 tall = build_layout(GLASS, dict(pad=(0.0,) * 4, rows=(0.0, 1.0, 0.0)))
 f3, dh3, _ = slot_field(tall[MID], slots=3, aspect=0.62)
 ok(near(dh3, tall[MID].h) or dh3 <= tall[MID].h + 0.5,

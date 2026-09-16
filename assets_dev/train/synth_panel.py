@@ -60,7 +60,8 @@ from lcd_layout import (  # noqa: E402
     MID as LMID, TOP as LTOP, BOTTOM as LBOTTOM, TRACK_R as LTRACK_R,
     COLUMN_R as LCOLUMN_R, place_in as lplace)
 from synth_profiles import (  # noqa: E402
-    PROFILES, DOT_FMTS, dot_text, _icon, _pick_variant, _glyph_mask,
+    PROFILES, DOT_FMTS, dot_text, dot_text_width, _icon, _pick_variant,
+    _glyph_mask,
     device_identity, STATEFUL_ELEMENTS, PROFILE_INVERTED, lay_val, REGIONS)
 from synth_lcd import (add_local_shadow,  # noqa: E402
                        seg_text, seg_text_width, seg_weight_from_variant,
@@ -295,7 +296,15 @@ def _y1(y0, h):
 
 def _lcd_text(img, x, y, text, h, ink, name="", heights=None,
               thick=None, slant=0.0, digit_mask=None, digit_w=None):
-    """액정 보조 글자 — 세그먼트 스트로크 폰트(카드 「합성 글리프 네 결함」
+    """액정 보조 글자 — **세그먼트 하나뿐이다.**
+
+    2026-09-15 에 도트 매트릭스·인쇄체 두 방식을 만들어 나란히 그려 보였고,
+    사람이 실물과 대조한 뒤 정했다: "모든 기기가 seg 다. dot 나 print 없다."
+    그래서 방식 선택 노브(profile `aux`)는 도로 걷어냈다 — 아무도 켜지 않을
+    스위치를 남기면 같은 혼동이 반복된다(그날 `dot_panel` 이 그랬다).
+    바꿀 일이 생기면 그때 다시 만든다.
+
+    (카드 「합성 글리프 네 결함」
     AC#1, 2026-09-13). Hershey 벡터 폰트의 곡선은 세그먼트 LCD 가 낼 수
     없다 — 실사진 722(Gmate)는 값·시간·단위·days 줄이 전부 각진 세그먼트다.
     숫자는 7-세그, 콜론은 사각 점 두 개(synth_lcd.seg_text, 근거 722 '1:27').
@@ -489,6 +498,17 @@ def glyph_plane_score(img, quad, glyph_warped, glass_rect, ink_thr=None):
 def _render_once(value, rng, profile, pid, inverted):
     label = str(value)
     assert label.isdigit(), f"라벨 오염: {label!r}"
+
+    # 촬영 변인(광학·카메라 포즈)은 **화면 내용과 독립**이어야 한다. 같은 rng
+    # 를 쓰면 요소를 하나 켜는 것만으로 난수 흐름이 밀려 조명과 각도가 통째로
+    # 바뀐다 — 에디터에서 "avgrow 를 켰더니 그림자가 생긴다"로 나타났다
+    # (사람 보고 2026-09-15). 실제로는 그림자가 35% 확률로 늘 있었고
+    # (avgrow 끔 16/40장 · 켬 13/40장) 시드 흐름만 밀린 것이다.
+    #
+    # 그러면 **무엇을 고쳤는지 비교가 안 된다** — A/B 에서 통제 안 된 변인이
+    # 같이 움직이는 것과 같다([[uncontrolled-budget-in-ab-comparison]]).
+    # 여기서 한 번 갈라 두면 배치를 바꿔도 조명·각도는 그대로다.
+    _orng = random.Random(rng.getrandbits(63))
 
     # ── 캔버스 — 실측 종횡비, 긴 변 896(AC#1·#6) ──────────────────────────
     lay = profile.get("layout")   # 기기 고정 레이아웃(2026-09-13 재구조)
@@ -708,12 +728,24 @@ def _render_once(value, rng, profile, pid, inverted):
     # 어두운 창(meter 기기) — 액정을 감싼 검은 면. 근거 267·270: 흰 몸체와
     # 액정 사이에 검은 창이 한 겹 있고 미터기 점 열이 그 위에 인쇄돼 있다.
     # 몸체 인쇄(브랜드명)보다 먼저 깐다 — 브랜드명은 흰 몸체 위에 있다.
-    if profile.get("meter"):
-        _wk_r = max(6, int(mg_r * 0.92))
-        _wk_t = max(3, int(mg_t * 0.45))
-        _wk_b = max(3, int(mg_b * 0.45))
-        _wk_l = max(3, int(mg_l * 0.55))
-        _wcol = int(np.clip(body_col * 0.22, 12, 70))
+    # meter 기기 말고도 검은 창을 두른 기기가 있다 — Gmate 는 유리(주황
+    # 사각형) 바깥에 검은 띠가 있고 **아주 얇다**(사람 눈검 2026-09-15).
+    # meter 에 묶여 있던 것을 프로파일이 직접 선언할 수 있게 푼다:
+    #   dark_window=True            meter 와 같은 두께
+    #   dark_window=0.20            몸체 여백 대비 배수(작을수록 얇다)
+    # 선언하지 않은 기기는 meter 여부로만 결정되므로 옛 동작 그대로다.
+    #   dark_window=dict(cover=0.95, tone=0.22)  칠 범위와 어둡기를 따로
+    _dw_decl = profile.get("dark_window")
+    if profile.get("meter") or _dw_decl:
+        _dwd = _dw_decl if isinstance(_dw_decl, dict) else {}
+        _wf = _dwd.get("cover") if _dwd else (
+            None if _dw_decl in (None, True) else float(_dw_decl))
+        _wf = None if _wf is None else float(_wf)
+        _wk_r = max(6, int(mg_r * (0.92 if _wf is None else _wf)))
+        _wk_t = max(3, int(mg_t * (0.45 if _wf is None else _wf)))
+        _wk_b = max(3, int(mg_b * (0.45 if _wf is None else _wf)))
+        _wk_l = max(3, int(mg_l * (0.55 if _wf is None else _wf)))
+        _wcol = int(np.clip(body_col * float(_dwd.get("tone", 0.22)), 8, 90))
         # 유리 '바깥' 테두리만 칠한다 — 유리 안을 덮으면 이미 그린 액정 바탕과
         # 페더링이 날아간다.
         for _r in ((px0 - _wk_l, py0 - _wk_t, px1 + _wk_r, py0),
@@ -785,7 +817,16 @@ def _render_once(value, rng, profile, pid, inverted):
         # 다른 물건으로 보인다. 실물은 대개 중앙이다(842·1058·475·267).
         _bfx = (0.5 if ident is not None else rng.uniform(0.2, 0.55))
         bx = mg_l + max(6, int((W - mg_l - mg_r - tw) * _bfx))
-        t_ink = int(bg_col * 0.6) if body_col > 110 else int(min(255, body_col + 70))
+        # 검은 베젤 위에 흰 글씨인 기기가 있다 — Gmate 는 유리 바깥 검은 띠에
+        # 'Gmate' 가 흰색으로 인쇄돼 있다(사람 눈검 2026-09-15). 몸체 밝기로
+        # 잉크를 정하던 식은 몸체가 흰색이면 어두운 글씨를 내므로 반대가 된다.
+        # 프로파일이 bezel.on_dark 를 선언한 기기만 흰색으로 간다.
+        _bink = (profile.get("bezel") or {}).get("ink")
+        if _bink is not None:
+            t_ink = int(_bink)
+        else:
+            t_ink = (int(bg_col * 0.6) if body_col > 110
+                     else int(min(255, body_col + 70)))
         # 글자가 유리를 침범하면 안 된다(사람 지적 2026-09-13). 스트립이
         # 얇아 잘릴 때는 캔버스 '바깥쪽'으로 잘리게 민다 — 구판은 스트립
         # 가운데에 놓아 아래쪽이 액정으로 넘어갔다.
@@ -882,8 +923,15 @@ def _render_once(value, rng, profile, pid, inverted):
         dh = int(band_h * 0.92)
         pad_y = max(4, int((band_h - dh) / 2))
     # 글리프 폭 / 칸 피치 — 액정 셀의 기하라 기기 형질이다(촬영이 못 바꾼다).
-    _g_r = (ident["glyph_in_cell"] if ident is not None
-            else rng.uniform(*GLYPH_IN_CELL))
+    # 프로파일이 선언하면 그 값을 쓴다(사람 지침 2026-09-15: "한 곳에서
+    # 관리하자"). 이 값과 cell 이 함께 자간을 정한다:
+    #   칸 폭  = cell * glyph * 숫자높이
+    #   자간   = cell * (1 - glyph) * 숫자높이
+    # glyph 를 낮추면 글리프는 그대로고 자간만 벌어진다 — 7-seg 는 글리프가
+    # 고정 너비라 늘리면 모양이 깨진다.
+    _g_r = (float(profile["glyph"]) if profile.get("glyph") is not None
+            else (ident["glyph_in_cell"] if ident is not None
+                  else rng.uniform(*GLYPH_IN_CELL)))
     if _wide_t is not None and not _wide_row:
         # 칼럼형: 목표 폭(tw·W)에서 피치를 역산한다. 세로형 육안 범위(0.50~0.60)
         # 보다 가는 칸(하한 0.24)도 실측이 요구한다 — UltraMini 가로형 밴드는
@@ -1052,8 +1100,16 @@ def _render_once(value, rng, profile, pid, inverted):
             LRect(float(px0), float(py0), float(px1), float(py1)), REGIONS[pid])
         _mid = _region_lay[LMID]
         # 칸 기하는 기기 형질이다 — 한 기기의 칸 비례가 장마다 흔들리면 안 된다.
-        _cell_r = (_fix("pitch_u", *PITCH_RATIO) if ident is not None
-                   else rng.uniform(*PITCH_RATIO))
+        # 칸 비례(칸 폭 / 숫자 높이)는 기기 형질이다. 전역 범위에서만 뽑으면
+        # 기기마다 다른 실물을 못 담는다 — 프로파일이 선언하면 그 값을 쓴다
+        # (사람 지침 2026-09-15: "가능하면 디바이스프로필로 컨트롤하자").
+        #
+        # 이 값이 곧 **숫자 크기**다. 3칸이 유리 폭을 꽉 채우므로 숫자 높이는
+        # h = W / (3*asp + 2*gap + 2*margin) 으로 **폭이 정한다**. 칸이 좁을수록
+        # 숫자가 커진다. mid 행을 키워도 여기서 걸리면 더 안 커진다.
+        _cell_r = (float(profile["cell"]) if profile.get("cell") is not None
+                   else (_fix("pitch_u", *PITCH_RATIO) if ident is not None
+                         else rng.uniform(*PITCH_RATIO)))
         _asp = _cell_r * _g_r                 # 글리프 폭 / 숫자 높이
         _gap_r = _cell_r * (1.0 - _g_r)       # 칸 사이 간격 / 숫자 높이
         _field, _dh_f, _pitch_f = slot_field(_mid, slots, _asp, _gap_r)
@@ -1360,10 +1416,16 @@ def _render_once(value, rng, profile, pid, inverted):
             ut = _uts[zlib.crc32(pid.encode("utf-8")) % len(_uts)]
         else:
             ut = LCD_UNITS[rng.randrange(len(LCD_UNITS))]
-        # 높이는 aux_h 로 통일(AC#3) — 프로파일의 h_ratio 는 2종 규칙에 밀려
-        # 폐기한다(실사진 722 도 단위·시간이 같은 높이다).
-        uh = aux_h
-        ug = int(sum(u["gap"]) / 2) if lay is not None             else int(rng.uniform(*u["gap"]))
+        # 높이는 aux_h 로 통일(AC#3) — 실사진 722 는 단위·시간이 같은 높이다.
+        # 다만 **기기마다 다르다**: Gmate 는 mg/dL 이 날짜·시간 줄보다 작다
+        # (사람 눈검 2026-09-15, 실촬 대조). 그래서 프로파일이 배수를 선언할
+        # 수 있게 열어 둔다 — 기본 1.0 이라 선언하지 않은 기기는 그대로다.
+        uh = max(6, int(round(aux_h * float(u.get("h", 1.0)))))
+        # gap 은 below-* 에서 쓰이지 않는다(간격은 hug 가 정한다). 그런데
+        # 무조건 꺼내고 있어서, 선언에서 빼면 KeyError 로 렌더가 죽었다
+        # (에디터에서 unit 을 다시 넣으면 재현, 2026-09-15). 기본값을 둔다.
+        _ugp = u.get("gap", (3, 8))
+        ug = int(sum(_ugp) / 2) if lay is not None else int(rng.uniform(*_ugp))
         tw = seg_text_width(ut, uh, aux_slant)
         pos = u["pos"]
         # 단위는 혈당 값과 같은 줄에 놓이지 않는다(사람 규칙 2026-09-13,
@@ -1394,13 +1456,39 @@ def _render_once(value, rng, profile, pid, inverted):
             cands = [(_ux0, _below_y(_ux0, tw)), (px0 + 2, band_bot + 4)]
         if lay is None:
             cands = cands + [(px0 + 2, band_bot + 4), (px1 - 2 - tw, band_bot + 4)]
-        # below-* 단위는 bottom 영역이 자리다 — 밴드 기준 좌표를 쓰면 값
-        # 자릿수·이웃 줄에 따라 흔들린다(검사 5: onetouch_ultra:unit [7,8]).
+        # below-* 단위의 **세로 자리는 hug 가 정한다** — 밴드 아랫변에서
+        # hug*숫자높이 만큼 떨어진다. 기기 속성이다(사람 지침 2026-09-15:
+        # "세로형일 때 mg/dL 이 숫자에 더 바싹 붙는다. 위에 있든 아래 있든
+        # 녹색사각형이 mg/dL 을 자를 만큼 일부 기기들이 그러해").
+        # 기준선은 **숫자 아랫변**이다(밴드 아랫변이 아니다). 밴드에서 재면
+        # hug=0 이어도 밴드 여백(BAND_MARGIN 0.10)만큼 늘 떠 있다 — 사람
+        # 지적 2026-09-15: "hug 가 0일 때도 충분히 안 붙는다".
+        #   hug=0     숫자에 닿는다(가장 바싹)
+        #   hug=0.10  밴드 경계
+        #   hug=0.22  기본
+        #
+        # 구판은 valign="top" 으로 bottom 영역 맨 위에 **고정**했다. 그래서
+        # hug 를 0 으로 줘도 0.45 로 줘도 간격이 64px 로 같았다(실측
+        # 2026-09-15). 선언이 코드에 닿지 않는 자리였다.
+        #
+        # 가로 자리는 여전히 영역이 정한다 — 밴드 기준 x 는 값 자릿수에 따라
+        # 흔들린다(검사 5: onetouch_ultra:unit [7,8]).
         _up = None
         if pos.startswith("below"):
-            _up = _rplace(LBOTTOM, tw, uh + 2, "unit",
-                          align="right" if pos.endswith("right") else "left",
-                          valign="top")
+            _hug = float(u.get("hug", 0.22))
+            _uy = int(round(y0 + dh + _hug * dh))
+            if _region_lay is not None and _region_lay.has(LBOTTOM):
+                _reg = _region_lay[LBOTTOM]
+                _ux_ = (int(round(_reg.x1)) - tw - 2 if pos.endswith("right")
+                        else int(round(_reg.x0)) + 2)
+                # 유리를 벗어나지 않게만 당긴다 — 내용을 자르지 않는다.
+                _uy = min(_uy, int(round(_reg.y1)) - uh - 2)
+                _up = _place(_ux_, _uy, tw, uh + 2, "unit") or None
+            if _up is None:
+                # 그 자리에 못 놓으면(이웃과 겹침 등) 영역 배치로 물러선다.
+                _up = _rplace(LBOTTOM, tw, uh + 2, "unit",
+                              align="right" if pos.endswith("right") else "left",
+                              valign="top")
         if _up is None:
             _up = _place(cands[0][0], cands[0][1], tw, uh + 2, "unit",
                          alts=cands[1:])
@@ -1498,8 +1586,9 @@ def _render_once(value, rng, profile, pid, inverted):
                              else rng.uniform(0.12, 0.20))))
         kinds = [k for k in a["kinds"] if k in LCD_ICONS]
         # 화살표-숫자 간격도 기기의 자리다(구판은 렌더마다 흔들렸다).
-        ag = int((sum(a["gap"]) / 2 if ident is not None
-                  else rng.uniform(*a["gap"])) * max(1, dh / 56.0))
+        _agp = a.get("gap", (3, 8))          # 없으면 기본값 — 죽지 않는다
+        ag = int((sum(_agp) / 2 if ident is not None
+                  else rng.uniform(*_agp)) * max(1, dh / 56.0))
         # lay 예약박스는 삼각형 잉크 폭(s) — 2s 박스로 잡으면 밴드 필드에
         # 걸려 하드 검사(overlaps)가 허위 양성을 낸다(실측 2026-09-13).
         _ab = s if lay is not None else 2 * s
@@ -1581,9 +1670,9 @@ def _render_once(value, rng, profile, pid, inverted):
         txt = da["texts"][(ident["dotrow_i"] if ident is not None
                            else rng.randrange(8)) % len(da["texts"])]
         if _dotp:
-            glyph = max(3, (aux_h - 4) // 2)
-            wpx = int(len(txt) * glyph * 1.2)
-            hpx = glyph * 2 + 4
+            glyph = aux_h
+            wpx = dot_text_width(txt, aux_h)
+            hpx = aux_h + 4
         else:
             glyph = None
             wpx = seg_text_width(txt, aux_h, aux_slant, _dw(aux_h))
@@ -1611,9 +1700,9 @@ def _render_once(value, rng, profile, pid, inverted):
         _txt_wide = _dot_time_text(rng, ident["time_fmt_i"] if ident else None,
                                    db.get("fmts"), widest=True)
         if _dotp:
-            glyph = max(3, (aux_h - 4) // 2)
-            wpx = int(len(_txt_wide) * glyph * 1.2)
-            hpx = glyph * 2 + 4
+            glyph = aux_h
+            wpx = dot_text_width(_txt_wide, aux_h)
+            hpx = aux_h + 4
         else:
             glyph = None
             wpx = seg_text_width(_txt_wide, aux_h, aux_slant, _dw(aux_h))
@@ -1638,20 +1727,145 @@ def _render_once(value, rng, profile, pid, inverted):
         # 시간줄도 보조 글자 크기(AC#3 — 실사진 722 는 시간·단위가 같은 높이).
         # 7-세그 + 사각 점 콜론으로 그은다(구판 put_7seg_text 는 폭을 임의
         # 폭으로 늘려 숫자 비율이 깨졌다 — seg_text 는 글리프 비율 유지).
-        hh = f"{rng.randint(0, 23):02d}:{rng.randint(0, 59):02d}"
-        tw = seg_text_width(hh, aux_h, aux_slant, _dw(aux_h))
-        if t["pos"] == "below-right":
-            cands = ((_gx(0.55), band_bot + 4), (px1 - 2 - tw, band_bot + 4))
+        # 프로파일이 표기 형식을 선언하면 그걸 쓴다 — 실물 Gmate 는 한 줄에
+        # '날짜 AM/PM 시간' 이 같이 뜬다(사람 눈검 2026-09-15, 실촬 대조).
+        # 구판은 HH:MM 으로 못박혀 있어 time.fmts 선언이 닿지 않았다.
+        # 형식은 **기기의 것**이라 ident 로 고정하고 숫자만 렌더마다 뽑는다
+        # (_dot_time_text 머리말). fmts 가 없으면 옛 동작 그대로다.
+        _tfm = t.get("fmts")
+        hh = (_dot_time_text(rng, fmt_i=(ident["dotrow_i"] if ident is not None
+                                         else None), fmts=_tfm)
+              if _tfm else
+              f"{rng.randint(0, 23):02d}:{rng.randint(0, 59):02d}")
+        # am/pm 만 작게·하단정렬로 그리는 기기가 있다 — 실물 Gmate 는 날짜와
+        # 시간 사이의 'pm' 이 mg/dL 과 같은 크기로 밑선에 맞춰 붙는다
+        # (사람 눈검 2026-09-15). 프로파일이 `ampm`(aux_h 대비 배수)을
+        # 선언한 기기만 이 경로를 탄다 — 선언이 없으면 한 크기로 그린다.
+        _amr = t.get("ampm")
+        _ampm_h = max(5, int(round(aux_h * float(_amr)))) if _amr else None
+        _parts = None          # [(문자열, 높이), ...] — 왼쪽부터
+        if _ampm_h:
+            for _tok in ("am", "pm", "AM", "PM"):
+                _i = hh.find(_tok)
+                if _i >= 0:
+                    _parts = [(hh[:_i], aux_h), (_tok, _ampm_h),
+                              (hh[_i + len(_tok):], aux_h)]
+                    break
+        if _parts:
+            tw = sum(seg_text_width(a, b, aux_slant, _dw(b))
+                     for a, b in _parts if a)
         else:
-            cands = ((_gx(0.08), band_bot + 4), (px0 + 2, py1 - 2 - aux_h))
-        _tx0, _ty0 = cands[0]
-        if lay is not None:
-            _ty0 = _below_y(_tx0, tw)
-        if maybe(_place(_tx0, _ty0, tw, aux_h, "time", alts=cands[1:]), "time"):
+            tw = seg_text_width(hh, aux_h, aux_slant, _dw(aux_h))
+        # 시간줄이 숫자 **위**인 기기가 있다 — ACCU-CHEK Instant 267·270 의
+        # 맨 윗줄 '12:18am 10.5'. 구판에는 top-* 분기가 없어서 프로파일이
+        # pos="top-left" 를 선언해도 조용히 below 로 떨어졌다. accuchek_active
+        # 도 top-left 를 선언한 채 아래에 그려지고 있었다(2026-09-15).
+        #
+        # top 은 **영역**에 놓는다. 밴드 기준 좌표를 쓰면 값 자릿수에 따라
+        # 흔들린다(_rplace 머리말). 영역에 못 놓으면 아래로 흘려보내지 않고
+        # 그리지 않는다 — 흘려보내면 같은 기기에서 시간이 위아래를 오가
+        # 검사 5(slot-stable)가 깨진다.
+        _tpos = t["pos"]
+        # 하단 행을 세 칸으로 나누는 기기가 있다 — 실물 Gmate 는 날짜(왼)·
+        # am/pm(가운데)·시각(오른)이 한 줄에 나란히 뜨고, am/pm 만 mg/dL 과
+        # 같은 크기로 밑선에 맞춰 작게 붙는다(사람 눈검 2026-09-15).
+        #
+        # 한 문자열로 그리면 가운데 정렬이 세 조각의 합에 걸려 am/pm 이
+        # 가운데로 안 온다. 그래서 **세 요소로 나눠 각각 영역에 놓는다** —
+        # 자리가 영역으로 정해지므로 값 자릿수에 흔들리지 않는다.
+        # 이 경로는 pos="row-bottom" 을 선언한 기기만 탄다.
+        if _tpos == "row-bottom" and _region_lay is not None                 and _region_lay.has(LBOTTOM):
+            _dfm = t.get("date_fmt", "{M}-{d}")
+            _hfm = t.get("hm_fmt", "{h02}:{m02}")
+            _apm = "pm" if rng.random() < 0.5 else "am"
+            _dtx = _dot_time_text(rng, fmt_i=0, fmts=[_dfm])
+            _htx = _dot_time_text(rng, fmt_i=0, fmts=[_hfm])
+            _aph = max(5, int(round(aux_h * float(t.get("ampm", 0.72)))))
+            _bot = _region_lay[LBOTTOM]
+            _base = int(round(_bot.y1)) - 2
+            # 하단 행은 **고정 칸 셋**이고 각 칸 안에서 오른쪽에 붙는다
+            # (사람 지침 2026-09-15: "모두 우측정렬로"). 왼쪽 정렬이면 한 자리
+            # 달(9-3)과 두 자리 달(12-25)에서 오른쪽 끝이 움직인다 — 실물
+            # 액정은 칸이 고정이고 값이 오른쪽부터 찬다. 숫자 필드가
+            # align="right" 인 것과 같은 이유다.
+            #
+            # 칸 너비는 **그 형식이 낼 수 있는 가장 넓은 문자열**로 잡는다.
+            # 균등 3등분으로 했더니 시각(188px)이 칸(168px)보다 넓어 옆 칸을
+            # 침범해 통째로 빠졌다(2026-09-15 실측). 예약이 내용보다 좁으면
+            # 요소가 조용히 사라진다.
+            #
+            # 오른쪽부터 쌓는다 — 오른쪽 끝(시각)이 유리에 붙어 고정되고,
+            # 남는 여유는 왼쪽에 남는다.
+            _wide = [(_dot_time_text(rng, fmt_i=0, fmts=[_dfm], widest=True),
+                      aux_h, "timedate", _dtx),
+                     ("pm", _aph, "ampm", _apm),
+                     (_dot_time_text(rng, fmt_i=0, fmts=[_hfm], widest=True),
+                      aux_h, "time", _htx)]
+            _gapx = max(4, int(aux_h * 0.45))
+            _cellw = [seg_text_width(w, h, aux_slant, _dw(h))
+                      for w, h, _, _ in _wide]
+            _rights, _r = [], int(round(_bot.x1)) - 2
+            for _cw in reversed(_cellw):
+                _rights.insert(0, _r)
+                _r -= _cw + _gapx
+            for (_wtxt, _hgt, _nm, _txt), _right in zip(_wide, _rights):
+                _w = seg_text_width(_txt, _hgt, aux_slant, _dw(_hgt))
+                _x = int(round(max(_bot.x0 + 1, _right - _w)))
+                if not maybe(_place(_x, _base - _hgt, _w, _hgt + 2, _nm), _nm):
+                    continue
+                _rr = placer.rects[-1]
+                # 밑선을 맞춘다 — 작은 am/pm 이 위로 뜨지 않게.
+                _lcd_text(img, _rr[0], _base - _hgt, _txt, _hgt, ink_small,
+                          _nm, heights=text_heights, thick=aux_t,
+                          slant=aux_slant, digit_mask=_dmask,
+                          digit_w=_dw(_hgt))
+            _tpos = "__done__"
+        if _tpos.startswith("top"):
+            _tok = _rplace(LTOP, tw, aux_h + 2, "time",
+                           align="right" if _tpos.endswith("right") else "left",
+                           valign="middle")
+            if _tok is None:        # 영역 자체가 없다(무명 풀) — 옛 경로로
+                _tpos = "below-left"
+            else:
+                _tok = maybe(_tok, "time")
+        if _tpos == "below-center" and _tpos != "__done__":
+            # 가운데 정렬은 영역이 정한다 — 밴드 기준 좌표로는 값 자릿수에
+            # 따라 중심이 움직인다.
+            _tok = _rplace(LBOTTOM, tw, aux_h + 2, "time",
+                           align="center", valign="bottom")
+            if _tok is None:
+                _tpos = "below-left"
+            else:
+                _tok = maybe(_tok, "time")
+        if not _tpos.startswith("top") and _tpos not in ("below-center",
+                                                         "__done__"):
+            if _tpos == "below-right":
+                cands = ((_gx(0.55), band_bot + 4), (px1 - 2 - tw, band_bot + 4))
+            else:
+                cands = ((_gx(0.08), band_bot + 4), (px0 + 2, py1 - 2 - aux_h))
+            _tx0, _ty0 = cands[0]
+            if lay is not None:
+                _ty0 = _below_y(_tx0, tw)
+            _tok = maybe(_place(_tx0, _ty0, tw, aux_h, "time",
+                                alts=cands[1:]), "time")
+        if _tpos != "__done__" and _tok:
             r = placer.rects[-1]
-            _lcd_text(img, r[0], r[1], hh, aux_h, ink_small, "time",
-                      heights=text_heights, thick=aux_t, slant=aux_slant,
-                  digit_mask=_dmask, digit_w=_dw(aux_h))
+            if _parts:
+                # 밑선을 맞춘다 — 작은 조각은 아래로 내려 붙인다.
+                _base = r[1] + aux_h
+                _cx = r[0]
+                for _txt, _h in _parts:
+                    if not _txt:
+                        continue
+                    _lcd_text(img, _cx, _base - _h, _txt, _h, ink_small, "time",
+                              heights=text_heights, thick=aux_t,
+                              slant=aux_slant, digit_mask=_dmask,
+                              digit_w=_dw(_h))
+                    _cx += seg_text_width(_txt, _h, aux_slant, _dw(_h))
+            else:
+                _lcd_text(img, r[0], r[1], hh, aux_h, ink_small, "time",
+                          heights=text_heights, thick=aux_t, slant=aux_slant,
+                          digit_mask=_dmask, digit_w=_dw(aux_h))
 
     _avp = profile.get("avgrow", {}).get("p", 0)
     if _avp and _shown("avgrow", _avp):
@@ -1761,48 +1975,48 @@ def _render_once(value, rng, profile, pid, inverted):
     # 호출자가 np.random.seed 를 부른 경우에만 재현되고, 그렇지 않은 경로
     # (synth_panel.py gen)는 같은 시드로도 매번 다른 그림을 낸다(2026-09-13
     # 전수 검토). 렌더러 비결정성 카드의 나머지 갈래다.
-    _npr = np.random.default_rng(rng.getrandbits(63))
+    _npr = np.random.default_rng(_orng.getrandbits(63))
     img = np.clip(img.astype(np.float32)
-                  + _npr.normal(0, rng.uniform(2, 9), img.shape),
+                  + _npr.normal(0, _orng.uniform(2, 9), img.shape),
                   0, 255).astype(np.uint8)
-    if rng.random() < 0.4:
-        img = cv2.GaussianBlur(img, (3, 3), rng.uniform(0.3, 1.0))
-    if rng.random() < 0.3:
-        img = cv2.GaussianBlur(img, (5, 5), rng.uniform(0.5, 1.2))
-    a_, b_ = rng.uniform(0.75, 1.25), rng.uniform(-25, 25)
+    if _orng.random() < 0.4:
+        img = cv2.GaussianBlur(img, (3, 3), _orng.uniform(0.3, 1.0))
+    if _orng.random() < 0.3:
+        img = cv2.GaussianBlur(img, (5, 5), _orng.uniform(0.5, 1.2))
+    a_, b_ = _orng.uniform(0.75, 1.25), _orng.uniform(-25, 25)
     img = np.clip(img.astype(np.float32) * a_ + b_, 0, 255).astype(np.uint8)
     yy, xx = np.mgrid[0:H, 0:W]
     d2 = ((xx - W / 2) / (W / 2)) ** 2 + ((yy - H / 2) / (H / 2)) ** 2
-    img = np.clip(img.astype(np.float32) * (1.0 - rng.uniform(0.08, 0.22) * d2),
+    img = np.clip(img.astype(np.float32) * (1.0 - _orng.uniform(0.08, 0.22) * d2),
                   0, 255).astype(np.uint8)
-    if rng.random() < 0.35:
+    if _orng.random() < 0.35:
         img = add_local_shadow(img, rng)
     # 개수도 줄인다(2026-09-12): 크기만 줄였더니 작은 얼룩이 서너 개 겹쳐
     # 실물에 없는 반점 무늬가 됐다. 대부분 0~1개, 가끔 2개.
-    for _ in range(rng.choice([0, 0, 1, 1, 1, 2])):
+    for _ in range(_orng.choice([0, 0, 1, 1, 1, 2])):
         # 가장자리에 붙은 연한 타원 반사 — 전폭 강선은 폐지했다(1판 결함 (7)).
-        edge = rng.randrange(4)
+        edge = _orng.randrange(4)
         if edge == 0:
-            ecx, ecy = rng.uniform(0, W), rng.uniform(0, H * 0.2)
+            ecx, ecy = _orng.uniform(0, W), _orng.uniform(0, H * 0.2)
         elif edge == 1:
-            ecx, ecy = rng.uniform(0, W), rng.uniform(H * 0.8, H)
+            ecx, ecy = _orng.uniform(0, W), _orng.uniform(H * 0.8, H)
         elif edge == 2:
-            ecx, ecy = rng.uniform(0, W * 0.2), rng.uniform(0, H)
+            ecx, ecy = _orng.uniform(0, W * 0.2), _orng.uniform(0, H)
         else:
-            ecx, ecy = rng.uniform(W * 0.8, W), rng.uniform(0, H)
+            ecx, ecy = _orng.uniform(W * 0.8, W), _orng.uniform(0, H)
         # 반장축 0.38W 는 패널 폭의 76%를 덮는다 — 패치가 아니라 도포다.
         # 1판의 '대각선 흰 줄' 을 없앴더니 이번엔 넓은 쐐기가 됐다(2026-09-12).
-        ax_ = rng.uniform(0.05, 0.20) * W
-        ay_ = rng.uniform(0.04, 0.15) * H
+        ax_ = _orng.uniform(0.05, 0.20) * W
+        ay_ = _orng.uniform(0.04, 0.15) * H
         # 몸체 위 반사는 몸체 톤 기준 — 타원 중심 픽셀에서 시작한다(구판은
         # 패널색 고정이라 어두운 몸체에 하얀 도포가 얹혔다).
         gc_y = min(H - 1, max(0, int(ecy)))
         gc_x = min(W - 1, max(0, int(ecx)))
-        glare = min(255, int(img[gc_y, gc_x]) + rng.uniform(40, 90))
+        glare = min(255, int(img[gc_y, gc_x]) + _orng.uniform(40, 90))
         msk = np.zeros((H, W), np.float32)
         cv2.ellipse(msk, (int(ecx), int(ecy)), (int(ax_), int(ay_)),
-                    rng.uniform(0, 180), 0, 360, 1, -1)
-        msk *= rng.uniform(0.08, 0.22)
+                    _orng.uniform(0, 180), 0, 360, 1, -1)
+        msk *= _orng.uniform(0.08, 0.22)
         img = np.clip(img.astype(np.float32) * (1 - msk) + glare * msk,
                       0, 255).astype(np.uint8)
 
@@ -1824,11 +2038,11 @@ def _render_once(value, rng, profile, pid, inverted):
     #
     # roll 이 구판의 회전(ang)을 흡수한다. 따로 돌리지 않는다 — 회전과 원근을
     # 두 단계로 나누면 그 조합이 다시 카메라 밖으로 나갈 수 있다.
-    do_pose = rng.random() < 0.85
-    cam_yaw = rng.uniform(-9.0, 9.0)      # 좌우로 비스듬히(도)
-    cam_pitch = rng.uniform(-9.0, 9.0)    # 위아래로 비스듬히
-    cam_roll = rng.uniform(-1.5, 1.5)     # 손목 비틀림
-    cam_fk = rng.uniform(1.6, 3.2)        # 초점거리 / 긴 변 (폰 렌즈 대역)
+    do_pose = _orng.random() < 0.85
+    cam_yaw = _orng.uniform(-9.0, 9.0)      # 좌우로 비스듬히(도)
+    cam_pitch = _orng.uniform(-9.0, 9.0)    # 위아래로 비스듬히
+    cam_roll = _orng.uniform(-1.5, 1.5)     # 손목 비틀림
+    cam_fk = _orng.uniform(1.6, 3.2)        # 초점거리 / 긴 변 (폰 렌즈 대역)
     src = np.float32([[0, 0], [W - 1, 0], [W - 1, H - 1], [0, H - 1]])
 
     def _mats(shrink):

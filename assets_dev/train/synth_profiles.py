@@ -99,22 +99,31 @@ DOT_FMTS = [
     "{d}-{h02}:{m02} {AM}",
 ]
 
+# 단위(mg/dL)가 숫자에 얼마나 바싹 붙는가 — unit 요소의 `hug`(숫자 높이 대비
+# 간격). 기기 속성이다(사람 지침 2026-09-15). 실물 중에는 밴드 상자가 단위를
+# 자를 만큼 붙은 기기가 있다. 생략하면 0.22.
+#   hug=0.02  거의 닿는다   ·  hug=0.22 기본  ·  hug=0.45 여유
 PROFILES = [
     dict(
         id="accuchek_instant", slots=3, align="right", italic=False,
         evidence=["glucose_batch1/267", "glucose_batch1/270",
                   "glucose_batch2/2610", "glucose_batch1/2492",
                   "glucose_batch1/2039"],
-        # 화살표-끝자리 갭 실측 72~84px(스트립 12장) — 넓은 범위로 흔들어
-        # '거의 닿는' 배치까지 재현한다(AC#5).
-        unit=dict(texts=["mg/dL"], pos="below-right", gap=(2, 80), p=0.9),
+        # gap 은 이 프로파일에서 **쓰이지 않는다**(2026-09-15 확인).
+        # below-* 단위의 간격은 hug 가 정하고(synth_panel `_ugap`), meter=True
+        # 화살표의 세로 자리는 값이 정한다 — 둘 다 gap 을 안 읽는다. 남겨 둔
+        # 이유는 arrow 쪽 코드가 a["gap"] 을 무조건 꺼내기 때문이다.
+        # hug: mg/dL 이 125 바로 아래 바싹 붙는다(267·270).
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(2, 80), hug=0.06,
+                  p=0.9),
         # 미터기 지시 화살표(AC#5): 검은 창 안 오른쪽 가장자리의 흰 ▶ 이
         # 몸체에 인쇄된 점 눈금 열을 가리킨다. 근거 Instant 34장 — 화살표는
         # 값에 대응해 위로 오르고 v159+ 에서 상단에 포화된다(2026-09-13
         # 실측). 단독 아이콘이 아니라 지시자라 kinds 는 tri-right 하나다.
         arrow=dict(kinds=["tri-right"], gap=(2, 80), p=0.95),
         meter=True,
-        time=dict(pos="below-left", p=0.9),
+        # 시간은 숫자 **위** 왼쪽이다 — 267·270 맨 윗줄 '12:18am 10.5'.
+        time=dict(pos="top-left", p=0.9),
         bezel=dict(texts=["ACCU-CHEK", "Instant"], edge="top", p=0.9),
     ),
     dict(
@@ -122,11 +131,29 @@ PROFILES = [
         evidence=["glucose_batch1/842", "glucose_batch1/843",
                   "glucose_batch1/731", "glucose_batch1/727"],
         # 단위 글리프가 끝자리에 4~5px 로 붙는다(아틀라스 재고표) — 실패 서명.
-        unit=dict(texts=["mg/dL", "mg /dL"], pos="below-right", gap=(3, 8), p=1.0),
-        meal=dict(texts=["AC", "PC"], p=0.3),
-        mem=dict(kind="M", pos="below-left", p=0.5),
-        time=dict(pos="below-left", p=0.85),
-        bezel=dict(texts=["Gmate"], edge="top", p=0.9),
+        # gap 은 below-* 에서 읽히지 않는다(간격은 hug 가 정한다).
+        # hug: 실물은 mg/dL 이 혈당 숫자에 바짝 붙는다(사람 눈검 2026-09-15).
+        # h: 단위가 시간·날짜 줄보다 **작다**. 기본 1.0 이면 같은 높이라
+        #    실물과 반대로 보인다(같은 사람 눈검).
+        unit=dict(texts=["mg/dL", "mg /dL"], pos="below-right", gap=(3, 8),
+                  hug=0.04, h=0.72, p=1.0),
+        # 식전·식후(AC/PC)는 없다 — 실물에 그 표기가 없다(사람 눈검
+        # 2026-09-15). 날짜·시간 줄과 혈당 숫자 사이에 아이콘이 몇 개 있지만
+        # 구현하지 않기로 했다(같은 판단).
+        # M(메모리) 은 뺐다 — 실물에 없다(사람 눈검 2026-09-15, 실촬 대조).
+        # time 과 같은 below-left 를 다투던 자리이기도 했다.
+        # 하단 행: 날짜(왼) · am/pm(가운데) · 시각(오른). am/pm 은 소문자이고
+        # mg/dL 과 같은 크기로 밑선에 맞춰 붙는다(사람 눈검 2026-09-15) —
+        # ampm 배수를 unit 의 h 와 같게 둔다.
+        time=dict(pos="row-bottom", date_fmt="{M}-{d}", hm_fmt="{h02}:{m02}",
+                  ampm=0.72, p=0.85),
+        # 배터리는 우측 상단 고정 — 실물에 늘 있다(사람 눈검 2026-09-15).
+        icons=[("battery", "top-right", 1.0)],
+        # 유리 바깥이 검은 베젤이다 — 'Gmate' 가 그 위에 흰색으로 찍혀 있다
+        # (사람 눈검 2026-09-15). 유리 '바깥'이라 요소 배치(REGIONS pad)와는
+        # 무관하다. 글씨가 얹혀야 하므로 몸체 여백을 거의 다 덮는다.
+        dark_window=dict(cover=0.95, tone=0.16),
+        bezel=dict(texts=["Gmate"], edge="top", ink=235, p=0.9),
     ),
     dict(
         # align 은 right 다(2026-09-13 정정) — left 면 2자리 값의 빈 슬롯이
@@ -241,7 +268,11 @@ PROFILES = [
         # 상단에 시간(왼쪽)·날짜(오른쪽) 작은 줄, 숫자는 중앙 대형,
         # mg/dL 은 숫자 아래 오른쪽(1329 '0:00 0-0' + 하단 mg/dL 관찰).
         unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 12), p=0.9),
-        time=dict(pos="top-left", p=0.85),
+        # top-left 를 선언했지만 렌더러에 top-* 분기가 없어 지금까지 below 로
+        # 떨어져 있었다(2026-09-15에 분기가 생겼다). 한 기기씩 눈으로 확인하는
+        # 중이라 이 기기는 **현재 렌더 그대로** 묶어 둔다 — 확인 차례가 오면
+        # top-left 로 되돌린다. 지금 풀면 instant 만 보려는 판에 같이 움직인다.
+        time=dict(pos="below-left", p=0.85),
         daterow=dict(p=0.8),
         bezel=dict(texts=["Active"], edge="top", p=0.6),
     ),
@@ -533,28 +564,47 @@ def sample_corpus_value(rng):
     return rng.randint(100, 511)
 
 
-def dot_text(img, x, y, text, glyph, ink):
-    """도트매트릭스 문자 줄 — 작게 그린 글자를 2px 점 격자로 양자화.
-    glyph 는 글자 높이 px(실측 4~10). 반환값: 그은 폭 px."""
-    if glyph < 3:
-        glyph = 3
-    ch = glyph * 4 + 6
-    cw = max(16, ch * len(text))
+def dot_text(img, x, y, text, h, ink, pitch=None):
+    """도트매트릭스 문자 줄 — **목표 높이 h** 로 글자를 그린 뒤 점 격자만 남긴다.
+
+    구판은 glyph(=높이의 절반)를 받아 캔버스를 glyph*4+6 으로 잡고 폰트 배율을
+    glyph/20 으로 썼다. 글자가 캔버스 높이의 4분의 1만 차지해, 예약한 자리에
+    비해 글씨가 너무 작게 찍혔다(사람 지적 2026-09-15: "dot 는 너무 작아서
+    판단 불가하다"). 그리고 절반 축소로 양자화하니 '점'이 아니라 뭉개진 획이
+    됐다.
+
+    이제 목표 높이로 그대로 그리고, 점 격자 마스크를 곱해 점만 남긴다 —
+    실물 도트 매트릭스처럼 점 사이가 비어 보인다.
+
+    반환값: 그은 폭 px(배치 예약은 dot_text_width 와 같은 공식이다).
+    """
+    h = max(6, int(h))
+    pitch = max(2, int(round(h / 7.0))) if pitch is None else max(2, int(pitch))
+    th = max(1, int(round(h / 8.0)))
+    sc = h / 22.0
+    cw = dot_text_width(text, h)
+    ch = h + 4
     canvas = np.zeros((ch, cw), np.uint8)
-    cv2.putText(canvas, text, (2, ch - 5), cv2.FONT_HERSHEY_SIMPLEX,
-                glyph / 20.0, 255, 1, cv2.LINE_8)
-    dots = cv2.resize(canvas, (cw // 2, ch // 2),
-                      interpolation=cv2.INTER_AREA) > 40
+    cv2.putText(canvas, text, (2, h), cv2.FONT_HERSHEY_SIMPLEX, sc, 255,
+                th, cv2.LINE_8)
+    gy, gx = np.mgrid[0:ch, 0:cw]
+    r = max(1, pitch - 1)                      # 점 크기(격자 간격보다 작게)
+    dots = (canvas > 40) & ((gy % pitch) < r) & ((gx % pitch) < r)
     H, W = img.shape[:2]
-    for gy in range(dots.shape[0]):
-        yy = y + gy
-        if yy >= H:
-            break
-        for gx in range(dots.shape[1]):
-            xx = x + gx
-            if xx < W and dots[gy, gx]:
-                img[yy, xx] = ink
-    return cw // 2
+    ys, xs = np.nonzero(dots)
+    for gy_, gx_ in zip(ys, xs):
+        yy, xx = y + int(gy_), x + int(gx_)
+        if 0 <= yy < H and 0 <= xx < W:
+            img[yy, xx] = ink
+    return cw
+
+
+def dot_text_width(text, h):
+    """dot_text 가 그을 폭(px). 그리기와 **같은 공식**이어야 자리가 안 어긋난다."""
+    h = max(6, int(h))
+    (w, _), _b = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, h / 22.0,
+                                 max(1, int(round(h / 8.0))))
+    return int(w + 4)
 
 
 def _tri(img, cx, cy, s, ink, direction="right"):
@@ -690,7 +740,16 @@ def _icon(img, kind, cx, cy, s, ink, pos=None):
 # 실링이 그 띠를 쓴다. 구판은 gmate 0.020 처럼 사실상 0 인 기기가 있었다.
 REGIONS = {
     "accuchek_instant": dict(pad=(0.104, 0.050, 0.070, 0.070), rows=(0.188, 0.439, 0.253), track_right=0.12),
-    "gmate": dict(pad=(0.050, 0.050, 0.070, 0.070), rows=(0.153, 0.390, 0.337)),
+    # 혈당 숫자를 키웠다(사람 눈검 2026-09-15: "혈당숫자 더 커야한다").
+    # mid 0.390 -> 0.480, 남은 몫은 bottom 에서 뗀다 — top 은 배터리 줄이다.
+    # 베젤과 혈당 숫자 사이가 매우 좁다(사람 눈검 2026-09-15). 그 간격은
+    # 패딩을 깎아서가 아니라 **숫자를 키워서** 좁힌다(사람 판단: "혈당숫자
+    # 크기를 키우는게 맞을걸"). 패딩은 하한 그대로 둔다 — 실물 액정은
+    # 가장자리에 구동 배선 띠가 있어 0 이 될 수 없다.
+    # mid 를 더 키워도 숫자는 안 커진다 — 3칸이 폭을 꽉 채워서 숫자 높이를
+    # **폭이 정한다**(0.560 이나 0.720 이나 같은 크기가 나왔다). 남는 세로는
+    # 놀 뿐이라 0.560 에 둔다.
+    "gmate": dict(pad=(0.050, 0.050, 0.070, 0.070), rows=(0.130, 0.560, 0.190)),
     "dorucos_premium": dict(pad=(0.050, 0.050, 0.070, 0.070), rows=(0.110, 0.468, 0.303)),
     "green_doctor": dict(pad=(0.050, 0.050, 0.070, 0.070), rows=(0.207, 0.427, 0.245)),
     "onetouch_ultra": dict(pad=(0.050, 0.050, 0.070, 0.070), rows=(0.104, 0.464, 0.316)),
@@ -706,3 +765,15 @@ REGIONS = {
     "onetouch_ultramini": dict(pad=(0.050, 0.050, 0.100, 0.100), column_right=0.42, rows=(0.16, 0.84, 0.0)),
     "wide_unknown": dict(pad=(0.050, 0.050, 0.100, 0.100), column_right=0.34, rows=(0.16, 0.84, 0.0)),
 }
+
+
+# ── 웹툴 에디터 덮어쓰기 ────────────────────────────────────────────────
+# synth_overrides.json 이 있으면 위 선언 위에 얹는다. 정본은 여전히 이 파일이고
+# (근거와 주석이 여기 있다), 덮어쓰기는 **눈으로 맞추는 중인 값**이다.
+# 값이 굳으면 사람이 여기로 옮기고 JSON 에서 지운다 — 그때 근거를 적는다.
+# 파일이 없거나 깨졌으면 조용히 건너뛴다(생성기가 멈추면 안 된다).
+try:
+    from synth_overrides import apply_to as _apply_overrides
+    PROFILE_OVERRIDES_N = _apply_overrides(PROFILES, REGIONS)
+except Exception:          # noqa: BLE001 — 덮어쓰기는 편의지 의존이 아니다
+    PROFILE_OVERRIDES_N = 0
