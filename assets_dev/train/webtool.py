@@ -34,6 +34,7 @@ DATUMO = HERE.parent / "upstream" / "datumo"
 IMAGES = DATUMO / "extracted" / "TILDE"
 CACHE = HERE / "cache"
 SYNTH_HTML = HERE / "synth_view.html"   # 합성 코퍼스 열람 — 읽기 전용
+PROFEDIT_HTML = HERE / "prof_edit.html"  # 프로파일 에디터 — 덮어쓰기만 쓴다
 # 밴드 라벨은 **새 파일에 쌓는다.** 옛 `labeled.jsonl` 358장 중 300장이
 # 프레임 검증(`ow`/`oh`, 2026-09-02) 이전에 저장돼 좌표를 신뢰할 수 없다 —
 # 그 크롭으로 읽히면 14.6%(GM 화면 크롭은 96.6%). 같은 파일에 이어 쓰면 옛
@@ -597,14 +598,25 @@ _SYNTH_CACHE = {}
 
 
 def _synth_rows(name):
-    if name in _SYNTH_CACHE:
-        return _SYNTH_CACHE[name]
+    """manifest 를 캐시하되 **파일이 바뀌면 버린다**.
+
+    이름만으로 캐시하던 구판은 같은 이름으로 다시 구우면 옛 쿼드를 계속
+    내줬다. 이미지는 디스크에서 새로 읽으니 화면에는 새 그림 위에 옛 상자가
+    그려졌다 — 고친 것이 안 보이는 정도가 아니라 **없는 결함이 보인다**
+    (사람 확인 2026-09-15). mtime+크기로 무효화한다.
+    """
     d = HERE / name
-    if ".." in name or "/" in name or not (d / "manifest.jsonl").exists():
+    m = d / "manifest.jsonl"
+    if ".." in name or "/" in name or not m.exists():
         return []
+    st = m.stat()
+    key = (st.st_mtime_ns, st.st_size)
+    hit = _SYNTH_CACHE.get(name)
+    if hit and hit[0] == key:
+        return hit[1]
     rows = [json.loads(l) for l in
-            (d / "manifest.jsonl").read_text(encoding="utf-8").splitlines() if l.strip()]
-    _SYNTH_CACHE[name] = rows
+            m.read_text(encoding="utf-8").splitlines() if l.strip()]
+    _SYNTH_CACHE[name] = (key, rows)
     return rows
 
 
@@ -634,6 +646,145 @@ def api_synth_list(qs):
          "glass_quad": r.get("glass_quad"), "inverted": r.get("inverted"),
          "dropped": r.get("dropped"), "rects": r.get("rects")}
         for r in sl]}
+
+
+# ── 프로파일 에디터 ────────────────────────────────────────────────────
+# 값을 바꾸면 그 자리에서 합성 몇 장을 그려 보여 준다. 굽고 -> 보고 -> 고치는
+# 왕복이 한 기기당 여러 번이라(2026-09-15 gmate 만 여덟 번) 그 고리를 줄인다.
+#
+# 저장은 synth_overrides.json 으로만 간다 — 코드를 기계가 고치지 않는다
+# (synth_overrides.py 머리말). 미리보기도 같은 병합 경로를 쓰므로 화면에서
+# 본 것과 구운 것이 같다.
+_PROF_MOD = {}
+
+
+def _prof_mods():
+    """무거운 합성 모듈은 처음 쓸 때만 import 한다(웹툴 기동을 늦추지 않게)."""
+    if not _PROF_MOD:
+        import importlib
+        _PROF_MOD["profiles"] = importlib.import_module("synth_profiles")
+        _PROF_MOD["panel"] = importlib.import_module("synth_panel")
+        _PROF_MOD["ov"] = importlib.import_module("synth_overrides")
+    return _PROF_MOD
+
+
+def _jsonable(v):
+    if isinstance(v, tuple):
+        return [_jsonable(x) for x in v]
+    if isinstance(v, list):
+        return [_jsonable(x) for x in v]
+    if isinstance(v, dict):
+        return {k: _jsonable(x) for k, x in v.items()}
+    return v
+
+
+@route("/api/prof/schema")
+def api_prof_schema(qs):
+    """값의 모양(열거 후보·범위). 에디터가 위젯을 고르는 근거 — 파이썬 쪽에
+    둔다(synth_schema.py). 후보 목록이 렌더러 분기와 갈라지면 안 되므로
+    소비하는 코드 옆에 있어야 한다."""
+    _prof_mods()
+    import importlib
+    return importlib.import_module("synth_schema").schema()
+
+
+@route("/api/prof/get")
+def api_prof_get(qs):
+    m = _prof_mods()
+    P, ov = m["profiles"], m["ov"]
+    pid = qs.get("pid", [""])[0]
+    ids = [p.get("id") for p in P.PROFILES]
+    if not pid:
+        return {"ids": ids}
+    base = next((p for p in P.PROFILES if p.get("id") == pid), None)
+    if base is None:
+        return {"error": "없는 프로파일", "ids": ids}
+    data = ov.load()
+    return {"ids": ids, "pid": pid,
+            "profile": _jsonable(base),
+            "regions": _jsonable(P.REGIONS.get(pid, {})),
+            "override": _jsonable(data.get(pid, {})),
+            "devices": _jsonable(P.PROFILE_DEVICES.get(pid, []))}
+
+
+def _prof_render(pid, prof_ov, reg_ov, seed, n):
+    """덮어쓰기를 얹어 n 장 그린다. 반환 [(png bytes, quad, label)]."""
+    import random
+    m = _prof_mods()
+    P, panel, ov = m["profiles"], m["panel"], m["ov"]
+    base = next((p for p in P.PROFILES if p.get("id") == pid), None)
+    if base is None:
+        raise ValueError("없는 프로파일")
+    merged = ov._merge(base, prof_ov)
+    saved = P.REGIONS.get(pid)
+    out = []
+    try:
+        if reg_ov:
+            # REGIONS 는 모듈 전역이라 잠깐 갈아끼운다 — 그려야 반영된다.
+            P.REGIONS[pid] = ov._merge(saved or {}, reg_ov)
+            panel.REGIONS[pid] = P.REGIONS[pid]
+        for i in range(n):
+            rng = random.Random(seed + i * 7919)
+            val = panel.sample_value(rng)
+            s = panel.render_panel(val, rng, profile=merged)
+            okp, buf = cv2.imencode(".png", s["panel"])
+            # dropped 를 같이 낸다 — 선언했는데 자리가 없어 빠진 요소가
+            # 화면에 안 보이면 "고쳐도 안 바뀐다"로 읽힌다(사람 2026-09-15).
+            out.append((buf.tobytes(),
+                        np.round(s["quad_panel"], 1).tolist(),
+                        s["label"], s["W"], s["H"],
+                        [list(r) for r in s["rects"]],
+                        sorted(set(s.get("dropped") or []))))
+    finally:
+        if reg_ov:
+            if saved is None:
+                P.REGIONS.pop(pid, None); panel.REGIONS.pop(pid, None)
+            else:
+                P.REGIONS[pid] = saved; panel.REGIONS[pid] = saved
+    return out
+
+
+@route("/api/synth/real")
+def api_synth_real(qs):
+    """프로파일 -> 그 기기의 실촬 사진 id 목록.
+
+    합성을 고칠 때 실물을 옆에 두고 보기 위한 것이다(사람 요청 2026-09-15).
+    **재는 것이 아니라 보는 것**이다 — 합성 설계값을 실사진에서 뽑지 않는다는
+    규칙은 그대로다([[no-real-photo-ruler-for-synth]]). 눈으로 대조만 한다.
+
+    순서: 사람 밴드 라벨이 있는 장을 앞에 둔다. 그 장들만이 게이트에 들어가고,
+    무엇을 근거로 이 프로파일을 만들었는지도 대개 거기 있다. 그 다음이
+    프로파일의 evidence, 나머지는 id 순이다.
+    """
+    prof = qs.get("profile", [""])[0]
+    if not prof:
+        return {"device": None, "ids": []}
+    try:
+        from synth_profiles import PROFILE_DEVICES, PROFILES
+    except Exception as e:
+        return {"error": str(e), "device": None, "ids": []}
+    names = PROFILE_DEVICES.get(prof) or []
+    devs = load_device_labels()
+    ids = [i for i, d in devs.items()
+           if d.get("status") == "identified"
+           and (d.get("brand", "") + " " + d.get("model", "")).strip() in names]
+    labeled = set()
+    if BAND_FILE.exists():
+        for l in BAND_FILE.read_text(encoding="utf-8").splitlines():
+            if l.strip():
+                j = json.loads(l)
+                if "quad" in j:
+                    labeled.add(j["id"])
+    ev = []
+    for pr in PROFILES:
+        if pr.get("id") == prof:
+            ev = list(pr.get("evidence") or [])
+            break
+    rank = {p: i for i, p in enumerate(ev)}
+    ids.sort(key=lambda i: (0 if i in labeled else 1,
+                            rank.get(i, len(ev)), i))
+    return {"device": names[0] if names else None, "n": len(ids),
+            "labeled": sorted(labeled & set(ids)), "ids": ids}
 
 
 @route("/api/image")
@@ -1171,6 +1322,13 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 self._send(404, "synth_view.html 없음".encode(), "text/plain")
             return
+        if u.path == "/profedit":
+            if PROFEDIT_HTML.exists():
+                self._send(200, PROFEDIT_HTML.read_bytes(),
+                           "text/html; charset=utf-8")
+            else:
+                self._send(404, "prof_edit.html 없음".encode(), "text/plain")
+            return
         if u.path == "/synthimg":
             # 합성 PNG 를 그대로 낸다. 리사이즈하지 않는다 — 좌표가 manifest
             # 원본 화소 기준이고, 화면에서 캔버스가 비율대로 맞춘다.
@@ -1264,6 +1422,45 @@ class Handler(BaseHTTPRequestHandler):
             _atlas_proxy(self, self.path, "POST", raw)
             return
         body = json.loads(raw)
+        if u.path == "/api/prof/preview":
+            # 덮어쓰기를 얹어 몇 장 그려 돌려준다. 저장하지 않는다 —
+            # 눈으로 보고 마음에 들면 그때 /api/prof/save 다.
+            try:
+                shots = _prof_render(body.get("pid", ""),
+                                     body.get("profile") or {},
+                                     body.get("regions") or {},
+                                     int(body.get("seed", 9150)),
+                                     min(6, max(1, int(body.get("n", 3)))))
+            except Exception as e:                       # noqa: BLE001
+                self._json({"error": f"{type(e).__name__}: {e}"}, 400)
+                return
+            self._json({"shots": [
+                {"png": "data:image/png;base64," + base64.b64encode(b).decode(),
+                 "quad": q, "label": lb, "w": w, "h": h, "rects": rc,
+                 "dropped": dr}
+                for b, q, lb, w, h, rc, dr in shots]})
+            return
+        if u.path == "/api/prof/save":
+            # 정본(synth_profiles.py)은 건드리지 않는다. 덮어쓰기 JSON 만 쓴다.
+            pid = body.get("pid", "")
+            if not pid:
+                self._json({"error": "pid 없음"}, 400)
+                return
+            m = _prof_mods()
+            data = m["ov"].load()
+            ent = {}
+            if body.get("profile"):
+                ent["profile"] = body["profile"]
+            if body.get("regions"):
+                ent["regions"] = body["regions"]
+            if ent:
+                data[pid] = ent
+            else:
+                data.pop(pid, None)      # 빈 덮어쓰기는 '정본 그대로'다
+            m["ov"].save(data)
+            self._json({"ok": True, "n": len(data),
+                        "path": str(m["ov"].PATH.name)})
+            return
         if u.path == "/api/label":
             mode = body.get("mode", "band")
             p = BAND_FILE if mode == "band" else LCD_FILE

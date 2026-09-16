@@ -20,7 +20,18 @@
   .legend { margin-left:auto; display:flex; gap:12px; align-items:center; font-size:12px; }
   .sw { display:inline-block; width:22px; height:3px; vertical-align:middle;
         margin-right:5px; border-radius:2px; }
-  #grid { display:grid; gap:12px; padding:14px;
+  #main { display:flex; align-items:flex-start; }
+  /* 실촬 칼럼 — 합성을 고칠 때 실물을 옆에 두고 본다(2026-09-15).
+     재는 것이 아니라 보는 것이다. 합성 설계값은 여전히 선언으로 정한다. */
+  #real { width:360px; flex:none; position:sticky; top:52px; padding:14px 0 14px 14px; }
+  #real img { width:100%; height:auto; display:block; background:#0e1012;
+              border:1px solid #2c3037; border-radius:7px; }
+  #real .bar { display:flex; gap:6px; align-items:center; margin:8px 0 4px; }
+  #real .bar button { padding:2px 8px; }
+  #realcap { font-size:11px; color:#9aa2ad; word-break:break-all; }
+  #realhead { font-size:12px; color:#d6dce4; font-weight:600; margin-bottom:6px; }
+  .tagged { color:#32d74b; }
+  #grid { flex:1; min-width:0; display:grid; gap:12px; padding:14px;
           grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); }
   figure { margin:0; background:#1c1f24; border:1px solid #2c3037; border-radius:7px;
            overflow:hidden; }
@@ -60,12 +71,26 @@
   </div>
 </header>
 
-<div id="grid"></div>
+<div id="main">
+  <aside id="real">
+    <div id="realhead">실촬</div>
+    <img id="realimg" alt="">
+    <div class="bar">
+      <button id="rprev">◀</button>
+      <span id="rpos" class="muted"></span>
+      <button id="rnext">▶</button>
+    </div>
+    <div id="realcap" class="muted"></div>
+  </aside>
+  <div id="grid"></div>
+</div>
 <div id="big"><canvas id="bigc"></canvas><div id="bigcap"></div></div>
 
 <script>
 let PAGE = 60;
 let st = { dir:"", profile:"", offset:0, total:0, items:[] };
+// 실촬 칼럼 상태. ids 는 사람 밴드 라벨이 있는 장이 앞에 온다(서버가 정렬).
+let RE = { device:null, ids:[], labeled:[], i:0 };
 
 const $ = id => document.getElementById(id);
 const api = async u => (await fetch(u)).json();
@@ -115,6 +140,37 @@ function tile(it) {
   return fig;
 }
 
+async function loadReal() {
+  const box = $("real");
+  if (!st.profile) {
+    box.style.display = "none";
+    return;
+  }
+  box.style.display = "";
+  const r = await api("/api/synth/real?profile=" + encodeURIComponent(st.profile));
+  RE = { device: r.device, ids: r.ids || [], labeled: r.labeled || [], i: 0 };
+  $("realhead").textContent = "실촬 — " + (RE.device || "(기기 연결 없음)");
+  showReal();
+}
+
+function showReal() {
+  if (!RE.ids.length) {
+    $("realimg").removeAttribute("src");
+    $("rpos").textContent = "0 / 0";
+    // generic_v1 처럼 기기가 묶이지 않은 풀은 대조할 실물이 없다.
+    $("realcap").textContent = RE.device
+      ? "이 기기의 사진이 없다" : "이 프로파일은 특정 기기에 묶여 있지 않다";
+    return;
+  }
+  const id = RE.ids[RE.i];
+  $("realimg").src = "/photo?id=" + encodeURIComponent(id) + "&w=700";
+  $("rpos").textContent = (RE.i + 1) + " / " + RE.ids.length;
+  const tagged = RE.labeled.includes(id);
+  $("realcap").innerHTML = id +
+    (tagged ? ' · <span class="tagged">사람 밴드 라벨 있음</span>'
+            : ' · <span class="muted">라벨 없음</span>');
+}
+
 async function load() {
   const q = new URLSearchParams({ dir: st.dir, profile: st.profile,
                                   offset: st.offset, limit: PAGE });
@@ -139,11 +195,17 @@ async function boot() {
     const p = $("profile"); p.innerHTML = '<option value="">전체</option>';
     (c.profiles || []).forEach(x => p.append(new Option(x, x)));
   };
-  fill(); await load();
+  fill(); await load(); await loadReal();
   sel.onchange = async () => { st.dir = sel.value; st.offset = 0;
-                               st.profile = ""; fill(); await load(); };
+                               st.profile = ""; fill();
+                               await load(); await loadReal(); };
   $("profile").onchange = async e => { st.profile = e.target.value;
-                                       st.offset = 0; await load(); };
+                                       st.offset = 0;
+                                       await load(); await loadReal(); };
+  $("rprev").onclick = () => {
+    if (RE.ids.length) { RE.i = (RE.i - 1 + RE.ids.length) % RE.ids.length; showReal(); } };
+  $("rnext").onclick = () => {
+    if (RE.ids.length) { RE.i = (RE.i + 1) % RE.ids.length; showReal(); } };
   $("prev").onclick = async () => { st.offset = Math.max(0, st.offset - PAGE); await load(); };
   $("next").onclick = async () => {
     if (st.offset + PAGE < st.total) { st.offset += PAGE; await load(); } };

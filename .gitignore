@@ -68,6 +68,10 @@ assets_dev/train/*
 !assets_dev/train/labeled.jsonl
 !assets_dev/train/screen_boxes.jsonl
 !assets_dev/train/gt_corrections.jsonl
+# 프로파일 에디터가 쓰는 덮어쓰기 — 사람이 실촬과 대조해 정한 값이 여기
+# 쌓인다(synth_overrides.py 머리말). 기계가 쓴 파일이지만 담긴 것은 사람의
+# 판단이라 잃으면 다시 못 만든다. 값이 굳으면 synth_profiles.py 로 옮긴다.
+!assets_dev/train/synth_overrides.json
 # 사람이 그린 라벨은 전부 추적한다 — 노동이 들어간 것이고 다시 만들 수 없다.
 !assets_dev/train/band_boxes.jsonl
 # 기종 태그(성분→기기)도 같은 사정: by:agent 1차 + 사람 확인(by:human)이

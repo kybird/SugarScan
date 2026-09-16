@@ -1,0 +1,536 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>프로파일 에디터 — 합성을 실물에 맞춘다</title>
+<!--
+  값을 만지면 그 자리에서 합성을 다시 그린다. 왼쪽이 실촬(눈으로 대조만 한다,
+  재지 않는다), 가운데가 값, 오른쪽이 합성이다.
+
+  위젯은 /api/prof/schema 가 정한다(synth_schema.py). pos 같은 열거값을 손으로
+  치게 두면 오타가 조용히 '옛 동작'으로 떨어진다 — time 의 pos="top-left" 가
+  렌더러에 분기가 없어 below 로 떨어진 사고가 실제로 있었다(2026-09-15).
+
+  저장은 synth_overrides.json 으로만 간다 — synth_profiles.py 는 사람이 쓰는
+  정본이고 기계가 고치지 않는다. 값이 굳으면 사람이 정본으로 옮긴다.
+-->
+<style>
+  :root { color-scheme: dark; }
+  body { margin:0; background:#15171a; color:#e6e6e6;
+         font:13px/1.5 system-ui,"Segoe UI",sans-serif; }
+  header { position:sticky; top:0; z-index:5; background:#1c1f24;
+           border-bottom:1px solid #2c3037; padding:9px 14px;
+           display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  h1 { font-size:14px; margin:0 8px 0 0; font-weight:600; }
+  select, button, input { background:#23262c; color:#e6e6e6;
+           border:1px solid #363a42; border-radius:5px; padding:4px 8px;
+           font:inherit; }
+  button:hover { background:#2c3037; cursor:pointer; }
+  button.go { background:#1f6f43; border-color:#2b8c58; }
+  button.warn { background:#6b2f2f; border-color:#8c3b3b; }
+  main { display:flex; align-items:flex-start; gap:14px; padding:14px; }
+  .col { min-width:0; }
+  #realcol { width:290px; flex:none; }
+  #form { width:460px; flex:none; background:#1c1f24; border:1px solid #2c3037;
+          border-radius:7px; padding:10px; max-height:calc(100vh - 90px);
+          overflow:auto; }
+  #shots { flex:1; display:grid; gap:10px;
+           grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); }
+  #shots canvas, #realcol img { width:100%; height:auto; display:block;
+           background:#0e1012; border:1px solid #2c3037; border-radius:6px; }
+  .row { display:flex; gap:6px; align-items:center; margin:3px 0; }
+  .row > .k { width:104px; flex:none; color:#9aa2ad; font-size:12px; }
+  .row > .v { flex:1; display:flex; gap:5px; align-items:center; }
+  .row input[type=number] { width:74px; }
+  .row input[type=range] { flex:1; min-width:70px; padding:0; }
+  .row input[type=text], .row select { flex:1; min-width:80px; }
+  .grp { border:1px solid #2c3037; border-radius:6px; padding:6px 8px 8px;
+         margin:7px 0; background:#191c21; }
+  .grp.off { opacity:.45; }
+  .grp > .h { font-weight:600; color:#d6dce4; display:flex; gap:7px;
+              align-items:center; margin-bottom:3px; }
+  .grp > .h input { width:auto; }
+  .muted { color:#8b929c; font-size:12px; }
+  .ovr { color:#f0b429; }
+  .chip { display:inline-flex; gap:4px; align-items:center; font-size:12px;
+          background:#23262c; border:1px solid #363a42; border-radius:12px;
+          padding:1px 8px; margin:2px 3px 0 0; }
+  .chip b { cursor:pointer; color:#c98; }
+  #msg { margin-left:auto; font-size:12px; }
+  .cap { font-size:11px; color:#9aa2ad; padding:3px 2px; }
+</style>
+
+<header>
+  <h1>프로파일 에디터</h1>
+  <label>기기 <select id="pid"></select></label>
+  <label>장수 <select id="n"><option>3</option><option selected>4</option>
+    <option>6</option></select></label>
+  <label>시드 <input id="seed" type="number" value="9150" style="width:88px"></label>
+  <button id="reroll">다른 값으로</button>
+  <button id="revert" class="warn">덮어쓰기 버리기</button>
+  <button id="save" class="go">저장</button>
+  <span id="msg" class="muted"></span>
+</header>
+
+<main>
+  <div class="col" id="realcol">
+    <div class="cap" id="realhead">실촬</div>
+    <img id="realimg" alt="">
+    <div class="row"><div class="v">
+      <button id="rprev">◀</button><span id="rpos" class="muted"></span>
+      <button id="rnext">▶</button>
+    </div></div>
+    <div class="cap" id="realcap"></div>
+    <div class="cap muted">눈으로 대조만 한다 — 여기서 값을 재지 않는다.</div>
+  </div>
+  <div class="col" id="form"></div>
+  <div class="col" id="shots"></div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+// BASE 는 정본(synth_profiles.py), OV 는 덮어쓰기. 화면은 둘을 합친 것을
+// 보여 주고, 저장은 OV 만 쓴다 — 무엇이 사람 판단이고 무엇이 에디터 산물인지
+// 구분이 남아야 한다.
+let ST = { pid:"", base:{}, reg:{}, ov:{profile:{}, regions:{}},
+           real:{ids:[], labeled:[], i:0, device:null} };
+let SC = { regions:{}, fields:{}, scalars:{}, templates:{}, element_help:{},
+           icon_kinds:[], icon_pos:[] };
+let TMR = null;
+
+function merged() {
+  const p = Object.assign({}, ST.base, ST.ov.profile || {});
+  const r = Object.assign({}, ST.reg,  ST.ov.regions || {});
+  for (const k of Object.keys(p)) if (p[k] === null) delete p[k];
+  return { profile:p, regions:r };
+}
+
+function isOv(root, k1, k2) {
+  const o = root === "regions" ? ST.ov.regions : ST.ov.profile;
+  if (!o || !(k1 in o) || o[k1] === null) return false;
+  return k2 === undefined || (o[k1] && typeof o[k1] === "object" && k2 in o[k1]);
+}
+
+// 덮어쓰기는 **요소 단위 얕은 병합**이다(synth_overrides 머리말). 키 하나를
+// 고쳐도 그 요소 전체를 합쳐서 넣는다 — 서버가 부분 병합을 하지 않는다.
+function setVal(root, k1, k2, v) {
+  const dst = root === "regions" ? (ST.ov.regions = ST.ov.regions || {})
+                                 : (ST.ov.profile = ST.ov.profile || {});
+  if (k2 === undefined) { dst[k1] = v; return; }
+  const src = root === "regions" ? merged().regions : merged().profile;
+  const cur = Object.assign({}, src[k1] || {});
+  cur[k2] = v;
+  dst[k1] = cur;
+}
+
+// ── 위젯 ───────────────────────────────────────────────────────────────
+function mkRow(label, marked) {
+  const row = document.createElement("div"); row.className = "row";
+  const k = document.createElement("div");
+  k.className = "k" + (marked ? " ovr" : ""); k.textContent = label;
+  const v = document.createElement("div"); v.className = "v";
+  row.append(k, v); return { row, v };
+}
+
+// 값 아래에 뜻을 적는다. 설명은 스키마(파이썬)에서 온다 — 값을 소비하는
+// 코드 옆에 있어야 갈라지지 않는다.
+function withHelp(row, spec) {
+  if (!spec || !spec.help) return row;
+  const box = document.createElement("div");
+  const h = document.createElement("div");
+  h.className = "cap"; h.style.cssText = "margin:0 0 4px 110px;color:#71787f";
+  h.textContent = spec.help;
+  box.append(row, h); return box;
+}
+
+function numWidget(v, spec, onSet) {
+  const box = document.createElement("div");
+  box.style.cssText = "display:flex;gap:5px;flex:1;align-items:center";
+  const sp = spec || {};
+  const rg = document.createElement("input"); rg.type = "range";
+  const nb = document.createElement("input"); nb.type = "number";
+  const mn = sp.min !== undefined ? sp.min : 0;
+  const mx = sp.max !== undefined ? sp.max : 1;
+  const st = sp.step !== undefined ? sp.step : 0.01;
+  for (const e of [rg, nb]) { e.min = mn; e.max = mx; e.step = st; e.value = v; }
+  const sync = src => { const x = parseFloat(src.value);
+    rg.value = x; nb.value = x; onSet(x); schedule(); };
+  rg.oninput = () => sync(rg); nb.oninput = () => sync(nb);
+  box.append(rg, nb); return box;
+}
+
+function enumWidget(v, opts, onSet) {
+  const s = document.createElement("select");
+  const list = opts.slice();
+  if (v !== undefined && v !== null && !list.includes(v)) list.unshift(v);
+  list.forEach(o => s.append(new Option(o, o)));
+  s.value = v;
+  s.onchange = () => { onSet(s.value); schedule(); };
+  return s;
+}
+
+function strsWidget(arr, onSet) {
+  // 문자열 목록 — 칩으로 보여 주고 하나씩 지우거나 더한다.
+  const box = document.createElement("div");
+  box.style.cssText = "flex:1;display:flex;flex-wrap:wrap;align-items:center";
+  const cur = Array.isArray(arr) ? arr.slice() : [];
+  cur.forEach((t, i) => {
+    const c = document.createElement("span"); c.className = "chip";
+    c.append(document.createTextNode(t));
+    const x = document.createElement("b"); x.textContent = "×";
+    x.onclick = () => { cur.splice(i, 1); onSet(cur); schedule(); build(); };
+    c.append(x); box.append(c);
+  });
+  const add = document.createElement("input");
+  add.type = "text"; add.placeholder = "+ 추가"; add.style.width = "92px";
+  add.onkeydown = e => {
+    if (e.key !== "Enter" || !add.value.trim()) return;
+    cur.push(add.value.trim()); onSet(cur); schedule(); build();
+  };
+  box.append(add); return box;
+}
+
+function enumsWidget(arr, opts, onSet) {
+  // 여러 개 고르기(arrow.kinds 등).
+  const box = document.createElement("div");
+  box.style.cssText = "flex:1;display:flex;flex-wrap:wrap;align-items:center";
+  const cur = Array.isArray(arr) ? arr.slice() : [];
+  cur.forEach((t, i) => {
+    const c = document.createElement("span"); c.className = "chip";
+    c.append(document.createTextNode(t));
+    const x = document.createElement("b"); x.textContent = "×";
+    x.onclick = () => { cur.splice(i, 1); onSet(cur); schedule(); build(); };
+    c.append(x); box.append(c);
+  });
+  const sel = document.createElement("select");
+  sel.append(new Option("+ 추가", ""));
+  opts.filter(o => !cur.includes(o)).forEach(o => sel.append(new Option(o, o)));
+  sel.onchange = () => { if (!sel.value) return;
+    cur.push(sel.value); onSet(cur); schedule(); build(); };
+  box.append(sel); return box;
+}
+
+function numsWidget(arr, spec, onSet) {
+  const box = document.createElement("div");
+  box.style.cssText = "flex:1;display:flex;flex-wrap:wrap;gap:4px";
+  const cur = (Array.isArray(arr) ? arr : []).slice();
+  cur.forEach((v, i) => {
+    const w = document.createElement("div");
+    w.style.cssText = "display:flex;flex-direction:column;align-items:center";
+    const nb = document.createElement("input");
+    nb.type = "number"; nb.style.width = "68px";
+    if (spec.min !== undefined) nb.min = spec.min;
+    if (spec.max !== undefined) nb.max = spec.max;
+    nb.step = spec.step !== undefined ? spec.step : 0.005;
+    nb.value = v;
+    nb.oninput = () => { cur[i] = parseFloat(nb.value); onSet(cur.slice()); schedule(); };
+    const lb = document.createElement("div");
+    lb.className = "cap"; lb.style.padding = "0";
+    lb.textContent = (spec.labels || [])[i] || ("#" + i);
+    w.append(nb, lb); box.append(w);
+  });
+  return box;
+}
+
+function widget(val, spec, onSet) {
+  const t = spec && spec.t;
+  if (t === "num")   return numWidget(val, spec, onSet);
+  if (t === "enum")  return enumWidget(val, spec.opts || [], onSet);
+  if (t === "enums") return enumsWidget(val, spec.opts || [], onSet);
+  if (t === "strs")  return strsWidget(val, onSet);
+  if (t === "nums")  return numsWidget(val, spec, onSet);
+  if (t === "bool" || typeof val === "boolean") {
+    const c = document.createElement("input"); c.type = "checkbox";
+    c.checked = !!val;
+    c.onchange = () => { onSet(c.checked); schedule(); };
+    return c;
+  }
+  if (typeof val === "number") return numWidget(val, spec, onSet);
+  const inp = document.createElement("input");
+  inp.type = "text";
+  const isArr = Array.isArray(val);
+  inp.value = isArr ? JSON.stringify(val) : String(val);
+  inp.oninput = () => {
+    let v = inp.value;
+    if (isArr) { try { v = JSON.parse(inp.value); } catch (e) { return; } }
+    onSet(v); schedule();
+  };
+  return inp;
+}
+
+// ── 아이콘 목록은 (종류, 자리, 확률) 삼중항이라 따로 그린다 ──────────────
+function iconsEditor(list) {
+  const box = document.createElement("div");
+  const cur = (list || []).map(x => x.slice());
+  const push = () => { setVal("profile", "icons", undefined, cur.slice());
+                       schedule(); build(); };
+  cur.forEach((tri, i) => {
+    const { row, v } = mkRow("#" + (i + 1), false);
+    v.append(enumWidget(tri[0], SC.icon_kinds, x => { cur[i][0] = x; push(); }));
+    v.append(enumWidget(tri[1], SC.icon_pos, x => { cur[i][1] = x; push(); }));
+    const nb = document.createElement("input");
+    nb.type = "number"; nb.min = 0; nb.max = 1; nb.step = 0.05;
+    nb.value = tri[2]; nb.style.width = "62px";
+    nb.oninput = () => { cur[i][2] = parseFloat(nb.value); push(); };
+    v.append(nb);
+    const del = document.createElement("button");
+    del.textContent = "×";
+    del.onclick = () => { cur.splice(i, 1); push(); };
+    v.append(del);
+    box.append(row);
+  });
+  const add = document.createElement("button");
+  add.textContent = "＋ 아이콘";
+  add.onclick = () => { cur.push([SC.icon_kinds[0], "top-right", 1.0]); push(); };
+  box.append(add);
+  return box;
+}
+
+// ── 요소 묶음: 제목 옆 체크박스가 켜고 끈다 ─────────────────────────────
+function elementGroup(key, obj, present) {
+  const g = document.createElement("div");
+  g.className = "grp" + (present ? "" : " off");
+  const h = document.createElement("div"); h.className = "h";
+  const ck = document.createElement("input");
+  ck.type = "checkbox"; ck.checked = present;
+  ck.onchange = () => {
+    if (ck.checked) {
+      // 정본에 있던 요소면 그 값을, 없던 요소면 기본값을 넣는다.
+      const from = (ST.base[key] !== undefined) ? ST.base[key]
+                                                : SC.templates[key];
+      setVal("profile", key, undefined,
+             JSON.parse(JSON.stringify(from === undefined ? {} : from)));
+    } else {
+      setVal("profile", key, undefined, null);   // null = 이 키를 지운다
+    }
+    build(); schedule();
+  };
+  h.append(ck, document.createTextNode(key));
+  if (isOv("profile", key)) { const d = document.createElement("span");
+    d.className = "ovr"; d.textContent = "●"; h.append(d); }
+  g.append(h);
+  if (SC.element_help && SC.element_help[key]) {
+    const e = document.createElement("div");
+    e.className = "cap"; e.style.cssText = "margin:0 0 4px 22px;color:#71787f";
+    e.textContent = SC.element_help[key];
+    g.append(e);
+  }
+  if (!present) return g;
+
+  if (key === "icons") { g.append(iconsEditor(obj)); return g; }
+
+  const spec = SC.fields[key] || {};
+  if (obj !== null && typeof obj === "object" && !Array.isArray(obj)) {
+    for (const k of Object.keys(obj)) {
+      const { row, v } = mkRow(k, isOv("profile", key, k));
+      v.append(widget(obj[k], spec[k], x => setVal("profile", key, k, x)));
+      g.append(withHelp(row, spec[k]));
+    }
+    // 스키마에 있는데 아직 안 쓴 키를 더할 수 있게
+    const missing = Object.keys(spec).filter(k => !(k in obj));
+    if (missing.length) {
+      const { row, v } = mkRow("+ 항목", false);
+      const sel = document.createElement("select");
+      sel.append(new Option("고르기", ""));
+      missing.forEach(k => sel.append(new Option(k, k)));
+      sel.onchange = () => {
+        if (!sel.value) return;
+        const sp = spec[sel.value] || {};
+        const init = sp.t === "strs" || sp.t === "enums" ? []
+                   : sp.t === "enum" ? (sp.opts || [""])[0]
+                   : sp.t === "nums" ? new Array(sp.n || 2).fill(0)
+                   : sp.t === "str" ? ""
+                   : sp.t === "bool" ? true
+                   : (sp.min !== undefined ? sp.min : 0);
+        setVal("profile", key, sel.value, init); build(); schedule();
+      };
+      v.append(sel); g.append(row);
+    }
+  } else {
+    const { row, v } = mkRow("값", isOv("profile", key));
+    v.append(widget(obj, SC.scalars[key], x => setVal("profile", key, undefined, x)));
+    g.append(row);
+  }
+  return g;
+}
+
+function build() {
+  const m = merged(); const f = $("form"); f.innerHTML = "";
+  const note = document.createElement("div");
+  note.className = "muted";
+  note.innerHTML = "체크를 끄면 그 요소가 빠진다. 노란 ● = 덮어쓰기.<br>" +
+    "숫자 크기는 <b>폭</b>이 정한다: h = W / (칸수·cell·glyph + 자간 + 여백). " +
+    "cell 을 줄이면 숫자가 커지고, glyph 를 줄이면 자간만 벌어진다.<br>" +
+    "저장은 synth_overrides.json 에만 쓴다 — 정본은 손대지 않는다.";
+  f.append(note);
+
+  // 영역
+  const rg = document.createElement("div"); rg.className = "grp";
+  const rh = document.createElement("div"); rh.className = "h";
+  rh.textContent = "영역 (REGIONS)"; rg.append(rh);
+  const rkeys = Object.keys(SC.regions).filter(k => k in m.regions)
+    .concat(Object.keys(m.regions).filter(k => !(k in SC.regions)));
+  for (const k of rkeys) {
+    const { row, v } = mkRow(k, isOv("regions", k));
+    v.append(widget(m.regions[k], SC.regions[k],
+                    x => setVal("regions", k, undefined, x)));
+    rg.append(withHelp(row, SC.regions[k]));
+  }
+  for (const k of Object.keys(SC.regions)) {
+    if (k in m.regions) continue;
+    const { row, v } = mkRow(k, false);
+    const b = document.createElement("button"); b.textContent = "＋ 넣기";
+    b.onclick = () => { const sp = SC.regions[k];
+      setVal("regions", k, undefined,
+             sp.t === "nums" ? new Array(sp.n).fill(0) : 0);
+      build(); schedule(); };
+    v.append(b); rg.append(row);
+  }
+  f.append(rg);
+
+  // 낱값
+  const sg = document.createElement("div"); sg.className = "grp";
+  const sh = document.createElement("div"); sh.className = "h";
+  sh.textContent = "칸 기하 · 낱값"; sg.append(sh);
+  for (const k of Object.keys(SC.scalars)) {
+    const has = k in m.profile;
+    const { row, v } = mkRow(k, isOv("profile", k));
+    if (has) {
+      v.append(widget(m.profile[k], SC.scalars[k],
+                      x => setVal("profile", k, undefined, x)));
+      const off = document.createElement("button");
+      off.textContent = "×"; off.title = "정본에서 빼기";
+      off.onclick = () => { setVal("profile", k, undefined, null);
+                            build(); schedule(); };
+      v.append(off);
+    } else {
+      const b = document.createElement("button"); b.textContent = "＋ 넣기";
+      b.onclick = () => { const sp = SC.scalars[k];
+        setVal("profile", k, undefined,
+               sp.t === "enum" ? sp.opts[0] : sp.t === "bool" ? true
+               : (SC.templates[k] !== undefined ? SC.templates[k] : sp.min));
+        build(); schedule(); };
+      v.append(b);
+    }
+    sg.append(withHelp(row, SC.scalars[k]));
+  }
+  f.append(sg);
+
+  // 요소 — 정본에 있는 것 + 스키마가 아는 것 전부. 체크박스로 켜고 끈다.
+  const keys = Array.from(new Set(
+    Object.keys(SC.fields).concat(["icons"])
+      .concat(Object.keys(m.profile).filter(k =>
+        !(k in SC.scalars) && !["id", "evidence", "layout"].includes(k)))));
+  for (const k of keys) f.append(elementGroup(k, m.profile[k], k in m.profile));
+}
+
+function schedule() { clearTimeout(TMR); TMR = setTimeout(preview, 350); }
+
+async function preview() {
+  $("msg").textContent = "그리는 중…";
+  const r = await fetch("/api/prof/preview", { method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ pid:ST.pid, profile:ST.ov.profile,
+      regions:ST.ov.regions, seed:parseInt($("seed").value, 10),
+      n:parseInt($("n").value, 10) }) });
+  const j = await r.json();
+  if (j.error) { $("msg").textContent = "오류: " + j.error; return; }
+  $("msg").textContent = "";
+  const box = $("shots"); box.innerHTML = "";
+  j.shots.forEach(s => {
+    const wrap = document.createElement("div");
+    const cv = document.createElement("canvas");
+    const im = new Image();
+    im.onload = () => {
+      cv.width = s.w; cv.height = s.h;
+      const c = cv.getContext("2d");
+      c.drawImage(im, 0, 0);
+      c.strokeStyle = "#32d74b"; c.lineWidth = Math.max(2, s.w / 220);
+      c.beginPath();
+      s.quad.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]));
+      c.closePath(); c.stroke();
+    };
+    im.src = s.png;
+    const cap = document.createElement("div");
+    cap.className = "cap";
+    cap.textContent = "값 " + s.label + " · " +
+      Array.from(new Set(s.rects.map(r => r[4]))).sort().join(" ");
+    wrap.append(cv, cap);
+    // 선언했는데 자리가 없어 빠진 요소. 이걸 안 보여 주면 값을 고쳐도
+    // 화면이 그대로라 "안 먹는다"로 읽힌다.
+    if (s.dropped && s.dropped.length) {
+      const d = document.createElement("div");
+      d.className = "cap"; d.style.color = "#ff6b6b";
+      d.textContent = "빠짐: " + s.dropped.join(" ") + " (자리가 없다)";
+      wrap.append(d);
+    }
+    box.append(wrap);
+  });
+}
+
+async function loadReal() {
+  const j = await (await fetch("/api/synth/real?profile=" +
+                   encodeURIComponent(ST.pid))).json();
+  ST.real = { ids:j.ids || [], labeled:j.labeled || [], i:0, device:j.device };
+  $("realhead").textContent = "실촬 — " + (ST.real.device || "(기기 연결 없음)");
+  showReal();
+}
+
+function showReal() {
+  const R = ST.real;
+  if (!R.ids.length) {
+    $("realimg").removeAttribute("src"); $("rpos").textContent = "0 / 0";
+    $("realcap").textContent = R.device ? "이 기기의 사진이 없다"
+                                        : "특정 기기에 묶이지 않은 풀이다";
+    return;
+  }
+  const id = R.ids[R.i];
+  $("realimg").src = "/photo?id=" + encodeURIComponent(id) + "&w=620";
+  $("rpos").textContent = (R.i + 1) + " / " + R.ids.length;
+  $("realcap").textContent = id + (R.labeled.includes(id)
+    ? " · 사람 밴드 라벨 있음" : " · 라벨 없음");
+}
+
+async function loadProfile(pid) {
+  const j = await (await fetch("/api/prof/get?pid=" +
+                   encodeURIComponent(pid))).json();
+  ST.pid = j.pid; ST.base = j.profile || {}; ST.reg = j.regions || {};
+  ST.ov = { profile:(j.override || {}).profile || {},
+            regions:(j.override || {}).regions || {} };
+  build(); await Promise.all([preview(), loadReal()]);
+}
+
+async function boot() {
+  SC = await (await fetch("/api/prof/schema")).json();
+  const j = await (await fetch("/api/prof/get")).json();
+  const sel = $("pid");
+  (j.ids || []).forEach(x => sel.append(new Option(x, x)));
+  await loadProfile(sel.value);
+  sel.onchange = () => loadProfile(sel.value);
+  $("n").onchange = preview;
+  $("seed").oninput = schedule;
+  $("reroll").onclick = () => {
+    $("seed").value = Math.floor(Math.random() * 90000) + 1000; preview(); };
+  $("rprev").onclick = () => { const R = ST.real; if (R.ids.length) {
+    R.i = (R.i - 1 + R.ids.length) % R.ids.length; showReal(); } };
+  $("rnext").onclick = () => { const R = ST.real; if (R.ids.length) {
+    R.i = (R.i + 1) % R.ids.length; showReal(); } };
+  $("revert").onclick = async () => {
+    if (!confirm(ST.pid + " 의 덮어쓰기를 전부 버린다. 정본 값으로 돌아간다.")) return;
+    ST.ov = { profile:{}, regions:{} };
+    await fetch("/api/prof/save", { method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ pid:ST.pid }) });
+    await loadProfile(ST.pid);
+  };
+  $("save").onclick = async () => {
+    const r = await fetch("/api/prof/save", { method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ pid:ST.pid, profile:ST.ov.profile,
+                             regions:ST.ov.regions }) });
+    const x = await r.json();
+    $("msg").textContent = x.ok
+      ? "저장했다 → " + x.path + " (" + x.n + "개 기기). 다시 구우면 반영된다."
+      : "저장 실패: " + (x.error || "");
+  };
+}
+boot();
+</script>
