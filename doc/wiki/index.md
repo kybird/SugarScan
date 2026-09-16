@@ -33,15 +33,18 @@ tags: [index]
 | [[cursor-holdback-for-skipped-rows]] | 델타 커서를 어디까지 미느냐는 **왜 건너뛰었는지에 따라 정반대**다. | 커서 홀드백, delta cursor, SyncCursorStore, _pull, _apply, updated_at, skippedFrom |
 | [[declare-what-the-human-knows]] | 도메인 사실(기기의 성질·부품의 종류·문서의 종류)을 사람이 이미 안다면, | 사람이 아는 것은 선언한다, 재지 말고 라벨, 도메인 사실은 라벨, declare not measure |
 | [[dry-run-before-repair]] | 사람이 만든 데이터를 되돌리는 스크립트는 **기본 동작이 "계산만"** 이어야 한다. | 복구 스크립트 규약, --apply, 백업 후 수정, repair_prevframe_labels.py, repair_unrotated_band_labels.py |
+| [[enumerate-what-the-code-branches-on]] | 설정값이 자유 입력이면 오타가 **에러가 아니라 옛 동작**으로 떨어진다. |  |
 | [[frame-provenance-binding]] | 좌표를 다루는 상태에는 **그 좌표계가 누구의 것인지**를 함께 들고 다닌다. | 프레임 이름표, frame-id-binding, 좌표계 귀속, applyImage, frameGuard, lb.frameId, webtool.html |
 | [[generation-token]] | 비동기 작업을 시작할 때 세대 번호를 찍고, 결과를 반영하기 전에 **그 세대가 아직 유효한지** 확인한다. | 세대 토큰, 세션 토큰, stale-response-guard, lb.gen, _session, GlucoseScanner.offer, show() |
 | [[measure-the-premise-not-just-the-claim]] | 기록된 결정은 "무엇을 정했나"와 "왜 그렇게 정했나"를 함께 담는다. | 전제, 근거가 낡았다, 결론은 맞는데 이유가 틀렸다, D-2, 상태 공간, 결정 재검토 |
 | [[no-real-photo-ruler-for-synth]] | 합성 데이터의 설계값(요소 자리, 여백, 간격, 기기 속성)을 실촬 사진을 재서 |  |
 | [[open-upper-bound-for-live-window]] | "최근 N일" 같은 살아 있는 기간 질의는 **위쪽 경계를 열어 둔다.** 상한에 "지금"을 넣지 않는다. | 열린 상한, 기간 질의, statsReadingsProvider, watchBetween, refreshStatsProvider |
 | [[push-over-pull-for-prevention]] | **검색은 pull 이다 — 물어볼 줄 알아야 걸린다.** 예방이 목적이라면 검색에 기대면 안 된다. | 푸시 우선, 트리거 표, CLAUDE.md 표, AGENTS.md, 예방은 검색으로 안 된다 |
+| [[reserve-by-the-widest-value]] | 길이가 변하는 내용(날짜 `9-3` ~ `12-25`, 값 `88` ~ `511`)을 **실제 값**으로 |  |
 | [[row-level-decode-tolerance]] | 배치에서 행 하나를 해석하지 못했다고 배치 전체를 실패시키지 않는다. **관용의 단위는 행이다.** | 행 단위 관용, poison-row 방어, ReadingPage, fetchUpdatedSince, fetchedRows, malformed, ReadingDto.fromJson |
 | [[scene-component-split]] | 세션 메타데이터(촬영 시각·기기 id)가 없는 코퍼스에서는 **픽셀 유사도의 연결요소**를 | 장면 성분 분할, 그룹 분할, 연결요소 분할, scene split, session-aware split, grouped split |
 | [[server-side-write-verification]] | 클라이언트가 "무엇을 기준으로 만든 값인지"를 함께 보내게 하고, **서버가 정본에서 직접 재확인한 뒤에만** 기록한다. | 저장 검문, 쓰기 검증, 409 거부, _verify_frame, /api/label, webtool.py, 409 |
+| [[split-rng-per-independent-axis]] | 한 난수열을 여러 축이 나눠 쓰면, 한 축이 난수를 하나 더 소비하는 것만으로 |  |
 | [[target-defined-by-the-label-not-the-generator]] | 합성으로 학습해 실촬을 맞히는 것이 목표라면, **무엇을 맞힐 것인가의 정의는 |  |
 | [[tolerant-decode-with-preservation]] | 모르는 값을 만나면 **관용하되 보존한다.** 기본값으로 치환하고 그대로 되돌려 쓰면, 관용이 곧 데이터 파괴가 된다. | 관용 디코드, unknown 보존, additive-only, fromWireName, orElse, MeasurementTag, ReadingSource, GlucoseUnit |
 | [[verify-premises-before-executing]] | 지시서를 받으면 **적힌 대로 하기 전에 전제가 사실인지 먼저 잰다.** 지시서를 쓴 | 전제 실측, 지시서 검증, 요약 먼저, 위임 안전장치 |
@@ -60,6 +63,7 @@ tags: [index]
 | [[contract-guard-too-narrow]] | "이 메서드는 예외를 던지지 않는다"고 문서에 적어 두고, `try` 는 **위험해 보이는 호출 하나만** 감싸는 것. | 좁은 try, 계약보다 좁은 방어, GlucoseScanner.offer, _recognizeSafely, glucose_scanner.dart |
 | [[count-rows-not-entities]] | 아웃박스는 변경마다 행을 쌓지만, 서버로는 **현재 상태 한 번**만 간다. | 대기 n건 오표시, 큐 행 세기, pendingSyncCountProvider, syncMaxAttemptsProvider, syncOutboxRows, blockedCount, providers.dart |
 | [[coupled-budget-loop-defeats-per-element-tuning]] | "목표치에 닿을 때까지 뽑는다"는 루프에서는 요소들의 출현 확률이 **독립이 아니다.** | 총량 제약 루프, 확률만 조정, 밀도 채움 회귀, coupled budget loop, 풍선 효과 |
+| [[declaration-not-read-by-the-consumer]] | 설정·프로파일에 값을 적어 두면 그 값이 쓰인다고 믿게 된다. |  |
 | [[degradation-past-legibility]] | 증강은 강할수록 강건해진다는 직관이 있다. | 열화 상한, 증강 과다, 읽을 수 없는 표본, 라벨 잡음, illegible |
 | [[device-fixed-to-a-single-point]] | 합성 데이터에서 각 클래스(여기서는 기기)를 **측정 중앙값 한 점**으로 고정한다. | 기기 한 점 고정, 중앙값으로 못박기, 다양성 손실, single point per class |
 | [[discovery-ruler-used-as-acceptance-gate]] | 이상한 것을 **골라내려고** 만든 자는 대개 상대 기준이다. | 발견용 자를 합격 판정에 쓴다, 상대 문턱, 0 이 안 나오는 자, 걸린 장 수, 남은 다섯장, discovery ruler as gate |
@@ -90,6 +94,7 @@ tags: [index]
 | [[reset-clears-in-flight-lock]] | ```dart | reset 이 잠금을 푸는 것, _busy = false, FrameThrottler, frame_throttler.dart, _busy, reset(), isBusy |
 | [[sampled-uniformity-as-proof]] | 묶음이 균일한지 표본으로 확인하는 절차는 **반례를 못 찾았다**는 사실만 만든다. | 표본으로 균일성 확인, 사분위 표본, 거대 성분 점검, 반례 못 찾음, 4표본, spot check as proof |
 | [[shared-state-split-by-worktree]] | 작업 보드·클레임·활동 로그는 "어느 브랜치에서 보든 같아야" 하는 값이다. | 워크트리, git worktree, 보드가 갈린다, 칸반 충돌, 공유 상태 |
+| [[silent-drop-on-placement-failure]] | 배치기가 자리를 못 찾으면 그 요소를 **그리지 않고 넘어간다.** 산출물에는 |  |
 | [[stale-baseline-quoted-as-current]] | 파이프라인을 갈아엎고 나면 옛 성적은 **다른 모델이 다른 데이터로 다른 시험지를 | 옛 기준선 인용, 폐기된 수치, 기준선 혼동, stale baseline, 재구축 전 수치, 갈아엎기 전 성적, 옛 모델 수치 |
 | [[stale-client-writes]] | 브라우저에 어느 버전의 JS 가 떠 있는지 **아무도 모르는 상태**로 저장 요청을 받는 것. | 낡은 탭 쓰기, stale build, Cache-Control, no-store, webtool.html, /api/build |
 | [[string-identity-for-label-class]] | 도메인에서 같은 것(같은 annunciator, 같은 표시등)이 **표기 변형** 때문에 문자열로는 | 문자열 동일성, 표기 변형 중복, used_texts, string identity, 라벨 부류 |
@@ -113,7 +118,7 @@ tags: [index]
 ## Statistics
 
 - Total concepts: 9
-- Total patterns: 18
-- Total anti-patterns: 48
+- Total patterns: 21
+- Total anti-patterns: 50
 - Total answers: 0
 - Last updated: 2026-09-15
