@@ -191,6 +191,12 @@ def main():
                     help="N 에폭마다 체크포인트를 남긴다(0=끝에만). 밤샘 학습이 "
                          "중간에 죽어도 거기까지가 남고, 과적합 구간을 "
                          "되짚을 수 있다. 파일명은 <out 어간>_e<에폭>.pt")
+    ap.add_argument("--limit", type=int, default=0,
+                    help="코퍼스 앞쪽 N 장만 쓴다(0=전량). 데이터 양 스윕을 "
+                         "**한 코퍼스의 중첩 부분집합**으로 돌리기 위한 것이다 "
+                         "— 크기마다 따로 구우면 난수열이 갈려 '양의 효과'와 "
+                         "'다른 그림의 효과'가 섞인다. sanity-val 은 같은 "
+                         "부분집합에서 뗀다.")
     ap.add_argument("--arch", default="fc", choices=sorted(ARCHS),
                     help="fc=구판(Flatten+Linear) · heat=히트맵+soft-argmax. "
                          "구판 체크포인트 아홉 개가 fc 라 기본을 바꾸지 않는다")
@@ -200,8 +206,11 @@ def main():
             (Path(args.data) / "manifest.jsonl").read_text(
                 encoding="utf-8").splitlines() if l.strip()]
     random.Random(0).shuffle(rows)
+    if args.limit and args.limit < len(rows):
+        rows = rows[:args.limit]
     val_rows, train_rows = rows[:args.val], rows[args.val:]
-    print(f"train {len(train_rows)} / sanity-val {len(val_rows)}")
+    print(f"train {len(train_rows)} / sanity-val {len(val_rows)}"
+          + (f"  (코퍼스 {args.data} 앞 {args.limit}장)" if args.limit else ""))
     tr = DataLoader(SynthBandSet(args.data, train_rows, True),
                     batch_size=args.batch, shuffle=True, num_workers=4,
                     drop_last=True)

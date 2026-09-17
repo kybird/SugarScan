@@ -44,6 +44,12 @@ DEVICE_LABELS = HERE / "device_labels.jsonl"
 CKPT = HERE / "band_det_v0.pt"
 
 
+# 가로형 기기 — **선언**이다(사람 기기 라벨의 이름). 측정한 종횡비로 가르지
+# 않는다: 게이트 271장에서 유리 종횡비 1.0~1.5 구간에 GluNEO plus·OneTouch
+# Ultra 같은 **세로형 선언 기기**가 섞여 있고, 1.5 위에는 아래 둘만 있다.
+WIDE_DEVICES = ("OneTouch UltraMini", "이름모를 가로형모델")
+
+
 def _load_jsonl(p):
     return [json.loads(l) for l in open(p, encoding="utf-8") if l.strip()]
 
@@ -64,6 +70,73 @@ def poly_iou(q1, q2):
     ua = cv2.contourArea(np.asarray(q1, np.float32)) + \
         cv2.contourArea(np.asarray(q2, np.float32)) - ia
     return float(ia / ua) if ua > 0 else 0.0
+
+
+# ── 포함 기준 — 이 게이트의 정본 (2026-09-15) ────────────────────────────
+# 사람 지침: "게이트는 숫자를 전부 포함 여부이다. 노이즈가 끼든 안 끼든 일단
+# 숫자는 다 포함해야 할 것 아니냐. 넉넉하게 포함하든 타이트하게 포함하든
+# 잘리지는 말아야지."
+#
+# IoU 를 정본으로 쓰면 안 되는 이유는 **자에 천장이 있어서**다. 사람 라벨은
+# 축정렬 직사각형이고 예측은 기울어진 쿼드라, 완벽히 맞춰도 IoU 가 1 이 되지
+# 않는다. 기울기 t, 종횡비 r 일 때 천장은
+#     IoU_max = r / ((cos t + r sin t)(r cos t + sin t))
+# 4° 0.864 · 6° 0.809 · 8° 0.762 · 10° 0.715. 합성 기울기를 넓히면 검출이
+# 좋아져도 이 숫자는 내려간다 — 목표와 반대로 움직이는 대리 지표다.
+#
+# 그래서 **1순위는 포함률**, 2순위는 넓이비(얼마나 넉넉한가), 진단은 변별
+# 삐져나옴이다. IoU 는 옛 판과 잇대어 보라고 남기지만 합격을 정하지 않는다.
+CONTAIN_PASS = 0.999   # 부동소수 오차만 봐준다. 한 획이라도 밖이면 불합격이다.
+
+
+def contain_ratio(pred, label):
+    """사람 라벨 중 예측 **안에** 든 넓이 비율. 1.0 이면 한 획도 안 잘렸다."""
+    a = np.asarray(pred, np.float32).reshape(-1, 1, 2)
+    b = np.asarray(label, np.float32).reshape(-1, 1, 2)
+    ret, inter = cv2.intersectConvexConvex(a, b)
+    lab = cv2.contourArea(np.asarray(label, np.float32))
+    if lab <= 0:
+        return 0.0
+    if not ret or inter.size == 0:
+        return 0.0
+    return float(min(1.0, cv2.contourArea(inter) / lab))
+
+
+def area_ratio(pred, label):
+    """예측 넓이 / 라벨 넓이. 1 보다 크면 넉넉하게 감쌌다는 뜻.
+
+    포함률만 보면 **사진 전체를 찍는 예측이 만점**이다. 이 값이 그걸 막는
+    2순위 지표다 — 합격을 정하지 않고, 같은 포함률끼리 줄을 세운다."""
+    lab = cv2.contourArea(np.asarray(label, np.float32))
+    return float(cv2.contourArea(np.asarray(pred, np.float32)) / lab)         if lab > 0 else 0.0
+
+
+def edge_shortfall(pred, label, n=64):
+    """라벨의 네 변이 예측 밖으로 얼마나 삐져나왔는가 — 변별 최대 거리.
+
+    위/아래는 라벨 **높이** 대비, 좌/우는 라벨 **폭** 대비로 정규화한다.
+    사람이 처음 본 증상이 "좌우 위아래 상관없이 잘린다" 였다 — 어느 변이
+    잘리는지는 합격/불합격보다 고치는 데 필요한 정보다.
+    """
+    lab = np.asarray(label, np.float64)
+    x0, y0 = lab[:, 0].min(), lab[:, 1].min()
+    x1, y1 = lab[:, 0].max(), lab[:, 1].max()
+    w, h = max(1e-6, x1 - x0), max(1e-6, y1 - y0)
+    poly = np.asarray(pred, np.float32).reshape(-1, 1, 2)
+    t = np.linspace(0.0, 1.0, n)
+    sides = {
+        "top":    (np.stack([x0 + t * w, np.full(n, y0)], 1), h),
+        "bottom": (np.stack([x0 + t * w, np.full(n, y1)], 1), h),
+        "left":   (np.stack([np.full(n, x0), y0 + t * h], 1), w),
+        "right":  (np.stack([np.full(n, x1), y0 + t * h], 1), w),
+    }
+    out = {}
+    for name, (pts, unit) in sides.items():
+        d = np.array([cv2.pointPolygonTest(poly, (float(px), float(py)), True)
+                      for px, py in pts])
+        # 음수 = 밖. 가장 깊이 나간 곳을 그 변의 삐져나옴으로 본다.
+        out[name] = round(float(max(0.0, -d.min()) / unit), 4)
+    return out
 
 
 def det_predict(model, gray, dev):
@@ -97,6 +170,12 @@ def main():
     ap.add_argument("--ckpt", default=str(CKPT))
     ap.add_argument("--all-proposals", action="store_true",
                     help="게이트 통과 후 전량 제안(AC#1) — 결과는 _diag 로")
+    ap.add_argument("--portrait-only", action="store_true",
+                    help="가로형 기기를 게이트에서 뺀다(2026-09-16 사람 결정: "
+                         "세로형부터 세운다). 학습에서도 빠져 있어야 한다"
+                         "(synth_panel.EXCLUDE_WIDE) — 한쪽만 빼면 못 배운 "
+                         "것을 채점한다. **표본이 줄므로 이전 판과 나란히 "
+                         "놓고 우열을 말할 수 없다.**")
     ap.add_argument("--tag", default=None,
                     help="결과 디렉터리 이름. 기본은 체크포인트 파일명 어간 — "
                          "여러 체크포인트를 재면서 서로 덮어쓰지 않게 한다")
@@ -155,6 +234,14 @@ def main():
 
         hq = np.asarray(b["quad"], np.float32)
         per_id[pid] = dict(
+            # 1순위 — 사람 라벨을 다 담았는가
+            contain=contain_ratio(q_photo, hq),
+            # 2순위 — 얼마나 넉넉히 담았는가(넓을수록 쓸모가 준다)
+            area=area_ratio(q_photo, hq),
+            edges=edge_shortfall(q_photo, hq),
+            contain_gm=contain_ratio(gm_rect, hq),
+            area_gm=area_ratio(gm_rect, hq),
+            # IoU 는 옛 판과 잇대어 보기 위해 남긴다 — 합격을 정하지 않는다
             iou_det=poly_iou(q_photo, hq),
             iou_gm=poly_iou(gm_rect, hq),
             iou_cv=poly_iou(cv_q_photo, hq) if cv_q_photo is not None else None,
@@ -164,29 +251,71 @@ def main():
                 devices.get(pid)),
         )
 
+    if args.portrait_only:
+        _w = {k: v for k, v in per_id.items() if v["device"] in WIDE_DEVICES}
+        for k in _w:
+            per_id.pop(k)
+        print(f"[gate] 가로형 제외 {len(_w)}장 — 세로형만 채점한다"
+              f"(사람 결정 2026-09-16). 남은 {len(per_id)}장.")
+        print("       **표본이 달라졌다** — 가로형 포함 판의 수치와 나란히 "
+              "놓고 우열을 말하지 않는다.")
+
+    con = np.asarray([v["contain"] for v in per_id.values()])
+    ar = np.asarray([v["area"] for v in per_id.values()])
+    con_gm = np.asarray([v["contain_gm"] for v in per_id.values()])
     ious = np.asarray([v["iou_det"] for v in per_id.values()])
     gms = np.asarray([v["iou_gm"] for v in per_id.values()])
     cvs = np.asarray([v["iou_cv"] for v in per_id.values()
                       if v["iou_cv"] is not None])
-    print(f"== 게이트: 사람 밴드 라벨 join {len(ious)}장 ==")
-    print(f"det  IoU median={np.median(ious):.3f} p10={np.percentile(ious, 10):.3f} "
-          f"p25={np.percentile(ious, 25):.3f} p75={np.percentile(ious, 75):.3f} "
-          f"p90={np.percentile(ious, 90):.3f}")
-    print(f"gm   IoU median={np.median(gms):.3f}   (GM 박스 그대로 — 폴백 하한)")
-    print(f"cv   IoU median={np.median(cvs):.3f} n={len(cvs)}  "
-          f"(고전 CV 파인더 운영점)")
+    npass = int((con >= CONTAIN_PASS).sum())
+    print(f"== 게이트: 사람 밴드 라벨 join {len(con)}장 ==")
+    print("")
+    print("[1순위] 포함 — 사람 라벨을 다 담았는가")
+    print(f"  전부 담음   {npass}/{len(con)}  ({100 * npass / len(con):.1f}%)")
+    print(f"  포함률      median={np.median(con):.4f} "
+          f"p10={np.percentile(con, 10):.4f} min={con.min():.4f}")
+    for thr in (0.999, 0.99, 0.95, 0.90):
+        print(f"    >= {thr:<6} {int((con >= thr).sum()):4d}장 "
+              f"({100 * (con >= thr).mean():.1f}%)")
+    _ar_gm = np.asarray([v["area_gm"] for v in per_id.values()])
+    print(f"  (참고) GM 박스 그대로: 포함률 median={np.median(con_gm):.4f} · "
+          f"넓이비 median={np.median(_ar_gm):.1f}배 — **포함만 보면 만점인 자리**."
+          )
+    print(f"         화면 전체를 찍으면 늘 담는다. 그래서 2순위가 있다.")
+    print("")
+    print("[2순위] 넓이비 — 얼마나 넉넉히 담았는가(예측/라벨)")
+    print(f"  median={np.median(ar):.2f} p10={np.percentile(ar, 10):.2f} "
+          f"p90={np.percentile(ar, 90):.2f} max={ar.max():.2f}")
+    _ok = con >= CONTAIN_PASS
+    if _ok.any():
+        print(f"  합격 장만: median={np.median(ar[_ok]):.2f} "
+              f"p90={np.percentile(ar[_ok], 90):.2f}")
+    print("")
+    print("[진단] 어느 변이 잘리나 — 라벨이 예측 밖으로 나간 깊이(변 길이 대비)")
+    for side in ("top", "bottom", "left", "right"):
+        v = np.asarray([per_id[k]["edges"][side] for k in per_id])
+        print(f"  {side:<7} 잘린 장 {int((v > 0).sum()):4d}  "
+              f"median(잘린 것만)={np.median(v[v > 0]) if (v > 0).any() else 0:.3f}  "
+              f"max={v.max():.3f}")
+    print("")
+    print("[참고] IoU — 옛 판과 잇대어 보는 용도. **합격을 정하지 않는다.**")
+    print(f"  det median={np.median(ious):.3f} p10={np.percentile(ious, 10):.3f} "
+          f"p90={np.percentile(ious, 90):.3f}   gm median={np.median(gms):.3f}"
+          + (f"   cv median={np.median(cvs):.3f} n={len(cvs)}" if len(cvs) else ""))
     slopes = np.abs([v["slope"] for v in per_id.values()])
-    print(f"제안 쿼드 기울기 |deg| >=1: {(slopes >= 1).mean() * 100:.1f}%  "
+    print(f"  제안 쿼드 기울기 |deg| >=1: {(slopes >= 1).mean() * 100:.1f}%  "
           f">=0.5: {(slopes >= 0.5).mean() * 100:.1f}%  (축정렬 퇴화 검사, AC#2)")
 
     by_dev = defaultdict(list)
     for v in per_id.values():
-        by_dev[v["device"]].append(v["iou_det"])
-    print("-- 기기별 det IoU (n>=3, 오름차순 — AC#3) --")
+        by_dev[v["device"]].append(v["contain"])
+    print("")
+    print("-- 기기별 포함률 (n>=3, 오름차순 — AC#3) --")
     for name, vals in sorted(by_dev.items(), key=lambda kv: np.median(kv[1])):
         if len(vals) >= 3:
-            print(f"  {name:30s} n={len(vals):3d}  median={np.median(vals):.3f} "
-                  f"min={min(vals):.3f}")
+            _p = sum(1 for x in vals if x >= CONTAIN_PASS)
+            print(f"  {name:30s} n={len(vals):3d}  median={np.median(vals):.4f} "
+                  f"min={min(vals):.4f}  전부담음 {_p}/{len(vals)}")
 
     out = HERE / "_diag" / (args.tag or Path(args.ckpt).stem)
     out.mkdir(parents=True, exist_ok=True)
@@ -195,7 +324,7 @@ def main():
             f.write(json.dumps(dict(id=pid, **v), ensure_ascii=False) + "\n")
 
     # 눈검증 시트 — 최저 6장 + 중앙 근처 3장
-    order = sorted(per_id, key=lambda k: per_id[k]["iou_det"])
+    order = sorted(per_id, key=lambda k: per_id[k]["contain"])
     picks = order[:6] + order[len(order) // 2 - 1:len(order) // 2 + 2]
     tiles = []
     for pid in picks:
