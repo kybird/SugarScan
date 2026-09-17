@@ -25,7 +25,11 @@ sys.path.insert(0, "D:/tmp/YOLOX")
 from yolox.exp import get_exp  # noqa: E402
 from yolox.utils import postprocess  # noqa: E402
 
-import detect_datumo_gm as D  # _load_bgr · _prep 를 그대로 쓴다
+import detect_datumo_gm as D  # _load_bgr 를 그대로 쓴다
+# 후보 뽑기(모델 적재 + 전처리 + postprocess)는 diag_gm_candidate_tie 에 하나만
+# 둔다. 2026-09-17 에 그 경로를 두 파일이 각자 짜 놨다가 합쳤다
+# ([[duplicated-geometry-implementation]]).
+from diag_gm_candidate_tie import candidates, load_model
 
 HERE = Path(__file__).resolve().parent
 DATUMO = HERE.parent / "upstream" / "datumo"
@@ -57,10 +61,7 @@ def rect(quad):
 
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
-    exp = get_exp("D:/tmp/YOLOX/reading_exp.py", "reading")
-    model = exp.get_model()
-    model.load_state_dict(torch.load(CKPT, map_location="cpu")["model"])
-    model.eval().cuda()
+    model = load_model(CKPT)
 
     base = load_rows(BASE)
     human = load_rows(HUMAN, lambda j: j.get("source") == "human" and j.get("quad"))
@@ -82,20 +83,12 @@ def main():
                    img0, cv2.COLOR_BGR2GRAY).mean()), 1)}
         panels = {}
         for mode in ("stretch", "letterbox"):
-            arr, (sx, sy) = D._prep(img0, 416, mode)
-            x = torch.from_numpy(arr).permute(2, 0, 1)[None].float().cuda()
-            with torch.no_grad():
-                raw = model(x)
-            det = postprocess(raw, 1, CONF_PROBE, 0.45)[0]
-            if det is None or len(det) == 0:
+            cands, _ = candidates(model, img0, 416, mode, CONF_PROBE)
+            if not cands:
                 row[mode] = {"top": 0.0, "n": 0, "box": None}
             else:
-                o = det.cpu().numpy()
-                sc = o[:, 4] * o[:, 5]
-                k = int(np.argmax(sc))
-                b = [float(o[k][0]) * sx, float(o[k][1]) * sy,
-                     float(o[k][2]) * sx, float(o[k][3]) * sy]
-                row[mode] = {"top": float(sc[k]), "n": int(len(o)), "box": b}
+                row[mode] = {"top": cands[0][0], "n": len(cands),
+                             "box": cands[0][1]}
             panels[mode] = row[mode]["box"]
 
             iou = "-"

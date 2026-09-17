@@ -35,6 +35,39 @@ CKPT = HERE / "yolox_out" / "gmscreen_ft3" / "best_ckpt_np1.pth"
 TIE_REL = 0.05      # 상위 두 후보 점수가 이 비율 안이면 '근접 동점'
 
 
+# ── 공용 부품 — GM 검출 후보 뽑기 ────────────────────────────────────────
+# diag_ft3_miss5.py 가 이 둘을 부른다. 같은 추론 경로를 두 파일이 각자 짜면
+# 한쪽만 고쳐져 두 진단이 다른 말을 한다([[duplicated-geometry-implementation]]).
+# 실제로 2026-09-17 에 그렇게 만들었다가 합쳤다.
+
+def load_model(ckpt=None):
+    exp = get_exp("D:/tmp/YOLOX/reading_exp.py", "reading")
+    model = exp.get_model()
+    model.load_state_dict(
+        torch.load(str(ckpt or CKPT), map_location="cpu")["model"])
+    return model.eval().cuda()
+
+
+def candidates(model, img0, imgsz, mode, conf):
+    """(점수 내림차순 [(점수, [x0,y0,x1,y1])], 되돌리는 배율) — 원본 좌표계.
+
+    전처리는 detect_datumo_gm._prep 하나만 쓴다. 여기서 다시 짜지 않는다.
+    """
+    arr, (sx, sy) = D._prep(img0, imgsz, mode)
+    x = torch.from_numpy(arr).permute(2, 0, 1)[None].float().cuda()
+    with torch.no_grad():
+        det = postprocess(model(x), 1, conf, 0.45)[0]
+    if det is None or len(det) == 0:
+        return [], (sx, sy)
+    o = det.cpu().numpy()
+    sc = o[:, 4] * o[:, 5]
+    out = [(float(sc[k]),
+            [float(o[k][0]) * sx, float(o[k][1]) * sy,
+             float(o[k][2]) * sx, float(o[k][3]) * sy])
+           for k in np.argsort(sc)[::-1]]
+    return out, (sx, sy)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ids", required=True, help="쉼표로 구분한 사진 id")
@@ -49,10 +82,7 @@ def main():
             j = json.loads(l)
             rows[j["id"]] = j["image"]
 
-    exp = get_exp("D:/tmp/YOLOX/reading_exp.py", "reading")
-    model = exp.get_model()
-    model.load_state_dict(torch.load(args.ckpt, map_location="cpu")["model"])
-    model.eval().cuda()
+    model = load_model(args.ckpt)
     modes = [m.strip() for m in args.modes.split(",") if m.strip()]
     print(f"체크포인트 {Path(args.ckpt).name} · imgsz {args.imgsz} · 전처리 {modes}")
 
@@ -73,27 +103,19 @@ def main():
                   f"  (작으면 무채색 — 채널 순서 탓을 하기 어렵다)")
 
         for m in modes:
-            arr, (sx, sy) = prepped[m]
-            x = torch.from_numpy(arr).permute(2, 0, 1)[None].float().cuda()
-            with torch.no_grad():
-                det = postprocess(model(x), 1, 0.10, 0.45)[0]
-            if det is None or len(det) == 0:
+            cands, _ = candidates(model, img0, args.imgsz, m, 0.10)
+            if not cands:
                 print(f"  {m:<10} 후보 없음(conf 0.10)")
                 continue
-            o = det.cpu().numpy()
-            sc = o[:, 4] * o[:, 5]
-            order = np.argsort(sc)[::-1][:3]
             print(f"  {m}:")
             areas = []
-            for k in order:
-                bx = [float(o[k][0]) * sx, float(o[k][1]) * sy,
-                      float(o[k][2]) * sx, float(o[k][3]) * sy]
+            for sc_, bx in cands[:3]:
                 w_, h_ = bx[2] - bx[0], bx[3] - bx[1]
                 areas.append(w_ * h_)
-                print(f"     점수 {sc[k]:.4f}  상자 {w_:7.0f}x{h_:<7.0f}"
+                print(f"     점수 {sc_:.4f}  상자 {w_:7.0f}x{h_:<7.0f}"
                       f" at ({bx[0]:.0f},{bx[1]:.0f})")
-            if len(order) >= 2:
-                s1, s2 = sc[order[0]], sc[order[1]]
+            if len(cands) >= 2:
+                s1, s2 = cands[0][0], cands[1][0]
                 rel = (s1 - s2) / max(s1, 1e-9)
                 ar = max(areas[0], areas[1]) / max(min(areas[0], areas[1]), 1e-9)
                 flag = "근접 동점" if rel <= TIE_REL else "명확한 1위"

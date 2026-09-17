@@ -1,6 +1,11 @@
 # assets_dev/train 스크립트 지도
 
-폴더에 파이썬 파일이 52개다. **옮기지 않고 여기서 가른다** — 종결 스크립트도
+폴더에 파이썬 파일이 **111개**다(2026-09-17 실측: `ls *.py | wc -l`).
+아래 「현역 20 / 종결 32」 표는 52개 시점의 것이라 **지금 풀을 덮지 못한다** —
+2026-09-17 추가분은 맨 아래 절에 적었고, 그 사이 기간의 스크립트는 아직
+분류되지 않았다. 표에 없다고 죽은 스크립트라는 뜻이 아니다.
+
+**옮기지 않고 여기서 가른다** — 종결 스크립트도
 형제 모듈(`build_cache_v2`·`eval_reader` 등)을 import 하므로 하위 폴더로 내리면
 실행이 깨진다. 재현성이 이 저장소의 자산이라 그걸 깨지 않는다.
 
@@ -74,3 +79,53 @@
 - 끝난 작업의 판정과 수치: [`docs/DONE.md`](../../docs/DONE.md)
 - 재구축 계획의 정본: [`docs/OCR_REBUILD_PLAN.md`](../../docs/OCR_REBUILD_PLAN.md)
 - 반입 자산 라이선스: [`docs/LICENSES.md`](../../docs/LICENSES.md)
+
+## 2026-09-17 추가 (16) — 어느 물음에 답하는가로 찾는다
+
+무인 루프 한 밤에 늘어난 것들이다. **"무엇을 재고 싶은가"로 고르라** — 이름이
+비슷한 것이 여럿이라 파일명만으로는 안 갈린다.
+
+### 합성 코퍼스를 굽고 내보낸다
+| 파일 | 무엇 |
+|---|---|
+| `build_synth_coco.py` | synth_panel 코퍼스를 YOLOX COCO 로. 세트 A/B/C, 시드 다름. `--verify` 가 같은 파일 안의 자 |
+| `prep_synth_yolox.py` | 세트 A 를 train/val 로 가른다(YOLOX 가 학습 중 mAP 를 재려면 필요) |
+
+### 검출기 — 학습과 추론
+| 파일 | 무엇 |
+|---|---|
+| `yolox_synthband_exp.py` | 합성 밴드 검출기 exp. **저장소 안에 둔 이유는 런을 재현하려고** |
+| `infer_synthband.py` | 합성 밴드 검출기 추론. 전처리는 YOLOX ValTransform 을 그대로 부른다 |
+| `synthband_box_error.py` | 예측 상자의 오차 분포. **밴드 포함률과 숫자 필드 포함률을 가른다**(정답 밴드는 여백을 미리 뗀다) |
+| `migrate_ckpt_numpy1.py` | numpy 2.x 로 절인 옛 체크포인트를 지금 환경에서 열리게 다시 절인다 |
+
+### GM 검출 진단 — **셋이 층위가 다르다. 헷갈리기 쉬운 자리**
+| 파일 | 답하는 물음 | 범위 |
+|---|---|---|
+| `gm_preproc_ab.py` | "어느 전처리가 나은가" | 전량 · 팔 여러 개 · 사람 라벨 IoU. `--paired` 는 승·패·무, `--wide-detail` 은 가로 층 |
+| `diag_gm_candidate_tie.py` | "이 장에서 왜 상자가 흔들렸나" | **장 단위** · 후보 점수와 상자를 직접 덤프 · 1·2위 점수차와 넓이비 |
+| `diag_ft3_miss5.py` | "ft3 가 놓친 그 5장은 임계 탈락인가 후보 부재인가" | 그 5장 고정 · 몽타주 + 모집단 대조 |
+
+> 후보 뽑기(모델 적재·전처리·postprocess)는 `diag_gm_candidate_tie` 의
+> `load_model()` · `candidates()` **하나뿐**이고 `diag_ft3_miss5` 가 그것을
+> 부른다. 2026-09-17 에 두 파일이 각자 짜 놓은 것을 합쳤다. 새 진단을 만들 때도
+> 그 둘을 부르고 추론 경로를 다시 짜지 마라.
+
+### 합성 품질 — 재는 자
+| 파일 | 무엇 |
+|---|---|
+| `check_margin_policy.py` | 여백 정책의 **선언값 대 출력값**. 분모는 layout 선언이 없는 프로파일뿐 |
+| `diag_gpc_resolution.py` | 글리프 평면 가드의 **분해능** — 일부러 8px 어긋뜨려 점수가 떨어지는지 본다. 통과율로는 가드 건강을 알 수 없다 |
+| `test_report_drops.py` | `validate_synth_panel.report_drops` 의 시험. 드롭이 0 이면 그 인쇄 경로가 안 돌아서 붙였다 |
+
+### 실사진을 **보는** 판 (재는 자가 아니다)
+| 파일 | 무엇 |
+|---|---|
+| `survey_real_glare.py` | 반사가 뚜렷한 장을 골라 대지로 묶는다. 자는 순위만 매기고 **유형 판정은 사람이 한다** |
+| `make_glyph_compare_sheet.py` | 실사진 vs 합성 글리프를 자릿수별로 나란히·겹쳐 놓는다. 숫자를 내지 않는 것이 의도다 |
+
+### 리더 · 분할
+| 파일 | 무엇 |
+|---|---|
+| `reader_crnn.py` | torch CRNN+CTC 리더. `overfit`(구현 확인) · `train` · `eval` · `measure`(상수 근거) |
+| `build_band_device_split.py` | 밴드 라벨 코퍼스의 기기 단절 분할. 규칙은 `build_device_split` 에서 import 한다 |
