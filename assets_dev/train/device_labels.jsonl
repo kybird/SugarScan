@@ -1,6 +1,6 @@
 {"id": "glucose_batch1/1", "brand": "CareSens", "model": "II", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T18:22:43"}
 {"id": "glucose_batch1/10", "brand": "CareSens II Plus", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T18:04:16"}
-{"id": "glucose_batch1/100", "brand": "Boryung", "model": "CareTouch", "variant": "푸른LCD", "status": "identified", "by": "human", "ts": "2026-09-11T00:42:21"}
+{"id": "glucose_batch1/100", "brand": "Boryung", "model": "CareTouch", "variant": "푸른LCD", "status": "identified", "by": "human", "ts": "2026-09-16T15:54:03"}
 {"id": "glucose_batch1/1000", "brand": "CareSens", "model": "N", "variant": "", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
 {"id": "glucose_batch1/1001", "brand": "HANDOK", "model": "BAROZEN II", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T18:56:04"}
 {"id": "glucose_batch1/1002", "brand": "CareSens", "model": "N", "variant": "", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
