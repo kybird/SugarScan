@@ -1,9 +1,9 @@
 # assets_dev/train 스크립트 지도
 
 폴더에 파이썬 파일이 **111개**다(2026-09-17 실측: `ls *.py | wc -l`).
-아래 「현역 20 / 종결 32」 표는 52개 시점의 것이라 **지금 풀을 덮지 못한다** —
-2026-09-17 추가분은 맨 아래 절에 적었고, 그 사이 기간의 스크립트는 아직
-분류되지 않았다. 표에 없다고 죽은 스크립트라는 뜻이 아니다.
+아래 「현역 20 / 종결 32」 표는 52개 시점의 것이다. 그 뒤에 늘어난 58개는
+맨 아래 두 절에 적었다 — 2026-09-13~16 분(43개)과 2026-09-17 추가분(16개).
+**세 절을 합쳐야 지금 풀을 덮는다.**
 
 **옮기지 않고 여기서 가른다** — 종결 스크립트도
 형제 모듈(`build_cache_v2`·`eval_reader` 등)을 import 하므로 하위 폴더로 내리면
@@ -74,11 +74,78 @@
 | `repair_unrotated_band_labels.py` | 2026-09-02 | 회전 라벨 복구(1회성). 완료 |
 | `tally_wide_survey.py` | 2026-09-04 | 가로 조사 집계. 완료 |
 
-## 관련 문서
+## 2026-09-13~16 분류 (43) — 2026-09-17 감사
 
-- 끝난 작업의 판정과 수치: [`docs/DONE.md`](../../docs/DONE.md)
-- 재구축 계획의 정본: [`docs/OCR_REBUILD_PLAN.md`](../../docs/OCR_REBUILD_PLAN.md)
-- 반입 자산 라이선스: [`docs/LICENSES.md`](../../docs/LICENSES.md)
+52개 시점 이후·어젯밤 이전에 늘어난 것들이다. 가른 **규칙을 먼저 적는다**:
+
+- **현역** — 셋 중 하나라도 참이면 현역이다.
+  ① 다른 파이썬 파일이 import 한다  ② 열린 카드·위키·`OCR_REBUILD_PLAN` 이
+  이름을 댄다  ③ 코드가 이름으로 부른다(`webtool.py` 의 서브프로세스 포함)
+  또는 그 산출 파일을 살아 있는 코드가 읽는다.
+- **종결** — 셋 다 거짓이고 답한 물음이 닫혔다.
+
+③ 을 안 봤으면 다섯 개를 죽은 것으로 잘못 적을 뻔했다 — `band_det_sweep` ·
+`make_band_slot_queue` · `make_wide_review_queue` · `predict_band_quads` 는
+`webtool.py` 가 부르고, `make_real_baseline` 은 `real_baseline.json` 을 네
+스크립트가 읽는다. **import 만 보면 놓친다.**
+
+### 현역 (35)
+
+| 파일 | 무엇 | 왜 현역인가 |
+|---|---|---|
+| `synth_panel.py` | 물리 패널 합성 렌더러 2판 — 합성의 정본 | import 10 · 카드 3 · 위키 5 |
+| `synth_profiles.py` | 기기 프로파일(12종)과 글리프 | import 6 · 카드 2 |
+| `synth_overrides.py` | 프로파일 덮어쓰기 — 웹툴 에디터 저장소 | import 1 |
+| `synth_schema.py` | 프로파일 값의 모양과 뜻 — 에디터 위젯 근거 | 위키 2 |
+| `synth_check.py` | 합성 코퍼스 불변식 검사 — 리팩토링 안전망 | 위키 1 |
+| `validate_synth_panel.py` | 합성 검증 자(AC 판정) | import 1 · 위키 1 |
+| `lcd_layout.py` | LCD 레이아웃 모델 — 영역이 면을 빈틈없이 나눈다 | import 2 · 위키 1 |
+| `test_lcd_layout.py` | lcd_layout 계약 시험 | 위키 1 · CLAUDE.md 가 지목 |
+| `gm_quads.py` | GM 화면 쿼드의 **단일 출처**(사람 라벨 우선) | **import 17** — 가장 많이 불린다 |
+| `band_exclusions.py` | 밴드 라벨에서 뺄 장 — 사람 선언의 단일 출처 | import 8 · 카드 1 · 위키 2 |
+| `measure_panel_stats.py` | 실측 기준선 자(종횡비·밴드·엣지 밀도) | import 6 · 위키 2 |
+| `measure_polarity.py` | 극성·자릿수 실측 자 | import 5 · 카드 1 |
+| `make_real_baseline.py` | `real_baseline.json` 정본 생성기 | 산출을 네 스크립트가 읽는다 |
+| `diag_polarity_bg.py` | 극성 자의 배경 기준을 기기별로 연다 | import 2 |
+| `score_polarity_defs.py` | 극성 정의 셋을 사람 정답에 대조 | 위키 1 |
+| `diag_density_where.py` | 밴드 밖 밀도가 어디서 오는가(링/안쪽) | import 1 |
+| `diag_gpc_threshold.py` | 글리프 평면 잉크 문턱의 자 | `synth_panel` 이 재현용으로 지목 |
+| `train_band_detector.py` | 밴드 쿼드 검출기 v0 학습 | import 7 |
+| `eval_band_detector.py` | v0 게이트 평가(사람 밴드 라벨) | import 7 · **카드 3** |
+| `band_det_clip_split.py` | 「크롭이 밴드를 잘랐나」로 가른다 | import 1 · 카드 1 |
+| `band_det_synth_gap.py` | 훈련 부족인가 합성이 다른가 | 카드 1 |
+| `band_det_corner_error.py` | 모서리를 얼마나 정확히 찍는가 | 위키 1 |
+| `band_det_orient_split.py` | 게이트 결과를 세로/가로로 가른다 | 위키 1 |
+| `band_det_tilt_real.py` | 기울기 예산(합성·모델·게이트) | 위키 1 |
+| `band_det_sweep.py` | 합성 양 스윕 — 굽고·학습하고·게이트로 잰다 | `webtool.py` 가 부른다 |
+| `predict_band_quads.py` | 검출기 예측을 웹툴 오버레이 규약으로 | `webtool.py` 가 부른다 |
+| `build_profiled_cache.py` | 리더 합성 팔을 캐시로 굽는다 | 카드 1 · 위키 1 |
+| `device_layout_stats.py` | 기기별 고정 레이아웃 실측 | `synth_profiles` 가 산출을 붙인다 |
+| `device_orient_stats.py` | 기기별 세로/가로 확정 | 카드 1 |
+| `band_label_slot_audit.py` | 밴드 라벨이 빈 앞자리를 포함했는가 | 카드 1 · 위키 1 |
+| `band_queue.py` | 밴드 라벨링 큐와 진행 계측(verify·build·progress). 라벨 파일은 읽기만 한다 | `webtool.py`·`make_wide_band_queue` 가 부른다 · 카드 1 |
+| `make_band_slot_queue.py` | 빈 앞자리 누락 교정 큐 | `webtool.py` 가 부른다 |
+| `make_wide_review_queue.py` | 가로형 밴드 라벨 전수 검토 큐 | `webtool.py` 가 부른다 |
+| `make_unit_gap_sheet.py` | 단위 간격 — 실기기 vs 합성 대조 시트 | 위키가 방법론으로 인용 |
+| `synth_vs_real_sheet.py` | 합성과 실사진을 눈으로 견주는 시트 | 위키 1 |
+
+### 종결 (8) — 지우지 않는다, 재현물이다
+
+| 파일 | 물음이 어떻게 닫혔나 |
+|---|---|
+| `eval_generator_baseline.py` | 옛 리더(pre 체크포인트)와 옛 홀드아웃 1,138장을 전제한다. 둘 다 2026-09-11 scratch 재구축에서 폐기 |
+| `device_digit_stats.py` | 기기별 숫자 높이를 쟀고 값이 `synth_profiles` 에 박혔다 |
+| `make_polarity_gt_sheet.py` | 극성 정답 시트를 만들었고 정의는 `score_polarity_defs` 로 확정됐다 |
+| `band_det_compare_sheet.py` | 두 검출기 예측 비교(2026-09-14 heat 구조 판정용). 그 판정 끝 |
+| `band_det_heatmap_sheet.py` | heat 중간 단계 시각화. 같은 판정의 부속 |
+| `band_det_worst_sheet.py` | v0 실패를 층별로 본 판 |
+| `band_det_unlabeled_check.py` | 라벨 없는 장의 예측을 같은 기기 라벨 장과 대조 |
+| `atlas_synth_vs_real.py` | 합성 대 실사진 차이 아틀라스. 카드 종료 |
+
+> 종결 넷(`band_det_compare_sheet` · `heatmap_sheet` · `worst_sheet` ·
+> `unlabeled_check`)은 **기울어진 쿼드를 내는 v0** 를 전제한다. 2026-09-16 에
+> 검출기 출력을 축정렬 상자로 바꾸기로 하면서 그 전제가 사라졌다. 축정렬
+> 검출기에 같은 질문을 하려면 새로 짜는 것이 맞다 — 되살려 고치지 마라.
 
 ## 2026-09-17 추가 (16) — 어느 물음에 답하는가로 찾는다
 
@@ -129,3 +196,9 @@
 |---|---|
 | `reader_crnn.py` | torch CRNN+CTC 리더. `overfit`(구현 확인) · `train` · `eval` · `measure`(상수 근거) |
 | `build_band_device_split.py` | 밴드 라벨 코퍼스의 기기 단절 분할. 규칙은 `build_device_split` 에서 import 한다 |
+
+## 관련 문서
+
+- 끝난 작업의 판정과 수치: [`docs/DONE.md`](../../docs/DONE.md)
+- 재구축 계획의 정본: [`docs/OCR_REBUILD_PLAN.md`](../../docs/OCR_REBUILD_PLAN.md)
+- 반입 자산 라이선스: [`docs/LICENSES.md`](../../docs/LICENSES.md)
