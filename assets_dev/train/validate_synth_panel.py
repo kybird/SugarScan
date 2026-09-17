@@ -46,6 +46,49 @@ REAL = dict(
 )
 
 
+def report_drops(manifest):
+    """배치 실패 요소를 기기 x 요소로 분해해 인쇄하고, 기기 고정 요소의 드롭
+    합계를 낸다.
+
+    함수로 빼 둔 이유: 드롭이 0 이면 이 경로가 아예 실행되지 않아서, 안 빼면
+    **한 번도 돌지 않은 보고 코드**를 들고 다니게 된다
+    ([[metric-path-not-under-test]]). test_report_drops.py 가 가짜 매니페스트로
+    이 함수를 직접 돌린다.
+    """
+    dropped = {}
+    for r in manifest:
+        for d in r["dropped"]:
+            dropped[d] = dropped.get(d, 0) + 1
+    print(f"뺀 요소(배치 실패): {dict(sorted(dropped.items(), key=lambda x: -x[1]))}")
+    # 전체 건수만으로는 **계통 실패와 우연**을 못 가른다. 같은 기기에서 같은
+    # 요소가 반복해 빠지면 자리 설계가 틀린 것이고, 여러 기기에 흩어져 있으면
+    # 배치 경합이다. 그래서 기기×요소로 분해하고 분모(그 기기의 장 수)를 같이
+    # 찍는다 (카드 「선언한 요소가 상시 배치 실패로 빠진다」 AC#1).
+    # 기기 고정 요소와 상태성 요소를 나눈다 — 상태성은 원래 장마다 꺼진다.
+    if dropped:
+        per_pid = {}
+        for r in manifest:
+            per_pid[r["profile"]] = per_pid.get(r["profile"], 0) + 1
+        pair = {}
+        for r in manifest:
+            for d in r["dropped"]:
+                pair[(r["profile"], d)] = pair.get((r["profile"], d), 0) + 1
+        print("  기기 x 요소 (분모 = 그 기기의 장 수):")
+        for (pid_, el), n_ in sorted(pair.items(), key=lambda x: -x[1]):
+            kind = "상태성" if el in sp.STATEFUL_ELEMENTS else "기기고정"
+            den = per_pid.get(pid_, 0)
+            print(f"    {pid_:<22}{el:<18}{n_:>4}/{den:<4} "
+                  f"({100 * n_ / max(1, den):>5.1f}%)  {kind}")
+        fixed_drop = sum(n_ for (_, el), n_ in pair.items()
+                         if el not in sp.STATEFUL_ELEMENTS)
+        print(f"  기기 고정 요소 드롭 합계: {fixed_drop}건 "
+              f"{'OK' if fixed_drop == 0 else 'FAIL — 선언한 요소가 빠졌다'}")
+    else:
+        print("  기기 고정 요소 드롭 합계: 0건 OK")
+    return sum(n_ for r in manifest for n_ in [1]
+               for el in r["dropped"] if el not in sp.STATEFUL_ELEMENTS)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--count", type=int, default=500)
@@ -244,11 +287,7 @@ def main():
               f"· 50% 초과 {int((cov > 0.5).sum())} "
               f"· 90% 초과 {int((cov > 0.9).sum())}")
 
-    dropped = {}
-    for r in manifest:
-        for d in r["dropped"]:
-            dropped[d] = dropped.get(d, 0) + 1
-    print(f"뺀 요소(배치 실패): {dict(sorted(dropped.items(), key=lambda x: -x[1]))}")
+    report_drops(manifest)
     bez = sum(1 for r in manifest if r["bezel"])
     print(f"베젤 인쇄(링 위): {bez}장 — 문자열: "
           f"{sorted({r['bezel'] for r in manifest if r['bezel']})}")
