@@ -54,6 +54,8 @@
   <label>프로파일 <select id="profile"><option value="">전체</option></select></label>
   <label><input type="checkbox" id="showGlass" checked> 유리(화면) 경계</label>
   <label><input type="checkbox" id="showRects"> 배치 사각형</label>
+  <label><input type="checkbox" id="showPred" checked> 검출기 예측(빨강)</label>
+  <label><input type="checkbox" id="onlyMiss"> 상자 없는 장만</label>
   <label>한 쪽 <select id="pagesize">
     <option>24</option><option selected>60</option><option>120</option><option>240</option>
   </select></label>
@@ -116,6 +118,13 @@ function paint(cv, it, img, scale) {
   }
   if ($("showGlass").checked) drawQuad(ctx, it.glass_quad, "#ff9f0a", lw);
   drawQuad(ctx, it.quad, "#32d74b", lw + 1);
+  // 검출기 예측 — 초록(정답) 위에 빨강으로 얹는다. 예측이 없는 장은 아무것도
+  // 안 그려서 "상자 없음"이 눈에 바로 띈다.
+  if ($("showPred").checked && it.pred) {
+    const p = it.pred;
+    drawQuad(ctx, [[p[0], p[1]], [p[2], p[1]], [p[2], p[3]], [p[0], p[3]]],
+             "#ff453a", lw + 1);
+  }
 }
 
 function tile(it) {
@@ -127,7 +136,10 @@ function tile(it) {
   cap.innerHTML = `<span><b>${it.label}</b> · ${it.profile}` +
     (it.inverted ? ' · <span style="color:#ff9f0a">반전</span>' : "") + `</span>` +
     `<span class="muted">밴드 ${Math.round(bw)}×${Math.round(bh)}` +
-    (it.dropped && it.dropped.length ? ` · 탈락 ${it.dropped.length}` : "") + `</span>`;
+    (it.dropped && it.dropped.length ? ` · 탈락 ${it.dropped.length}` : "") +
+    (it.pred ? ` · <span style="color:#ff453a">점수 ${it.pred_score}` +
+               (it.pred_iou != null ? ` IoU ${it.pred_iou}` : "") + `</span>`
+             : ` · <span style="color:#ff453a"><b>상자 없음</b></span>`) + `</span>`;
   fig.append(cv, cap);
   const img = new Image();
   img.onload = () => paint(cv, it, img, 1);
@@ -173,7 +185,8 @@ function showReal() {
 
 async function load() {
   const q = new URLSearchParams({ dir: st.dir, profile: st.profile,
-                                  offset: st.offset, limit: PAGE });
+                                  offset: st.offset, limit: PAGE,
+                                  miss: $("onlyMiss").checked ? "1" : "" });
   const r = await api("/api/synth/list?" + q);
   st.total = r.total; st.items = r.items;
   $("pos").textContent = `${r.offset + 1}–${r.offset + r.items.length} / ${r.total}`;
@@ -217,7 +230,7 @@ async function boot() {
     if (!isNaN(v)) { st.offset = Math.max(0, Math.min(st.total - 1, v - 1)); await load(); } };
   $("pagesize").onchange = async e => { PAGE = parseInt(e.target.value, 10);
                                         st.offset = 0; await load(); };
-  for (const id of ["showGlass", "showRects"]) $(id).onchange = load;
+  for (const id of ["showGlass", "showRects", "showPred", "onlyMiss"]) $(id).onchange = load;
   $("big").onclick = () => { $("big").style.display = "none"; };
   document.onkeydown = e => {
     if (e.key === "Escape") $("big").style.display = "none";

@@ -790,11 +790,22 @@ def _oriented_size(p: Path):
 # 손대는 순간 정답의 출처가 둘이 되고, 그러면 무엇으로 배웠는지 알 수 없게 된다.
 
 def _synth_dirs():
+    """합성 코퍼스 폴더 — 한 단계 아래까지 본다.
+
+    구판은 `synth_*` 바로 아래만 봤다. 그런데 세트로 나눠 굽는 코퍼스는
+    `synth_coco/A` 처럼 한 겹 더 들어간다(2026-09-17 마일스톤). 그러면
+    사람이 웹툴에서 그 세트를 아예 못 본다 — 판정을 요구하면서 볼 화면을
+    안 준 셈이 된다.
+    """
     out = []
     for d in sorted(HERE.glob("synth_*")):
-        m = d / "manifest.jsonl"
-        if d.is_dir() and m.exists():
+        if not d.is_dir():
+            continue
+        if (d / "manifest.jsonl").exists():
             out.append(d.name)
+        for sub in sorted(d.iterdir()):
+            if sub.is_dir() and (sub / "manifest.jsonl").exists():
+                out.append(f"{d.name}/{sub.name}")
     return out
 
 
@@ -809,19 +820,49 @@ def _synth_rows(name):
     그려졌다 — 고친 것이 안 보이는 정도가 아니라 **없는 결함이 보인다**
     (사람 확인 2026-09-15). mtime+크기로 무효화한다.
     """
+    # 한 겹 아래까지 허용한다. `..` 와 절대경로는 여전히 막는다.
+    if ".." in name or name.startswith("/") or name.count("/") > 1:
+        return []
     d = HERE / name
     m = d / "manifest.jsonl"
-    if ".." in name or "/" in name or not m.exists():
+    if not m.exists():
         return []
+    pred = _synth_pred_file(name)
     st = m.stat()
-    key = (st.st_mtime_ns, st.st_size)
+    key = (st.st_mtime_ns, st.st_size,
+           (pred.stat().st_mtime_ns, pred.stat().st_size) if pred else None)
     hit = _SYNTH_CACHE.get(name)
     if hit and hit[0] == key:
         return hit[1]
     rows = [json.loads(l) for l in
             m.read_text(encoding="utf-8").splitlines() if l.strip()]
+    if pred:
+        # 검출기 예측을 같은 행에 얹는다. 없는 장은 pred 가 None 으로 남아
+        # 화면에서 "상자 없음"으로 보인다 — 그게 판정에 필요한 정보다.
+        by = {}
+        for l in pred.read_text(encoding="utf-8").splitlines():
+            if l.strip():
+                j = json.loads(l)
+                by[j["file_name"]] = j
+        for r in rows:
+            j = by.get(f"{r['id']}.png")
+            if j:
+                r["pred"] = j.get("pred")
+                r["pred_score"] = j.get("score")
+                r["pred_iou"] = j.get("iou")
     _SYNTH_CACHE[name] = (key, rows)
     return rows
+
+
+def _synth_pred_file(name):
+    """세트에 붙은 검출기 예측 파일 — 있으면 쓰고 없으면 그만.
+
+    규약: _diag/synthband_v0/<세트이름>.jsonl (infer_synthband.py 의 산출).
+    예: synth_coco/B -> _diag/synthband_v0/B.jsonl
+    """
+    leaf = name.split("/")[-1]
+    p = HERE / "_diag" / "synthband_v0" / f"{leaf}.jsonl"
+    return p if p.exists() else None
 
 
 @route("/api/synth/corpora")
@@ -843,12 +884,18 @@ def api_synth_list(qs):
     rows = _synth_rows(name)
     if prof:
         rows = [r for r in rows if r.get("profile") == prof]
+    if qs.get("miss", [""])[0] == "1":
+        # 검출기가 상자를 못 낸 장만. 1000장에서 한 장을 찾는 일이라
+        # 페이지를 넘겨 가며 눈으로 뒤지게 두면 안 된다.
+        rows = [r for r in rows if not r.get("pred")]
     sl = rows[off:off + lim]
     return {"total": len(rows), "offset": off, "items": [
         {"id": r["id"], "profile": r.get("profile"), "label": r.get("label"),
          "w": r["w"], "h": r["h"], "quad": r["quad"],
          "glass_quad": r.get("glass_quad"), "inverted": r.get("inverted"),
-         "dropped": r.get("dropped"), "rects": r.get("rects")}
+         "dropped": r.get("dropped"), "rects": r.get("rects"),
+         "pred": r.get("pred"), "pred_score": r.get("pred_score"),
+         "pred_iou": r.get("pred_iou")}
         for r in sl]}
 
 
