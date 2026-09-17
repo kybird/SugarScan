@@ -121,4 +121,4 @@ tags: [index]
 - Total patterns: 21
 - Total anti-patterns: 50
 - Total answers: 0
-- Last updated: 2026-09-15
+- Last updated: 2026-09-16
