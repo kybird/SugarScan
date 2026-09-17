@@ -226,55 +226,66 @@ tr.miss td.mono { color: var(--bad); }
   </div>
 </section>
 
-<!-- ================= 모니터 ================= -->
+<!-- ================= 모니터 — 밴드 쿼드 검출기 ================= -->
+<!-- 2026-09-15: CTC 리더(폐기)에서 밴드 검출기로 옮겼다. 옛 화면은 8월 31일에
+     죽은 프로세스를 "파인튜닝 · 에폭 30" 으로 계속 보여 줬고, hold-out 표의
+     성적은 새 파이프라인 수치와 나란히 놓으면 안 되는 값이었다. -->
 <section id="tab-monitor" class="tabpage">
   <div class="statusline" id="mon-status">상태 로딩…</div>
   <div class="scroll">
-    <h2>CTC 학습 loss 궤적</h2>
+    <h2>검출기 학습 loss 궤적</h2>
     <div id="loss-chart"></div>
-    <h3>hold-out 판독 (eval_reader.py · 미라벨 Datumo)</h3>
-    <div id="pred-summary" class="summary">-</div>
-    <table id="pred-table"></table>
-    <div class="note" id="pred-note"></div>
+    <div class="note" id="loss-note"></div>
+
+    <h3>실사진 게이트 — 사람 밴드 라벨과 견준 IoU</h3>
+    <div class="note">
+      합성 sanity-val 은 <b>품질 계기가 아니다</b> — 쓰레기를 일관되게 그려도
+      0 에 수렴한다. 실물에 대고 재는 자는 이 표 하나뿐이고,
+      <code>eval_band_detector.py gate</code> 가 낸 것을 그대로 읽는다.
+      <br><b>합격은 포함률 하나로 정한다</b> — 사람 라벨을 한 획도 안 자르고
+      담았는가(≥0.999). 넉넉하든 타이트하든 잘리지만 않으면 된다.
+      넓이비는 2순위다: 화면 전체를 찍으면 포함은 만점이지만 쓸모가 없다
+      (GM 폴백이 포함률 1.000 · 넓이비 2.5배다).
+      <b>IoU 는 합격을 정하지 않는다</b> — 기울어진 예측을 축정렬 라벨과
+      견주는 자라 천장이 있고(8° 에서 0.762), 합성 기울기를 넓히면 검출이
+      좋아져도 내려간다.
+    </div>
+    <div id="gate-runs"></div>
   </div>
 </section>
 
 <!-- ================= 훈련 ================= -->
 <section id="tab-train" class="tabpage">
   <div class="scroll">
-    <h2>학습 데이터 검토</h2>
-    <div class="cards">
-      <div class="card">
-        <h4>합성 LCD 화면 (synth 23k)</h4>
-        <img src="/img/synth_screens/sample_combo.png" alt="합성 표본">
-        <p>렌더러 v2 — 광택·비네팅·회전·폭 지터. 라벨은 GT 값 그대로.</p>
-      </div>
-      <!-- 밴드 rect 240장·글자 크롭(glyph) 카드는 2026-09-04 구형 파이프라인
-           정리 때 제거 — A 경로 확정으로 해당 학습 데이터는 폐기(_legacy/). -->
-    </div>
+    <h2>밴드 쿼드 검출기 학습</h2>
     <div class="trainctl">
-      <button id="btn-start">▶ 처음부터 학습</button>
-      <button id="btn-resume">↻ 이어서 학습</button>
-      <button id="btn-stop">■ 중지</button>
-      <span class="stat" id="train-status">-</span>
-      <span class="stat" id="resume-point"></span>
+      <label>코퍼스 <select id="det-data" style="min-width:210px"></select></label>
+      <label>에폭 <input id="det-epochs" type="number" value="50" min="1" max="400" style="width:74px"></label>
+      <label>출력 <input id="det-out" type="text" placeholder="band_det_….pt" style="width:200px"></label>
+      <button id="btn-det-start">▶ 학습 시작</button>
+      <button id="btn-det-stop">■ 중지</button>
+      <span class="stat" id="det-status">-</span>
+    </div>
+    <div class="note">
+      코퍼스는 <code>synth_panel.py</code> 가 구운 폴더다 — 옆 숫자는
+      <code>manifest.jsonl</code> 줄 수(장 수). <b>이어서 학습은 없다</b>:
+      검출기 학습 스크립트에 재개 지점이 없고, 합성은 언제든 다시 구우면 되므로
+      두 코퍼스에 걸쳐 학습한 모델이 생기는 쪽이 더 나쁘다.
+      로그는 실행할 때마다 <b>덮어쓴다</b>.
     </div>
     <div id="logtail"></div>
+
+    <h3>체크포인트</h3>
     <div class="note">
-      학습 완료 후 <code>conda run -n sugartrain python eval_reader.py</code> 로 hold-out(미라벨) 평가 —
-      결과는 모니터 탭에 표시. 학습 로그: ctc_train_gpu.log · 에폭별 CSV: training_log.csv
-      <br><b>이어서 학습</b>은 매 에폭 저장된 지점(가중치+옵티마이저 상태)에서 재개합니다.
-      <b>데이터 캐시를 다시 만들었으면 재개가 거부됩니다</b> — 두 데이터셋에 걸쳐
-      학습한 모델이 되고 그 사실이 로그에 남지 않기 때문입니다. 그때는 처음부터 돌리세요.
+      게이트를 돌리면 <code>_diag/&lt;이름&gt;/</code> 에 장별 결과와 눈검증 시트가
+      쌓이고, 모니터 탭 표에 나타난다. 게이트는 몇 분 걸린다.
     </div>
+    <table id="ckpt-table"></table>
+    <div class="note" id="ovl-status">오버레이 상태 로딩…</div>
+    <pre id="gate-out" class="note" style="white-space:pre-wrap;max-height:240px;overflow:auto"></pre>
   </div>
 </section>
 
-<!-- ================= 기종 ================= -->
-<!-- /devices 는 같은 서버가 내주는 별도 페이지였는데 탭 바에 링크가 없어
-     주소를 직접 쳐야만 갈 수 있었다(2026-09-11). iframe 으로 붙여 한 곳에서
-     간다. 948줄짜리 페이지를 이 파일에 합치지 않는 이유는 전역 이름 충돌과
-     캔버스 초기화가 섞이기 때문이다 — 같은 출처라 iframe 으로 충분하다. -->
 <section id="tab-devices" class="tabpage" style="position:relative">
   <iframe id="fr-devices" style="border:0;position:absolute;inset:0;width:100%;height:100%" title="기종 라벨링"></iframe>
 </section>
@@ -315,8 +326,8 @@ document.querySelectorAll("nav .tab").forEach(btn => {
     document.querySelectorAll("nav .tab").forEach(b => b.classList.toggle("active", b === btn));
     document.querySelectorAll(".tabpage").forEach(p =>
       p.classList.toggle("active", p.id === "tab-" + activeTab));
-    if (activeTab === "monitor") { pollMonitor(); loadPreds(); }
-    if (activeTab === "train") pollTrain();
+    if (activeTab === "monitor") pollMonitor();
+    if (activeTab === "train") { pollTrain(); loadCorpora(); loadCkpts(); pollOverlay(); }
     // iframe 은 탭을 처음 누를 때만 로드한다 — 페이지를 열 때마다 948줄짜리
     // 기종 페이지와 외부 서버를 같이 깨우면 첫 화면이 느려진다.
     if (activeTab === "devices") {
@@ -1311,105 +1322,206 @@ async function checkBuild() {
   }
 }
 
-/* ================= 모니터 ================= */
-const TOTAL_EPOCHS = 52; // 사전학습 40 + 파인튜닝 12
+/* ================= 모니터 — 밴드 쿼드 검출기 ================= */
 async function pollMonitor() {
   let st;
-  try { st = await api("/api/train/status"); } catch (e) { return; }
-  const run = st.managed_alive || st.log_fresh;
-  const last = st.losses && st.losses.length ? st.losses[st.losses.length - 1] : null;
+  try { st = await api("/api/det/status"); } catch (e) { return; }
+  const run = st.alive || st.log_fresh;
+  const last = st.rows && st.rows.length ? st.rows[st.rows.length - 1] : null;
+  const r = st.run || {};
+  const total = r.epochs || 0;
   $("mon-status").innerHTML =
-    `<span class="pill ${run ? "run" : "stop"}">${st.managed_alive ? "실행 중 (pid " + st.managed_pid + ")" : (st.log_fresh ? "로그 갱신 중" : "대기")}</span>` +
-    `<span>위상 <b>${st.phase}</b></span>` +
-    `<span>에폭 <b>${st.epoch}</b> / ${TOTAL_EPOCHS}</span>` +
-    (last !== null ? `<span>최근 loss <b>${last.toFixed(4)}</b></span>` : "") +
+    `<span class="pill ${run ? "run" : "stop"}">` +
+      (st.alive ? "실행 중 (pid " + st.pid + ")"
+                : (st.log_fresh ? "로그 갱신 중" : "대기")) + `</span>` +
+    (r.data ? `<span>코퍼스 <b>${r.data}</b></span>` : "") +
+    // 이 화면 밖에서 도는 학습이면 어느 로그를 보고 있는지 밝힌다 —
+    // 안 밝히면 "시작한 적 없는데 왜 도나"로 읽힌다.
+    (r.external ? `<span style="color:var(--dim)">외부 실행 · ${r.external}</span>` : "") +
+    `<span>에폭 <b>${st.epoch}</b>${total ? " / " + total : ""}</span>` +
+    (last ? `<span>train <b>${last.train.toExponential(2)}</b></span>` +
+            `<span>sanity-val <b>${last.val.toExponential(2)}</b></span>` : "") +
     (run ? "" : `<span style="color:var(--dim)">학습 시작은 훈련 탭에서</span>`);
-  drawLoss(st.losses || []);
+  drawLoss(st.rows || []);
+  $("loss-note").textContent = st.head || "";
+  loadGate();
 }
-function drawLoss(losses) {
-  if (!losses.length) {
-    $("loss-chart").innerHTML = "<p class='note'>loss 데이터 없음 — 학습 시작 후 표시</p>";
+
+/* 두 줄(train·sanity-val)을 같은 축에 그린다. loss 가 수십 배 범위를 오가므로
+   **로그 축**이다 — 선형이면 첫 에폭 하나가 전부를 눌러 나머지가 바닥에 붙는다. */
+function drawLoss(rows) {
+  if (!rows.length) {
+    $("loss-chart").innerHTML =
+      "<p class='note'>loss 데이터 없음 — 훈련 탭에서 학습을 시작하면 표시된다</p>";
     return;
   }
-  const W = 920, H = 240, L = 52, R = 14, T = 16, B = 28;
-  const mn = Math.min(...losses), mx = Math.max(...losses);
-  const X = i => L + (losses.length === 1 ? 0 : i / (losses.length - 1)) * (W - L - R);
-  const Y = v => T + (1 - (v - mn) / Math.max(1e-9, mx - mn)) * (H - T - B);
-  let d = "";
-  losses.forEach((v, i) => { d += (i ? "L" : "M") + X(i).toFixed(1) + " " + Y(v).toFixed(1); });
-  const bnd = losses.length > 40
-    ? `<line x1="${X(39)}" y1="${T}" x2="${X(39)}" y2="${H - B}" stroke="#8b93a3" stroke-dasharray="4 4"/>` +
-      `<text x="${X(39) + 5}" y="${T + 11}">파인튜닝</text>` : "";
+  const W = 920, H = 240, L = 62, R = 14, T = 16, B = 28;
+  const vals = rows.flatMap(r => [r.train, r.val]).filter(v => v > 0);
+  const lo = Math.log10(Math.min(...vals)), hi = Math.log10(Math.max(...vals));
+  const X = i => L + (rows.length === 1 ? 0 : i / (rows.length - 1)) * (W - L - R);
+  const Y = v => T + (1 - (Math.log10(Math.max(v, 1e-12)) - lo) /
+                          Math.max(1e-9, hi - lo)) * (H - T - B);
+  const path = key => rows.map((r, i) =>
+    (i ? "L" : "M") + X(i).toFixed(1) + " " + Y(r[key]).toFixed(1)).join("");
   $("loss-chart").innerHTML =
     `<svg width="${W}" height="${H}" style="background:var(--panel);border:1px solid var(--line);border-radius:8px;display:block">` +
     `<line x1="${L}" y1="${H - B}" x2="${W - R}" y2="${H - B}" stroke="#343a46"/>` +
     `<line x1="${L}" y1="${T}" x2="${L}" y2="${H - B}" stroke="#343a46"/>` +
-    `<text x="${L - 7}" y="${Y(mx) + 4}" text-anchor="end">${mx.toFixed(2)}</text>` +
-    `<text x="${L - 7}" y="${Y(mn) + 4}" text-anchor="end">${mn.toFixed(2)}</text>` +
-    `<text x="${W - R}" y="${H - 8}" text-anchor="end">에폭 ${losses.length}</text>` +
-    bnd +
-    `<path d="${d}" fill="none" stroke="#4da3ff" stroke-width="2"/></svg>`;
+    `<text x="${L - 7}" y="${T + 10}" text-anchor="end">${Math.pow(10, hi).toExponential(1)}</text>` +
+    `<text x="${L - 7}" y="${H - B}" text-anchor="end">${Math.pow(10, lo).toExponential(1)}</text>` +
+    `<text x="${W - R}" y="${H - 8}" text-anchor="end">에폭 ${rows[rows.length - 1].epoch}</text>` +
+    `<text x="${L + 8}" y="${T + 11}" style="fill:#4da3ff">train</text>` +
+    `<text x="${L + 54}" y="${T + 11}" style="fill:#e0a33a">sanity-val</text>` +
+    `<path d="${path("train")}" fill="none" stroke="#4da3ff" stroke-width="2"/>` +
+    `<path d="${path("val")}" fill="none" stroke="#e0a33a" stroke-width="1.6"/></svg>`;
 }
-async function loadPreds() {
-  let r;
-  try { r = await api("/api/preds_holdout"); } catch (e) { return; }
-  const tbl = $("pred-table"), sum = $("pred-summary");
-  if (!r.preds) { sum.textContent = "평가 결과 없음 (eval_reader.py 실행 후 표시)"; tbl.innerHTML = ""; return; }
-  const entries = Object.entries(r.preds);
-  let exact = 0;
-  for (const [, v] of entries) if (v[0] === v[1]) exact++;
-  sum.innerHTML = `완전일치 <b class="ok">${exact} / ${entries.length}</b> (${fmtPct(exact / entries.length)}) — GT vs CTC 예측`;
-  entries.sort((a, b) => (a[1][0] === a[1][1] ? 1 : 0) - (b[1][0] === b[1][1] ? 1 : 0));
-  const MAX = 300;
-  let html = "<tr><th>id</th><th>GT</th><th>예측</th><th>판정</th></tr>";
-  for (const [id, v] of entries.slice(0, MAX)) {
-    const ok = v[0] === v[1];
-    html += `<tr class="${ok ? "hit" : "miss"}"><td class="mono">${id}</td>` +
-            `<td class="mono">${v[1]}</td><td class="mono">${v[0]}</td><td>${ok ? "적중" : "오답"}</td></tr>`;
+
+async function loadGate() {
+  let g;
+  try { g = await api("/api/det/gate"); } catch (e) { return; }
+  const box = $("gate-runs");
+  if (!g.runs || !g.runs.length) {
+    box.innerHTML = "<p class='note'>게이트 결과 없음 — 훈련 탭에서 체크포인트에 게이트를 돌리면 표시된다</p>";
+    return;
   }
-  tbl.innerHTML = html;
-  $("pred-note").textContent = entries.length > MAX
-    ? `오답 우선 ${MAX}행만 표시 (전체 ${entries.length}행은 reader_preds.json 참고)` : "";
+  let html = "<tr><th>체크포인트</th><th>n</th><th>전부 담음</th><th>포함률 중앙</th>" +
+             "<th>p10</th><th>최저</th><th>넓이비</th><th>IoU(참고)</th><th>최악 기기</th></tr>";
+  for (const r of g.runs) {
+    if (r.error) {
+      html += `<tr class="miss"><td class="mono">${r.tag}</td><td colspan="8">${r.error}</td></tr>`;
+      continue;
+    }
+    const w = (r.devices || []).slice(0, 2)
+      .map(d => `${d.device} ${d.median.toFixed(3)}`).join(" · ");
+    if (r.legacy) {
+      // 포함 기준 이전에 돌린 판 — 옛 열이 없다. 비어 있다고 0 을 그리면
+      // "전부 담음 0장"으로 읽혀 새 판보다 나쁜 것처럼 보인다.
+      html += `<tr style="opacity:.55"><td class="mono">${r.tag}</td><td>${r.n}</td>` +
+        `<td colspan="5" style="font-size:12px">포함 기준 이전 판 — 다시 돌려야 한다</td>` +
+        `<td class="mono">${r.iou_p50.toFixed(3)}</td>` +
+        `<td style="font-size:12px">${w}</td></tr>`;
+      continue;
+    }
+    html += `<tr><td class="mono">${r.tag}</td><td>${r.n}</td>` +
+      `<td class="mono"><b>${r.pass} (${r.pass_pct}%)</b></td>` +
+      `<td class="mono">${r.con_p50.toFixed(4)}</td>` +
+      `<td class="mono">${r.con_p10.toFixed(4)}</td>` +
+      `<td class="mono">${r.con_min.toFixed(4)}</td>` +
+      `<td class="mono">${r.area_p50.toFixed(2)}</td>` +
+      `<td class="mono" style="color:var(--dim)">${r.iou_p50.toFixed(3)}</td>` +
+      `<td style="font-size:12px">${w}</td></tr>`;
+    if (r.edges) {
+      const e = ["top", "bottom", "left", "right"]
+        .map(k => `${k} ${r.edges[k].cut}장(최대 ${r.edges[k].max.toFixed(2)})`).join(" · ");
+      html += `<tr><td></td><td colspan="8" style="font-size:12px;color:var(--dim)">` +
+              `잘린 변: ${e}</td></tr>`;
+    }
+  }
+  box.innerHTML = `<table>${html}</table>`;
 }
 
 /* ================= 훈련 탭 ================= */
+async function loadCorpora() {
+  let c;
+  try { c = await api("/api/det/corpora"); } catch (e) { return; }
+  const sel = $("det-data"), keep = sel.value;
+  sel.innerHTML = "";
+  (c.corpora || []).forEach(r =>
+    sel.append(new Option(`${r.name}  (${r.n.toLocaleString()}장)`, r.name)));
+  if (keep) sel.value = keep;
+  if (!$("det-out").value && sel.value) {
+    $("det-out").value = "band_det_" + sel.value.replace(/^synth_?/, "") + ".pt";
+  }
+}
+$("det-data").addEventListener("change", () => {
+  $("det-out").value = "band_det_" + $("det-data").value.replace(/^synth_?/, "") + ".pt";
+});
+
+async function loadCkpts() {
+  let c;
+  try { c = await api("/api/det/ckpts"); } catch (e) { return; }
+  let html = "<tr><th>파일</th><th>크기</th><th>만든 때</th><th>게이트</th>" +
+             "<th>오버레이</th><th></th></tr>";
+  for (const k of (c.ckpts || []).slice(0, 40)) {
+    const when = new Date(k.mtime * 1000).toLocaleString();
+    html += `<tr${k.overlay ? ' class="hit"' : ''}><td class="mono">${k.name}</td>` +
+      `<td>${k.mb} MB</td>` +
+      `<td style="font-size:12px;color:var(--dim)">${when}</td>` +
+      `<td>${k.gated ? "있음" : "-"}</td>` +
+      `<td>${k.overlay ? "현재" : "-"}</td>` +
+      `<td><button class="gate-btn" data-ck="${k.name}">게이트</button> ` +
+      `<button class="ovl-btn" data-ck="${k.name}">기종 탭에 걸기</button></td></tr>`;
+  }
+  $("ckpt-table").innerHTML = html;
+  document.querySelectorAll(".ovl-btn").forEach(b => {
+    b.onclick = async () => {
+      const ck = b.dataset.ck;
+      if (!confirm(`기종 탭 오버레이를 ${ck} 로 갈아끼웁니다.
+` +
+                   `사진 2,511장을 다시 예측하므로 5분쯤 걸립니다.`)) return;
+      const r = await post("/api/det/overlay", { ckpt: ck });
+      toast(r.ok ? "오버레이 생성 시작 (pid " + r.pid + ")"
+                 : "실패: " + (r.error || "?"));
+      pollOverlay();
+    };
+  });
+  document.querySelectorAll(".gate-btn").forEach(b => {
+    b.onclick = async () => {
+      const ck = b.dataset.ck;
+      if (!confirm(`${ck} 에 실사진 게이트를 돌립니다. 몇 분 걸립니다.`)) return;
+      b.disabled = true; b.textContent = "…";
+      $("gate-out").textContent = `${ck} 게이트 실행 중…`;
+      const r = await post("/api/det/gate", { ckpt: ck });
+      $("gate-out").textContent = r.text || r.error || "(출력 없음)";
+      b.disabled = false; b.textContent = "게이트";
+      loadCkpts(); loadGate();
+    };
+  });
+}
+
+async function pollOverlay() {
+  let o;
+  try { o = await api("/api/det/overlay"); } catch (e) { return; }
+  // 기종 탭이 어느 모델을 그리는지 화면에 밝힌다 — 안 밝히면 어제 것을 보고
+  // 오늘 판단하게 된다.
+  $("ovl-status").innerHTML = o.running
+    ? `<b>오버레이 생성 중</b> (pid ${o.pid}) · ${o.tail || "…"}`
+    : `기종 탭 오버레이: <b>${o.ckpt || "없음"}</b> · ${o.n.toLocaleString()}장` +
+      (o.ckpt ? " — 기종 탭에서 새로고침하면 보입니다" : "");
+}
+
 async function pollTrain() {
   let st;
-  try { st = await api("/api/train/status"); } catch (e) { return; }
-  const run = st.managed_alive || st.log_fresh;
-  $("train-status").textContent = run
-    ? `실행 중 · ${st.phase} · 에폭 ${st.epoch}`
+  try { st = await api("/api/det/status"); } catch (e) { return; }
+  const run = st.alive || st.log_fresh;
+  const r = st.run || {};
+  $("det-status").textContent = run
+    ? `실행 중 · ${r.data || "?"} · 에폭 ${st.epoch}${r.epochs ? "/" + r.epochs : ""}`
     : "중지 상태";
-  // 재개 지점은 학습이 끝까지 가면 스크립트가 지운다. 남아 있다는 것은
-  // 중간에 끊겼다는 뜻이라 그대로 보여 준다.
-  const rp = st.resume;
-  $("resume-point").textContent = rp
-    ? `이어서 돌릴 지점: ${rp.phase} ${rp.next_epoch}/${rp.total_epochs} 에폭 (저장 ${rp.saved_at})`
-    : "";
-  $("btn-start").disabled = run;
-  $("btn-resume").disabled = run || !rp;
+  $("btn-det-start").disabled = run;
+  $("btn-det-stop").disabled = !run;
   let lt;
-  try { lt = await api("/api/logtail?lines=50"); } catch (e) { return; }
+  try { lt = await api("/api/det/logtail?lines=60"); } catch (e) { return; }
   const el = $("logtail");
   if (el.textContent !== lt.text) {
     el.textContent = lt.text || "(로그 없음)";
     el.scrollTop = el.scrollHeight;
   }
 }
-$("btn-start").addEventListener("click", async () => {
-  if (!confirm("처음부터 다시 학습합니다. 이어서 돌릴 지점이 있으면 버려집니다.")) return;
-  const r = await post("/api/train/start", { mode: "fresh" });
+
+$("btn-det-start").addEventListener("click", async () => {
+  const data = $("det-data").value, out = $("det-out").value.trim();
+  if (!data) { toast("코퍼스를 고르세요"); return; }
+  if (!confirm(`${data} 로 ${$("det-epochs").value} 에폭 학습합니다.\n` +
+               `로그(band_det_train.log)는 덮어씁니다.`)) return;
+  const r = await post("/api/det/start", {
+    data, out, epochs: Number($("det-epochs").value), ckpt_every: 10 });
   toast(r.ok ? "학습 시작 (pid " + r.pid + ")" : "시작 실패: " + (r.error || "?"));
   pollTrain();
 });
-$("btn-resume").addEventListener("click", async () => {
-  const r = await post("/api/train/start", { mode: "resume" });
-  toast(r.ok ? "이어서 학습 (pid " + r.pid + ")" : "재개 실패: " + (r.error || "?"));
-  pollTrain();
-});
-$("btn-stop").addEventListener("click", async () => {
+$("btn-det-stop").addEventListener("click", async () => {
   if (!confirm("학습 프로세스를 종료할까요?")) return;
-  const r = await post("/api/train/stop");
+  const r = await post("/api/det/stop");
   toast(r.ok ? "중지 요청" : "실패");
   pollTrain();
 });
@@ -1418,7 +1530,7 @@ $("btn-stop").addEventListener("click", async () => {
 setInterval(() => {
   if (document.hidden) return;
   if (activeTab === "monitor") pollMonitor();
-  if (activeTab === "train") pollTrain();
+  if (activeTab === "train") { pollTrain(); pollOverlay(); }
 }, 5000);
 
 boot();

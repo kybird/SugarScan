@@ -56,8 +56,8 @@ BAND_QUADS = _BAND_PRED if _BAND_PRED.exists() else HERE / "datumo_quads_v2.json
 # 2026-09-12: ft3 가 정본으로 승격돼 별도 힌트 파일이 필요 없어졌다.
 # gmscreen_quads.jsonl(정본) -> convert_quads_oriented.py -> 이 파일. 한 갈래다.
 GM_QUADS = HERE / "gmscreen_quads_oriented.jsonl"
-TRAIN_LOG = HERE / "ctc_train_gpu.log"
-RESUME_STATE = HERE / "checkpoints_v2" / "resume_state.json"
+# 폐기된 CTC 리더의 흔적 — 더 이상 어느 화면도 읽지 않는다(2026-09-15).
+# reader_preds.json 만 남긴다: 라벨러 큐가 '판독 실패' 필터에 쓴다.
 HOLDOUT = HERE / "reader_preds.json"
 HTML = HERE / "webtool.html"
 DEVICES_HTML = HERE / "devices.html"
@@ -66,8 +66,30 @@ DEVICE_TAGS = HERE / "device_tags.jsonl"
 # "성분 하나에 기기 하나"로는 정답을 적을 수 없는 경우가 실제로 있다.
 # device_tags.jsonl 은 여기서 파생되는 성분 요약으로 남는다.
 DEVICE_LABELS = HERE / "device_labels.jsonl"
-PID_FILE = HERE / "train_pid.json"
 DETACHED = 0x00000008 | 0x00000200  # DETACHED_PROCESS | NEW_PROCESS_GROUP
+
+# ── 밴드 쿼드 검출기 — 지금 실제로 돌리는 학습 (2026-09-15) ────────────────
+# 모니터·훈련 탭은 CTC 리더(ctc_train_gpu.log · reader_preds.json)를 가리키고
+# 있었다. 그 파이프라인은 2026-09-11 에 폐기됐는데 화면은 8월 31일에 죽은
+# 프로세스의 마지막 줄을 "파인튜닝 · 에폭 30" 으로 계속 보여 줬다 — 살아
+# 있는 것처럼 읽히고, 표의 성적은 **새 수치와 나란히 놓으면 안 되는 옛 값**
+# 이다(CLAUDE.md). 그래서 두 탭이 읽는 곳을 검출기로 옮긴다.
+DET_LOG = HERE / "band_det_train.log"       # 훈련 탭 버튼이 쓰는 로그
+DET_PID = HERE / "band_det_pid.json"
+# 학습은 이 화면 밖에서도 돈다 — band_det_sweep.py 로 터미널에서 띄우면
+# 출력이 스윕 로그로 간다. 구판은 DET_LOG 하나만 봐서 "loss 데이터 없음" 을
+# 띄웠다(2026-09-16). 화면이 거짓말한 게 아니라 엉뚱한 파일을 본 것이다.
+# **가장 최근에 쓰인 로그**를 따라간다.
+DET_LOGS = (HERE / "band_det_train.log", HERE / "band_det_sweep.log")
+# 오버레이 — 기종 탭이 그리는 예측. predict_band_quads.py 가 채운다.
+OVL_LOG = HERE / "band_quads_overlay.log"
+OVL_PID = HERE / "band_quads_overlay.pid"
+DIAG = HERE / "_diag"
+
+
+def _det_log():
+    live = [p for p in DET_LOGS if p.exists()]
+    return max(live, key=lambda p: p.stat().st_mtime) if live else DET_LOG
 
 # 표시(EXIF 적용) 이미지 좌표계가 이 도구의 유일한 좌표 정본이다.
 # 라벨 저장은 "클라이언트가 그린 프레임 크기(ow/oh)"를 함께 받아 서버가
@@ -363,33 +385,11 @@ def api_quads(qs):
     return {"quads": out}
 
 
-@route("/api/trainlog")
-def api_trainlog(qs):
-    losses, phase = parse_trainlog()
-    return {"losses": losses, "phase": phase, "epoch": len(losses)}
-
-
-def parse_trainlog():
-    losses = []
-    phase = "대기"
-    if TRAIN_LOG.exists():
-        raw = TRAIN_LOG.read_text(encoding="utf-8", errors="ignore")
-        raw = re.sub(r"\x1b\[[0-9;]*m", "", raw)
-        # val_loss 까지 삼키지 않게 단어 경로 차단
-        for m in re.finditer(r"(?<![A-Za-z_])loss: ([0-9.]+)", raw):
-            losses.append(float(m.group(1)))
-        if "== real finetune ==" in raw:
-            phase = "파인튜닝"
-        elif losses:
-            phase = "사전학습"
-    return losses, phase
-
-
-def train_pid():
-    if not PID_FILE.exists():
+def _det_pid():
+    if not DET_PID.exists():
         return None
     try:
-        return json.loads(PID_FILE.read_text(encoding="utf-8")).get("pid")
+        return json.loads(DET_PID.read_text(encoding="utf-8")).get("pid")
     except Exception:
         return None
 
@@ -402,40 +402,244 @@ def pid_alive(pid):
     return str(pid) in out
 
 
-def resume_point():
-    """이어서 돌릴 지점. 학습이 끝까지 가면 스크립트가 지운다."""
-    if not RESUME_STATE.exists():
+def parse_det_log(path=None):
+    """검출기 학습 로그 -> (에폭별 loss, 머리말, 저장한 체크포인트).
+
+    로그 한 줄의 모양은 train_band_detector.py 가 정한다:
+      `epoch  12  train 0.00042  sanity-val 0.00051`
+    **이 정규식이 그 형식에 매여 있다** — 학습 스크립트의 print 를 바꾸면
+    여기가 조용히 빈 그래프를 그린다.
+    """
+    rows, head, saved = [], "", []
+    path = path or _det_log()
+    if not path.exists():
+        return rows, head, saved
+    raw = path.read_text(encoding="utf-8", errors="ignore")
+    # 스윕 로그에는 학습이 여러 번 들어 있다. **마지막 한 번만** 본다 —
+    # 전부 모으면 에폭이 누적돼 그래프가 부풀고, 어느 줄이 지금 도는
+    # 학습인지 화면에서 가를 수 없다.
+    _cut = raw.rfind("train_band_detector.py")
+    if _cut > 0:
+        raw = raw[_cut:]
+    raw = re.sub("\x1b" + r"\[[0-9;]*m", "", raw)
+    for m in re.finditer(
+            r"epoch\s+(\d+)\s+train\s+([0-9.eE+-]+)\s+sanity-val\s+([0-9.eE+-]+)",
+            raw):
+        rows.append({"epoch": int(m.group(1)),
+                     "train": float(m.group(2)),
+                     "val": float(m.group(3))})
+    for m in re.finditer(r"saved (\S+)", raw):
+        saved.append(m.group(1))
+    for ln in raw.splitlines():
+        if ln.startswith("train ") and "sanity-val" in ln or ln.startswith("arch="):
+            head = (head + " · " if head else "") + ln.strip()
+    return rows, head, saved
+
+
+def _det_run_meta():
+    """지금(또는 마지막) 실행이 무엇이었는지 — 코퍼스·에폭·출력 이름."""
+    if not DET_PID.exists():
+        return {}
+    try:
+        d = json.loads(DET_PID.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return {k: d.get(k) for k in ("data", "epochs", "out", "arch", "started")}
+
+
+@route("/api/det/status")
+def api_det_status(qs):
+    log = _det_log()
+    pid = _det_pid()
+    alive = pid_alive(pid)
+    fresh = log.exists() and (time.time() - log.stat().st_mtime) < 180
+    rows, head, saved = parse_det_log(log)
+    run = _det_run_meta()
+    if not run and rows:
+        # 이 화면 밖에서 돈 학습 — 명령줄이 로그에 찍혀 있으므로 거기서 읽는다.
+        raw = log.read_text(encoding="utf-8", errors="ignore")
+        cut = raw.rfind("train_band_detector.py")
+        if cut > 0:
+            line = raw[cut:].splitlines()[0]
+            tok = line.split()
+            for k, key in (("--data", "data"), ("--epochs", "epochs"),
+                           ("--out", "out"), ("--limit", "limit")):
+                if k in tok:
+                    run[key] = tok[tok.index(k) + 1]
+            run["epochs"] = int(run.get("epochs") or 0) or None
+            run["external"] = log.name
+    return {"pid": pid, "alive": alive, "log_fresh": fresh,
+            "rows": rows[-400:], "epoch": rows[-1]["epoch"] if rows else 0,
+            "head": head, "saved": saved[-6:], "run": run,
+            "log": log.name,
+            "log_mtime": (log.stat().st_mtime if log.exists() else 0)}
+
+
+@route("/api/det/logtail")
+def api_det_logtail(qs):
+    n = int(qs.get("lines", ["60"])[0])
+    log = _det_log()
+    if not log.exists():
+        return {"text": "(로그 없음 — 아직 검출기를 돌린 적이 없다)"}
+    lines = log.read_text(encoding="utf-8", errors="ignore").splitlines()
+    return {"text": chr(10).join(lines[-n:])}
+
+
+@route("/api/det/corpora")
+def api_det_corpora(qs):
+    """학습에 쓸 수 있는 합성 코퍼스 — manifest 줄 수가 곧 장 수다."""
+    out = []
+    for d in sorted(HERE.glob("synth*")):
+        mf = d / "manifest.jsonl"
+        if not (d.is_dir() and mf.exists()):
+            continue
+        n = sum(1 for _ in mf.open(encoding="utf-8", errors="ignore"))
+        out.append({"name": d.name, "n": n,
+                    "mtime": mf.stat().st_mtime})
+    out.sort(key=lambda r: -r["mtime"])
+    return {"corpora": out}
+
+
+def _overlay_ckpt():
+    """지금 오버레이가 어느 체크포인트 것인가 — 행마다 박혀 있다."""
+    if not _BAND_PRED.exists():
         return None
     try:
-        return json.loads(RESUME_STATE.read_text(encoding="utf-8"))
-    except Exception:
+        with _BAND_PRED.open(encoding="utf-8") as f:
+            for ln in f:
+                if ln.strip():
+                    return json.loads(ln).get("ckpt")
+    except Exception:                                # noqa: BLE001
         return None
+    return None
 
 
-@route("/api/train/status")
-def api_train_status(qs):
-    pid = train_pid()
-    alive = pid_alive(pid)
-    fresh = False
-    if TRAIN_LOG.exists():
-        fresh = (time.time() - TRAIN_LOG.stat().st_mtime) < 180
-    losses, phase = parse_trainlog()
-    # 에폭 수를 로그의 `loss:` 개수로 세면 재개할 때마다 누적돼 부풀려진다.
-    # 재개 지점이 있으면 그쪽이 정본이다.
-    rp = resume_point()
-    epoch = rp["next_epoch"] if rp else len(losses)
-    return {"managed_pid": pid, "managed_alive": alive,
-            "log_fresh": fresh, "losses": losses[-300:],
-            "epoch": epoch, "phase": phase, "resume": rp}
+@route("/api/det/overlay")
+def api_det_overlay(qs):
+    """오버레이 상태 — 어느 체크포인트인지, 지금 다시 뽑는 중인지."""
+    pid = None
+    if OVL_PID.exists():
+        try:
+            pid = int(OVL_PID.read_text(encoding="utf-8").strip())
+        except (ValueError, OSError):
+            pid = None
+    # **진행 줄만** 고른다. 로그 마지막 줄을 그대로 쓰면 하필 경고문의 꼬리가
+    # 걸려 "오류난 것 같다"로 읽힌다(사람 보고 2026-09-16: tail 이
+    # "warnings.warn(" 이었다). 진행은 predict_band_quads.py 가 내는
+    # "  250/2511  27s" 모양이다.
+    tail = ""
+    if OVL_LOG.exists():
+        for ln in OVL_LOG.read_text(encoding="utf-8",
+                                    errors="ignore").splitlines():
+            t = ln.strip()
+            if re.match(r"^\d+/\d+\s", t) or "기록 ·" in t:
+                tail = t
+    return {"ckpt": _overlay_ckpt(), "running": pid_alive(pid), "pid": pid,
+            "tail": tail,
+            "n": (sum(1 for _ in _BAND_PRED.open(encoding="utf-8"))
+                  if _BAND_PRED.exists() else 0)}
 
 
-@route("/api/logtail")
-def api_logtail(qs):
-    n = int(qs.get("lines", ["50"])[0])
-    if not TRAIN_LOG.exists():
-        return {"text": "(로그 없음)"}
-    lines = TRAIN_LOG.read_text(encoding="utf-8", errors="ignore").splitlines()
-    return {"text": "\n".join(lines[-n:])}
+@route("/api/det/ckpts")
+def api_det_ckpts(qs):
+    """체크포인트 — 게이트를 돌린 적이 있으면 그 결과도 함께."""
+    out = []
+    for f in sorted(HERE.glob("band_det*.pt")):
+        g = DIAG / f.stem / "gate_results.jsonl"
+        out.append({"name": f.name, "stem": f.stem,
+                    "overlay": (f.name == _overlay_ckpt()),
+                    "mtime": f.stat().st_mtime,
+                    "mb": round(f.stat().st_size / 1e6, 1),
+                    "gated": g.exists()})
+    out.sort(key=lambda r: -r["mtime"])
+    return {"ckpts": out}
+
+
+def _gate_summary(path):
+    """게이트 결과 한 판 요약. **여기서 새 수치를 만들지 않는다** — 파일에
+    적힌 장별 값을 그대로 모아 분위수만 낸다. 자는 eval_band_detector.py 다.
+
+    1순위는 포함률(사람 라벨을 다 담았는가), 2순위는 넓이비. IoU 는 옛 판과
+    잇대어 보라고 남긴 참고값이라 **합격을 정하지 않는다** — 기울어진 예측을
+    축정렬 라벨과 견주는 자라 천장이 있고, 합성 기울기를 넓히면 검출이 좋아져도
+    내려간다. [[proxy-metric-moves-against-the-goal]]
+    """
+    CONTAIN_PASS = 0.999
+    rows = []
+    with path.open(encoding="utf-8") as f:
+        for ln in f:
+            ln = ln.strip()
+            if ln:
+                rows.append(json.loads(ln))
+    if not rows:
+        return None
+    det = np.array([r.get("iou_det", 0.0) for r in rows], float)
+    has_con = any("contain" in r for r in rows)
+    out = {
+        "n": len(rows),
+        "iou_p50": round(float(np.median(det)), 3),
+        "iou_p10": round(float(np.percentile(det, 10)), 3),
+        "legacy": not has_con,
+    }
+    if has_con:
+        con = np.array([r.get("contain", 0.0) for r in rows], float)
+        ar = np.array([r.get("area", 0.0) for r in rows], float)
+        ok = con >= CONTAIN_PASS
+        out.update({
+            "pass": int(ok.sum()),
+            "pass_pct": round(100.0 * ok.mean(), 1),
+            "con_p50": round(float(np.median(con)), 4),
+            "con_p10": round(float(np.percentile(con, 10)), 4),
+            "con_min": round(float(con.min()), 4),
+            "area_p50": round(float(np.median(ar)), 2),
+            "area_p90": round(float(np.percentile(ar, 90)), 2),
+        })
+        edges = {}
+        for side in ("top", "bottom", "left", "right"):
+            v = np.array([(r.get("edges") or {}).get(side, 0.0) for r in rows],
+                         float)
+            edges[side] = {"cut": int((v > 0).sum()),
+                           "max": round(float(v.max()), 3)}
+        out["edges"] = edges
+        key = "contain"
+    else:
+        key = "iou_det"
+    per = {}
+    for r in rows:
+        per.setdefault(r.get("device") or "(미식별)", []).append(r.get(key, 0.0))
+    devs = [{"device": k, "n": len(v), "median": round(float(np.median(v)), 3)}
+            for k, v in per.items() if len(v) >= 3]
+    devs.sort(key=lambda d: d["median"])
+    out["devices"] = devs[:8]
+    out["worst"] = [r["id"] for r in sorted(rows, key=lambda r: r.get(key, 0.0))[:8]]
+    return out
+
+
+@route("/api/det/gate")
+def api_det_gate(qs):
+    """게이트 결과들. tag 를 주면 그 한 판만, 없으면 있는 것 전부 요약."""
+    tag = qs.get("tag", [""])[0]
+    runs = []
+    # 폴더 이름으로 고르지 않는다 — `--tag` 를 주면 이름이 뭐든 될 수 있다
+    # (contain_r2_40k 가 band_det* 글롭에 안 걸려 표가 비었다, 2026-09-15).
+    # **게이트 결과 파일이 있는 폴더**가 곧 한 판이다.
+    for d in sorted(p for p in DIAG.iterdir() if p.is_dir()):
+        g = d / "gate_results.jsonl"
+        if not g.exists():
+            continue
+        if tag and d.name != tag:
+            continue
+        try:
+            sm = _gate_summary(g)
+        except Exception as e:                       # noqa: BLE001
+            sm = {"error": f"{type(e).__name__}: {e}"}
+        if sm:
+            sm["tag"] = d.name
+            sm["mtime"] = g.stat().st_mtime
+            sm["sheet"] = (d / "gate_worst.png").exists()
+            runs.append(sm)
+    runs.sort(key=lambda r: -r.get("mtime", 0))
+    return {"runs": runs}
 
 
 @route("/api/preds_holdout")
@@ -659,12 +863,38 @@ _PROF_MOD = {}
 
 
 def _prof_mods():
-    """무거운 합성 모듈은 처음 쓸 때만 import 한다(웹툴 기동을 늦추지 않게)."""
+    """무거운 합성 모듈은 처음 쓸 때만 import 한다(웹툴 기동을 늦추지 않게).
+
+    파일이 바뀌면 다시 읽는다(2026-09-15). 구판은 한 번 import 하고 캐시만
+    돌려줘서, 프로파일을 고친 뒤에도 웹툴은 **기동 시점의 코드**를 계속 그렸다.
+    화면이 안 바뀌니 "고쳐도 반응이 없다"로 읽히고, 사람이 다음 값을 헛짚는다.
+    합성 캐시를 mtime 으로 무효화한 것과 같은 자리다. [[stale-cache-shows-
+    the-old-world]]
+    """
+    import importlib, os
+    # 의존 순서대로 — 아래 것을 먼저 읽어야 위가 새 정의를 집는다.
+    # synth_panel 은 import 시점에 synth_profiles 의 이름을 당겨오므로
+    # profiles 를 먼저 갈지 않으면 panel 이 옛 표를 그대로 안고 다시 선다.
+    names = (("layout", "lcd_layout"), ("schema", "synth_schema"),
+             ("ov", "synth_overrides"), ("profiles", "synth_profiles"),
+             ("panel", "synth_panel"))
+    stamp = []
+    for _, mod in names:
+        f = os.path.join(os.path.dirname(os.path.abspath(__file__)), mod + ".py")
+        try:
+            st = os.stat(f)
+            stamp.append((mod, st.st_mtime_ns, st.st_size))
+        except OSError:
+            stamp.append((mod, 0, 0))
+    stamp = tuple(stamp)
     if not _PROF_MOD:
-        import importlib
-        _PROF_MOD["profiles"] = importlib.import_module("synth_profiles")
-        _PROF_MOD["panel"] = importlib.import_module("synth_panel")
-        _PROF_MOD["ov"] = importlib.import_module("synth_overrides")
+        for key, mod in names:
+            _PROF_MOD[key] = importlib.import_module(mod)
+        _PROF_MOD["_stamp"] = stamp
+    elif _PROF_MOD.get("_stamp") != stamp:
+        for key, mod in names:
+            _PROF_MOD[key] = importlib.reload(_PROF_MOD[key])
+        _PROF_MOD["_stamp"] = stamp
     return _PROF_MOD
 
 
@@ -683,9 +913,12 @@ def api_prof_schema(qs):
     """값의 모양(열거 후보·범위). 에디터가 위젯을 고르는 근거 — 파이썬 쪽에
     둔다(synth_schema.py). 후보 목록이 렌더러 분기와 갈라지면 안 되므로
     소비하는 코드 옆에 있어야 한다."""
-    _prof_mods()
+    m = _prof_mods()
     import importlib
-    return importlib.import_module("synth_schema").schema()
+    sch = importlib.import_module("synth_schema").schema()
+    sch["band_margin"] = m["layout"].BAND_MARGIN
+    sch["layout_margin"] = m["layout"].LAYOUT_MARGIN
+    return sch
 
 
 @route("/api/prof/get")
@@ -707,7 +940,7 @@ def api_prof_get(qs):
             "devices": _jsonable(P.PROFILE_DEVICES.get(pid, []))}
 
 
-def _prof_render(pid, prof_ov, reg_ov, seed, n):
+def _prof_render(pid, prof_ov, reg_ov, seed, n, band_margin=None):
     """덮어쓰기를 얹어 n 장 그린다. 반환 [(png bytes, quad, label)]."""
     import random
     m = _prof_mods()
@@ -718,7 +951,13 @@ def _prof_render(pid, prof_ov, reg_ov, seed, n):
     merged = ov._merge(base, prof_ov)
     saved = P.REGIONS.get(pid)
     out = []
+    # 라벨 여백은 **그림이 아니라 정답 상자**를 바꾼다(2026-09-16 분리).
+    # 눈으로 확인하라고 프리뷰에서만 잠깐 갈아끼운다 — 정본 파일은 안 건드린다.
+    _lay = m["layout"]
+    _saved_bm = _lay.BAND_MARGIN
     try:
+        if band_margin is not None:
+            _lay.BAND_MARGIN = float(band_margin)
         if reg_ov:
             # REGIONS 는 모듈 전역이라 잠깐 갈아끼운다 — 그려야 반영된다.
             P.REGIONS[pid] = ov._merge(saved or {}, reg_ov)
@@ -730,12 +969,21 @@ def _prof_render(pid, prof_ov, reg_ov, seed, n):
             okp, buf = cv2.imencode(".png", s["panel"])
             # dropped 를 같이 낸다 — 선언했는데 자리가 없어 빠진 요소가
             # 화면에 안 보이면 "고쳐도 안 바뀐다"로 읽힌다(사람 2026-09-15).
+            # quad 는 **워프 후** — 학습이 실제로 받는 정답 그대로다
+            # (train_band_detector.py 가 manifest 의 quad 를 쓴다).
+            # 구판은 quad_panel(워프 전)을 넘겼다. rects 와 좌표계를 맞추려던
+            # 것이었는데, 이미지는 워프 후라 상자만 안 기운 세계에 남았고
+            # 화면에서는 "정답이 축정렬이다"로 읽혔다(사람 의심 2026-09-15).
+            # 두 좌표계를 둘 다 낸다 — quad 가 정답, quad_panel 은 배치 칸.
+            # [[unnamed-coordinate-frame]]
             out.append((buf.tobytes(),
-                        np.round(s["quad_panel"], 1).tolist(),
+                        np.round(s["quad"], 1).tolist(),
                         s["label"], s["W"], s["H"],
                         [list(r) for r in s["rects"]],
-                        sorted(set(s.get("dropped") or []))))
+                        sorted(set(s.get("dropped") or [])),
+                        np.round(s["quad_panel"], 1).tolist()))
     finally:
+        _lay.BAND_MARGIN = _saved_bm
         if reg_ov:
             if saved is None:
                 P.REGIONS.pop(pid, None); panel.REGIONS.pop(pid, None)
@@ -1398,15 +1646,6 @@ class Handler(BaseHTTPRequestHandler):
             return
         self._send(404, b"not found", "text/plain")
 
-    def _train_pid(self):
-        pf = HERE / "train_pid.json"
-        if not pf.exists():
-            return None
-        try:
-            return json.loads(pf.read_text(encoding="utf-8")).get("pid")
-        except Exception:
-            return None
-
     def _pid_alive(self, pid):
         if not pid:
             return False
@@ -1426,19 +1665,22 @@ class Handler(BaseHTTPRequestHandler):
             # 덮어쓰기를 얹어 몇 장 그려 돌려준다. 저장하지 않는다 —
             # 눈으로 보고 마음에 들면 그때 /api/prof/save 다.
             try:
+                _bm = body.get("band_margin")
                 shots = _prof_render(body.get("pid", ""),
                                      body.get("profile") or {},
                                      body.get("regions") or {},
                                      int(body.get("seed", 9150)),
-                                     min(6, max(1, int(body.get("n", 3)))))
+                                     min(6, max(1, int(body.get("n", 3)))),
+                                     band_margin=(float(_bm) if _bm is not None
+                                                  else None))
             except Exception as e:                       # noqa: BLE001
                 self._json({"error": f"{type(e).__name__}: {e}"}, 400)
                 return
             self._json({"shots": [
                 {"png": "data:image/png;base64," + base64.b64encode(b).decode(),
                  "quad": q, "label": lb, "w": w, "h": h, "rects": rc,
-                 "dropped": dr}
-                for b, q, lb, w, h, rc, dr in shots]})
+                 "dropped": dr, "quad_panel": qp}
+                for b, q, lb, w, h, rc, dr, qp in shots]})
             return
         if u.path == "/api/prof/save":
             # 정본(synth_profiles.py)은 건드리지 않는다. 덮어쓰기 JSON 만 쓴다.
@@ -1648,38 +1890,103 @@ class Handler(BaseHTTPRequestHandler):
                     return
             self._json({"error": "no such component"}, 404)
             return
-        if u.path == "/api/train/start":
-            if self._pid_alive(self._train_pid()):
+        if u.path == "/api/det/start":
+            # 밴드 쿼드 검출기 학습. **오래 걸린다** — 40k 코퍼스 50에폭이
+            # 1시간 반쯤이라 창을 닫아도 살아 있게 떼어 놓는다(DETACHED).
+            if self._pid_alive(_det_pid()):
                 self._json({"ok": False, "error": "이미 실행 중"})
                 return
-            if TRAIN_LOG.exists() and (time.time() - TRAIN_LOG.stat().st_mtime) < 120:
+            if DET_LOG.exists() and (time.time() - DET_LOG.stat().st_mtime) < 120:
                 self._json({"ok": False,
-                            "error": "다른 학습이 방금까지 로그를 기록 중 — 잠시 후 시도"})
+                            "error": "다른 학습이 방금까지 로그를 기록 중 — 잠시 후"})
                 return
-            mode = body.get("mode", "fresh")
-            if mode not in ("fresh", "resume", "ft"):
-                self._json({"ok": False, "error": f"모르는 모드: {mode}"})
-                return
-            if mode == "resume" and not RESUME_STATE.exists():
+            data = str(body.get("data") or "").strip()
+            if not data or not (HERE / data / "manifest.jsonl").exists():
                 self._json({"ok": False,
-                            "error": "이어서 돌릴 지점이 없다 — 처음부터 시작할 것"})
+                            "error": f"코퍼스가 없다: {data or '(빈 값)'}"})
                 return
-            logf = open(TRAIN_LOG, "ab")  # 모니터가 같은 파일을 읽는다
+            try:
+                epochs = max(1, min(400, int(body.get("epochs", 50))))
+            except (TypeError, ValueError):
+                self._json({"ok": False, "error": "에폭이 숫자가 아니다"})
+                return
+            out = str(body.get("out") or "").strip() or f"band_det_{data}.pt"
+            if not out.endswith(".pt") or "/" in out or "\\" in out:
+                self._json({"ok": False,
+                            "error": "출력 이름은 .pt 파일명 하나여야 한다"})
+                return
+            arch = str(body.get("arch") or "fc")
+            every = int(body.get("ckpt_every", 10) or 0)
+            cmd = [sys.executable, str(HERE / "train_band_detector.py"),
+                   "--data", data, "--epochs", str(epochs),
+                   "--out", out, "--arch", arch]
+            if every:
+                cmd += ["--ckpt-every", str(every)]
+            # 로그는 **덮어쓴다**. 이어붙이면 재개할 때마다 옛 에폭이 누적돼
+            # 그래프가 부풀고, 어느 줄이 이번 실행인지 화면에서 가를 수 없다
+            # (구판 CTC 로그가 그랬다 — 8월 31일 줄이 9월까지 살아 있었다).
+            logf = open(DET_LOG, "wb")
+            logf.write(("== " + " ".join(cmd[1:]) + " ==" + chr(10)).encode("utf-8"))
+            logf.flush()
             env = dict(os.environ, PYTHONUNBUFFERED="1")
-            proc = subprocess.Popen(
-                [sys.executable, str(HERE / "ctc_reader_v2.py"), mode],
-                stdout=logf, stderr=subprocess.STDOUT,
-                creationflags=DETACHED, env=env, cwd=str(HERE))
-            (HERE / "train_pid.json").write_text(
-                json.dumps({"pid": proc.pid}), encoding="utf-8")
-            self._json({"ok": True, "pid": proc.pid, "mode": mode})
+            proc = subprocess.Popen(cmd, stdout=logf,
+                                    stderr=subprocess.STDOUT,
+                                    creationflags=DETACHED, env=env,
+                                    cwd=str(HERE))
+            DET_PID.write_text(json.dumps(
+                {"pid": proc.pid, "data": data, "epochs": epochs, "out": out,
+                 "arch": arch, "started": time.time()}), encoding="utf-8")
+            self._json({"ok": True, "pid": proc.pid, "cmd": cmd[1:]})
             return
-        if u.path == "/api/train/stop":
-            pid = self._train_pid()
+        if u.path == "/api/det/stop":
+            pid = _det_pid()
             if pid and self._pid_alive(pid):
-                subprocess.run(["taskkill", "/PID", str(pid), "/F"],
+                subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"],
                                capture_output=True)
             self._json({"ok": True})
+            return
+        if u.path == "/api/det/overlay":
+            # 기종 탭 오버레이를 이 체크포인트로 갈아끼운다. 2,511장이라
+            # 5분쯤 걸리므로 **떼어 놓고** 돌린다 — 브라우저가 기다리지 않게.
+            ck = str(body.get("ckpt") or "").strip()
+            if not ck.endswith(".pt") or "/" in ck or "\\" in ck                     or not (HERE / ck).exists():
+                self._json({"ok": False, "error": f"체크포인트가 없다: {ck}"})
+                return
+            if self._pid_alive(int(OVL_PID.read_text(encoding="utf-8").strip())
+                               if OVL_PID.exists()
+                               and OVL_PID.read_text(encoding="utf-8").strip()
+                               .isdigit() else None):
+                self._json({"ok": False, "error": "이미 뽑는 중"})
+                return
+            logf = open(OVL_LOG, "wb")
+            proc = subprocess.Popen(
+                [sys.executable, str(HERE / "predict_band_quads.py"),
+                 "--ckpt", ck],
+                stdout=logf, stderr=subprocess.STDOUT,
+                creationflags=DETACHED,
+                env=dict(os.environ, PYTHONUNBUFFERED="1"), cwd=str(HERE))
+            OVL_PID.write_text(str(proc.pid), encoding="utf-8")
+            self._json({"ok": True, "pid": proc.pid, "ckpt": ck})
+            return
+        if u.path == "/api/det/gate":
+            # 실사진 게이트. 사람 밴드 라벨과 견주는 **유일한** 자이고,
+            # 합성 val 점수는 품질 계기가 아니다(카드 지시).
+            ck = str(body.get("ckpt") or "").strip()
+            if not ck.endswith(".pt") or "/" in ck or "\\" in ck                     or not (HERE / ck).exists():
+                self._json({"ok": False, "error": f"체크포인트가 없다: {ck}"})
+                return
+            try:
+                r = subprocess.run(
+                    [sys.executable, str(HERE / "eval_band_detector.py"),
+                     "gate", "--ckpt", ck],
+                    capture_output=True, text=True, cwd=str(HERE),
+                    env=dict(os.environ, PYTHONUNBUFFERED="1"), timeout=1800)
+            except subprocess.TimeoutExpired:
+                self._json({"ok": False, "error": "게이트가 30분을 넘겼다"})
+                return
+            self._json({"ok": r.returncode == 0,
+                        "tag": Path(ck).stem,
+                        "text": (r.stdout or "") + (r.stderr or "")})
             return
         self._json({"error": "unknown api"}, 404)
 
