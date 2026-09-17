@@ -208,9 +208,23 @@ def main():
               f"cx={np.median(bcx[m]):.3f} cy={np.median(bcy[m]):.3f} | 실측 "
               f"n={r['n']} w={r['w_median']:.3f} h={r['h_median']:.3f} "
               f"cx={r['cx_median']:.3f} cy={r['cy_median']:.3f}")
+    # gpc 는 대비에 따라 절대 수준이 달라진다 — 전체 '0.9 미만' 하나로는
+    # '평면이 어긋났다'와 '패널이 흐리다'가 섞인다. 저대비 한정 비율을 함께
+    # 찍는다(카드 「글리프 평면 자가검사가 …」 AC#4). 분해능 자체는
+    # diag_gpc_resolution.py 가 어긋뜨려 잰다 — 통과율로는 알 수 없다.
+    GPC_LOWC = 48.0        # = GPC_INK_FLOOR / GPC_INK_K, 문턱이 바닥에 눌리는 경계
+    lowc = contrasts < GPC_LOWC
     print(f"글리프 평면   gpc median={np.median(gpc):.4f} "
           f"p10={p(gpc, 10):.4f} min={gpc.min():.4f}  (0.9 미만 "
           f"{np.mean(gpc < 0.9) * 100:.1f}%)")
+    if len(gpc) == len(contrasts) and lowc.any():
+        print(f"              저대비(밴드 대비<{GPC_LOWC:.0f}) n={int(lowc.sum())} "
+              f"· 0.9 미만 {np.mean(gpc[lowc] < 0.9) * 100:.1f}% "
+              f"| 그 외 n={int((~lowc).sum())} · "
+              f"{np.mean(gpc[~lowc] < 0.9) * 100:.1f}%")
+    elif lowc.any():
+        print(f"              저대비 분해 생략 — gpc {len(gpc)}개와 "
+              f"대비 {len(contrasts)}개의 수가 달라 짝지을 수 없다")
     # 반사 — 유형 분포와 **숫자 필드를 얼마나 가렸나**.
     # 카드 「합성 국소 광원」 AC#1 이 여기서 판정된다: 숫자 영역 전체를 가리는
     # 표본이 없어야 한다. 12장 몽타주를 눈으로 보고 "안 덮는다" 고 말하지
