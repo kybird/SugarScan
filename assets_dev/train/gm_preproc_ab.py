@@ -93,6 +93,8 @@ def main():
                     help="장 단위로 볼 id 목록(쉼표)")
     ap.add_argument("--wide-detail", action="store_true",
                     help="가로 층을 diag_wide_gm 의 판정으로 장 단위 비교")
+    ap.add_argument("--paired", nargs=2, metavar=("팔A", "팔B"),
+                    help="두 팔을 같은 장에서 짝지어 비교한다(승·패·무와 꼬리)")
     args = ap.parse_args()
 
     arms = {}
@@ -115,6 +117,32 @@ def main():
           arms, w, human, corpus_n)
     p = sorted(i for i in all_ids if i not in wide)
     table("세로 화면 층", arms, p, human, corpus_n)
+
+    if args.paired:
+        # 층별 중앙값만 보면 **이상치 한 장이 평균을 끌고 가는 것**을 축의
+        # 효과로 읽게 된다(2026-09-17 에 실제로 그랬다 — 1826 한 장을 채널
+        # 축 탓으로 보고했다). 같은 장에서 짝지어 승·패·무를 세고 꼬리를
+        # 이름까지 찍는다. 짝지음이 성립하는 이유는 두 팔이 같은 체크포인트·
+        # 같은 사진에 전처리만 다르게 돌았기 때문이다.
+        a_name, b_name = args.paired
+        A, B = arms[a_name], arms[b_name]
+        print(f"\n── 짝비교 {b_name} - {a_name} " + "─" * 30)
+        for label, ids in (("전체", all_ids), ("가로", w), ("세로", p)):
+            both = [i for i in ids if i in A and i in B]
+            if not both:
+                continue
+            d = np.array([iou(B[i], human[i]) - iou(A[i], human[i])
+                          for i in both])
+            win = int((d > 0.01).sum())
+            lose = int((d < -0.01).sum())
+            print(f"  {label:<5} n={len(both):<4} {b_name} 승 {win} · "
+                  f"패 {lose} · 무 {len(d) - win - lose}  |  "
+                  f"짝차이 중앙 {np.median(d):+.4f} 평균 {d.mean():+.4f}")
+            worst = sorted(zip(both, d), key=lambda t: t[1])[:3]
+            print("        가장 나빠진 3장: " + " · ".join(
+                f"{i.split('/')[-1]} {v:+.3f}" for i, v in worst))
+        print("  중앙값과 평균이 갈리면 꼬리가 평균을 끌고 있다는 뜻이다 — "
+              "그때는 축의 효과가 아니라 그 장을 봐야 한다.")
 
     if args.wide_detail:
         # 판정 규칙은 diag_wide_gm 에 하나만 둔다 — 여기서 다시 쓰지 않는다.
