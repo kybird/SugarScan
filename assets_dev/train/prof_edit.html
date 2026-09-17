@@ -64,6 +64,14 @@
   <label>장수 <select id="n"><option>3</option><option selected>4</option>
     <option>6</option></select></label>
   <label>시드 <input id="seed" type="number" value="9150" style="width:88px"></label>
+  <!-- 라벨 여백은 **그림이 아니라 정답 상자**를 바꾼다(2026-09-16 분리).
+       슬라이더를 밀어도 숫자 크기는 그대로여야 한다 — 그게 이 화면의 확인점. -->
+  <label title="정답 쿼드가 숫자 필드를 넘어 감싸는 정도(숫자 높이 대비). 그림은 안 바뀐다.">
+    라벨 여백 <input id="bm" type="range" min="0.02" max="0.60" step="0.02"
+                   value="0.10" style="width:130px;vertical-align:middle">
+    <input id="bmv" type="number" min="0.02" max="0.60" step="0.02" value="0.10"
+           style="width:62px"></label>
+  <button id="bmreset" title="정본 값으로">↺</button>
   <button id="reroll">다른 값으로</button>
   <button id="revert" class="warn">덮어쓰기 버리기</button>
   <button id="save" class="go">저장</button>
@@ -142,6 +150,10 @@ function withHelp(row, spec) {
 }
 
 function numWidget(v, spec, onSet) {
+  // 숫자 칸에 직접 입력할 수 있어야 한다. 구판은 입력 중에도 칸의 값을
+  // 되받아 써서(nb.value = parseFloat(nb.value)) "0." 까지 친 순간 0 으로
+  // 지워졌다 — 슬라이더로만 값을 넣을 수 있었다(사람 지적 2026-09-15).
+  // **입력 중인 칸은 건드리지 않는다.** 정규화(범위 클램프)는 칸을 떠날 때다.
   const box = document.createElement("div");
   box.style.cssText = "display:flex;gap:5px;flex:1;align-items:center";
   const sp = spec || {};
@@ -151,9 +163,26 @@ function numWidget(v, spec, onSet) {
   const mx = sp.max !== undefined ? sp.max : 1;
   const st = sp.step !== undefined ? sp.step : 0.01;
   for (const e of [rg, nb]) { e.min = mn; e.max = mx; e.step = st; e.value = v; }
-  const sync = src => { const x = parseFloat(src.value);
-    rg.value = x; nb.value = x; onSet(x); schedule(); };
-  rg.oninput = () => sync(rg); nb.oninput = () => sync(nb);
+  nb.style.width = "78px";
+  const clamp = x => Math.min(mx, Math.max(mn, x));
+  rg.oninput = () => {
+    const x = parseFloat(rg.value);
+    nb.value = x; onSet(x); schedule();
+  };
+  nb.oninput = () => {
+    // 빈 칸·'0.'·'-' 같은 중간 상태는 아직 값이 아니다. 그냥 둔다.
+    const x = parseFloat(nb.value);
+    if (!isFinite(x)) return;
+    rg.value = clamp(x); onSet(x); schedule();
+  };
+  // 칸을 떠날 때만 되받아 쓴다 — 범위를 벗어난 값은 여기서 잡는다.
+  nb.onchange = nb.onblur = () => {
+    const x = parseFloat(nb.value);
+    if (!isFinite(x)) { nb.value = rg.value; return; }
+    const c = clamp(x);
+    if (c !== x) nb.value = c;
+    rg.value = c; onSet(c); schedule();
+  };
   box.append(rg, nb); return box;
 }
 
@@ -221,7 +250,11 @@ function numsWidget(arr, spec, onSet) {
     if (spec.max !== undefined) nb.max = spec.max;
     nb.step = spec.step !== undefined ? spec.step : 0.005;
     nb.value = v;
-    nb.oninput = () => { cur[i] = parseFloat(nb.value); onSet(cur.slice()); schedule(); };
+    nb.oninput = () => {
+      const x = parseFloat(nb.value);
+      if (!isFinite(x)) return;      // 중간 상태 — 칸을 건드리지 않는다
+      cur[i] = x; onSet(cur.slice()); schedule();
+    };
     const lb = document.createElement("div");
     lb.className = "cap"; lb.style.padding = "0";
     lb.textContent = (spec.labels || [])[i] || ("#" + i);
@@ -430,7 +463,8 @@ async function preview() {
     headers:{"Content-Type":"application/json"},
     body: JSON.stringify({ pid:ST.pid, profile:ST.ov.profile,
       regions:ST.ov.regions, seed:parseInt($("seed").value, 10),
-      n:parseInt($("n").value, 10) }) });
+      n:parseInt($("n").value, 10),
+      band_margin:parseFloat($("bm").value) }) });
   const j = await r.json();
   if (j.error) { $("msg").textContent = "오류: " + j.error; return; }
   $("msg").textContent = "";
@@ -443,7 +477,17 @@ async function preview() {
       cv.width = s.w; cv.height = s.h;
       const c = cv.getContext("2d");
       c.drawImage(im, 0, 0);
-      c.strokeStyle = "#32d74b"; c.lineWidth = Math.max(2, s.w / 220);
+      const lw = Math.max(2, s.w / 220);
+      // 회색 = 배치 칸(워프 전). 요소가 어디에 예약됐는지 보는 자리.
+      if (s.quad_panel) {
+        c.strokeStyle = "#8a8a8e"; c.lineWidth = lw; c.setLineDash([6, 5]);
+        c.beginPath();
+        s.quad_panel.forEach((p, i) =>
+          i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]));
+        c.closePath(); c.stroke(); c.setLineDash([]);
+      }
+      // 녹색 = 검출기가 받는 정답(워프 후). 사진과 같은 좌표계라 기울어진다.
+      c.strokeStyle = "#32d74b"; c.lineWidth = lw;
       c.beginPath();
       s.quad.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]));
       c.closePath(); c.stroke();
@@ -451,7 +495,14 @@ async function preview() {
     im.src = s.png;
     const cap = document.createElement("div");
     cap.className = "cap";
-    cap.textContent = "값 " + s.label + " · " +
+    // 기울기 — 녹색 쿼드의 위·아래 변 평균. 0 에 가까우면 촬영 변인이
+    // 얕다는 뜻이고, 그건 화면에 숫자로 떠야 사람이 판단할 수 있다.
+    const _t = (q) => {
+      const d = (a, b) => Math.atan2(q[b][1] - q[a][1], q[b][0] - q[a][0]);
+      return (d(0, 1) + d(3, 2)) / 2 * 180 / Math.PI;
+    };
+    cap.textContent = "값 " + s.label + " · 기울기 " +
+      _t(s.quad).toFixed(2) + "° · " +
       Array.from(new Set(s.rects.map(r => r[4]))).sort().join(" ");
     wrap.append(cv, cap);
     // 선언했는데 자리가 없어 빠진 요소. 이걸 안 보여 주면 값을 고쳐도
@@ -500,6 +551,9 @@ async function loadProfile(pid) {
 
 async function boot() {
   SC = await (await fetch("/api/prof/schema")).json();
+  // 정본 BAND_MARGIN 을 슬라이더 시작값으로. 화면이 파일과 다른 값을 들고
+  // 있으면 "바꿨는데 왜 그대로냐"가 된다.
+  if (SC.band_margin) { $("bm").value = SC.band_margin; $("bmv").value = SC.band_margin; }
   const j = await (await fetch("/api/prof/get")).json();
   const sel = $("pid");
   (j.ids || []).forEach(x => sel.append(new Option(x, x)));
@@ -507,6 +561,22 @@ async function boot() {
   sel.onchange = () => loadProfile(sel.value);
   $("n").onchange = preview;
   $("seed").oninput = schedule;
+  // 슬라이더와 숫자 칸을 묶는다. 숫자 칸은 입력 중에 되받아 쓰지 않는다
+  // (0. 까지 친 순간 지워지던 문제와 같은 자리).
+  $("bm").oninput = () => { $("bmv").value = $("bm").value; schedule(); };
+  $("bmv").oninput = () => {
+    const x = parseFloat($("bmv").value);
+    if (!isFinite(x)) return;
+    $("bm").value = Math.min(0.60, Math.max(0.02, x)); schedule();
+  };
+  $("bmv").onchange = () => {
+    const x = Math.min(0.60, Math.max(0.02, parseFloat($("bmv").value) || 0.10));
+    $("bmv").value = x; $("bm").value = x; schedule();
+  };
+  $("bmreset").onclick = () => {
+    const v = SC.band_margin || 0.10;
+    $("bm").value = v; $("bmv").value = v; schedule();
+  };
   $("reroll").onclick = () => {
     $("seed").value = Math.floor(Math.random() * 90000) + 1000; preview(); };
   $("rprev").onclick = () => { const R = ST.real; if (R.ids.length) {

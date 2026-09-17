@@ -101,8 +101,10 @@ DOT_FMTS = [
 
 # 단위(mg/dL)가 숫자에 얼마나 바싹 붙는가 — unit 요소의 `hug`(숫자 높이 대비
 # 간격). 기기 속성이다(사람 지침 2026-09-15). 실물 중에는 밴드 상자가 단위를
-# 자를 만큼 붙은 기기가 있다. 생략하면 0.22.
-#   hug=0.02  거의 닿는다   ·  hug=0.22 기본  ·  hug=0.45 여유
+# 자를 만큼 붙은 기기가 있다. 생략하면 0.22 지만, **모든 프로파일이 0.05 를
+# 명시한다**(사람 일괄 지시 2026-09-15) — 실물을 하나씩 보니 어느 기기도
+# 기본값만큼 떨어져 있지 않았다.
+#   hug=0.02 거의 닿는다  ·  0.10 이 밴드 경계  ·  0.45 여유
 PROFILES = [
     dict(
         id="accuchek_instant", slots=3, align="right", italic=False,
@@ -114,7 +116,7 @@ PROFILES = [
         # 화살표의 세로 자리는 값이 정한다 — 둘 다 gap 을 안 읽는다. 남겨 둔
         # 이유는 arrow 쪽 코드가 a["gap"] 을 무조건 꺼내기 때문이다.
         # hug: mg/dL 이 125 바로 아래 바싹 붙는다(267·270).
-        unit=dict(texts=["mg/dL"], pos="below-right", gap=(2, 80), hug=0.06,
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(2, 80), hug=0.05,
                   p=0.9),
         # 미터기 지시 화살표(AC#5): 검은 창 안 오른쪽 가장자리의 흰 ▶ 이
         # 몸체에 인쇄된 점 눈금 열을 가리킨다. 근거 Instant 34장 — 화살표는
@@ -135,18 +137,19 @@ PROFILES = [
         # hug: 실물은 mg/dL 이 혈당 숫자에 바짝 붙는다(사람 눈검 2026-09-15).
         # h: 단위가 시간·날짜 줄보다 **작다**. 기본 1.0 이면 같은 높이라
         #    실물과 반대로 보인다(같은 사람 눈검).
-        unit=dict(texts=["mg/dL", "mg /dL"], pos="below-right", gap=(3, 8),
-                  hug=0.04, h=0.72, p=1.0),
+        # 단위는 숫자 가운데보다 **조금 오른쪽**이다(사람 눈검 2026-09-15).
+        unit=dict(texts=["mg/dL", "mg /dL"], pos="below-center", dx=0.10,
+                  gap=(3, 8), hug=0.05, h=0.72, p=1.0),
         # 식전·식후(AC/PC)는 없다 — 실물에 그 표기가 없다(사람 눈검
         # 2026-09-15). 날짜·시간 줄과 혈당 숫자 사이에 아이콘이 몇 개 있지만
         # 구현하지 않기로 했다(같은 판단).
         # M(메모리) 은 뺐다 — 실물에 없다(사람 눈검 2026-09-15, 실촬 대조).
         # time 과 같은 below-left 를 다투던 자리이기도 했다.
         # 하단 행: 날짜(왼) · am/pm(가운데) · 시각(오른). am/pm 은 소문자이고
-        # mg/dL 과 같은 크기로 밑선에 맞춰 붙는다(사람 눈검 2026-09-15) —
-        # ampm 배수를 unit 의 h 와 같게 둔다.
+        # **날짜·시간 높이의 절반**으로 밑선에 맞춰 붙는다(사람 눈검
+        # 2026-09-15 재확인 — 처음엔 mg/dL 과 같은 크기로 보고 0.72 를 줬다).
         time=dict(pos="row-bottom", date_fmt="{M}-{d}", hm_fmt="{h02}:{m02}",
-                  ampm=0.72, p=0.85),
+                  ampm=0.5, p=0.85),
         # 배터리는 우측 상단 고정 — 실물에 늘 있다(사람 눈검 2026-09-15).
         icons=[("battery", "top-right", 1.0)],
         # 유리 바깥이 검은 베젤이다 — 'Gmate' 가 그 위에 흰색으로 찍혀 있다
@@ -166,29 +169,39 @@ PROFILES = [
         # 화면 아래 한 줄은 '3.21  08:41 AM' — 날짜+시간이고 역시 세그먼트다.
         # 'OK'·'CHECK STRIP' 윗줄은 세 장 어디에도 없다. 도트 렌더를 쓰는
         # 프로파일은 이제 하나도 없다.
-        unit=dict(texts=["mg/dL"], pos="below-right", gap=(8, 14), p=0.9),
-        dotrow_below=dict(fmts=["{M}.{d02}  {h02}:{m02} {AM}"], p=1.0),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(8, 14), hug=0.05, p=0.9),
+        # 날짜·시간 줄은 오른쪽에 붙는다(사람 판정 2026-09-15, 사진 120·694·695).
+        # AM/PM 은 날짜·시간 높이의 절반이고 윗선에 붙는다(사람 눈검 2026-09-15).
+        dotrow_below=dict(fmts=["{M}.{d02}  {h02}:{m02} {AM}"],
+                          align="right", ampm=0.5, ampm_valign="top",
+                          p=1.0),
         bezel=dict(texts=["Premium"], edge="bottom", p=1.0),
     ),
     dict(
         id="green_doctor", slots=3, align="right", italic=False,
         evidence=["glucose_batch1/1781", "glucose_batch1/2498"],
-        glulabel=dict(p=0.9),
-        unit=dict(texts=["mg/dL"], pos="below-right", gap=(6, 14), p=0.6),
-        mem=dict(kind="M-box", pos="top-left", p=0.7),
+        # GLU 는 혈당 숫자 **바로 위** 가운데이고, M 과는 다른 행이다
+        # (사람 눈검 2026-09-15, 1781·2498). M 은 상단 줄 위쪽에 남는다.
+        glulabel=dict(pos="top-center", hug=0.02, p=0.9),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(6, 14), hug=0.05, p=0.6),
+        mem=dict(kind="M-box", pos="top-left", valign="top", p=0.7),
         # 자리는 기기 안에서 고정돼야 한다(사람 지적 2026-09-15: 어떤 장은
         # 좌상단에 삼각형, 어떤 장은 M 이 떴다). mem 이 top-left 를 쓰므로
         # 삼각형은 top-right 하나만 둔다 — 한 자리를 둘이 다투지 않게.
         icons=[("triangle", "top-right", 0.4),
                ("blood-drop", "right-mid", 0.3)],
-        time=dict(pos="below-left", p=0.7),
+        # 하단 한 줄에 am/pm · 날짜 · 시각 순으로 왼쪽에 붙는다
+        # (사람 눈검 2026-09-15, 1781·2498).
+        time=dict(pos="row-bottom", order=["ampm", "date", "time"],
+                  row_align="left", date_fmt="{M}-{d}", hm_fmt="{h02}:{m02}",
+                  ampm=0.5, p=0.7),
         bezel=dict(texts=["GREEN Doctor"], edge="top", p=0.8),
         buttons=True,
     ),
     dict(
         id="onetouch_ultra", slots=3, align="right", italic=True,
         evidence=["glucose_batch1/1058", "glucose_batch1/2110"],
-        unit=dict(texts=["mg/dL"], pos="below-right", gap=(8, 40), p=0.9),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(8, 40), hug=0.05, p=0.9),
         mem=dict(kind="mem", pos="top-right", p=0.4),
         time=dict(pos="below-left", p=0.5),
         # 실물 1058·2110: 화면 위에 'OneTouch Ultra', 아래에 'LIFESCAN' —
@@ -201,7 +214,7 @@ PROFILES = [
         evidence=["glucose_batch1/228", "glucose_batch1/373",
                   "glucose_batch1/800"],
         glulabel=dict(p=0.9),
-        unit=dict(texts=["mg/dL"], pos="below-right", gap=(2, 8), p=0.9),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(2, 8), hug=0.05, p=0.9),
         mem=dict(kind="M-box", pos="top-left", p=0.9),
         # 아래줄은 하나다 — 시간·날짜를 한 줄에 같이 쓴다(실물 228 의
         # '9:10  3:22'). 구판은 time(0.8)과 dotrow_below(0.4)를 따로 굴려
@@ -215,7 +228,7 @@ PROFILES = [
         id="acura_plus", slots=3, align="right", italic=False,
         evidence=["glucose_batch1/475", "glucose_batch1/477",
                   "glucose_batch1/2357"],
-        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 12), p=0.8),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 12), hug=0.05, p=0.8),
         # avgrow('07 DAY AVG 019') 철회(2026-09-13) — 근거 사진 475·477·
         # 2357 어디에도 없다. 셋 다 화면 맨 아래가 '04-22  16:45'(날짜+시간)
         # 한 줄이다. 배치 실패로 120장 중 12장에서 빠지던 요소이기도 했다.
@@ -225,7 +238,7 @@ PROFILES = [
     dict(
         id="caresens_n_premier", slots=3, align="right", italic=False,
         evidence=["glucose_batch1/1911", "glucose_batch1/1903"],
-        unit=dict(texts=["mg/dL"], pos="below-right", gap=(10, 18), p=0.9),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(10, 18), hug=0.05, p=0.9),
         # 세로형에서 M 은 숫자 옆이 아니라 상단이다(사람 판정 2026-09-15).
         # 근거 사진 1911·1903 을 다시 볼 것 — 선언을 바꾼 것이라 확인이 필요하다.
         mem=dict(kind="M", pos="top-left", p=0.5),
@@ -236,7 +249,7 @@ PROFILES = [
     dict(
         id="performa_silver", slots=3, align="right", italic=False,
         evidence=["glucose_batch1/1186"],
-        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 10), p=0.9),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 10), hug=0.05, p=0.9),
         mem=dict(kind="memory", pos="top-left", p=0.6),
         daterow=dict(p=0.8),    # '7-1' '#5' — 기록번호 포함
         bezel=dict(texts=["Performa"], edge="bottom", p=0.7),
@@ -251,7 +264,7 @@ PROFILES = [
         id="performa_nano", slots=3, align="right", italic=False,
         evidence=["glucose_batch1/1019", "glucose_batch1/1060",
                   "glucose_batch1/1073", "glucose_batch1/1086"],
-        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 10), p=0.9),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 10), hug=0.05, p=0.9),
         mem=dict(kind="memory", pos="top-left", p=0.9),
         daterow=dict(p=0.9),
         bezel=dict(texts=["Performa Nano"], edge="top", p=0.7),
@@ -267,7 +280,7 @@ PROFILES = [
                   "glucose_batch2/2513", "glucose_batch2/2519"],
         # 상단에 시간(왼쪽)·날짜(오른쪽) 작은 줄, 숫자는 중앙 대형,
         # mg/dL 은 숫자 아래 오른쪽(1329 '0:00 0-0' + 하단 mg/dL 관찰).
-        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 12), p=0.9),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 12), hug=0.05, p=0.9),
         # top-left 를 선언했지만 렌더러에 top-* 분기가 없어 지금까지 below 로
         # 떨어져 있었다(2026-09-15에 분기가 생겼다). 한 기기씩 눈으로 확인하는
         # 중이라 이 기기는 **현재 렌더 그대로** 묶어 둔다 — 확인 차례가 오면
@@ -288,7 +301,19 @@ PROFILES = [
         # 대형 중앙 숫자, mg/dL 은 숫자 아래 오른쪽, 하단 줄 왼쪽에 아래
         # 화살표 아이콘 + 오른쪽 시간(1435~1449 전 관찰). 온도 표기 '28C' 는
         # 화이트리스트 밖이라 렌더하지 않는다(보고서 명시).
-        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 12), p=0.9),
+        # ── above-right 는 **대역 배치**다. 이 기기의 성질이 아니다 ──────────
+        # 단위가 숫자 위인 실물은 **SD CodeFree** 다(사람 눈검 2026-09-16).
+        # 그런데 SD CodeFree 는 프로파일이 없어서, 그 배치를 합성이 한 번도
+        # 보여 주지 않았다 — 14개 프로파일이 전부 below-* 였다. 검출기가
+        # "숫자 아래 작은 글자 줄"을 밴드 위치의 단서로 쓰면 그 기기에서 틀린다.
+        #
+        # 그래서 상단이 비어 있고(점유 0.0%) 아래가 붐비던(unit·time 이
+        # below-right 를 다투던) 이 프로파일을 대역으로 세웠다. 사람 지시:
+        # "그냥 진행해라".
+        #
+        # **SD CodeFree 프로파일이 생기면 그쪽으로 옮기고 여기는 below-right 로
+        # 되돌린다.** 안 되돌리면 실물과 다른 기기를 가르치게 된다.
+        unit=dict(texts=["mg/dL"], pos="above-right", gap=(4, 12), hug=0.05, p=0.9),
         time=dict(pos="below-right", p=0.9),
         # 구판의 '왼쪽 아래 아래화살표' 는 뺐다(2026-09-13). 실물
         # 821·2016·838·2003 의 그 자리는 온도(29C) 옆 온도계 아이콘이지
@@ -307,7 +332,7 @@ PROFILES = [
         evidence=["glucose_batch1/1588", "glucose_batch1/1590",
                   "glucose_batch1/1596", "glucose_batch1/1598",
                   "glucose_batch1/1602"],
-        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 10), p=1.0),
+        unit=dict(texts=["mg/dL"], pos="below-right", gap=(4, 10), hug=0.05, p=1.0),
         # M 은 좌측 상단이다(사람 판정 2026-09-15). 가로형이라도 그렇다 —
         # 오른쪽은 시간·날짜·단위가 쌓인 정보 칼럼이라 M 이 낄 자리가 아니고,
         # 숫자 옆은 단위를 딴 데 두고 M 만 붙는 셈이라 앞뒤가 안 맞는다.
@@ -330,7 +355,7 @@ PROFILES = [
         family="column",
         evidence=["glucose_batch1/1091", "glucose_batch1/1094",
                   "glucose_batch1/1815"],
-        unit=dict(texts=["mg /dL"], pos="below-right", gap=(4, 10), p=1.0),
+        unit=dict(texts=["mg /dL"], pos="below-right", gap=(4, 10), hug=0.05, p=1.0),
         time=dict(pos="column", fmts=["{h02}:{m02}{AM}"], p=1.0),
     ),
     dict(

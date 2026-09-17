@@ -21,13 +21,15 @@
 from synth_panel import LCD_ICONS
 
 # 요소가 놓일 수 있는 자리 — 렌더러 분기 그대로.
-UNIT_POS = ["below-right", "below", "above-right"]
+UNIT_POS = ["below-right", "below-center", "below", "above-right"]
 TIME_POS = ["below-left", "below-right", "below-center", "row-bottom",
             "top-left", "top-right", "column"]
 MEM_POS = ["top-left", "top-right", "below-left", "right-of-digits"]
 ICON_POS = ["top-left", "top-right", "right-mid", "right-of-digits"]
 BEZEL_EDGE = ["top", "bottom"]
 ALIGN = ["right", "left", "center"]
+GLU_POS = ["top-left", "top-center", "top-right"]
+VALIGN = ["middle", "top", "bottom"]
 
 
 def _n(mn, mx, st, help):
@@ -72,6 +74,9 @@ FIELDS = {
         "pos": _e(UNIT_POS,
                   "단위 자리. 값과 같은 줄에는 못 놓는다(렌더러가 assert 로 "
                   "막는다) — 근거 사진 9종 전부 숫자 아래다."),
+        "dx": _n(-0.5, 0.5, 0.01,
+                 "below-center 를 고른 뒤 가운데에서 더 밀 양 — **숫자 필드 "
+                 "폭** 대비. +가 오른쪽. 실물이 정확히 가운데인 기기는 드물다."),
         "hug": _n(0.0, 0.8, 0.01,
                   "단위가 숫자에 얼마나 바싹 붙는가. **숫자 아랫변**에서 잰 "
                   "간격(숫자 높이 대비). 0 이면 숫자에 닿고, 0.10 이 밴드 "
@@ -86,8 +91,8 @@ FIELDS = {
         "p": P},
     "time": {
         "pos": _e(TIME_POS,
-                  "시간줄 자리. row-bottom 은 하단 행을 셋으로 나눠 "
-                  "날짜(왼)·am/pm(가운데)·시각(오른)을 따로 놓는다. top-* 는 "
+                  "시간줄 자리. row-bottom 은 하단 행을 칸으로 나눠 조각을 "
+                  "따로 놓는다(칸 순서는 order, 줄 정렬은 row_align). top-* 는 "
                   "영역에 놓고, 자리가 없으면 아래로 흘려보내지 않고 그리지 "
                   "않는다(같은 기기에서 시간이 위아래를 오가면 안 된다)."),
         "fmts": {"t": "strs",
@@ -96,12 +101,17 @@ FIELDS = {
                          "렌더마다 바뀐다."},
         "date_fmt": {"t": "str", "help": "row-bottom 의 날짜 조각 형식."},
         "hm_fmt": {"t": "str", "help": "row-bottom 의 시각 조각 형식."},
+        "order": {"t": "strs",
+                  "help": "row-bottom 칸 순서. date · ampm · time 중에서 "
+                          "왼쪽부터 적는다. 뺀 이름은 그리지 않는다."},
+        "row_align": _e(["right", "left"],
+                        "row-bottom 줄 전체를 어느 쪽에 붙일지."),
         "ampm": _n(0.3, 1.6, 0.02,
-                   "row-bottom 의 am/pm 글자 높이 배수. 밑선을 맞춰 붙인다 — "
-                   "보통 unit 의 h 와 같게 둔다."),
+                   "row-bottom 의 am/pm 글자 높이 배수. 밑선을 맞춰 붙인다."),
         "p": P},
     "mem": {"kind": _e(["M", "mem", "memory"], "메모리 표기 문자열."),
-            "pos": _e(MEM_POS, "메모리 표기 자리."), "p": P},
+            "pos": _e(MEM_POS, "메모리 표기 자리."),
+            "valign": _e(VALIGN, "상단 줄 안에서의 세로 자리."), "p": P},
     "meal": {"texts": {"t": "strs", "help": "식전·식후 표기(AC/PC 등)."},
              "p": P},
     "arrow": {"kinds": {"t": "enums", "opts": LCD_ICONS,
@@ -112,12 +122,31 @@ FIELDS = {
               "p": P},
     "daterow": {"texts": {"t": "strs", "help": "날짜 줄 문자열."}, "p": P},
     "glulabel": {"texts": {"t": "strs", "help": "항목 이름 표기(GLU 등)."},
+                 "pos": _e(GLU_POS, "상단 줄 안에서의 가로 자리. top-center "
+                                    "는 유리가 아니라 **혈당 숫자** 가운데에 "
+                                    "맞춘다."),
+                 "valign": _e(VALIGN, "상단 줄 안에서의 세로 자리. M 과 다른 "
+                                      "행에 두려면 한쪽을 top, 다른 쪽을 "
+                                      "bottom 으로 한다."),
+                 "hug": _n(0.0, 0.8, 0.01,
+                           "선언하면 줄이 아니라 **숫자 윗변**에서 잰 간격이 "
+                           "자리를 정한다(숫자 높이 대비). 0 이면 숫자에 "
+                           "닿는다. valign 보다 우선한다."),
                  "p": P},
     "avgrow": {"p": P},
     "dotrow_above": {"texts": {"t": "strs",
                                "help": "숫자 위 보조 줄. dot_panel 인 기기만 "
-                                       "도트로 그린다."}, "p": P},
+                                       "도트로 그린다."},
+                     "align": _e(ALIGN, "줄의 가로 정렬(유리 기준)."),
+                     "p": P},
     "dotrow_below": {"texts": {"t": "strs", "help": "숫자 아래 보조 줄."},
+                     "align": _e(ALIGN, "줄의 가로 정렬(유리 기준)."),
+                     "ampm": {"t": "num", "min": 0.2, "max": 1.0, "step": 0.05,
+                              "help": "am/pm 만 다른 크기로 그린다 — 줄 높이 "
+                                      "대비 배수. 없으면 한 크기로 그린다."},
+                     "ampm_valign": _e(["bottom", "top"],
+                                       "작은 am/pm 을 줄의 밑선에 붙일지 "
+                                       "윗선에 붙일지."),
                      "p": P},
     "bezel": {"texts": {"t": "strs",
                         "help": "몸체(유리 밖)에 인쇄된 브랜드·모델명."},
