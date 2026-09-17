@@ -1629,11 +1629,19 @@ class Handler(BaseHTTPRequestHandler):
             # 원본 화소 기준이고, 화면에서 캔버스가 비율대로 맞춘다.
             d = qs.get("dir", [""])[0]
             cid = qs.get("id", [""])[0]
-            if ".." in d or ".." in cid or "/" in d or "/" in cid:
+            # 코퍼스 이름은 한 겹까지 허용한다(synth_coco/B). id 에는 구분자를
+            # 허용하지 않는다. `..` 와 절대경로는 둘 다 막는다.
+            if (".." in d or ".." in cid or "/" in cid
+                    or d.startswith("/") or d.count("/") > 1):
                 self._send(400, b"bad id", "text/plain")
                 return
-            f = HERE / d / "images" / (cid + ".png")
-            if not f.exists():
+            # 이미지 폴더 이름이 코퍼스마다 다르다 — synth_panel 은 images/,
+            # COCO 로 내보낸 세트는 train2017/ 이다(build_synth_coco.py).
+            for sub in ("images", "train2017"):
+                f = HERE / d / sub / (cid + ".png")
+                if f.exists():
+                    break
+            else:
                 self._send(404, b"not found", "text/plain")
                 return
             self._send(200, f.read_bytes(), "image/png")
