@@ -19,6 +19,39 @@ WIDE = HERE / "_diag" / "wide_all" / "wide_ids.json"
 ROTATED = {"glucose_batch1/1564", "glucose_batch1/1565"}
 
 
+def horiz_ids():
+    """가로로 보이는 장의 id — 회전 사진 2장은 뺀다."""
+    return [i for i in json.loads(WIDE.read_text(encoding="utf-8"))
+            if i not in ROTATED]
+
+
+def classify(quads, fold_thr=1.2):
+    """가로 장마다 (id, 판정, score, w/h) 를 낸다.
+
+    판정 규칙은 **여기 하나뿐이다.** gm_preproc_ab.py 도 이 함수를 부른다 —
+    같은 규칙을 두 군데 쓰면 한쪽만 고쳐져 두 보고서가 조용히 갈라진다
+    (antipatterns/duplicated-geometry-implementation).
+    """
+    rows, ok, miss, fold = [], 0, 0, 0
+    for i in horiz_ids():
+        q = quads.get(i)
+        if q is None:
+            miss += 1
+            rows.append((i, "미검출", None, None))
+            continue
+        a = q["quad"]
+        w = max(p[0] for p in a) - min(p[0] for p in a)
+        h = max(p[1] for p in a) - min(p[1] for p in a)
+        ar = w / max(h, 1e-6)
+        if ar < fold_thr:
+            fold += 1
+            rows.append((i, f"접힘 w/h={ar:.2f}", round(q.get("score", 0), 3), ar))
+        else:
+            ok += 1
+            rows.append((i, f"OK w/h={ar:.2f}", round(q.get("score", 0), 3), ar))
+    return rows, ok, miss, fold
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--quads", required=True)
@@ -35,27 +68,8 @@ def main() -> int:
             quads[j["id"]] = j
 
     total_all = len(quads)
-    horiz = [i for i in wide if i not in ROTATED]
-    rows = []
-    miss = fold = ok = 0
-    for i in horiz:
-        q = quads.get(i)
-        if q is None:
-            miss += 1
-            rows.append((i, "미검출", None, None))
-            continue
-        a = q["quad"]
-        w = max(p[0] for p in a) - min(p[0] for p in a)
-        h = max(p[1] for p in a) - min(p[1] for p in a)
-        ar = w / max(h, 1e-6)
-        if ar < args.fold:
-            fold += 1
-            rows.append((i, f"접힘 w/h={ar:.2f}", round(q.get("score", 0), 3), ar))
-        else:
-            ok += 1
-            rows.append((i, f"OK w/h={ar:.2f}", round(q.get("score", 0), 3), ar))
-
-    n = len(horiz)
+    rows, ok, miss, fold = classify(quads, args.fold)
+    n = ok + miss + fold
     print(f"=== {args.label} ===")
     print(f"전량 검출: {total_all}/2512")
     print(f"가로로 보이는 {n}장 중: OK {ok} · 미검출 {miss} · 접힘(w/h<{args.fold}) {fold}"
