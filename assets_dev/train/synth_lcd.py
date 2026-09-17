@@ -105,8 +105,14 @@ LEGEND_SQUEEZE = 0.82
 def _legend_font(px):
     """인쇄 범례용 TTF. Hershey 획 폰트는 글자가 둥글고 넓어 'mg/dL' 이
     벌어져 보였다(사람 지적 세 번, 2026-09-13: "폰트 변경이 필요하면 변경하라").
-    DejaVuSans-Bold 는 sugartrain 환경의 matplotlib 이 이미 갖고 있고 라이선스가
-    허용적이다(Bitstream Vera 계열). 없으면 Hershey 로 떨어진다."""
+    DejaVuSans 는 sugartrain 환경의 matplotlib 이 이미 갖고 있고 라이선스가
+    허용적이다(Bitstream Vera 계열). 없으면 Hershey 로 떨어진다.
+
+    **굵기는 Regular 하나다**(사람 지시 2026-09-15: "bold 전부 빼"). 구판은
+    Bold 로 못박혀 있어서 모든 기기의 모든 범례(mg/dL·AM/PM·GLU)가 굵었고,
+    작게 그린 글자일수록 그게 볼드로 읽혔다. 고를 수 있게 만들었다가 도로
+    걷어냈다 — 아무도 켜지 않을 스위치를 남기면 같은 혼동이 반복된다
+    (`_lcd_text` 의 `aux` 노브가 그랬다). 바꿀 일이 생기면 그때 다시 만든다."""
     if px in _LEGEND_FONT:
         return _LEGEND_FONT[px]
     f = None
@@ -115,7 +121,7 @@ def _legend_font(px):
         from pathlib import Path as _P
         from PIL import ImageFont
         d = _P(matplotlib.__file__).parent / "mpl-data" / "fonts" / "ttf"
-        f = ImageFont.truetype(str(d / "DejaVuSans-Bold.ttf"), px)
+        f = ImageFont.truetype(str(d / "DejaVuSans.ttf"), px)
     except Exception:
         f = None
     _LEGEND_FONT[px] = f

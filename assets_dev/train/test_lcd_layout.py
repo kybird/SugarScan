@@ -5,7 +5,7 @@
 import sys
 
 from lcd_layout import (Rect, build_layout, place_in, slot_field,
-                        band_quad, BAND_MARGIN,
+                        band_quad, BAND_MARGIN, LAYOUT_MARGIN,
                         TOP, MID, BOTTOM, TRACK_R, COLUMN_R)
 
 GLASS = Rect(0, 0, 600, 800)
@@ -59,7 +59,16 @@ ok(lay[MID].contains(f), "슬롯 필드가 mid 안에 있다")
 _bq_f = band_quad(f, dh)
 ok(_bq_f.w >= lay[MID].w * 0.98 or near(_bq_f.h, lay[MID].h, 1.0),
    "밴드가 폭을 꽉 쓰거나 높이에 걸려 멈춘다")
-ok(lay[MID].contains(_bq_f), "밴드가 mid 를 벗어나지 않는다")
+# 계약이 또 바뀌었다(2026-09-16): 여백이 둘로 갈렸다.
+#   LAYOUT_MARGIN  그림 — slot_field 가 숫자를 물릴 때 쓴다. mid 가 보장하는 몫.
+#   BAND_MARGIN    라벨 — band_quad 가 정답 상자를 그릴 때만 쓴다.
+# 라벨 여백이 더 크면 **정답 상자는 mid 를 넘는다. 그게 의도다** — 밴드는
+# 배치 요소가 아니라 크롭 영역이라, 이웃 줄 위로 걸쳐도 된다. 대신 유리를
+# 넘지는 않는다(넘으면 잘린 크롭이 되고 그건 되돌릴 수 없다).
+ok(lay[MID].contains(band_quad(f, dh, margin=LAYOUT_MARGIN)),
+   "레이아웃 여백만큼은 mid 가 보장한다")
+ok(lay.glass.contains(band_quad(f, dh, clip=lay.glass)),
+   "정답 상자는 유리를 넘지 않는다")
 # 새 계약(2026-09-15): 숫자 높이는 **영역 높이**가 정한다 — 칸 수와 무관하다.
 # 실물 액정도 셀 높이는 유리가 정하고 칸 수는 기기 속성이다. 칸이 적으면
 # 높이가 아니라 칸 폭이 넓어지거나(비율 한계까지) 필드가 좁아진다.
@@ -71,7 +80,8 @@ ok(abs(dh2 - dh) <= 1.0, "칸 수가 달라도 숫자 높이는 같다(영역이
 # **칸 사이 간격**이다(숫자 높이는 위에서 확인한 대로 그대로다).
 ok(f2.w >= min(f.w, lay[MID].w * 0.9) - 0.5,
    "칸이 적으면 자간이 벌어져 폭을 채운다")
-ok(lay[MID].contains(band_quad(f2, dh2)), "칸이 적어도 밴드가 영역 안")
+ok(lay[MID].contains(band_quad(f2, dh2, margin=LAYOUT_MARGIN)),
+   "칸이 적어도 레이아웃 여백은 영역 안")
 tall = build_layout(GLASS, dict(pad=(0.0,) * 4, rows=(0.0, 1.0, 0.0)))
 f3, dh3, _ = slot_field(tall[MID], slots=3, aspect=0.62)
 ok(near(dh3, tall[MID].h) or dh3 <= tall[MID].h + 0.5,
@@ -119,11 +129,29 @@ ok(bq2.x0 >= bq.x0 and bq2.x1 <= bq.x1, "여백만 줄어든다")
 
 print("── 슬롯 필드는 여백 자리까지 남긴다 ──")
 f5, dh5, _ = slot_field(lay[MID], slots=3, aspect=0.62)
-bq5 = band_quad(f5, dh5)
-ok(lay[MID].contains(bq5), "밴드(필드+여백)가 mid 안에 들어간다")
+bq5 = band_quad(f5, dh5, margin=LAYOUT_MARGIN)
+ok(lay[MID].contains(bq5), "레이아웃 여백까지가 mid 안에 들어간다")
+# 라벨 여백은 그림을 바꾸지 않는다 — 이것이 2026-09-16 분리의 핵심 계약이다.
+_f_a, _dh_a, _ = slot_field(lay[MID], slots=3, aspect=0.62)
+import lcd_layout as _LL
+_old = _LL.BAND_MARGIN
+_LL.BAND_MARGIN = 0.40
+_f_b, _dh_b, _ = slot_field(lay[MID], slots=3, aspect=0.62)
+_big = band_quad(_f_b, _dh_b)
+_LL.BAND_MARGIN = _old
+ok(near(_dh_a, _dh_b, 1e-9) and near(_f_a.w, _f_b.w, 1e-9),
+   "라벨 여백을 바꿔도 숫자 크기·필드는 그대로다")
+ok(_big.w > band_quad(_f_a, _dh_a, margin=LAYOUT_MARGIN).w,
+   "라벨 여백을 키우면 정답 상자만 커진다")
 ok(bq5.w >= lay[MID].w * 0.98 or near(bq5.h, lay[MID].h, 1.0),
    "밴드가 mid 폭을 꽉 쓰거나 높이에 걸린다")
-ok(near(f5.x0 - bq5.x0, BAND_MARGIN * dh5), "여백이 깎이지 않는다")
+# bq5 는 **레이아웃** 여백으로 그린 상자다(위) — 그 몫이 깎이지 않았는지 본다.
+ok(near(f5.x0 - bq5.x0, LAYOUT_MARGIN * dh5), "레이아웃 여백이 깎이지 않는다")
+# 라벨 여백도 유리 안에서는 온전히 붙는다.
+_bq_lab = band_quad(f5, dh5, clip=lay.glass)
+ok(_bq_lab.x0 <= f5.x0 and _bq_lab.x1 >= f5.x1
+   and _bq_lab.y0 <= f5.y0 and _bq_lab.y1 >= f5.y1,
+   "정답 상자는 숫자 필드를 절대 자르지 않는다")
 
 print()
 if _fail:
