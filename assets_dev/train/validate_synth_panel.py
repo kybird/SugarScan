@@ -75,6 +75,8 @@ def main():
                    glyph_plane_check=s["glyph_plane_check"],
                    text_heights=s["text_heights"],
                    density=round(float(s["density"]), 5),
+                   glare=s.get("glare", []),
+                   glare_cover=s.get("glare_cover", 0.0),
                    margin=m,
                    bezel=s["bezel"], dropped=s["dropped"],
                    rects=[[round(float(v), 1) for v in r[:4]] + [r[4]]
@@ -209,6 +211,25 @@ def main():
     print(f"글리프 평면   gpc median={np.median(gpc):.4f} "
           f"p10={p(gpc, 10):.4f} min={gpc.min():.4f}  (0.9 미만 "
           f"{np.mean(gpc < 0.9) * 100:.1f}%)")
+    # 반사 — 유형 분포와 **숫자 필드를 얼마나 가렸나**.
+    # 카드 「합성 국소 광원」 AC#1 이 여기서 판정된다: 숫자 영역 전체를 가리는
+    # 표본이 없어야 한다. 12장 몽타주를 눈으로 보고 "안 덮는다" 고 말하지
+    # 않으려고 전량에서 센다.
+    if manifest and "glare_cover" in manifest[0]:
+        kinds = {}
+        for r in manifest:
+            for g in r.get("glare", []):
+                kinds[g["kind"]] = kinds.get(g["kind"], 0) + 1
+        cov = np.asarray([r["glare_cover"] for r in manifest])
+        npatch = sum(kinds.values())
+        print(f"반사 유형     패치 {npatch}개 / {len(manifest)}장 · "
+              + " · ".join(f"{k} {v}" for k, v in sorted(kinds.items())))
+        print(f"숫자 필드 가림  median={np.median(cov):.4f} "
+              f"p90={p(cov, 90):.4f} p99={p(cov, 99):.4f} max={cov.max():.4f} "
+              f"· 가림 있는 장 {int((cov > 0).sum())} "
+              f"· 50% 초과 {int((cov > 0.5).sum())} "
+              f"· 90% 초과 {int((cov > 0.9).sum())}")
+
     dropped = {}
     for r in manifest:
         for d in r["dropped"]:

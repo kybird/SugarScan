@@ -439,6 +439,88 @@ def _dot_time_text(rng, fmt_i=None, fmts=None, widest=False):
 # ([[no-real-photo-ruler-for-synth]]). 2026-09-15: 1.5 -> 15.
 CAM_ROLL_MAX = 15.0
 
+# ── 반사 유형 (카드 「합성 국소 광원 — 전역 그라데이션을 반사 패치로」 AC#3) ──
+#
+# 실사진에서 관찰한 세 유형이다. 근거 id 는 화면 크롭을 눈으로 보고 고른 것이고,
+# 고르는 자는 survey_real_glare.py(밝은 영역 최대 내접 반지름)가 순위만 매겼다 —
+# 유형 판정은 자가 하지 않는다.
+#
+#   streak   가늘고 긴 띠. 형광등·창틀 모서리가 유리에 길게 늘어붙는다.
+#            근거: glucose_batch2/2515 (왼쪽 가장자리 세로 띠)
+#                  glucose_batch1/2299 (좌상단 대각 띠)
+#   specular 뭉툭한 타원 얼룩. 점광원이 유리에서 퍼진 것.
+#            근거: glucose_batch1/694 (상단 중앙 얼룩)
+#                  glucose_batch1/822 (상단에서 번진 얼룩)
+#   window   윤곽이 있는 사각 반사. 어두운 광택 화면이 주변을 **상으로** 비춘다.
+#            매끄러운 그라데이션이 아니라 모서리가 보인다.
+#            근거: glucose_batch2/2623 (좌하단 구조 있는 반사)
+#                  glucose_batch1/2338 (어두운 화면에 비친 실루엣)
+#
+# 비율과 크기는 **사람이 정한 값이다.** 실사진에 자를 대지 않는다
+# ([[no-real-photo-ruler-for-synth]]) — 합성이 기준을 정하고 실사진은 눈으로만
+# 본다. 실사진 상위 30장에서 윤곽 있는 반사가 가장 흔해 보였지만, 그 인상으로
+# 비율을 못박지 않고 세 유형을 고르게 섞는 쪽을 택했다.
+REFLECT_KINDS = ("specular", "streak", "window")
+REFLECT_WEIGHTS = (0.45, 0.30, 0.25)
+
+# 반사가 이 알파 이상으로 덮은 화소를 "가렸다" 로 센다. 숫자 필드 기준 비율이
+# 매니페스트의 glare_cover 이고 AC#1 이 그 값으로 판정된다.
+GLARE_COVER_ALPHA = 0.15
+
+
+def _reflection_mask(W, H, kind, orng):
+    """(마스크 0~1, 알파) — 알파는 부르는 쪽에서 곱한다.
+
+    셋 다 **국소**다. 1판의 전폭 강선도, 2판의 넓은 쐐기도 아니다 — 반장축
+    0.38W 는 패널 폭의 76%를 덮어 패치가 아니라 도포였다(2026-09-12).
+    """
+    msk = np.zeros((H, W), np.float32)
+    if kind == "streak":
+        # 가늘고 긴 띠. 길이는 넉넉히 주되 두께를 묶는다 — 띠가 숫자를
+        # 가로지르더라도 두께가 얇으면 획 하나만 지난다.
+        cx, cy = orng.uniform(0, W), orng.uniform(0, H)
+        length = orng.uniform(0.25, 0.55) * float(np.hypot(W, H))
+        thick = orng.uniform(0.010, 0.035) * H
+        cv2.ellipse(msk, (int(cx), int(cy)),
+                    (int(length / 2), max(1, int(thick))),
+                    orng.uniform(0, 180), 0, 360, 1, -1)
+        blur, alpha = 0.03, orng.uniform(0.10, 0.26)
+    elif kind == "window":
+        # 윤곽이 있는 사각 반사. 창살(mullion)을 한 줄 넣어 매끄러운
+        # 그라데이션과 구별되게 한다 — 그게 이 유형의 표식이다.
+        rw = orng.uniform(0.12, 0.32) * W
+        rh = orng.uniform(0.10, 0.26) * H
+        cx = orng.uniform(rw * 0.5, W - rw * 0.5)
+        cy = orng.uniform(rh * 0.5, H - rh * 0.5)
+        ang = orng.uniform(-30, 30)
+        box = cv2.boxPoints(((cx, cy), (rw, rh), ang)).astype(np.int32)
+        cv2.fillConvexPoly(msk, box, 1.0)
+        if orng.random() < 0.7:                     # 창살 한 줄
+            bar = cv2.boxPoints(((cx, cy), (rw, max(2.0, rh * 0.06)), ang))
+            cv2.fillConvexPoly(msk, bar.astype(np.int32), 0.0)
+        blur, alpha = 0.012, orng.uniform(0.10, 0.24)
+    else:                                            # specular
+        # 뭉툭한 타원. 기존 동작을 유지한다 — 가장자리에 붙인다.
+        edge = orng.randrange(4)
+        if edge == 0:
+            cx, cy = orng.uniform(0, W), orng.uniform(0, H * 0.2)
+        elif edge == 1:
+            cx, cy = orng.uniform(0, W), orng.uniform(H * 0.8, H)
+        elif edge == 2:
+            cx, cy = orng.uniform(0, W * 0.2), orng.uniform(0, H)
+        else:
+            cx, cy = orng.uniform(W * 0.8, W), orng.uniform(0, H)
+        cv2.ellipse(msk, (int(cx), int(cy)),
+                    (int(orng.uniform(0.05, 0.20) * W),
+                     int(orng.uniform(0.04, 0.15) * H)),
+                    orng.uniform(0, 180), 0, 360, 1, -1)
+        blur, alpha = 0.04, orng.uniform(0.08, 0.22)
+
+    k = int(max(W, H) * blur) | 1
+    if k >= 3:
+        msk = cv2.GaussianBlur(msk, (k, k), 0)
+    return msk, alpha
+
 
 def render_panel(value, rng, profile=None):
     """물리 패널 한 장. 반환 dict:
@@ -2165,32 +2247,35 @@ def _render_once(value, rng, profile, pid, inverted):
         img = add_local_shadow(img, rng)
     # 개수도 줄인다(2026-09-12): 크기만 줄였더니 작은 얼룩이 서너 개 겹쳐
     # 실물에 없는 반점 무늬가 됐다. 대부분 0~1개, 가끔 2개.
+    _glare_log = []
+    _cover = np.zeros((H, W), np.float32)      # 누적 알파 — AC#1 측정용
     for _ in range(_orng.choice([0, 0, 1, 1, 1, 2])):
-        # 가장자리에 붙은 연한 타원 반사 — 전폭 강선은 폐지했다(1판 결함 (7)).
-        edge = _orng.randrange(4)
-        if edge == 0:
-            ecx, ecy = _orng.uniform(0, W), _orng.uniform(0, H * 0.2)
-        elif edge == 1:
-            ecx, ecy = _orng.uniform(0, W), _orng.uniform(H * 0.8, H)
-        elif edge == 2:
-            ecx, ecy = _orng.uniform(0, W * 0.2), _orng.uniform(0, H)
-        else:
-            ecx, ecy = _orng.uniform(W * 0.8, W), _orng.uniform(0, H)
-        # 반장축 0.38W 는 패널 폭의 76%를 덮는다 — 패치가 아니라 도포다.
-        # 1판의 '대각선 흰 줄' 을 없앴더니 이번엔 넓은 쐐기가 됐다(2026-09-12).
-        ax_ = _orng.uniform(0.05, 0.20) * W
-        ay_ = _orng.uniform(0.04, 0.15) * H
-        # 몸체 위 반사는 몸체 톤 기준 — 타원 중심 픽셀에서 시작한다(구판은
+        kind = _orng.choices(REFLECT_KINDS, weights=REFLECT_WEIGHTS)[0]
+        msk, alpha = _reflection_mask(W, H, kind, _orng)
+        # 몸체 위 반사는 몸체 톤 기준 — 마스크 무게중심 픽셀에서 시작한다(구판은
         # 패널색 고정이라 어두운 몸체에 하얀 도포가 얹혔다).
-        gc_y = min(H - 1, max(0, int(ecy)))
-        gc_x = min(W - 1, max(0, int(ecx)))
+        ys, xs = np.nonzero(msk > 0.5)
+        if len(ys) == 0:
+            continue
+        gc_y = int(np.clip(ys.mean(), 0, H - 1))
+        gc_x = int(np.clip(xs.mean(), 0, W - 1))
         glare = min(255, int(img[gc_y, gc_x]) + _orng.uniform(40, 90))
-        msk = np.zeros((H, W), np.float32)
-        cv2.ellipse(msk, (int(ecx), int(ecy)), (int(ax_), int(ay_)),
-                    _orng.uniform(0, 180), 0, 360, 1, -1)
-        msk *= _orng.uniform(0.08, 0.22)
+        msk = msk * alpha
         img = np.clip(img.astype(np.float32) * (1 - msk) + glare * msk,
                       0, 255).astype(np.uint8)
+        _cover = np.maximum(_cover, msk)
+        _glare_log.append({"kind": kind, "alpha": round(alpha, 3)})
+
+    # AC#1 의 자 — 반사가 숫자 필드를 얼마나 덮었나. 매니페스트에 남겨
+    # validate_synth_panel 이 전량으로 셀 수 있게 한다. 눈으로 12장을 보고
+    # "안 덮는다" 고 말하지 않으려고 숫자로 남긴다.
+    _fx0, _fy0 = int(max(0, _bx0)), int(max(0, _by0))
+    _fx1, _fy1 = int(min(W, _bx1)), int(min(H, _by1))
+    if _fx1 > _fx0 and _fy1 > _fy0:
+        _fld = _cover[_fy0:_fy1, _fx0:_fx1]
+        _glare_cover = float((_fld >= GLARE_COVER_ALPHA).mean())
+    else:
+        _glare_cover = 0.0
 
     # ── 기하: 키스톤 -> 회전, 이미지와 쿼드·글리프 마스크가 같은 행렬을
     #    같은 순서로 통과한다(AC#3·#8). 전역 shear 는 없다 — 카메라가 평면을
@@ -2354,6 +2439,7 @@ def _render_once(value, rng, profile, pid, inverted):
     dens = _density_outside(img, quad)
     return dict(panel=img, quad=np.asarray(quad, np.float32), label=label,
                 band_clip=int(_band_clip[0]),
+                glare=_glare_log, glare_cover=round(_glare_cover, 4),
                 glass_quad=np.asarray(glass_quad, np.float32),
                 # rects 는 **워프 전 패널 좌표**다(그리는 동안 기록한다).
                 # quad·glass_quad 는 워프 후다. 두 좌표계를 섞어 비교하면
@@ -2429,6 +2515,7 @@ def generate(count, seed0, out_dir, with_reader=False):
             inverted=s["inverted"], glyph_plane_check=s["glyph_plane_check"],
             text_heights=s["text_heights"],
             density=round(float(s["density"]), 5),
+            glare=s["glare"], glare_cover=s["glare_cover"],
             quad_panel=np.round(s["quad_panel"], 2).tolist(),
             rects=[[round(float(v), 1) for v in r[:4]] + [r[4]]
                    for r in s["rects"]],
