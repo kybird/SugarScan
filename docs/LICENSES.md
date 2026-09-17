@@ -2,6 +2,7 @@
 
 > 최초 작성 2026-08-20 · 담당: 개발자 본인
 > 라이선스 실사: 2026-08-21 (G5) — 아래 각 행의 확인 URL 은 당일 직접 연 기준.
+> 검출기 가중치 계보 실사: 2026-09-17 (§1.1) — 로컬 사본과 어노테이션을 직접 세어 확인.
 > 남은 미해결 항목은 §4 참조.
 
 앱에 실제로 반입되는 자산(모델 가중치·폰트·학습 코드)의 상업적 사용 가능 여부와
@@ -21,7 +22,55 @@
 | **7seg_classifier.tflite** | [Kazuhito00/7segment-display-reader](https://github.com/Kazuhito00/7segment-display-reader) | **Apache-2.0** (GitHub API 확인 완료) | **예** — `assets/models/` 에 번들 | 고지 의무 반영 필요 |
 | TensorFlow Lite | tflite_flutter 경유 | **Apache-2.0** (TensorFlow 본저장소 [LICENSE](https://github.com/tensorflow/tensorflow/blob/master/LICENSE), 2026-08-21 확인. 원문 말미에 Caffe 유래 코드의 BSD 스타일 고지가 함께 실려 있다) | 예 | 확인 완료 |
 | **YOLOX** (GM 화면 검출기의 구조·학습 코드) | [Megvii-BaseDetection/YOLOX](https://github.com/Megvii-BaseDetection/YOLOX) | **Apache-2.0** (GitHub API `spdx_id`, 2026-09-04 확인. 로컬 체크아웃 `D:\tmp\YOLOX\LICENSE` 원문도 Apache 2.0 으로 대조 완료) | 아직 아니오 — 검출기는 현재 학습·평가에서만 돈다. **앱에 넣으면 예** | 확인 완료. 반입 시 Apache-2.0 고지 필요 |
-| **GM 화면 검출기 가중치** (`yolox_out/gmscreen_ft2/best_ckpt.pth`) | 우리가 학습. 단 **베이스가 Roboflow `glucometer_images-bc9dh`(CC BY 4.0) 로 학습됐다** → §4 | 아직 아니오 | **CC BY 4.0 귀속 의무 확인 필요** — 파생 가중치를 배포하면 원 데이터셋 저작자 표시가 따라온다 |
+| **검출기 가중치 일체** (`yolox_out/**/best_ckpt.pth`) | 우리가 학습. 계보는 §1.1 참조 — 뿌리는 COCO 사전학습 `yolox_nano.pth` 이고 중간에 Roboflow(CC BY 4.0)와 Datumo(조건 미확인)가 들어온다 | 아직 아니오 | **체크포인트마다 의무가 다르다.** §1.1 표를 볼 것 |
+
+### 1.1 검출기 가중치 계보 — 체크포인트마다 의무가 다르다
+
+2026-09-17 실사. 구판은 `gmscreen_ft2` 한 줄만 적어 두었는데 **뿌리(COCO 사전학습)가
+빠져 있었고**, 그 뒤 승격·파생이 반영되지 않았다. 실제 계보는 이렇다.
+
+```
+weights/yolox_nano.pth            COCO 사전학습 (Megvii 공식 배포본으로 보인다)
+  │                               7,694,953 바이트 · md5 2f50e06ff9729cf41b81112d48c3c1c4
+  │                               ※ 내려받은 출처 URL 이 저장소 기록에 없다
+  ├─ gmscreen/best_ckpt.pth       + Roboflow glucometer_images-bc9dh 1,276장
+  │    │                            (datumo 0장 — 확인함)
+  │    └─ synthband_v0/best_ckpt.pth   + 우리 합성 900장   ← 마일스톤 검출기
+  │
+  └─ gmscreen_ft·ft2·ft3/best_ckpt.pth  + Roboflow 1,276장 **+ Datumo 410장**
+                                    ft3 가 2026-09-12 운영 정본으로 승격
+```
+
+| 체크포인트 | 들어간 데이터 | 배포 시 따라오는 의무 |
+|---|---|---|
+| `gmscreen` (2026-08-28) | COCO 사전학습 + Roboflow CC BY 4.0 | YOLOX Apache-2.0 고지 · **Roboflow 저작자 표시** |
+| `synthband_v0` (2026-09-16) | 위 + **우리 합성만** | 위와 같음. **Datumo 안 탄다** |
+| `gmscreen_ft3` (운영 정본) | 위 + **Datumo 410장** | 위 + **Datumo 이용 조건 — 미확인(§4)** |
+
+**이 표의 요점**: 운영 정본 `gmscreen_ft3` 는 이용 조건이 확정되지 않은 데이터
+(Datumo)로 학습된 파생 가중치다. 마일스톤의 `synthband_v0` 는 그 경로를 타지
+않는다 — 합성만 얹었기 때문이다. 배포 시점에 어느 체크포인트를 넣느냐로
+의무가 갈린다.
+
+**확인한 것과 못 한 것**
+
+- [x] Roboflow 두 데이터셋의 라이선스 — 로컬 zip 안 `README.dataset.txt` 원문에
+      `License: CC BY 4.0` 이 박혀 있다(`glucometer_images-bc9dh` ·
+      `glucometer-amtkm` 둘 다). 웹 페이지가 아니라 **받아 둔 사본이 근거**다.
+- [x] 어느 체크포인트에 Datumo 가 들어갔는가 — COCO 어노테이션의 `file_name`
+      접두사로 셌다. `gmscreen` 0장 / `gmscreen_ft` 410장.
+- [x] `glucometer-amtkm` 은 받아만 두고 **학습에 쓰지 않았다**(코드·문서 전체
+      grep 결과 참조 없음). 지금은 의무가 없다.
+- [ ] **`yolox_nano.pth` 의 가중치 라이선스** — YOLOX 저장소 LICENSE 는
+      Apache-2.0 이지만 README 는 가중치를 표로 배포하면서 **가중치의 라이선스를
+      따로 적지 않는다.** EasyOCR 과 똑같은 구멍이다(§4). 구판 문서는 EasyOCR
+      에만 이 구멍을 적고 YOLOX 는 "코드가 Apache-2.0 이니 괜찮다"로 넘어갔다 —
+      같은 근거로 EasyOCR 을 보류했으면서 YOLOX 는 통과시킨 것이라 일관되지 않다.
+- [ ] `yolox_nano.pth` 를 **어디서 받았는지** 기록이 없다. 공식 릴리스 해시와
+      대조해 출처를 고정해야 한다(md5 위에 적어 두었다).
+- [ ] COCO 사전학습이 파생 가중치에 조건을 남기는지 — COCO 어노테이션은
+      CC BY 4.0, 이미지는 Flickr 개별 조건이다. 가중치로의 전파는 법적으로
+      정리되지 않은 영역이라 **판단이 필요한 항목**으로 남긴다.
 
 **참고만 하고 코드를 쓰지 않은 것** (반입 자산 아님)
 
@@ -137,6 +186,15 @@ SIL OFL 은 상업적 사용·임베딩을 허용하지만 **폰트 자체를 �
 
 - [ ] **Datumo(TILDE 통합 납품본) 이용 조건 문서 확보** — 수령은 끝났지만 라이선스
       규정 문서가 아직 없다. 혈당계 2,512쌍을 벤치·학습에 쓰기 전에 확정한다
+      > **2026-09-17 승격**: 이 항목은 더 이상 "쓰기 전에"가 아니다. **이미
+      > 파생 가중치에 들어갔다** — `gmscreen_ft` 계열이 Datumo 410장으로
+      > 학습됐고 그중 `ft3` 가 2026-09-12 운영 정본으로 승격됐다(§1.1).
+      > 즉 조건이 확정되지 않은 데이터의 파생물이 파이프라인 정본이다.
+      > 사람 라벨(`band_boxes`·`screen_boxes`·`device_labels`)도 전부 Datumo
+      > 사진 위에 찍은 것이라 같은 우산 아래 있다.
+      > 우회로가 하나 있다: 마일스톤 검출기 `synthband_v0` 는 Datumo 를 타지
+      > 않는다(합성만 얹었다). 조건 확정이 늦어지면 **그쪽으로 출시하는 선택지**가
+      > 존재한다는 뜻이다 — 다만 그건 성능 판단이 따로 필요하다.
 - [x] ~~Downloads 에 남아 있는 Roboflow zip 원본 2개(≈4.6GB, upstream 으로 사본 확보됨)
       — 중복이므로 삭제 여부는 개발자 본인 판단~~ — **2026-08-27 MD5 대조 후 삭제 완료**
       (개발자 지시). 사본 해시와 완전 일치 확인済.
@@ -153,6 +211,12 @@ SIL OFL 은 상업적 사용·임베딩을 허용하지만 **폰트 자체를 �
       2. **Roboflow `glucometer_images-bc9dh` CC BY 4.0 귀속** — GM 베이스 가중치가
          이 데이터셋으로 학습됐다. CC BY 는 **저작자 표시가 조건**이라 파생
          가중치를 배포하면 따라온다. 데이터셋이 앱에 안 들어간다고 면제되지 않는다.
+      3. (2026-09-17 추가) **`yolox_nano.pth` 가중치 자체의 조건** — 계보의
+         뿌리인데 문서에 없었다. YOLOX README 가 가중치를 배포하면서 가중치
+         라이선스를 따로 적지 않는다. EasyOCR 과 같은 구멍이라 같은 취급을
+         해야 한다(§1.1).
+      4. (2026-09-17 추가) **어느 체크포인트를 넣느냐로 의무가 갈린다** —
+         `synthband_v0` 와 `gmscreen_ft3` 는 계보가 다르다(§1.1 표).
       > 이 두 줄이 2026-09-04 까지 이 문서에 **없었다.** 검출기가 저장소 밖
       > (`D:\tmp\YOLOX`)에 있어서 반입 자산 점검에서 통째로 빠져 있었다.
       > 저장소 밖 의존은 이 표에 안 잡힌다 — 다음에 외부 체크아웃을 쓰게 되면
