@@ -223,6 +223,8 @@ GLM 에게 "적당히 판단해서 하라"고 시키지 않는다.
 ```bash
 llm-wiki search "<키워드>"      # 디버깅 중이면 에러 원문을 그대로 붙여넣을 것
 llm-wiki lint                   # 링크·근거 무결성
+llm-wiki board                  # 파생 보드(칼럼·WIP·대기열). 플래그 없다
+llm-wiki board report           # done:abandoned 비율·추세·되돌림
 ```
 
 **검색은 pull 이라 물어볼 줄 알아야 걸린다.** 그래서 자주 틀리는 자리는 아래
@@ -242,6 +244,10 @@ llm-wiki lint                   # 링크·근거 무결성
 | "대기 n건" 같은 개수 표시 | `antipatterns/count-rows-not-entities` |
 | `build_cache_v2` · train/holdout 분할 | `antipatterns/image-level-split-on-session-corpus` · `patterns/scene-component-split` |
 | sugartrain 환경 pip 설치 | `antipatterns/unpinned-pip-in-frozen-training-env` |
+| `lcd_layout.BAND_MARGIN` · `slot_field` (합성 여백) | `antipatterns/coupled-budget-loop-defeats-per-element-tuning` |
+| `synth_panel` 카메라 워프 · 캔버스 이탈 처리 | `antipatterns/uncontrolled-budget-in-ab-comparison` |
+| 게이트 지표를 바꾸거나 새 자를 만들 때 | `antipatterns/proxy-metric-moves-against-the-goal` · `antipatterns/metric-path-not-under-test` |
+| 수치를 문서·커밋에 인용할 때 | `concepts/metric-provenance` · `antipatterns/stale-baseline-quoted-as-current` |
 
 버그를 고쳤거나 결정을 내렸으면 `wiki-log` 로 Case 를 남기고, 쌓이면
 `wiki-compile` 로 승격한다. **에러 문구는 한 글자도 바꾸지 말고 그대로 인용한다** —
@@ -250,6 +256,22 @@ llm-wiki lint                   # 링크·근거 무결성
 
 작업 계획은 `kanban-plan`(사람이 있을 때), 무인 실행은 `work-loop`
 (`llm-wiki pick --claim <name>`, 판단이 필요하면 `handoff` 로 세워 둔다).
+
+**0.4.0 에서 달라진 것**(스킬 v7):
+
+- **마일스톤 카드**는 집히지 않는다. 묶음이지 작업이 아니다 — 손으로
+  `done`/`abandon` 하지 말 것. 마지막 멤버가 끝나면 자동으로 닫힌다.
+  `card new --kind milestone` 으로 만들고 `--milestone "<제목>"` 으로 붙인다.
+- **`llm-wiki monitor`** — 읽기 전용 실시간 보드(기본 4747). 무인 루프는 시작할 때
+  띄우고 **정지 규칙에서도 끄지 않는다**(아침에 사람이 본다). 멱등이라 이미 떠
+  있으면 같은 URL 을 되뇐다. CLI 가 유일한 쓰기 주체인 건 그대로다(쓰기는 405).
+- **`llm-wiki wait`** — 보드 이벤트까지 블록한다. **종료 코드가 계약이다**:
+  0 이벤트 · 2 타임아웃(조용히 재무장) · 1 오류. 무인 루프가 폴링 대신 쓴다.
+- **`--json`** 이 search · lint · compile · board report · pick 에 붙는다.
+- 스킬은 git 채널로 배포된다(`llm-wiki skills add/sync`). npm 전역 업데이트
+  (`npm update -g @kybird/llm-wiki`)를 하면 복사된 스킬·훅·스크립트가 다음 명령에서
+  자동 갱신된다 — `.claude/skills/` 와 `.agents/skills/` 가 같이 움직이므로,
+  **그 파일들의 변경은 우리 작업이 아니다.** 커밋할 때 그렇게 적는다.
 
 > `AGENTS.md`·`GEMINI.md` 는 이 파일의 복사본이다. **정본은 `CLAUDE.md` 하나뿐**이고
 > `githooks/pre-commit` 이 동기화를 강제한다. 복사본을 직접 고치면 커밋이 거부된다.
