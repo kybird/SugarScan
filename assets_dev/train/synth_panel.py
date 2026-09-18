@@ -118,9 +118,24 @@ ASPECT_BINS = [
 # 같은 주석이 경고한 대로 **게이트도 같이 연다.** 학습에서만 빼고 평가에
 # 남기면 못 배운 것을 채점하는 셈이다 — 지금 가로형 0.7366 이 정확히 그
 # 상태의 수치이고, "모델이 못 한다"가 아니라 "안 가르쳤다"의 측정값이다.
-EXCLUDE_WIDE = False
+# 2026-09-17: 플래그를 둘로 쪼갠다 — 한 이름이 두 축을 가리키지 않게.
+#
+# **주의: 쪼갠다고 가로 캔버스가 줄지 않는다.** 처음엔 익명 풀(generic_v1)이
+# 가로 캔버스를 뽑는 것이 A3 의 쏠림(매우가로 12.5%, 실측 1.8%의 7배)을
+# 만든다고 봤는데 **틀렸다.** A3 를 프로파일별로 세니 매우가로 624장 중
+# 620장이 가로형 프로파일 자신이고 generic_v1 은 4장뿐이었다.
+# 가로형 기기는 원래 가로 캔버스다 — 프로파일을 켜면 가로 캔버스가 따라온다.
+#
+# 그러므로 A3 에서 세로형이 무너진 것(실촬 실패 5 -> 58)의 원인은 익명 풀이
+# 아니라 **가로형 비중 자체**(13.9%, 실측 2.0%의 7배)로 남는다. 줄이려면
+# set_wide_share() 로 비중을 낮추거나 세로형 장수를 그대로 둔 채 가로형을
+# 얹어야 한다.
+EXCLUDE_WIDE_PROFILES = False   # 가로형 기기 프로파일(ultramini·wide_unknown)
+EXCLUDE_WIDE_ASPECT = True      # 익명 풀이 가로 캔버스를 뽑는 것
 
-_AB = [(b, n) for b, n in ASPECT_BINS if not (EXCLUDE_WIDE and b[1] > 1.0)]
+# 기존 이름은 남기지 않는다 — 한 이름이 두 축을 가리키던 것이 사고의 원인이다.
+_AB = [(b, n) for b, n in ASPECT_BINS
+       if not (EXCLUDE_WIDE_ASPECT and b[1] > 1.0)]
 _BINS = [b for b, _ in _AB]
 _WEIGHTS = np.asarray([n for _, n in _AB], np.float64)
 
@@ -208,7 +223,8 @@ PANEL_ATTRS = {pid: dict(inverted=inv)
 # 오히려 잘 나왔던 것이 generic_v1 덕인지는 **재지 않았다.**
 EXCLUDE_GENERIC = False
 TRAIN_PROFILES = [p for p in PROFILES
-                  if not (EXCLUDE_WIDE and p.get("family") in ("column", "row"))
+                  if not (EXCLUDE_WIDE_PROFILES
+                          and p.get("family") in ("column", "row"))
                   and not (EXCLUDE_GENERIC and p.get("legacy"))]
 # 프로파일 추첨 가중치 — 기본은 균등(None). set_wide_share() 로 가로형 비중을
 # 올린다. 가로형 판정은 선언(family)이지 측정한 종횡비가 아니다: gluneo_plus 는
@@ -446,6 +462,34 @@ def _dot_time_text(rng, fmt_i=None, fmts=None, widest=False):
 # 손목 비틀림(면내 회전)의 한계각. 사람이 정한다 — 실사진에서 재지 않는다
 # ([[no-real-photo-ruler-for-synth]]). 2026-09-15: 1.5 -> 15.
 CAM_ROLL_MAX = 15.0
+# 좌우·상하로 비스듬한 정도(도). 손으로 든 폰이라 이 폭은 설계값이다 —
+# 실사진에는 기울기 정답이 없어 채점할 수 없다(band_det_tilt_real.py 머리말:
+# 사람 라벨도 검출기 출력도 전 장이 0.00° 축정렬이다).
+CAM_YAW_MAX = 12.0
+CAM_PITCH_MAX = 12.0
+CAM_POSE_P = 0.92          # 이 확률로 포즈를 준다. 나머지는 정면 촬영이다.
+
+# 촬영 배율 — **얼마나 물러나 찍었는가**. 1.0 이 '유리가 캔버스를 꽉 채움'이고
+# 작을수록 멀다. 2026-09-17 까지 이 값은 난수가 아니라 쿼드가 캔버스를 넘칠
+# 때만 내려가는 사다리였다. 기본이 1.0 이라 피사체 크기가 사실상 고정이었다.
+#
+# 실측(measure_panel_stats.py coco) — 상자의 **선형 배율 퍼짐** p90/p10:
+#     실촬 Roboflow (n=958)   1.90배   (최대/최소 5.43배)
+#     합성 A2      (n=4,700)  1.21배   (최대/최소 1.62배)
+# 상자가 가리키는 물건이 달라(전체사진 속 LCD vs 기기크롭 속 밴드) 절대값은
+# 못 맞대지만 퍼짐 비율은 무차원이라 비교된다 — 합성이 실촬의 2/3 폭이었다.
+# 사람 지적(2026-09-17): "확대축소도 필요할거같더라".
+#
+# 폭은 **맞춰 보고 정했다**(탐침 Z1 400장, 통제군 P00 200장 — 둘 다 세로형
+# 전용이고 P00 이 변경 전 코드다). 두 균등난수의 곱은 분위수가 곱해지지
+# 않으므로 계산이 아니라 측정으로 정해야 한다:
+#     범위          선형비 p90/p10
+#     (없음, P00)      1.22배
+#     (0.55, 1.0)      1.64배
+#     (0.42, 1.0)      1.97배   <- 채택 (실촬 1.90 배)
+# 같은 탐침에서 **종횡비는 소수점 넷째자리까지 그대로**였다
+# (p10 1.3353 · 중앙 1.5103 · p90 1.7209). 배율만 움직였다는 뜻이다.
+CAM_ZOOM_RANGE = (0.42, 1.0)
 
 # ── 반사 유형 (카드 「합성 국소 광원 — 전역 그라데이션을 반사 패치로」 AC#3) ──
 #
@@ -2293,7 +2337,11 @@ def _render_once(value, rng, profile, pid, inverted):
     quad0 = quad.copy()
     gp0 = glyph_plane.copy()
     pre = img.copy()
-    fillc = int(body_col)   # 워프 경계색 — 몸체 톤(구판 베젤 링 잔여)
+    # 워프 경계색 — 물러나 찍으면 드러나는 것은 **몸체가 아니라 촬영 장소**다.
+    # 구판은 body_col 이었다. 줌이 사다리의 예외 경로였을 때는 가장자리
+    # 실오라기라 무해했지만, 배율을 난수로 돌리는 순간 화면의 상당 부분이
+    # 몸체색 판이 된다. bg_col 은 826 행(실루엣 바깥)이 이미 쓰는 같은 값이다.
+    fillc = int(bg_col)
     # ── 카메라 포즈에서 호모그래피 (2026-09-15) ────────────────────────────
     # 구판은 네 모서리를 각각 독립 난수로 밀어 사다리꼴을 만들었다(fx·fy 8개).
     # 자유도가 8 이라 카메라로는 나올 수 없는 구도가 섞였다 — 사람 지적:
@@ -2303,9 +2351,9 @@ def _render_once(value, rng, profile, pid, inverted):
     #
     # roll 이 구판의 회전(ang)을 흡수한다. 따로 돌리지 않는다 — 회전과 원근을
     # 두 단계로 나누면 그 조합이 다시 카메라 밖으로 나갈 수 있다.
-    do_pose = _orng.random() < 0.85
-    cam_yaw = _orng.uniform(-9.0, 9.0)      # 좌우로 비스듬히(도)
-    cam_pitch = _orng.uniform(-9.0, 9.0)    # 위아래로 비스듬히
+    do_pose = _orng.random() < CAM_POSE_P
+    cam_yaw = _orng.uniform(-CAM_YAW_MAX, CAM_YAW_MAX)      # 좌우로 비스듬히(도)
+    cam_pitch = _orng.uniform(-CAM_PITCH_MAX, CAM_PITCH_MAX)  # 위아래로 비스듬히
     # 손목 비틀림. ±1.5 는 굶주린 값이었다 — 합성 기울기 중앙값 0.63°/p90
     # 1.50° 라 사실상 꼿꼿한 판만 배웠고, 검출기가 실촬의 기울어진 밴드에서
     # 숫자를 잘랐다. 사람이 15도까지 넣으라고 정했다(2026-09-15).
@@ -2314,6 +2362,7 @@ def _render_once(value, rng, profile, pid, inverted):
     cam_roll = max(-CAM_ROLL_MAX, min(CAM_ROLL_MAX,
                                       _orng.gauss(0.0, CAM_ROLL_MAX / 2.4)))
     cam_fk = _orng.uniform(1.6, 3.2)        # 초점거리 / 긴 변 (폰 렌즈 대역)
+    cam_zoom = _orng.uniform(*CAM_ZOOM_RANGE)   # 이 장의 촬영 배율(1.0=꽉 참)
     src = np.float32([[0, 0], [W - 1, 0], [W - 1, H - 1], [0, H - 1]])
 
     def _mats(shrink, zoom=1.0):
@@ -2411,7 +2460,10 @@ def _render_once(value, rng, profile, pid, inverted):
     # 68장이 달랐다). 촬영 배율은 '무엇을 정답으로 적을까'와 무관해야 한다.
     _glass0 = np.float32([[px0, py0], [px1, py0], [px1, py1], [px0, py1]])
     Mk = Mr = None
-    for zoom in (1.0, 0.92, 0.84, 0.76, 0.68, 0.60):
+    # 사다리는 이제 **이 장의 배율에서 출발**한다. 원래 역할(넘치면 더 물러난다)
+    # 은 그대로고, 출발점만 1.0 고정에서 난수로 바뀌었다.
+    for _step in (1.0, 0.92, 0.84, 0.76, 0.68, 0.60):
+        zoom = cam_zoom * _step
         Mk, Mr = _mats(1.0, zoom)
         if _in(_warp_pts(_glass0, Mk, Mr)):
             img = _warp_img(pre, cv2.INTER_LINEAR, Mk, Mr)

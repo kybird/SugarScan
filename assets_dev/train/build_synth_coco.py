@@ -43,6 +43,38 @@ SETS = {
     # 바꾸면 무엇이 움직였는지 못 가른다.
     # 시드는 A·A2·B·C 어느 것과도 겹치지 않는다.
     "A3": (5000, 20260920),
+    # ── 소규모 탐침 한 쌍(2026-09-17, 사람 지시) ──────────────────────
+    # 물음: **가로형을 배울 수 있기는 한가.** A3(5,000장·가로 13.9%)는 세로형을
+    # 무너뜨려 답을 못 줬다. 여기서는 예산을 200장으로 줄이고 가로 비중만
+    # 달리한 **한 쌍**을 굽는다.
+    #
+    # 쌍으로 굽는 이유: 200장 결과를 v2(5,000장)와 견주면 예산이 달라 비교가
+    # 성립하지 않는다([[experiment-budget-parity]]). 같은 200장의 세로형 전용
+    # 대조군이 있어야 "가로형 때문"과 "200장이라서"를 가른다.
+    #
+    # 세 번째 값은 가로형 추첨 비중(set_wide_share).
+    "P50": (200, 20260921, 0.50),   # 가로:세로 = 50:50 (각 약 100장)
+    "P00": (200, 20260922, 0.00),   # 대조군 — 같은 예산, 세로형만
+
+    # A6 — 방향 균등(2026-09-17, 사람 판단). 세로형 장수를 A2 와 **같게 두고**
+    # 가로형을 같은 수만큼 얹는다: 10,000 x 0.5 = 세로 5,000 + 가로 5,000.
+    #
+    # 왜 실측 비중(2%)에 맞추지 않는가: 그건 분류기 논리다. 검출기는 장마다
+    # 물체가 하나라 클래스 사전확률이 없고, 드문 변종을 덜 학습시키면 그냥
+    # 덜 배운다. 합성이 공짜인데 일부러 적게 줄 이유가 없다.
+    # A3(13.9%)가 실패한 것은 가로형을 **더해서**가 아니라 세로형을
+    # 5,000 -> 4,300 으로 **빼앗아서**였다. 여기서는 빼앗지 않는다.
+    #
+    # 감수하는 것: 가로형 프로파일이 2종뿐이라 기기 1종당 2,500장이 되고
+    # 세로형은 13종에 1종당 385장이다. 가로형 2종의 생김새를 외울 위험이
+    # 있으므로 결과를 **기기별로** 볼 것.
+    "A6": (10000, 20260923, 0.50),
+
+    # Z1 — 촬영 배율 난수(CAM_ZOOM_RANGE)의 효과를 재는 탐침(2026-09-17).
+    # **P00 이 통제군이다** — 같은 세로형 전용(share 0.00)이고 변경 **전**
+    # 코드로 구워졌다. 바뀐 것은 배율 난수·포즈 폭·워프 경계색 셋뿐이다.
+    # 재는 것은 성적이 아니라 분포다: measure_panel_stats.py coco 의 선형비 퍼짐.
+    "Z1": (400, 20260924, 0.00),
 }
 
 CATEGORY = {"id": 1, "name": "glucose_band", "supercategory": "none"}
@@ -60,12 +92,14 @@ def quad_to_bbox(quad, w, h):
     return [round(x0, 2), round(y0, 2), round(x1 - x0, 2), round(y1 - y0, 2)]
 
 
-def build_set(name, count, seed, out_root):
+def build_set(name, count, seed, out_root, wide_share=None):
     set_dir = out_root / name
     if set_dir.exists():
         shutil.rmtree(set_dir)
     set_dir.mkdir(parents=True)
 
+    # 가로형 비중은 추첨 가중치로 준다 — 코퍼스를 두 번 굽고 합치지 않는다.
+    synth_panel.set_wide_share(wide_share)
     synth_panel.generate(count, seed, set_dir)
     (set_dir / "images").rename(set_dir / "train2017")
 
@@ -208,9 +242,11 @@ def main():
 
     seeds = {}
     for name in names:
-        count, seed = SETS[name]
+        spec = SETS[name]
+        count, seed = spec[0], spec[1]
+        share = spec[2] if len(spec) > 2 else None
         assert seed not in seeds.values(), f"시드 중복: {name}"
-        coco = build_set(name, count, seed, out_root)
+        coco = build_set(name, count, seed, out_root, share)
         seeds[name] = seed
         box_sheet(out_root / name, coco, out_root / f"{name}_boxcheck.png",
                   n=args.sheet_n)

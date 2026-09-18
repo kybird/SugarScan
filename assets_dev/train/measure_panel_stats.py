@@ -265,14 +265,61 @@ def cmd_synth_density(images_dir, manifest, frame_exc):
           f"p90={np.percentile(a, 90):.4f} min={a.min():.4f} max={a.max():.4f}")
 
 
+
+def cmd_coco(path, limit=0):
+    """COCO 주석 세트에서 **상자가 장면을 얼마나 차지하는가**를 잰다.
+
+    왜 이 축인가(2026-09-17 사람 지적: "Roboflow 이미지와 라벨을 보니까
+    확대축소도 필요할거같더라"): 합성기의 zoom 은 난수가 아니라 쿼드가
+    캔버스를 넘칠 때만 내려가는 사다리다. 기본이 1.0 이라 유리가 늘 캔버스를
+    꽉 채운다 — 즉 **피사체 크기가 거의 고정**이다. 실촬은 그렇지 않다.
+
+    두 축을 인쇄한다:
+      넓이비   상자 넓이 / 이미지 넓이.  '얼마나 크게 찍혔나'
+      선형비   sqrt(넓이비).  배율은 선형으로 생각하는 편이 낫다
+                (넓이 4배 = 배율 2배)
+      종횡비   상자 w/h
+
+    **모집단을 반드시 함께 읽을 것.** gmscreen 의 상자는 '전체 사진 속 LCD'
+    이고 합성 세트의 상자는 '기기 크롭 속 밴드'다. 서로 다른 물건이라
+    절대값을 맞대면 안 된다([[comparison-across-different-denominators]]).
+    한 세트 **안에서의 퍼짐**(p10~p90 비)을 보는 것이 이 자의 쓸모다.
+    """
+    j = json.loads(Path(path).read_text(encoding="utf-8"))
+    wh = {im["id"]: (im["width"], im["height"]) for im in j["images"]}
+    frac, asp = [], []
+    for an in j["annotations"]:
+        W, H = wh[an["image_id"]]
+        w, h = an["bbox"][2], an["bbox"][3]
+        if w <= 0 or h <= 0 or W <= 0 or H <= 0:
+            continue
+        frac.append((w * h) / (W * H))
+        asp.append(w / h)
+        if limit and len(frac) >= limit:
+            break
+    f = np.asarray(frac)
+    lin = np.sqrt(f)
+    a = np.asarray(asp)
+    print(f"모집단 {path}  n={len(f)}")
+    for name, v in (("넓이비", f), ("선형비", lin), ("종횡비", a)):
+        print(f"  {name:<6} p10={np.percentile(v,10):.4f} "
+              f"중앙={np.median(v):.4f} p90={np.percentile(v,90):.4f} "
+              f"최소={v.min():.4f} 최대={v.max():.4f}")
+    print(f"  선형비 퍼짐 p90/p10 = {np.percentile(lin,90)/np.percentile(lin,10):.2f}배"
+          f"  (최대/최소 {lin.max()/lin.min():.2f}배)")
+    print("  주의: 상자가 가리키는 물건이 세트마다 다르다. 절대값이 아니라"
+          " 세트 안의 퍼짐을 본다.")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("cmd", choices=["aspect", "band", "density", "synth-density",
-                                    "synth-band"])
+                                    "synth-band", "coco"])
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--frame-exc", type=float, default=0.0)
     ap.add_argument("--images")
     ap.add_argument("--manifest")
+    ap.add_argument("--coco", help="instances_*.json 경로")
     a = ap.parse_args()
     if a.cmd == "aspect":
         cmd_aspect()
@@ -280,6 +327,11 @@ def main():
         cmd_band()
     elif a.cmd == "density":
         cmd_density(a.limit, a.frame_exc)
+    elif a.cmd == "coco":
+        if not a.coco:
+            print("--coco 가 필요하다", file=sys.stderr)
+            return 2
+        cmd_coco(a.coco, a.limit)
     elif a.cmd == "synth-band":
         if not a.manifest:
             print("--manifest 가 필요하다", file=sys.stderr)
