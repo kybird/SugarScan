@@ -210,6 +210,12 @@ def main():
                                    - np.percentile(band, 5)))
     contrasts = np.asarray(contrasts)
 
+    # 가로형 프로파일이 켜져 있는지는 선언에서 읽는다 — 문구를 손으로 박아 두면
+    # 플래그를 되돌린 뒤에도 옛말을 계속 찍는다(2026-09-17 에 실제로 그랬다).
+    _wp = [p["id"] for p in sp.TRAIN_PROFILES
+           if p.get("family") in ("column", "row")]
+    wide_note = (f"가로형 프로파일 {len(_wp)}종: {', '.join(_wp)}" if _wp
+                 else "가로형 프로파일 0종 — 익명 풀만 가로가 난다")
     print(f"== 합성 n={len(manifest)} (seed {args.seed}) vs 실측 기준선 ==")
     print(f"종횡비 w/h(유리=GM쿼드)  합성 median={np.median(wh):.3f} "
           f"p10={p(wh, 10):.3f} p90={p(wh, 90):.3f} | 실측 "
@@ -221,7 +227,7 @@ def main():
     # 닿는다. 기기 고정 12종은 유리 종횡비를 LAYOUTS 에서 받고 전부 세로다
     # (실측에서 가로형은 별도 기기 가족이라 프로파일이 아직 없다).
     print(f"세로(<1)     합성 {np.mean(wh < 1) * 100:.1f}% | 실측 "
-          f"{REAL['portrait']}%  (가로형 프로파일 0종 — 익명 풀만 가로가 난다)")
+          f"{REAL['portrait']}%  ({wide_note})")
     print(f"매우 가로(>2) 합성 {np.mean(wh > 2) * 100:.1f}% | 실측 "
           f"{REAL['very_wide']}%")
     print(f"밀도(밴드 밖) 합성 median={np.median(dens):.4f} "
