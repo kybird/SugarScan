@@ -388,6 +388,13 @@ Kazuhito00/7segment-display-reader, Apache-2.0). **그래도 없는 경우가 �
 `TfliteDigitClassifier.tryLoad()` 가 null 을 돌려주면 `ScanUnavailable` → 수동 입력으로
 떨어진다. 이 폴백을 지우지 말 것. 상세는 `assets/models/README.md`.
 
+## 새 밴드 검출기 설계의 정본은 `docs/SPEC.md` 다
+
+**모델 설계를 건드리기 전에 그 문서를 먼저 읽는다.** 무엇이 결정됐고 무엇이
+미정인지가 거기 있다. 미정 항목을 결정처럼 쓰지 말 것 — 미정이라고 적혀 있는
+것은 사람이 아직 정하지 않았다는 뜻이다. 결정이 나면 그 문서에 **누가 언제**
+정했는지와 함께 올린다.
+
 ## 이전 모델 실험은 전부 폐기했다 (2026-09-17, 사람 결정)
 
 **`assets_dev/train` 아래의 모든 모델·체크포인트·실험 수치는 폐기다.**
