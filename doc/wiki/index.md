@@ -39,6 +39,7 @@ tags: [index]
 | [[measure-the-premise-not-just-the-claim]] | 기록된 결정은 "무엇을 정했나"와 "왜 그렇게 정했나"를 함께 담는다. | 전제, 근거가 낡았다, 결론은 맞는데 이유가 틀렸다, D-2, 상태 공간, 결정 재검토 |
 | [[no-real-photo-ruler-for-synth]] | 합성 데이터의 설계값(요소 자리, 여백, 간격, 기기 속성)을 실촬 사진을 재서 |  |
 | [[open-upper-bound-for-live-window]] | "최근 N일" 같은 살아 있는 기간 질의는 **위쪽 경계를 열어 둔다.** 상한에 "지금"을 넣지 않는다. | 열린 상한, 기간 질의, statsReadingsProvider, watchBetween, refreshStatsProvider |
+| [[probe-the-guard-by-injecting-the-fault]] | 자가검사·게이트·불변식 검사가 "통과"를 찍는다고 해서 그것이 무엇을 막고 있다는 |  |
 | [[push-over-pull-for-prevention]] | **검색은 pull 이다 — 물어볼 줄 알아야 걸린다.** 예방이 목적이라면 검색에 기대면 안 된다. | 푸시 우선, 트리거 표, CLAUDE.md 표, AGENTS.md, 예방은 검색으로 안 된다 |
 | [[reserve-by-the-widest-value]] | 길이가 변하는 내용(날짜 `9-3` ~ `12-25`, 값 `88` ~ `511`)을 **실제 값**으로 |  |
 | [[row-level-decode-tolerance]] | 배치에서 행 하나를 해석하지 못했다고 배치 전체를 실패시키지 않는다. **관용의 단위는 행이다.** | 행 단위 관용, poison-row 방어, ReadingPage, fetchUpdatedSince, fetchedRows, malformed, ReadingDto.fromJson |
@@ -81,6 +82,7 @@ tags: [index]
 | [[label-schema-wider-than-its-values]] | 라벨 파일의 **모양**은 어떤 정보를 담을 수 있게 생겼는데, 실제 값은 전부 | 스키마는 넓은데 값은 좁다, 쿼드인데 축정렬, 담을 수 있게 생겼다, 도구가 못 그린다, schema wider than values |
 | [[label-without-visual-ground-truth]] | 좌표만 저장하고, 저장된 좌표를 **다시 이미지에 그려 확인하는 경로 없이** 계속 진행하는 것. | 눈검증 없는 라벨링, 좌표만 저장, screen_boxes.jsonl, labeled.jsonl, /api/selftest, audit_oob.py |
 | [[lighting-dependent-metric-as-content-target]] | 실사진에서 잰 지표가 **화면의 내용이 아니라 촬영 조건**(조도·광원·그림자· | 조명 지표를 내용 목표로, 촬영 변인을 내용으로, 밀도 목표, density target |
+| [[lineage-counted-only-in-data]] | 파생물의 계보는 학습 데이터에서 끝나지 않는다. **사전학습 가중치**와 **라벨의 |  |
 | [[measured-result-used-as-input]] | 실물에서 잰 값을 생성기의 **입력 파라미터**로 직접 넣는다. | 결과값을 입력으로, 측정값을 파라미터로, 구조 대신 숫자, result as parameter |
 | [[metric-path-not-under-test]] | 측정값이 나쁘면 **측정 대상**(모델·기하·데이터)에 대한 가설만 세우고, **측정하는 코드**(채점 스크립트·전처리 로더·GT 조립)는 옳다고 전제하는 것. | 계측 경로, 채점 스크립트, 평가 스크립트, eval_reader, 지표가 낮다, 모델이 나쁘다, 기준선 저평가, measurement bug, harness bug |
 | [[mixed-image-decode-conventions]] | `cv2.imread` 는 EXIF orientation 을 **자동 적용**하고, `PIL.Image.open` 은 **무시**한다. | EXIF 관례 불일치, cv2 vs PIL, exif_transpose, cv2.imread, getexif, orientation, build_cache_v2, golden_bench |
@@ -92,6 +94,7 @@ tags: [index]
 | [[presence-rate-quoted-as-accuracy]] | 파이프라인 단계가 **출력을 냈는지**를 세는 비율과, 그 출력이 **맞았는지**를 | 검출률, 존재율, 출력이 있었나, detection rate, 커버리지를 정확도로, n_ok |
 | [[proxy-metric-moves-against-the-goal]] | 최종 지표가 둔감할 때(파인튜닝이 효과를 덮을 때) 중간 단계를 재는 대리 지표를 | 대리 지표, 프록시 지표, pre-only 평가, 합성 val, 지표가 반대로 |
 | [[reset-clears-in-flight-lock]] | ```dart | reset 이 잠금을 푸는 것, _busy = false, FrameThrottler, frame_throttler.dart, _busy, reset(), isBusy |
+| [[same-seed-is-not-paired]] | "같은 시드로 돌렸다"는 재현성 문구는 **코드가 그대로일 때만** 짝지음을 뜻한다. |  |
 | [[sampled-uniformity-as-proof]] | 묶음이 균일한지 표본으로 확인하는 절차는 **반례를 못 찾았다**는 사실만 만든다. | 표본으로 균일성 확인, 사분위 표본, 거대 성분 점검, 반례 못 찾음, 4표본, spot check as proof |
 | [[shared-state-split-by-worktree]] | 작업 보드·클레임·활동 로그는 "어느 브랜치에서 보든 같아야" 하는 값이다. | 워크트리, git worktree, 보드가 갈린다, 칸반 충돌, 공유 상태 |
 | [[silent-drop-on-placement-failure]] | 배치기가 자리를 못 찾으면 그 요소를 **그리지 않고 넘어간다.** 산출물에는 |  |
@@ -118,7 +121,7 @@ tags: [index]
 ## Statistics
 
 - Total concepts: 9
-- Total patterns: 21
-- Total anti-patterns: 50
+- Total patterns: 22
+- Total anti-patterns: 52
 - Total answers: 0
-- Last updated: 2026-09-16
+- Last updated: 2026-09-17
