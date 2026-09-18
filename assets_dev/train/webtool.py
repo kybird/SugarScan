@@ -798,15 +798,66 @@ def _synth_dirs():
     안 준 셈이 된다.
     """
     out = []
-    for d in sorted(HERE.glob("synth_*")):
-        if not d.is_dir():
-            continue
-        if (d / "manifest.jsonl").exists():
-            out.append(d.name)
-        for sub in sorted(d.iterdir()):
-            if sub.is_dir() and (sub / "manifest.jsonl").exists():
-                out.append(f"{d.name}/{sub.name}")
+    for pat in ("synth_*", "gmscreen*"):
+        for d in sorted(HERE.glob(pat)):
+            if not d.is_dir():
+                continue
+            if _corpus_kind(d):
+                out.append(d.name)
+            for sub in sorted(d.iterdir()):
+                if sub.is_dir() and _corpus_kind(sub):
+                    out.append(f"{d.name}/{sub.name}")
     return out
+
+
+def _corpus_kind(d):
+    """이 폴더를 열람할 수 있나 — manifest(합성)냐 COCO(실촬)냐.
+
+    합성 코퍼스만 보던 구판은 Roboflow 같은 COCO 데이터셋을 못 띄웠다.
+    사람이 "실제 라벨이 어떻게 돼 있는지 보고 싶다"고 했을 때 폴더를 열어
+    .jpg 만 보이면 라벨이 없는 것처럼 보인다 — COCO 는 라벨을 annotations/
+    한 파일에 몰아 두기 때문이다. 그 오해를 화면에서 푼다.
+    """
+    if (d / "manifest.jsonl").exists():
+        return "manifest"
+    if (d / "annotations").is_dir() and any(
+            (d / "annotations").glob("instances_*.json")):
+        return "coco"
+    return None
+
+
+def _coco_rows(d):
+    """COCO 데이터셋을 합성 열람과 같은 행 모양으로 바꾼다.
+
+    상자(bbox)를 네 점 쿼드로 펴서 같은 그리기 코드가 그대로 돌게 한다.
+    숫자 라벨은 COCO 에 없으므로 클래스 이름을 대신 보여 준다.
+    """
+    rows = []
+    for ann_f in sorted((d / "annotations").glob("instances_*.json")):
+        split = ann_f.stem.replace("instances_", "")
+        j = json.loads(ann_f.read_text(encoding="utf-8"))
+        cats = {c["id"]: c["name"] for c in j.get("categories", [])}
+        by_img = {}
+        for a in j.get("annotations", []):
+            by_img.setdefault(a["image_id"], []).append(a)
+        for im in j.get("images", []):
+            anns = by_img.get(im["id"], [])
+            if not anns:
+                continue
+            a = anns[0]
+            x, y, w, h = a["bbox"]
+            rows.append({
+                "id": Path(im["file_name"]).stem,
+                "file": im["file_name"], "split": split,
+                "profile": f"{d.name}/{split}",
+                "label": cats.get(a["category_id"], "?"),
+                "w": im["width"], "h": im["height"],
+                "quad": [[x, y], [x + w, y], [x + w, y + h], [x, y + h]],
+                "rects": [[x, y, x + w, y + h, cats.get(a["category_id"], "?")]],
+                "inverted": False, "dropped": [],
+                "n_boxes": len(anns),
+            })
+    return rows
 
 
 _SYNTH_CACHE = {}
@@ -824,6 +875,16 @@ def _synth_rows(name):
     if ".." in name or name.startswith("/") or name.count("/") > 1:
         return []
     d = HERE / name
+    kind = _corpus_kind(d)
+    if kind == "coco":
+        st = max((f.stat().st_mtime_ns, f.stat().st_size)
+                 for f in (d / "annotations").glob("instances_*.json"))
+        hit = _SYNTH_CACHE.get(name)
+        if hit and hit[0] == st:
+            return hit[1]
+        rows = _coco_rows(d)
+        _SYNTH_CACHE[name] = (st, rows)
+        return rows
     m = d / "manifest.jsonl"
     if not m.exists():
         return []
@@ -889,7 +950,11 @@ def api_synth_list(qs):
         # 페이지를 넘겨 가며 눈으로 뒤지게 두면 안 된다.
         rows = [r for r in rows if not r.get("pred")]
     sl = rows[off:off + lim]
-    return {"total": len(rows), "offset": off, "items": [
+    # 예측 파일이 있는 코퍼스에서만 "상자 없음"을 말할 수 있다. 없는 코퍼스
+    # (Roboflow 같은 실촬 COCO)에서 그 문구를 띄우면 **정답 상자가 없다**는
+    # 뜻으로 읽힌다 — 실제로는 검출기를 안 돌린 것뿐이다.
+    has_pred = _synth_pred_file(name) is not None
+    return {"total": len(rows), "offset": off, "has_pred": has_pred, "items": [
         {"id": r["id"], "profile": r.get("profile"), "label": r.get("label"),
          "w": r["w"], "h": r["h"], "quad": r["quad"],
          "glass_quad": r.get("glass_quad"), "inverted": r.get("inverted"),
@@ -1637,14 +1702,23 @@ class Handler(BaseHTTPRequestHandler):
                 return
             # 이미지 폴더 이름이 코퍼스마다 다르다 — synth_panel 은 images/,
             # COCO 로 내보낸 세트는 train2017/ 이다(build_synth_coco.py).
-            for sub in ("images", "train2017"):
-                f = HERE / d / sub / (cid + ".png")
-                if f.exists():
+            # 폴더 이름도 확장자도 코퍼스마다 다르다 — synth_panel 은
+            # images/*.png, COCO 로 내보낸 세트는 train2017/*.png,
+            # Roboflow 실촬은 train2017·val2017/*.jpg 다.
+            f = None
+            for sub in ("images", "train2017", "val2017"):
+                for ext in (".png", ".jpg", ".jpeg"):
+                    c = HERE / d / sub / (cid + ext)
+                    if c.exists():
+                        f = c
+                        break
+                if f:
                     break
-            else:
+            if f is None:
                 self._send(404, b"not found", "text/plain")
                 return
-            self._send(200, f.read_bytes(), "image/png")
+            mime = "image/png" if f.suffix == ".png" else "image/jpeg"
+            self._send(200, f.read_bytes(), mime)
             return
         if u.path == "/devices":
             if DEVICES_HTML.exists():
