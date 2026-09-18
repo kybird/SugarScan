@@ -2522,11 +2522,22 @@ def _render_once(value, rng, profile, pid, inverted):
         gpc = 0.0
 
     dens = _density_outside(img, quad)
-    # 워프 행렬 — **정답이 아니다.** 측정용 기하다(숫자 필드를 워프 후
-    # 좌표로 옮길 때 쓴다). Mr 은 이 경로에서 늘 None 이므로 Mk 가 전부다.
-    warp = np.eye(3, dtype=np.float64) if Mk is None else np.asarray(Mk, np.float64)
+    # 숫자 필드를 워프 후 이미지 좌표로 옮겨 **축정렬 상자**로 만든다.
+    # 행렬(warp)을 매니페스트에 내보내지 않는 이유: 행렬 + 워프 전 좌표가
+    # 있으면 기울어진 쿼드를 그대로 복원할 수 있다. 쿼드를 뺀 이유가
+    # '모델이 기울기·펴짐까지 스스로 배우게 한다'인데(docs/SPEC.md §9.5),
+    # 복원 경로를 남기면 뺀 것이 아니다. **도구가 아니라 결과를 준다.**
+    _br = next((r for r in placer.rects if r[4] == 'band'), None)
+    if _br is None:
+        digit_box = None
+    else:
+        _c = np.float32([[[_br[0], _br[1]], [_br[2], _br[1]],
+                          [_br[2], _br[3]], [_br[0], _br[3]]]])
+        _cw = _c[0] if Mk is None else cv2.perspectiveTransform(_c, Mk)[0]
+        digit_box = [float(_cw[:, 0].min()), float(_cw[:, 1].min()),
+                     float(_cw[:, 0].max()), float(_cw[:, 1].max())]
     return dict(panel=img, quad=np.asarray(quad, np.float32), label=label,
-                warp=warp,
+                digit_box=digit_box,
                 band_clip=int(_band_clip[0]),
                 glare=_glare_log, glare_cover=round(_glare_cover, 4),
                 glass_quad=np.asarray(glass_quad, np.float32),
@@ -2606,9 +2617,10 @@ def generate(count, seed0, out_dir, with_reader=False):
             # 정답을 하나로 못박는다: box = [x0, y0, x1, y1].
             box=[round(float(q[:, 0].min()), 1), round(float(q[:, 1].min()), 1),
                  round(float(q[:, 0].max()), 1), round(float(q[:, 1].max()), 1)],
-            # warp 은 **정답이 아니다** — 워프 전 좌표(rects · quad_panel)를
-            # 워프 후로 옮기는 측정용 행렬이다. 이름으로 구분해 둔다.
-            warp=[[round(float(v), 6) for v in row] for row in s["warp"]],
+            # digit_box — **정답이 아니다. 측정용이다.** 숫자 필드의 축정렬
+            # 상자(이미지 좌표). '예측 상자가 숫자를 온전히 담았는가'를 잰다.
+            digit_box=None if s["digit_box"] is None
+            else [round(float(v), 1) for v in s["digit_box"]],
             label=s["label"],
             # 유리 쿼드 — 리더 프레이밍의 입력(실사진의 GM 쿼드에 해당).
             glass_quad=np.round(s["glass_quad"], 2).tolist(),
@@ -2616,7 +2628,6 @@ def generate(count, seed0, out_dir, with_reader=False):
             text_heights=s["text_heights"],
             density=round(float(s["density"]), 5),
             glare=s["glare"], glare_cover=s["glare_cover"],
-            quad_panel=np.round(s["quad_panel"], 2).tolist(),
             rects=[[round(float(v), 1) for v in r[:4]] + [r[4]]
                    for r in s["rects"]],
             dropped=s["dropped"], overlaps=viol,

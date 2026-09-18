@@ -38,25 +38,22 @@ def digit_field_containment(manifest_path):
     숫자는 멀쩡할 수 있고, 반대로 여백만 덮고 숫자 획을 자를 수도 있다.
     리더에게 해로운 것은 뒤쪽이라 따로 잰다.
 
-    매니페스트의 rects['band'] 는 워프 **전** 패널 좌표의 숫자 필드다.
-    quad_panel -> quad 가 같은 워프의 네 점 대응이므로 호모그래피를 되찾아
-    필드 네 귀를 워프 후 좌표로 옮긴다. 기하를 새로 짜지 않는다.
+    생성기가 `digit_box`(숫자 필드의 축정렬 상자, 이미지 좌표)를 직접 준다
+    (2026-09-17). 구판은 quad_panel -> quad 네 점 대응에서 호모그래피를 되찾아
+    필드를 옮겼는데, 그 경로는 **기울어진 쿼드를 복원할 수 있다는 뜻**이라
+    함께 없앴다 — 쿼드를 뺀 이유가 모델이 기울기를 스스로 배우게 하는 것인데
+    복원 수단을 남기면 뺀 것이 아니다(docs/SPEC.md §9.5).
     """
     out = {}
     for line in Path(manifest_path).read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
         m = json.loads(line)
-        band = next((r for r in m["rects"] if r[4] == "band"), None)
-        if band is None:
+        db = m.get("digit_box")
+        if db is None:
             continue
-        # 생성기가 워프 행렬을 직접 준다(2026-09-17). 구판은 quad_panel -> quad
-        # 네 점 대응에서 호모그래피를 되찾았는데, 정답이 축정렬 사각형으로
-        # 바뀌면서 그 대응이 사라졌다. 행렬을 받는 쪽이 애초에 정확하다.
-        M = np.asarray(m["warp"], np.float32)
-        corners = np.float32([[[band[0], band[1]], [band[2], band[1]],
-                               [band[2], band[3]], [band[0], band[3]]]])
-        out[f"{m['id']}.png"] = cv2.perspectiveTransform(corners, M)[0]
+        out[f"{m['id']}.png"] = np.float32(
+            [[db[0], db[1]], [db[2], db[1]], [db[2], db[3]], [db[0], db[3]]])
     return out
 
 
