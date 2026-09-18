@@ -112,7 +112,11 @@ def main():
         q = s["quad"]
         W, H, m = s["W"], s["H"], s["margin"]
         rec = dict(id=name, profile=s["profile"], w=W, h=H,
-                   wh=round(s["wh"], 4), quad=np.round(q, 2).tolist(),
+                   wh=round(s["wh"], 4),
+                   # 정답은 축정렬 사각형이다(2026-09-17, docs/SPEC.md §9.5).
+                   box=[round(float(q[:, 0].min()), 1), round(float(q[:, 1].min()), 1),
+                        round(float(q[:, 0].max()), 1), round(float(q[:, 1].max()), 1)],
+                   warp=[[round(float(v), 6) for v in row] for row in s["warp"]],
                    glass_quad=np.round(s["glass_quad"], 2).tolist(),
                    label=s["label"], inverted=s["inverted"],
                    glyph_plane_check=s["glyph_plane_check"],

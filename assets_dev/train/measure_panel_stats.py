@@ -160,9 +160,7 @@ def cmd_synth_band(manifest, vs="canvas"):
     pos = {"portrait": [], "wide": []}
     asp = []
     for r in rows:
-        q = np.asarray(r["quad"], np.float64)
-        bx0, by0 = q[:, 0].min(), q[:, 1].min()
-        bx1, by1 = q[:, 0].max(), q[:, 1].max()
+        bx0, by0, bx1, by1 = (float(v) for v in r["box"])
         if vs == "glass":
             if "glass_quad" not in r:
                 raise SystemExit("매니페스트에 glass_quad 가 없다 — "

@@ -117,7 +117,14 @@ function paint(cv, it, img, scale) {
     for (const r of it.rects) ctx.strokeRect(r[0], r[1], r[2] - r[0], r[3] - r[1]);
   }
   if ($("showGlass").checked) drawQuad(ctx, it.glass_quad, "#ff9f0a", lw);
-  drawQuad(ctx, it.quad, "#32d74b", lw + 1);
+  // 정답은 축정렬 사각형이다(2026-09-17). 옛 코퍼스는 quad 4점을 담고 있으므로
+  // 둘 다 받는다 — box 가 있으면 box 를 그린다.
+  if (it.box) {
+    const b = it.box;
+    drawQuad(ctx, [[b[0],b[1]],[b[2],b[1]],[b[2],b[3]],[b[0],b[3]]], "#32d74b", lw + 1);
+  } else if (it.quad) {
+    drawQuad(ctx, it.quad, "#32d74b", lw + 1);
+  }
   // 검출기 예측 — 초록(정답) 위에 빨강으로 얹는다. 예측이 없는 장은 아무것도
   // 안 그려서 "상자 없음"이 눈에 바로 띈다.
   if ($("showPred").checked && it.pred) {
@@ -131,8 +138,10 @@ function tile(it) {
   const fig = document.createElement("figure");
   const cv = document.createElement("canvas");
   const cap = document.createElement("figcaption");
-  const bw = (it.quad[1][0] - it.quad[0][0]);
-  const bh = (it.quad[3][1] - it.quad[0][1]);
+  const _g = it.box ? [[it.box[0],it.box[1]],[it.box[2],it.box[1]],
+                      [it.box[2],it.box[3]],[it.box[0],it.box[3]]] : it.quad;
+  const bw = (_g[1][0] - _g[0][0]);
+  const bh = (_g[3][1] - _g[0][1]);
   cap.innerHTML = `<span><b>${it.label}</b> · ${it.profile}` +
     (it.inverted ? ' · <span style="color:#ff9f0a">반전</span>' : "") + `</span>` +
     `<span class="muted">밴드 ${Math.round(bw)}×${Math.round(bh)}` +

@@ -50,8 +50,10 @@ def digit_field_containment(manifest_path):
         band = next((r for r in m["rects"] if r[4] == "band"), None)
         if band is None:
             continue
-        M = cv2.getPerspectiveTransform(
-            np.float32(m["quad_panel"]), np.float32(m["quad"]))
+        # 생성기가 워프 행렬을 직접 준다(2026-09-17). 구판은 quad_panel -> quad
+        # 네 점 대응에서 호모그래피를 되찾았는데, 정답이 축정렬 사각형으로
+        # 바뀌면서 그 대응이 사라졌다. 행렬을 받는 쪽이 애초에 정확하다.
+        M = np.asarray(m["warp"], np.float32)
         corners = np.float32([[[band[0], band[1]], [band[2], band[1]],
                                [band[2], band[3]], [band[0], band[3]]]])
         out[f"{m['id']}.png"] = cv2.perspectiveTransform(corners, M)[0]

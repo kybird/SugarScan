@@ -2522,7 +2522,11 @@ def _render_once(value, rng, profile, pid, inverted):
         gpc = 0.0
 
     dens = _density_outside(img, quad)
+    # 워프 행렬 — **정답이 아니다.** 측정용 기하다(숫자 필드를 워프 후
+    # 좌표로 옮길 때 쓴다). Mr 은 이 경로에서 늘 None 이므로 Mk 가 전부다.
+    warp = np.eye(3, dtype=np.float64) if Mk is None else np.asarray(Mk, np.float64)
     return dict(panel=img, quad=np.asarray(quad, np.float32), label=label,
+                warp=warp,
                 band_clip=int(_band_clip[0]),
                 glare=_glare_log, glare_cover=round(_glare_cover, 4),
                 glass_quad=np.asarray(glass_quad, np.float32),
@@ -2594,7 +2598,18 @@ def generate(count, seed0, out_dir, with_reader=False):
         clip_total += int(s.get("band_clip", 0))
         rec = dict(
             id=name, profile=s["profile"], w=s["W"], h=s["H"],
-            wh=round(s["wh"], 4), quad=q.tolist(), label=s["label"],
+            wh=round(s["wh"], 4),
+            # ── 정답은 축정렬 사각형 하나다 (2026-09-17 사람 결정) ──────
+            # 구판은 쿼드 4점을 정답으로 줬다. 검출기는 축정렬 사각형만
+            # 내므로(docs/SPEC.md §1) 정답과 출력의 형식이 달랐고, 그
+            # 차이를 소비하는 쪽마다 따로 외접상자를 계산했다.
+            # 정답을 하나로 못박는다: box = [x0, y0, x1, y1].
+            box=[round(float(q[:, 0].min()), 1), round(float(q[:, 1].min()), 1),
+                 round(float(q[:, 0].max()), 1), round(float(q[:, 1].max()), 1)],
+            # warp 은 **정답이 아니다** — 워프 전 좌표(rects · quad_panel)를
+            # 워프 후로 옮기는 측정용 행렬이다. 이름으로 구분해 둔다.
+            warp=[[round(float(v), 6) for v in row] for row in s["warp"]],
+            label=s["label"],
             # 유리 쿼드 — 리더 프레이밍의 입력(실사진의 GM 쿼드에 해당).
             glass_quad=np.round(s["glass_quad"], 2).tolist(),
             inverted=s["inverted"], glyph_plane_check=s["glyph_plane_check"],
@@ -2635,7 +2650,10 @@ def _count_overlaps(rects):
     return n
 
 
-def montage(out_png, images_dir, manifest, n=12, with_quad=True, quad_key="quad"):
+def montage(out_png, images_dir, manifest, n=12, with_quad=True, quad_key="box"):
+    """정답 겹쳐 그리기. 기본 키는 **box**(축정렬 사각형)다 — 2026-09-17 에
+    생성기의 정답이 쿼드에서 사각형으로 바뀌었다. 4점 쿼드를 주면 폴리라인,
+    4수 사각형을 주면 직사각형으로 그린다."""
     """검증 몽타주. 오버레이 없는 판과 함께 남긴다(지시서 — 1판에서 오버레이
     때문에 글리프 품질 판정을 못 했다)."""
     rows = []
@@ -2647,7 +2665,11 @@ def montage(out_png, images_dir, manifest, n=12, with_quad=True, quad_key="quad"
         if img is None:
             continue
         if with_quad and quad_key in m:
-            q = np.asarray(m[quad_key], np.int32)
+            _v = m[quad_key]
+            if len(_v) == 4 and not isinstance(_v[0], (list, tuple)):
+                x0, y0, x1, y1 = (int(t) for t in _v)
+                _v = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]
+            q = np.asarray(_v, np.int32)
             cv2.polylines(img, [q.reshape(-1, 1, 2)], True, 255, 3)
             cv2.polylines(img, [q.reshape(-1, 1, 2)], True, 0, 1)
         h = 224
@@ -2677,7 +2699,7 @@ if __name__ == "__main__":
     ap.add_argument("--images")
     ap.add_argument("--manifest")
     ap.add_argument("--n", type=int, default=12)
-    ap.add_argument("--quad-key", default="quad")
+    ap.add_argument("--quad-key", default="box")
     args = ap.parse_args()
     if args.cmd == "gen":
         set_wide_share(args.wide_share)

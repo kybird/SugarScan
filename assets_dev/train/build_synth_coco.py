@@ -88,13 +88,16 @@ CATEGORY = {"id": 1, "name": "glucose_band", "supercategory": "none"}
 MIN_SIDE = 8            # 이보다 작은 상자는 학습에 쓸 수 없다 — 하드 실패시킨다
 
 
-def quad_to_bbox(quad, w, h):
-    """쿼드의 축정렬 외접 상자 → COCO bbox [x, y, w, h]."""
-    q = np.asarray(quad, np.float64)
-    x0 = float(np.clip(q[:, 0].min(), 0, w - 1))
-    y0 = float(np.clip(q[:, 1].min(), 0, h - 1))
-    x1 = float(np.clip(q[:, 0].max(), 0, w - 1))
-    y1 = float(np.clip(q[:, 1].max(), 0, h - 1))
+def box_to_bbox(box, w, h):
+    """매니페스트 box [x0,y0,x1,y1] → COCO bbox [x, y, w, h].
+
+    생성기가 이미 축정렬 사각형을 정답으로 준다(2026-09-17). 구판은 쿼드를
+    받아 여기서 외접상자를 계산했는데, 그러면 정답의 형식이 소비자마다
+    달라진다 — 생성기가 하나로 못박는 쪽이 맞다."""
+    x0 = float(np.clip(box[0], 0, w - 1))
+    y0 = float(np.clip(box[1], 0, h - 1))
+    x1 = float(np.clip(box[2], 0, w - 1))
+    y1 = float(np.clip(box[3], 0, h - 1))
     return [round(x0, 2), round(y0, 2), round(x1 - x0, 2), round(y1 - y0, 2)]
 
 
@@ -126,7 +129,7 @@ def build_set(name, count, seed, out_root, wide_share=None):
     for i, r in enumerate(rows):
         fname = f"{r['id']}.png"
         assert (set_dir / "train2017" / fname).exists(), fname
-        bbox = quad_to_bbox(r["quad"], r["w"], r["h"])
+        bbox = box_to_bbox(r["box"], r["w"], r["h"])
         assert bbox[2] > MIN_SIDE and bbox[3] > MIN_SIDE, (r["id"], bbox)
         coco["images"].append({"id": i, "file_name": fname,
                                "width": r["w"], "height": r["h"]})
@@ -158,7 +161,8 @@ def box_sheet(set_dir, coco, out_png, n=10, cols=5):
     tiles = []
     for r, a in picks:
         img = cv2.imread(str(set_dir / "train2017" / f"{r['id']}.png"))
-        cv2.polylines(img, [np.asarray(r["quad"], np.int32)], True, (255, 120, 0), 2)
+        _b = [int(v) for v in r["box"]]
+        cv2.rectangle(img, (_b[0], _b[1]), (_b[2], _b[3]), (255, 120, 0), 2)
         x, y, w, h = a["bbox"]
         cv2.rectangle(img, (int(x), int(y)), (int(x + w), int(y + h)),
                       (0, 220, 0), 2)
