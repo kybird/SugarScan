@@ -11,7 +11,7 @@ PY=C:/Users/admin/miniconda3/envs/sugartrain/python.exe
 H=D:/Project/sugarScan/assets_dev/train
 STEPS=8000
 
-for N in 00500 01000 02000 04000 08000; do
+for N in 00500 01000 02000 04000 07998; do
   echo "=== N=$N 학습 시작 $(date +%H:%M:%S)"
   "$PY" "$H/train_band.py" \
     --data "$H/synth_coco/T" \
@@ -23,7 +23,7 @@ for N in 00500 01000 02000 04000 08000; do
 done
 
 echo "=== 평가 (세트 V, 시드가 다른 홀드아웃)"
-for N in 00500 01000 02000 04000 08000; do
+for N in 00500 01000 02000 04000 07998; do
   "$PY" "$H/eval_band.py" \
     --ckpt "$H/band_out/curve_$N.pt" \
     --data "$H/synth_coco/V" --ann instances_train2017.json \

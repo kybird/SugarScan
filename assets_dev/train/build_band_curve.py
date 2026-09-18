@@ -49,12 +49,15 @@ def main():
     rng = random.Random(PICK_SEED)
     rng.shuffle(wide)
     rng.shuffle(tall)
-    need = max(steps)
+    # 비중은 **추첨**이라 정확히 반반이 나오지 않는다(실측: 16,000장에서
+    # 가로 8,002 · 세로 7,998). 상단 점을 풀의 최소값으로 깎는다 — 방향 간
+    # 균형은 그대로 유지되고(양쪽 같은 수), 곡선의 뜻도 바뀌지 않는다.
+    cap = min(len(wide), len(tall))
     print(f"모 코퍼스 {src.name}: 가로형 {len(wide)} · 세로형 {len(tall)} "
-          f"(방향별 필요 {need})")
-    for name, pool in (("가로형", wide), ("세로형", tall)):
-        assert len(pool) >= need, (
-            f"{name}이 {len(pool)}장뿐이다 — {need}장이 필요하다")
+          f"(방향별 상한 {cap})")
+    steps = sorted({min(n, cap) for n in steps})
+    if steps[-1] != max(int(x) for x in args.steps.split(",")):
+        print(f"  상단 점을 {steps[-1]} 로 깎았다(풀 최소값)")
 
     prev = None
     print(f"\n{'N(방향별)':>10}{'합계':>8}{'중첩':>8}")
