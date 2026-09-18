@@ -15,7 +15,7 @@
 
 | 자산 | 출처 | 라이선스 | 앱에 반입되는가 | 상태 |
 |---|---|---|---|---|
-| EasyOCR | JaidedAI/EasyOCR | **코드: Apache-2.0** ([LICENSE](https://github.com/JaidedAI/EasyOCR/blob/master/LICENSE), 2026-08-21 확인) | 코드는 아니오, **가중치는 예**(ONNX 변환본) | **가중치: 확인 실패** — README·공식 사이트 어디에도 가중치의 배포 조건이 명시되어 있지 않다. 코드 LICENSE 가 가중치까지 덮는다는 문구도 없다. 반입 전 Jaided AI 에 직접 확인 필요 |
+| ~~EasyOCR~~ | JaidedAI/EasyOCR | 코드: Apache-2.0 (2026-08-21 확인) | **아니오 — 채택하지 않음** | **2026-09-17 종결.** 벤치에서 기각됐고(크롭 9.3% · 원본 1.3% vs 자체 98.0%, `bench_external_ocr.py`), 남겨 둔 유일한 이유였던 mmol/L 소수점은 재구축 계획 §4 가 **우리 리더 charset 에 소수점을 처음부터 넣기로** 하면서 사라졌다. 가중치 조건을 확인할 이유가 없다 |
 | CRAFT (text detector) | clovaai/CRAFT-pytorch | **MIT** (Copyright (c) 2019-present NAVER Corp., [LICENSE](https://github.com/clovaai/CRAFT-pytorch/blob/master/LICENSE), 2026-08-21 확인) — **연구용 한정 조항 없음.** LICENSE 원문과 README 어디에도 비상업 조항이 없는 순수 MIT 다 | **미반입** (가이드 박스로 대체) | 확인 완료 |
 | deep-text-recognition-benchmark | clovaai | **Apache-2.0** ([LICENSE.md](https://github.com/clovaai/deep-text-recognition-benchmark/blob/master/LICENSE.md), 2026-08-21 확인 — 파일명이 `LICENSE.md` 다) | 아니오 (학습 도구) | 확인 완료 |
 | ONNX Runtime | microsoft/onnxruntime | **MIT** (Copyright (c) Microsoft Corporation, [LICENSE](https://github.com/microsoft/onnxruntime/blob/master/LICENSE), 2026-08-21 확인) | 예 (flutter_onnxruntime 경유) | 확인 완료 |
@@ -180,6 +180,14 @@ SIL OFL 은 상업적 사용·임베딩을 허용하지만 **폰트 자체를 �
    LICENSE 를 자동 수집하므로 별도 고지 문서를 만들 필요는 없다
 3. GPL/AGPL 계열이 섞였는지 확인 (현재 목록에는 없음)
 
+> **2026-09-17 확인 필요로 추가**: `google_mlkit_text_recognition` 이 직접
+> 의존에 들어 있다. 플러그인 자체는 OSS 라이선스지만 **구글 ML Kit SDK 는
+> 별도 이용약관**을 가지며 `showLicensePage` 의 자동 수집으로 덮이지 않는다.
+> 지금 `lib/` 에서 그 엔진은 **아직 구현되지 않았다**(`ocr_bootstrap.dart` 의
+> "W5: MlKitEngine (비교군)" 주석뿐이고 `OcrEngineKind.mlkit` 열거값만 있다).
+> 쓰지 않을 것이면 **의존에서 빼는 것**이 가장 깨끗하다 — 빼면 약관 검토가
+> 통째로 없어진다.
+
 ---
 
 ## 4. 미해결 항목
@@ -198,10 +206,17 @@ SIL OFL 은 상업적 사용·임베딩을 허용하지만 **폰트 자체를 �
 - [x] ~~Downloads 에 남아 있는 Roboflow zip 원본 2개(≈4.6GB, upstream 으로 사본 확보됨)
       — 중복이므로 삭제 여부는 개발자 본인 판단~~ — **2026-08-27 MD5 대조 후 삭제 완료**
       (개발자 지시). 사본 해시와 완전 일치 확인済.
-- [ ] EasyOCR 사전학습 가중치의 배포 조건 확인 — 2026-08-21: 공개 문서상 명시가
-      없음을 확인. Jaided AI 문의 필요
-- [ ] fine-tune 파생 가중치의 라이선스 귀속 확인 — EasyOCR 가중치 조건 확인에
-      의존하므로 위 항목과 함께 진행
+- [x] ~~EasyOCR 사전학습 가중치의 배포 조건 확인 — Jaided AI 문의 필요~~
+      **2026-09-17 종결 — 문의 불필요.** EasyOCR 을 안 쓴다. 벤치에서 기각
+      (크롭 9.3% · 원본 1.3% vs 자체 98.0%)됐고, 남겨 둔 유일한 이유였던 mmol/L
+      소수점은 재구축 계획 §4 가 우리 리더 charset 에 소수점을 넣기로 하면서
+      사라졌다. 쓰지 않는 모델의 조건을 확인할 의무는 없다.
+      > 이 항목이 2026-09-17 까지 열려 있었던 이유: 기각은 벤치 보고서에,
+      > 소수점 대체는 재구축 계획에 각각 적혔는데 **이 문서에는 반영되지
+      > 않았다.** 라이선스 표는 "무엇을 쓰기로 했나"를 따라가야 하는데
+      > 후보 시절 문구가 남아 살아 있는 의무처럼 보였다.
+- [x] ~~fine-tune 파생 가중치의 라이선스 귀속 확인 — EasyOCR 조건에 의존~~
+      **위 항목과 함께 종결.** 단 검출기 파생 가중치는 별개이고 §1.1 에 있다.
 - [ ] 실촬 학습 데이터에 타인의 혈당계·개인정보가 찍히지 않도록 하는 수집 지침 문서화
 - [ ] 출시 빌드에 `showLicensePage` 연결
 - [ ] **Apache-2.0 고지**: `7seg_classifier.tflite` 는 앱에 직접 번들되므로 라이선스 사본과 저작자 고지를 앱 내 라이선스 화면에 포함해야 한다. 모델을 fine-tune 해 교체하면 "변경 사항 고지"도 함께 필요하다.
