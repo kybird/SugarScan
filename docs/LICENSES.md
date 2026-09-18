@@ -180,13 +180,13 @@ SIL OFL 은 상업적 사용·임베딩을 허용하지만 **폰트 자체를 �
    LICENSE 를 자동 수집하므로 별도 고지 문서를 만들 필요는 없다
 3. GPL/AGPL 계열이 섞였는지 확인 (현재 목록에는 없음)
 
-> **2026-09-17 확인 필요로 추가**: `google_mlkit_text_recognition` 이 직접
-> 의존에 들어 있다. 플러그인 자체는 OSS 라이선스지만 **구글 ML Kit SDK 는
-> 별도 이용약관**을 가지며 `showLicensePage` 의 자동 수집으로 덮이지 않는다.
-> 지금 `lib/` 에서 그 엔진은 **아직 구현되지 않았다**(`ocr_bootstrap.dart` 의
-> "W5: MlKitEngine (비교군)" 주석뿐이고 `OcrEngineKind.mlkit` 열거값만 있다).
-> 쓰지 않을 것이면 **의존에서 빼는 것**이 가장 깨끗하다 — 빼면 약관 검토가
-> 통째로 없어진다.
+> **2026-09-17 해결**: `google_mlkit_text_recognition` 을 의존에서 **뺐다.**
+> 플러그인 자체는 OSS 지만 구글 ML Kit SDK 는 별도 이용약관이고
+> `showLicensePage` 자동 수집으로 덮이지 않는다. 그런데 `lib/` 에 실제 호출이
+> 0건이었다(`OcrEngineKind.mlkit` 열거값과 "W5: MlKitEngine (비교군)" 주석뿐).
+> **쓰지도 않으면서 약관만 지고 있었다.** 제거 후 `flutter analyze` 무경고 ·
+> `flutter test` 471개 전부 통과. 비교군으로 다시 필요해지면 그때 넣고
+> 이 표에 한 줄 적는다.
 
 ---
 
