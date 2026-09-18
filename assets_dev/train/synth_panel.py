@@ -461,12 +461,12 @@ def _dot_time_text(rng, fmt_i=None, fmts=None, widest=False):
 
 # 손목 비틀림(면내 회전)의 한계각. 사람이 정한다 — 실사진에서 재지 않는다
 # ([[no-real-photo-ruler-for-synth]]). 2026-09-15: 1.5 -> 15.
-CAM_ROLL_MAX = 15.0
+CAM_ROLL_MAX = 25.0
 # 좌우·상하로 비스듬한 정도(도). 손으로 든 폰이라 이 폭은 설계값이다 —
 # 실사진에는 기울기 정답이 없어 채점할 수 없다(band_det_tilt_real.py 머리말:
 # 사람 라벨도 검출기 출력도 전 장이 0.00° 축정렬이다).
-CAM_YAW_MAX = 12.0
-CAM_PITCH_MAX = 12.0
+CAM_YAW_MAX = 20.0
+CAM_PITCH_MAX = 20.0
 CAM_POSE_P = 0.92          # 이 확률로 포즈를 준다. 나머지는 정면 촬영이다.
 
 # 촬영 배율 — **얼마나 물러나 찍었는가**. 1.0 이 '유리가 캔버스를 꽉 채움'이고
@@ -504,7 +504,7 @@ CAM_POSE_P = 0.92          # 이 확률로 포즈를 준다. 나머지는 정면
 # 그리고 배율만 내리는 것으로는 부족하다는 점을 같이 볼 것: 지금 물러난
 # 자리는 단색 판(bg_col)이 채운다. 실사진의 그 자리에는 혈당기 몸체·손·
 # 책상이 있다. 1단 구조(전체 사진 -> 밴드)로 간다면 생성기가 그것을 그려야 한다.
-CAM_ZOOM_RANGE = (0.42, 1.0)   # <- 근거 무효. 사람 선언 대기.
+CAM_ZOOM_RANGE = (0.25, 1.0)   # 2026-09-17 사람 선언: 매우 다양하게
 
 # ── 반사 유형 (카드 「합성 국소 광원 — 전역 그라데이션을 반사 패치로」 AC#3) ──
 #
@@ -729,12 +729,22 @@ def _render_once(value, rng, profile, pid, inverted):
         한 번만 소비된다(호출 순서가 바뀌므로 옛 코퍼스는 재현되지 않는다)."""
         if name in _shown_memo:
             return _shown_memo[name]
-        if ident is None:
-            v = rng.random() < p
-        elif name in STATEFUL_ELEMENTS:
-            v = rng.random() < p
-        else:
-            v = True
+        # ── 2026-09-17 사람 선언: "100% 를 배재하자. 6~80% 정도면되지않겠냐" ──
+        # 구판은 선언된 기기(ident is not None)의 **비상태성 요소를 p 와 무관하게
+        # 항상** 그렸다. 그래서 프로파일에 p=0.4 라고 적어도 100% 로 나왔다 —
+        # arrow · bezel · dark_window · daterow · dotrow_below · glulabel ·
+        # time · unit 여덟 종류가 그랬다. 확률이 먹던 것은 STATEFUL_ELEMENTS
+        # (mem · meal · 아이콘)뿐이었다.
+        #
+        # 왜 바꾸는가: p=1.0 이면 그 요소가 그 기기의 **상수**가 되고, 검출기가
+        # 밴드를 '숫자 모양'이 아니라 '단위 글자 옆'·'시간 줄 위' 같은 지름길로
+        # 찾을 수 있다. 지름길은 합성에서 100% 통하고 실촬에서는 안 통한다.
+        # docs/SPEC.md §5.4 — 사전학습을 버렸으므로 일반화를 데이터로만 만든다.
+        #
+        # 구판 정책의 근거(아래 옛 주석)는 "있다 없다 하면 같은 기기로 안 보인다"
+        # 였다. 그 대가를 알고 바꾼 것이다 — **기기 충실성을 내주고 일반화 압력을
+        # 얻는다.** 되돌리려면 이 맞바꿈부터 반박할 것.
+        v = rng.random() < p
         _shown_memo[name] = v
         return v
     # 캔버스(=GM 크롭) 종횡비. 기기 고정 기기는 코퍼스 히스토그램에서 뽑지
@@ -1562,7 +1572,7 @@ def _render_once(value, rng, profile, pid, inverted):
                 if _shown("wide:date", 0.6):
                     _items.append(("date", f"{rng.randint(1, 12)}-"
                                            f"{rng.randint(1, 31)}"))
-                if _shown("wide:unit", 0.9):
+                if _shown("wide:unit", 0.8):   # 선언 상한(2026-09-17, 0.6~0.8)
                     _items.append(("unit", _ut))
                 if rng.random() < (0.5 if ident is not None else 0.3):
                     _items.append(("mem", "M"))
@@ -2375,7 +2385,7 @@ def _render_once(value, rng, profile, pid, inverted):
     # 0 근처에 몰린 분포다 — 실제로 크게 비트는 장은 드물고, 균등하게 뿌리면
     # 흔한 구도(거의 반듯함)를 오히려 덜 보게 된다.
     cam_roll = max(-CAM_ROLL_MAX, min(CAM_ROLL_MAX,
-                                      _orng.gauss(0.0, CAM_ROLL_MAX / 2.4)))
+                                      _orng.gauss(0.0, CAM_ROLL_MAX / 2.0)))
     cam_fk = _orng.uniform(1.6, 3.2)        # 초점거리 / 긴 변 (폰 렌즈 대역)
     cam_zoom = _orng.uniform(*CAM_ZOOM_RANGE)   # 이 장의 촬영 배율(1.0=꽉 참)
     src = np.float32([[0, 0], [W - 1, 0], [W - 1, H - 1], [0, H - 1]])
