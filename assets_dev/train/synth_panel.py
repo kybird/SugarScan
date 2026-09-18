@@ -233,11 +233,21 @@ _PROFILE_WEIGHTS = None
 WIDE_FAMILIES = ("column", "row")
 
 
+# 가로형 비중의 기본값 — **세로형과 가로형을 같은 수로 만든다** (2026-09-17
+# 사람 결정, docs/SPEC.md §9.6). 프로파일 균등으로 뽑으면 선언된 가로형이
+# 2종뿐이라 2/15 = 13.3% 밖에 안 나온다. 실촬 코퍼스의 가로형 비중(2.0%)도
+# 근거가 아니다 — 검출기는 장마다 물체가 하나라 클래스 사전확률이 없고,
+# 드문 변종을 덜 학습시키면 그냥 덜 배운다(§2).
+DEFAULT_WIDE_SHARE = 0.5
+
+
 def set_wide_share(share):
     """가로형(family=column/row) 프로파일의 합계 추첨 비중을 share 로 맞춘다.
 
-    share=None 이면 균등(=선언된 가로형 2종 / 전체 15종 = 13.3%). 가로형 안에서,
-    세로형 안에서는 각각 균등하게 나눈다 — 기기 하나를 편애하지 않는다.
+    기본은 DEFAULT_WIDE_SHARE(0.5) 다 — 이 모듈이 불러올 때 그 값으로 선다.
+    share=None 은 **명시적 예외**로, 프로파일 균등(가로형 2/15 = 13.3%)을
+    뜻한다. 가로형 안에서, 세로형 안에서는 각각 균등하게 나눈다 —
+    기기 하나를 편애하지 않는다.
     """
     global _PROFILE_WEIGHTS
     if share is None:
@@ -249,6 +259,9 @@ def set_wide_share(share):
         raise SystemExit("가로형 또는 세로형 프로파일이 없다 — 비중을 못 맞춘다")
     _PROFILE_WEIGHTS = [(share / nw) if w else ((1.0 - share) / nn)
                         for w in wide]
+
+
+set_wide_share(DEFAULT_WIDE_SHARE)   # 모듈 기본 — 세로형:가로형 = 50:50
 
 
 # generic_v1(기기 미상 잔여 품)은 기기 속성이 없어 기기 일관성 제약도 없다 —

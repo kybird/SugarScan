@@ -108,7 +108,10 @@ def build_set(name, count, seed, out_root, wide_share=None):
     set_dir.mkdir(parents=True)
 
     # 가로형 비중은 추첨 가중치로 준다 — 코퍼스를 두 번 굽고 합치지 않는다.
-    synth_panel.set_wide_share(wide_share)
+    # 세트가 값을 안 주면 **기본은 50:50** 이다(synth_panel.DEFAULT_WIDE_SHARE,
+    # docs/SPEC.md §9.6). 구판은 None 을 넘겨 프로파일 균등(가로 13.3%)이 됐다.
+    synth_panel.set_wide_share(
+        synth_panel.DEFAULT_WIDE_SHARE if wide_share is None else wide_share)
     synth_panel.generate(count, seed, set_dir)
     (set_dir / "images").rename(set_dir / "train2017")
 
