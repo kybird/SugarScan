@@ -65,7 +65,10 @@ def collect_aspect():
 def cmd_aspect():
     a = np.asarray(collect_aspect())
     pct = lambda q: float(np.percentile(a, q))
-    print(f"n={len(a)}")
+    print(f"n={len(a)}  분모={vs}"
+          + ("  (유리 쿼드 — 배율 불변, 실사진 GM 쿼드와 같은 물건)"
+             if vs == "glass" else "  (캔버스 — 배율 난수가 들어간 뒤로는"
+             " 실사진과 맞대면 안 된다)"))
     print(f"w/h median={np.median(a):.3f} p10={pct(10):.3f} p90={pct(90):.3f} "
           f"p5={pct(5):.3f} p95={pct(95):.3f}")
     print(f"portrait(w/h<1)={np.mean(a < 1.0) * 100:.1f}%  "
@@ -132,23 +135,49 @@ def _report_band(stats, pos):
               f"p90={p(cy, 90):.3f}]")
 
 
-def cmd_synth_band(manifest):
-    """합성 패널의 종횡비·밴드 기하 — 실사진과 같은 정의로 잰다.
-    패널 = 이미지 전체(합성은 패널만 렌더한다), 밴드 = manifest quad 의 bbox."""
+def cmd_synth_band(manifest, vs="canvas"):
+    """합성 패널의 종횡비·밴드 기하.
+
+    **분모를 고르는 것이 이 자의 핵심이다.**
+
+      vs=canvas  패널 = 이미지 전체. 구판의 유일한 모드였다. 합성이 패널만
+                 꽉 채워 렌더하던 시절에는 이게 실사진의 GM 패널과 얼추
+                 대응했다. **2026-09-17 촬영 배율 난수(CAM_ZOOM_RANGE)가
+                 들어간 뒤로는 대응하지 않는다** — 캔버스에 배경 여백이
+                 들어가서 band_w/canvas_w 가 줌만큼 작아진다. 이 모드로
+                 실사진과 맞대면 없는 격차를 만들어 낸다.
+
+      vs=glass   패널 = 유리 쿼드(manifest glass_quad). **배율에 불변**이고
+                 실사진 쪽 분모인 GM 화면 쿼드와 같은 물건이다
+                 (collect_band 가 quad_rows 의 화면 쿼드를 쓴다).
+                 합성과 실촬의 밴드 라벨 **규약**을 맞댈 때는 이쪽을 쓴다.
+
+    방향 분류도 같은 분모로 한다 — 캔버스 종횡비로 가르고 유리로 재면
+    두 좌표계가 섞인다.
+    """
     rows = _load_jsonl(manifest)
     stats = {"portrait": [], "wide": []}
     pos = {"portrait": [], "wide": []}
     asp = []
     for r in rows:
-        W, H = r["w"], r["h"]
         q = np.asarray(r["quad"], np.float64)
         bx0, by0 = q[:, 0].min(), q[:, 1].min()
         bx1, by1 = q[:, 0].max(), q[:, 1].max()
+        if vs == "glass":
+            if "glass_quad" not in r:
+                raise SystemExit("매니페스트에 glass_quad 가 없다 — "
+                                 "구판 코퍼스라면 --vs canvas 로 재라")
+            g = np.asarray(r["glass_quad"], np.float64)
+            gx0, gy0 = g[:, 0].min(), g[:, 1].min()
+            gx1, gy1 = g[:, 0].max(), g[:, 1].max()
+        else:
+            gx0, gy0, gx1, gy1 = 0.0, 0.0, float(r["w"]), float(r["h"])
+        W, H = gx1 - gx0, gy1 - gy0
         asp.append(W / H)
         key = "portrait" if W / H < 1.0 else "wide"
         stats[key].append(((bx1 - bx0) / W, (by1 - by0) / H))
-        pos[key].append((bx0 + bx1) / 2 / W)
-        pos[key].append((by0 + by1) / 2 / H)
+        pos[key].append(((bx0 + bx1) / 2 - gx0) / W)
+        pos[key].append(((by0 + by1) / 2 - gy0) / H)
     a = np.asarray(asp)
     print(f"n={len(a)}")
     print(f"w/h median={np.median(a):.3f} p10={np.percentile(a, 10):.3f} "
@@ -269,8 +298,7 @@ def cmd_synth_density(images_dir, manifest, frame_exc):
 def cmd_coco(path, limit=0):
     """COCO 주석 세트에서 **상자가 장면을 얼마나 차지하는가**를 잰다.
 
-    왜 이 축인가(2026-09-17 사람 지적: "Roboflow 이미지와 라벨을 보니까
-    확대축소도 필요할거같더라"): 합성기의 zoom 은 난수가 아니라 쿼드가
+    왜 이 축인가(2026-09-17 사람 지적: "확대축소도 필요할거같더라"): 합성기의 zoom 은 난수가 아니라 쿼드가
     캔버스를 넘칠 때만 내려가는 사다리다. 기본이 1.0 이라 유리가 늘 캔버스를
     꽉 채운다 — 즉 **피사체 크기가 거의 고정**이다. 실촬은 그렇지 않다.
 
@@ -280,10 +308,13 @@ def cmd_coco(path, limit=0):
                 (넓이 4배 = 배율 2배)
       종횡비   상자 w/h
 
-    **모집단을 반드시 함께 읽을 것.** gmscreen 의 상자는 '전체 사진 속 LCD'
-    이고 합성 세트의 상자는 '기기 크롭 속 밴드'다. 서로 다른 물건이라
+    **모집단을 반드시 함께 읽을 것.** 세트마다 상자가 가리키는 물건이 다르면
     절대값을 맞대면 안 된다([[comparison-across-different-denominators]]).
-    한 세트 **안에서의 퍼짐**(p10~p90 비)을 보는 것이 이 자의 쓸모다.
+
+    **실촬 수치가 필요하면 cmd_band_frame(band-frame)을 쓴다.** 이 자에
+    Roboflow COCO 를 먹이지 마라 — CC BY 4.0 귀속 의무로 배제된 데이터셋이고
+    (docs/LICENSES.md §1.1), 2026-09-17 에 내가 그걸로 합성 설계값을 정했다가
+    사람이 잡았다.
     """
     j = json.loads(Path(path).read_text(encoding="utf-8"))
     wh = {im["id"]: (im["width"], im["height"]) for im in j["images"]}
@@ -311,15 +342,84 @@ def cmd_coco(path, limit=0):
           " 세트 안의 퍼짐을 본다.")
 
 
+
+def cmd_band_frame(limit=0):
+    """**우리 코퍼스**에서 밴드·LCD 가 사진 전체에서 차지하는 비율.
+
+    모집단은 평가 모집단과 같다 — 사람 밴드 라벨 + LCD 쿼드가 둘 다 있고
+    사람 제외 선언(band_label_excluded.jsonl)에 없는 장. 즉 검출기를 채점하는
+    바로 그 장들이다. 다른 모집단에서 잰 값을 여기에 섞지 않는다.
+
+    **Roboflow 데이터셋을 쓰지 않는다.** CC BY 4.0 귀속 의무 때문에 이 계열
+    작업에서 배제하기로 한 결정이 있다(docs/LICENSES.md §1.1, doc/raw/2026-09-17).
+    2026-09-17 에 내가 그걸 어기고 Roboflow COCO 로 촬영 배율 폭을 정했다가
+    사람이 잡았다 — 배제한 데이터셋이 생성기 설계값으로 되돌아온 셈이었다.
+
+    인쇄하는 것:
+      LCD/사진   LCD 쿼드 외접상자 넓이 / 사진 넓이
+      밴드/사진  사람 밴드 라벨 외접상자 넓이 / 사진 넓이
+      선형비는 sqrt(넓이비). 배율은 선형으로 생각하는 편이 낫다.
+    """
+    from band_exclusions import load_excluded
+    ex = set(load_excluded())
+    lab = {}
+    for line in (UPSTREAM / "labels.jsonl").read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            j = json.loads(line)
+            lab[j["id"]] = j["image"]
+    gm = {r["id"]: r for r in quad_rows()}
+    bands = {}
+    for line in BAND_BOXES.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            j = json.loads(line)
+            if j.get("quad"):
+                bands[j["id"]] = j["quad"]
+
+    ids = [i for i in sorted(bands) if i in gm and i in lab and i not in ex]
+    if limit:
+        ids = ids[:limit]
+    wide = set(json.loads((HERE / "_diag" / "wide_all" / "wide_ids.json")
+                          .read_text(encoding="utf-8")))
+
+    def box(q):
+        a = np.asarray(q, float)
+        return (a[:, 0].max() - a[:, 0].min()) * (a[:, 1].max() - a[:, 1].min())
+
+    rows = []
+    for cid in ids:
+        im = cv2.imread(str(UPSTREAM / lab[cid]))
+        if im is None:
+            continue
+        area = im.shape[0] * im.shape[1]
+        rows.append((cid, box(gm[cid]["quad"]) / area, box(bands[cid]) / area))
+    print(f"모집단: 사람 밴드 라벨 + LCD 쿼드, 사람 제외 뺌  n={len(rows)} "
+          f"(가로형 {sum(1 for r in rows if r[0] in wide)})")
+    print(f"  제외 선언으로 뺀 장 {len(ex)} · 사진은 **전체 혈당기 사진**이다")
+    for name, k in (("LCD/사진", 1), ("밴드/사진", 2)):
+        for grp, sel in (("전체", rows),
+                         ("세로형", [r for r in rows if r[0] not in wide]),
+                         ("가로형", [r for r in rows if r[0] in wide])):
+            if not sel:
+                continue
+            v = np.asarray([r[k] for r in sel])
+            lin = np.sqrt(v)
+            print(f"  {name:<9} {grp:<4} n={len(sel):<4} "
+                  f"넓이 중앙={np.median(v):.4f}  선형 p10={np.percentile(lin,10):.3f} "
+                  f"중앙={np.median(lin):.3f} p90={np.percentile(lin,90):.3f} "
+                  f"| 선형 퍼짐 p90/p10={np.percentile(lin,90)/np.percentile(lin,10):.2f}배")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("cmd", choices=["aspect", "band", "density", "synth-density",
-                                    "synth-band", "coco"])
+                                    "synth-band", "coco", "band-frame"])
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--frame-exc", type=float, default=0.0)
     ap.add_argument("--images")
     ap.add_argument("--manifest")
     ap.add_argument("--coco", help="instances_*.json 경로")
+    ap.add_argument("--vs", default="canvas", choices=("canvas", "glass"),
+                    help="synth-band 의 분모. 실사진과 맞댈 때는 glass")
     a = ap.parse_args()
     if a.cmd == "aspect":
         cmd_aspect()
@@ -327,6 +427,8 @@ def main():
         cmd_band()
     elif a.cmd == "density":
         cmd_density(a.limit, a.frame_exc)
+    elif a.cmd == "band-frame":
+        cmd_band_frame(a.limit)
     elif a.cmd == "coco":
         if not a.coco:
             print("--coco 가 필요하다", file=sys.stderr)
@@ -336,7 +438,7 @@ def main():
         if not a.manifest:
             print("--manifest 가 필요하다", file=sys.stderr)
             return 2
-        cmd_synth_band(a.manifest)
+        cmd_synth_band(a.manifest, a.vs)
     else:
         if not (a.images and a.manifest):
             print("--images 와 --manifest 가 필요하다", file=sys.stderr)

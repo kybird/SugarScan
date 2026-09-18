@@ -75,8 +75,15 @@ def compare(specs, manifest=None):
     검출 실패는 분포에서 빼고 따로 센다 — 0 으로 채우면 꼬리로 위장된다.
     """
     fields = digit_field_containment(manifest) if manifest else None
+    # **게이트 숫자는 필드 합격률이다** (2026-09-17 사람: "합성으로 99% 정도
+    # (이런류의 모델을 만들때 최소한의 조건) 을 넘어선다면 실촬이미지로 검증").
+    # IoU 로는 잴 수 없다 — IoU 가 낮은 장의 절반은 상자가 커서 낮은 것이라
+    # 리더에게 무해하고, 반대로 IoU 가 높은데 숫자를 자르는 장이 있다
+    # ([[proxy-metric-moves-against-the-goal]], 실촬 271장에서 19장 대 62장).
+    # 합성에는 진짜 정답이 있다 — 매니페스트의 숫자 필드다.
+    # 합격 = 검출됐고 **숫자 필드가 예측 상자에 100% 든다**. 검출 실패는 불합격.
     print(f"{'체크포인트':<18}{'n':>6}{'실패':>6}{'IoU중앙':>9}{'IoU최소':>9}"
-          f"{'>=0.75':>8}" + (f"{'필드p1':>9}" if fields else ""))
+          f"{'>=0.75':>8}" + (f"{'필드p1':>9}{'합격률':>9}" if fields else ""))
     for spec in specs:
         name, _, path = spec.partition("=")
         rows = [json.loads(l) for l in
@@ -89,9 +96,14 @@ def compare(specs, manifest=None):
         if fields:
             fv = np.array([poly_in_box_ratio(fields[r["file_name"]], r["pred"])
                            for r in hit])
-            line += f"{np.percentile(fv, 1):>9.4f}"
+            # 분모는 **전체 장**이다. 검출 실패를 빼고 세면 게이트가 무의미해진다.
+            passed = int((fv >= 0.999).sum())
+            line += f"{np.percentile(fv, 1):>9.4f}{100*passed/len(rows):>8.2f}%"
         print(line)
-    print("  실패는 분포에서 뺐다. IoU최소는 **검출된 장 중** 최악이다.")
+    print("  실패는 IoU 분포에서 뺐다. IoU최소는 **검출된 장 중** 최악이다.")
+    if fields:
+        print("  합격률 = 숫자 필드가 예측 상자에 100% 드는 장 / **전체 장**"
+              " (검출 실패는 불합격). 이것이 게이트 숫자다.")
     return 0
 
 
