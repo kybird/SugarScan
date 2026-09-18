@@ -67,6 +67,34 @@ def poly_in_box_ratio(poly, box):
     return float(inter) / whole if whole > 0 else 0.0
 
 
+def compare(specs, manifest=None):
+    """같은 세트·같은 정답에 여러 체크포인트를 나란히 놓는다.
+
+    **같은 세트에서만 부른다.** 서로 다른 세트의 수치를 한 표에 놓으면
+    분모가 달라 비교가 성립하지 않는다([[comparison-across-different-denominators]]).
+    검출 실패는 분포에서 빼고 따로 센다 — 0 으로 채우면 꼬리로 위장된다.
+    """
+    fields = digit_field_containment(manifest) if manifest else None
+    print(f"{'체크포인트':<18}{'n':>6}{'실패':>6}{'IoU중앙':>9}{'IoU최소':>9}"
+          f"{'>=0.75':>8}" + (f"{'필드p1':>9}" if fields else ""))
+    for spec in specs:
+        name, _, path = spec.partition("=")
+        rows = [json.loads(l) for l in
+                Path(path).read_text(encoding="utf-8").splitlines() if l.strip()]
+        hit = [r for r in rows if r["pred"]]
+        v = np.array([r["iou"] for r in hit])
+        line = (f"{name:<18}{len(rows):>6}{len(rows)-len(hit):>6}"
+                f"{np.median(v):>9.4f}{v.min():>9.4f}"
+                f"{100*(v >= .75).mean():>7.1f}%")
+        if fields:
+            fv = np.array([poly_in_box_ratio(fields[r["file_name"]], r["pred"])
+                           for r in hit])
+            line += f"{np.percentile(fv, 1):>9.4f}"
+        print(line)
+    print("  실패는 분포에서 뺐다. IoU최소는 **검출된 장 중** 최악이다.")
+    return 0
+
+
 def qline(name, v):
     qs = np.percentile(v, QS)
     return (f"  {name:<10} " + " ".join(f"p{q}={x:+.4f}" for q, x in zip(QS, qs))
@@ -82,7 +110,12 @@ def main():
     ap.add_argument("--worst-n", type=int, default=10)
     ap.add_argument("--manifest", default=None,
                     help="세트의 manifest.jsonl — 주면 숫자 필드 포함률까지 잰다")
+    ap.add_argument("--compare", nargs="+", metavar="이름=jsonl",
+                    help="여러 체크포인트를 같은 세트에서 나란히 놓는다")
     args = ap.parse_args()
+
+    if args.compare:
+        return compare(args.compare, args.manifest)
 
     rows = [json.loads(l) for l in
             Path(args.pred).read_text(encoding="utf-8").splitlines() if l.strip()]
