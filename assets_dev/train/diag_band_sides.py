@@ -99,7 +99,40 @@ def recover(arms, seeds, tau, grows):
     키우려면 … 검출기 출력을 추론 때 부풀린다"). 면적비 상한 τ 는 그대로
     적용한다 — 부풀려서 담는 대신 상자가 커지는 대가를 같이 본다.
     """
-    print(f"\n추론 때 사방으로 부풀렸을 때의 게이트 (밴드 전체 포함 ∧ 면적비<=τ={tau})")
+    # **배포 규약 그대로** 한 줄을 먼저 낸다. 스윕에서 고른 값이 아니라
+    # 이미 결정돼 있는 상수다: build_cache_v2.BOX_MARGIN = (왼,오른,위,아래)
+    # 각 0.10. 검출된 상자에 사방 10% 를 더해 리더에게 넘긴다(2026-09-04 결정).
+    from build_cache_v2 import BOX_MARGIN as BM
+    print(f"\n**배포 프레이밍 규약** BOX_MARGIN={BM} 적용 "
+          f"(밴드 전체 포함 ∧ 면적비<=τ={tau})")
+    for arm in arms:
+        per = []
+        for sd in seeds:
+            p = REAL / f"{arm}_s{sd}.jsonl"
+            if not p.exists():
+                continue
+            ok = []
+            for line in p.read_text(encoding="utf-8").splitlines():
+                if not line.strip():
+                    continue
+                r = json.loads(line)
+                if not r["det"] or not r.get("gt"):
+                    ok.append(False)
+                    continue
+                q, gt = r["pred"], r["gt"]
+                w, h = q[2]-q[0], q[3]-q[1]
+                ml, mr, mt, mb = BM
+                e = [q[0]-w*ml, q[1]-h*mt, q[2]+w*mr, q[3]+h*mb]
+                ga = max(1.0, (gt[2]-gt[0])*(gt[3]-gt[1]))
+                ok.append(e[0] <= gt[0] and e[1] <= gt[1] and e[2] >= gt[2]
+                          and e[3] >= gt[3]
+                          and max(0.0, e[2]-e[0])*max(0.0, e[3]-e[1])/ga <= tau)
+            if ok:
+                per.append(100*np.mean(ok))
+        v = np.asarray(per)
+        print(f"  {arm:<7} {v.mean():>6.1f}%  (시드 SD {v.std(ddof=1):.2f})")
+
+    print(f"\n참고 스윕 — 부풀림별 게이트 (밴드 전체 포함 ∧ 면적비<=τ={tau})")
     print("  **배포에서 할 수 있는 처방이다** — 학습을 다시 하지 않는다")
     hdr = "".join(f"{g:>10.0%}" for g in grows)
     print(f"  {'조건':<7}{'부풀림 0%':>11}{hdr}")
