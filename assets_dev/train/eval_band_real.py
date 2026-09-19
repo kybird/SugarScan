@@ -113,7 +113,7 @@ def device_stats(rows, dev):
                        일부이므로 제대로 물었다면 1보다 한참 작아야 한다.
       예측∩기기/예측     예측이 기기 안에 든 비율. 낮으면 배경을 물고 있다.
     """
-    ar, inb = [], []
+    ar, inb, frac = [], [], []
     for r in rows:
         if not r["det"]:
             continue
@@ -129,6 +129,8 @@ def device_stats(rows, dev):
         iy = max(0.0, min(p[3], d[3]) - max(p[1], d[1]))
         ar.append(pa / da)
         inb.append(ix * iy / pa)
+        # 기기가 **사진에서** 차지하는 선형 비. 촬영 거리의 자다.
+        frac.append(np.sqrt(da / max(1.0, r["ow"] * r["oh"])))
     if not ar:
         print("  기기 상자와 짝지은 장이 없다")
         return
@@ -141,6 +143,18 @@ def device_stats(rows, dev):
           f"({100*(b < 0.5).mean():.1f}%)")
     print(f"      90% 이상 기기 안:           {int((b >= 0.9).sum())}장 "
           f"({100*(b >= 0.9).mean():.1f}%)")
+    # 촬영 거리로 층을 갈라 본다 — **평균은 못하는 층을 숨긴다.**
+    fr = np.asarray(frac)
+    q1, q2 = np.percentile(fr, [33.3, 66.7])
+    print(f"    촬영 거리별(기기가 사진에서 차지하는 선형 비):")
+    for lbl, m in (("가까움", fr >= q2),
+                   ("중간  ", (fr >= q1) & (fr < q2)),
+                   ("멂    ", fr < q1)):
+        if not m.any():
+            continue
+        print(f"      {lbl} 기기/사진 {fr[m].min():.2f}~{fr[m].max():.2f} "
+              f"n={int(m.sum()):<4} 기기안 중앙={np.median(b[m]):.3f} "
+              f"· 90%이상 {100*(b[m] >= 0.9).mean():.1f}%")
 
 @torch.no_grad()
 def predict_dir(ckpt, photo_dir, prefix, conf=0.25, limit=0, tag=None,
@@ -236,7 +250,7 @@ def predict_dir(ckpt, photo_dir, prefix, conf=0.25, limit=0, tag=None,
                 "gt": None, "iou": None, "contain": None, "wide": False,
                 "crop": [ox, oy] if crop else None,
             }, ensure_ascii=False) + "\n")
-            out_rows.append({"id": f"{prefix}/{fp.stem}",
+            out_rows.append({"id": f"{prefix}/{fp.stem}", "ow": ow, "oh": oh,
                              "det": bool(sc >= conf), "pred": p})
             n += 1
     miss = sum(1 for r in out_rows if not r["det"])

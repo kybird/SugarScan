@@ -97,6 +97,10 @@ def evaluate(ckpt, root, ann, manifest, conf=0.25, batch=32, out=None):
                 "det": det,
                 "pass": bool(det and db is not None and contains(p, db)),
                 "digit_box": db,
+                # 밴드가 프레임에서 차지하는 **선형** 비. 촬영 배율의 자다
+                # (CAM_ZOOM_RANGE 가 만드는 다양성이 그대로 여기에 나온다).
+                "frac": float(np.sqrt(max(0.0, (gt[2]-gt[0]) * (gt[3]-gt[1]))
+                                      / max(1.0, mm.get("w", 1) * mm.get("h", 1)))),
             })
 
     n = len(rows)
@@ -125,6 +129,22 @@ def evaluate(ckpt, root, ann, manifest, conf=0.25, batch=32, out=None):
     print("  프로파일별 합격률 (낮은 순 5) — **평균으로 판정하지 않는다**")
     for rate, k, cnt in worst[:5]:
         print(f"    {k:<24} {100*rate:6.2f}%  (n={cnt})")
+    # **배율로 층을 가른다** — 실촬에서 촬영 거리가 성적을 강하게 물었다
+    # (2026-09-18, Datacluster 전체사진: 가까움 23.1% / 멂 1.3%). 합성에서도
+    # 작은 밴드가 약하면 원인은 도메인이 아니라 **모델 구조**(stride 16 단일
+    # 특징맵, stride-8 없음) 쪽이다. 여기서 평평하면 구조는 혐의를 벗는다.
+    fr = np.array([r["frac"] for r in rows])
+    q1, q2 = np.percentile(fr, [33.3, 66.7])
+    ps = np.array([r["pass"] for r in rows])
+    ds = np.array([r["det"] for r in rows])
+    print("  배율별 합격률 (밴드가 프레임에서 차지하는 선형 비)")
+    for lbl, m in (("큼  ", fr >= q2), ("중간", (fr >= q1) & (fr < q2)),
+                   ("작음", fr < q1)):
+        if not m.any():
+            continue
+        print(f"    {lbl} {fr[m].min():.3f}~{fr[m].max():.3f} "
+              f"n={int(m.sum()):<4} 합격 {100*ps[m].mean():6.2f}% "
+              f"· 검출실패 {int((~ds[m]).sum())}")
     if out:
         p = Path(out)
         p.parent.mkdir(parents=True, exist_ok=True)
