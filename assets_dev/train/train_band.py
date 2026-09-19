@@ -174,15 +174,49 @@ def run(args):
         reg = reg.float()
         H, W = obj.shape[-2:]
         pos, tgt = assign(b, H, W, model.stride, args.radius)
-        lo = F.binary_cross_entropy_with_logits(obj[:, 0], pos.float(),
+        pr = reg.permute(0, 2, 3, 1)[pos]
+        tg = tgt.permute(0, 2, 3, 1)[pos]
+        lb, iou = giou_loss(pr, tg)
+        # 점수 타깃 — 2026-09-18 실패 분해가 병목으로 지목한 자리다.
+        # 실촬에서 정답 양성 영역(9칸 남짓) 안의 **최고점 칸**은 38.6%,
+        # **최선 칸**은 73.9% 였다. 붙어 있는 칸들인데 상자 품질이 갈리고
+        # 점수가 그걸 따라가지 않는다. bce 는 양성 전부에 1.0 을 주므로
+        # 순위에 품질 정보가 아예 없다.
+        #
+        #   bce         현행. 양성이면 1.0.
+        #   iou         그 칸이 **실제로 낸 상자**의 GIoU-IoU 를 타깃으로.
+        #               detach 한다 — 안 하면 점수를 낮춰서 손실을 줄이는
+        #               퇴화 경로가 생긴다. 초반에는 예측이 나빠 타깃이 0
+        #               근처라 양성 신호가 죽으므로 1.0 에서 선형으로 넘긴다.
+        #   centerness  기하학적 타깃. 변까지 거리의 균형만 본다(FCOS).
+        #               예측에 의존하지 않아 안정적이지만, 그 칸이 실제로
+        #               좋은 상자를 냈는지는 모른다.
+        #
+        # FCOS 는 별도 가지를 뒀지만 우리는 objectness 에 접는다. 디코드가
+        # argmax 하나(NMS 없음)라 **점수가 곧 순위**이고, 가지를 늘리면
+        # 온디바이스 예산을 쓴다. 추론 경로는 세 조건이 완전히 같다.
+        if args.score_target == "bce":
+            t_obj = pos.float()
+        else:
+            if args.score_target == "iou":
+                q = iou.detach().clamp(0.0, 1.0)
+                if args.score_warm > 0 and step < args.score_warm:
+                    a = step / args.score_warm
+                    q = (1.0 - a) + a * q
+            else:
+                l_, t_, r_, b_ = tg.unbind(-1)
+                q = torch.sqrt(
+                    (torch.min(l_, r_) / torch.max(l_, r_).clamp(min=1e-6))
+                    * (torch.min(t_, b_) / torch.max(t_, b_).clamp(min=1e-6))
+                ).clamp(0.0, 1.0)
+            t_obj = torch.zeros_like(pos, dtype=torch.float32)
+            t_obj[pos] = q
+        lo = F.binary_cross_entropy_with_logits(obj[:, 0], t_obj,
                                                 reduction="none")
         # 양성이 희박하므로 양성 쪽에 가중치를 준다. focal 대신 단순 가중치를
         # 쓰는 이유: 배경이 '어려운 음성'을 거의 안 만든다(단색 판이 많다).
         w = torch.where(pos, float(args.pos_w), 1.0)
         lo = (lo * w).mean()
-        pr = reg.permute(0, 2, 3, 1)[pos]
-        tg = tgt.permute(0, 2, 3, 1)[pos]
-        lb, iou = giou_loss(pr, tg)
         lb = lb.mean()
         loss = lo + args.box_w * lb
         opt.zero_grad(set_to_none=True)
@@ -201,7 +235,8 @@ def run(args):
     out.parent.mkdir(parents=True, exist_ok=True)
     torch.save({"model": model.state_dict(), "width": args.width,
                 "size": args.size, "steps": total,
-                "n_images": len(ds.items), "param": nparam}, out)
+                "n_images": len(ds.items), "param": nparam,
+                "score_target": args.score_target, "seed": args.seed}, out)
     print(f"-> {out}  ({time.time()-t0:.0f}s)", flush=True)
 
 
@@ -222,6 +257,11 @@ def main():
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--log", type=int, default=250)
     ap.add_argument("--seed", type=int, default=20260930)
+    ap.add_argument("--score-target", default="bce",
+                    choices=("bce", "iou", "centerness"),
+                    help="objectness 타깃. 순위에 상자 품질을 넣을지")
+    ap.add_argument("--score-warm", type=int, default=1000,
+                    help="score-target=iou 일 때 1.0 에서 넘기는 스텝 수")
     run(ap.parse_args())
 
 
