@@ -91,6 +91,15 @@ SETS = {
     #      통과를 남발한다.
     "T": (16000, 20261001, 0.50),
     "V": (1000, 20261002, 0.50),
+
+    # ── 단계 2: 절차적 배경 (2026-09-19 사람 결정, SPEC §9.7.2) ──────────
+    # TB·VB 는 T·V 와 **시드가 같다.** 보통은 시드 중복을 금지하지만 여기서는
+    # 그것이 요구사항이다 — 두 코퍼스가 같은 기기·자세·값·라벨을 갖고 배경만
+    # 달라야 "배경만 바꾼 비교"가 된다. 난수 분리는 synth_panel 이 하고
+    # (rng 소비 횟수를 안 바꾼다), 일치는 check_bg_parity.py 가 확인한다.
+    # 네 번째 값이 배경 종류다.
+    "TB": (16000, 20261001, 0.50, "procedural"),
+    "VB": (1000, 20261002, 0.50, "procedural"),
 }
 
 CATEGORY = {"id": 1, "name": "glucose_band", "supercategory": "none"}
@@ -111,7 +120,7 @@ def box_to_bbox(box, w, h):
     return [round(x0, 2), round(y0, 2), round(x1 - x0, 2), round(y1 - y0, 2)]
 
 
-def build_set(name, count, seed, out_root, wide_share=None):
+def build_set(name, count, seed, out_root, wide_share=None, bg="flat"):
     set_dir = out_root / name
     if set_dir.exists():
         shutil.rmtree(set_dir)
@@ -122,7 +131,7 @@ def build_set(name, count, seed, out_root, wide_share=None):
     # docs/SPEC.md §9.6). 구판은 None 을 넘겨 프로파일 균등(가로 13.3%)이 됐다.
     synth_panel.set_wide_share(
         synth_panel.DEFAULT_WIDE_SHARE if wide_share is None else wide_share)
-    synth_panel.generate(count, seed, set_dir)
+    synth_panel.generate(count, seed, set_dir, bg=bg)
     (set_dir / "images").rename(set_dir / "train2017")
 
     rows = [json.loads(l) for l in
@@ -268,8 +277,12 @@ def main():
         spec = SETS[name]
         count, seed = spec[0], spec[1]
         share = spec[2] if len(spec) > 2 else None
-        assert seed not in seeds.values(), f"시드 중복: {name}"
-        coco = build_set(name, count, seed, out_root, share)
+        bg = spec[3] if len(spec) > 3 else "flat"
+        # 배경만 다른 짝(T/TB, V/VB)은 **시드가 같아야** 한다. 그 외에는
+        # 겹치면 검출기가 외운 장에 추론하게 되므로 계속 막는다.
+        if bg == "flat":
+            assert seed not in seeds.values(), f"시드 중복: {name}"
+        coco = build_set(name, count, seed, out_root, share, bg)
         seeds[name] = seed
         box_sheet(out_root / name, coco, out_root / f"{name}_boxcheck.png",
                   n=args.sheet_n)
