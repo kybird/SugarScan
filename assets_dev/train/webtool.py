@@ -26,6 +26,10 @@ from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
 import cv2
+
+# 배포 프레이밍 규약의 정본. **베껴 적지 않는다** — 두 곳이 갈리면
+# 그 자체가 성능 저하라고 build_cache_v2 가 경고하고 있다.
+from build_cache_v2 import BOX_MARGIN
 import numpy as np
 from PIL import Image, ImageOps
 
@@ -415,7 +419,24 @@ def api_bandreal(qs):
             # 읽혀 성적표에 섞인다 — 정답이 없는 것과 0점인 것은 다르다.
             has_gt = any(r.get("gt") for r in rows)
             c1 = sum(1 for r in hit if (r.get("contain") or 0) >= 0.999)
-            done.append({"name": f.stem, "n": len(rows),
+            # 배포 프레이밍 규약(BOX_MARGIN)을 적용한 게이트도 같이 낸다.
+            # **원시 예측만 보면 이 계열을 체계적으로 낮게 본다** — 배포에서는
+            # 검출 상자에 사방 10% 를 더해 리더에게 넘긴다(2026-09-19).
+            dep = None
+            if has_gt:
+                ok = 0
+                for r in hit:
+                    q, g = r["pred"], r["gt"]
+                    w, h = q[2]-q[0], q[3]-q[1]
+                    ml, mr, mt, mb = BOX_MARGIN
+                    e = [q[0]-w*ml, q[1]-h*mt, q[2]+w*mr, q[3]+h*mb]
+                    ga = max(1.0, (g[2]-g[0])*(g[3]-g[1]))
+                    if (e[0] <= g[0] and e[1] <= g[1] and e[2] >= g[2]
+                            and e[3] >= g[3]
+                            and max(0.0, e[2]-e[0])*max(0.0, e[3]-e[1])/ga <= 2.0):
+                        ok += 1
+                dep = round(100 * ok / len(rows), 2)
+            done.append({"name": f.stem, "n": len(rows), "deploy": dep,
                          "miss": len(rows) - len(hit),
                          "gt": has_gt,
                          "contain1": round(100 * c1 / len(rows), 2) if has_gt else None,
@@ -423,6 +444,8 @@ def api_bandreal(qs):
     # ?ckpt=<이름> 이면 그 모델의 장별 결과를 준다 — 검수 화면(/bandreal)이 쓴다.
     # **못한 순서로** 준다. 잘된 장을 먼저 보여 주면 무엇이 문제인지 안 보인다.
     want = qs.get("ckpt", [""])[0]
+    # 화면이 확장 상자를 그리려면 규약이 필요하다. 값을 같이 보낸다.
+
     rows = []
     if want:
         f = d / f"{want}.jsonl"
@@ -431,7 +454,8 @@ def api_bandreal(qs):
                     f.read_text(encoding="utf-8").splitlines() if l.strip()]
             rows.sort(key=lambda r: (r.get("det", False),
                                      r.get("contain") or 0, r.get("iou") or 0))
-    return {"progress": prog, "done": done, "rows": rows, "ckpt": want}
+    return {"progress": prog, "done": done, "rows": rows,
+            "ckpt": want, "box_margin": list(BOX_MARGIN)}
 
 
 @route("/api/quads")

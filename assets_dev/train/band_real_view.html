@@ -42,18 +42,25 @@
   <!-- 실패의 **종류**로 가른다. 구판은 '못한 순'과 '파고든 장'이 같은 장을
        보여 줬다 — 검출 실패가 0장이라 둘 다 포함률 낮은 순으로 같았다
        (2026-09-18 사람 지적). 종류가 다르면 처방도 다르다. -->
+  <!-- 배포에서는 검출 상자에 **사방 10%**(BOX_MARGIN)를 더해 리더에게
+       넘긴다. 원시 상자만 보면 이 계열을 체계적으로 낮게 본다 —
+       2026-09-19 에 그 때문에 잘 되는 모델을 버릴 뻔했다. 그래서 확장
+       상자를 함께 그리고, 실패도 **배포 기준**으로 가른다. -->
   <label>보기 <select id="mode">
+    <option value="depfail">배포 기준 실패 (확장해도 못 담음)</option>
     <option value="off">완전히 딴 데 (포함률 0) — 버튼 등 오인</option>
     <option value="part">파고듦 (0 &lt; 포함률 &lt; 1)</option>
     <option value="big">다 담았는데 상자가 큼 (포함률 1, IoU 낮은 순)</option>
     <option value="miss">검출 실패</option>
     <option value="all">전부 (못한 순)</option>
   </select></label>
+  <label><input type="checkbox" id="showpad" checked> 배포 상자(+BOX_MARGIN)</label>
   <label>장수 <select id="lim">
     <option>60</option><option>120</option><option>272</option>
   </select></label>
   <span class="legend"><span style="background:#3c6"></span>사람 밴드 라벨
-    &nbsp;<span style="background:#e44"></span>모델 예측</span>
+    &nbsp;<span style="background:#e44"></span>원시 예측
+    &nbsp;<span style="background:#fc6"></span>배포 상자(+10%)</span>
   <span id="sum" class="sum"></span>
 </header>
 <div id="grid"></div>
@@ -61,13 +68,15 @@
 <script>
 const $ = id => document.getElementById(id);
 let ROWS = [];
+let BM = [0.1, 0.1, 0.1, 0.1];   // 서버가 준다. 하드코딩 아님
 
 async function loadList() {
   const r = await (await fetch('/api/bandreal')).json();
+  if (r.box_margin) BM = r.box_margin;
   const done = r.done || [];
   $('ck').innerHTML = done.map(d =>
     `<option value="${d.name}">${d.name} — n=${d.n} · 실패 ${d.miss}`
-    + (d.gt ? ` · 포함률1.0 ${d.contain1}%` : ' · 정답 없음(눈으로만)') + `</option>`
+    + (d.gt ? ` · 원시 ${d.contain1}% · **배포 ${d.deploy}%**`            : ' · 정답 없음(눈으로만)') + `</option>`
   ).join('');
   if (done.length) { $('ck').value = done[done.length - 1].name; await loadRows(); }
   else $('sum').textContent = '평가 결과가 아직 없다';
@@ -77,6 +86,9 @@ async function loadRows() {
   const name = $('ck').value;
   const r = await (await fetch('/api/bandreal?ckpt=' + encodeURIComponent(name))).json();
   ROWS = r.rows || [];
+  if (r.box_margin) BM = r.box_margin;
+  // 장마다 배포 기준 통과 여부를 미리 달아 둔다.
+  for (const x of ROWS) x.dep = depOk(x);
   const miss = ROWS.filter(x => !x.det).length;
   const cut = ROWS.filter(x => x.det && x.contain < 0.999).length;
   const wide = ROWS.filter(x => x.wide).length;
@@ -102,10 +114,27 @@ async function loadRows() {
   draw();
 }
 
+// 배포 프레이밍: 검출 상자에 BOX_MARGIN(왼,오른,위,아래)을 더한다.
+function padBox(p) {
+  const w = p[2] - p[0], h = p[3] - p[1];
+  return [p[0] - w * BM[0], p[1] - h * BM[2],
+          p[2] + w * BM[1], p[3] + h * BM[3]];
+}
+// 배포 기준 통과: 확장 상자가 사람 라벨을 다 담고 면적비 <= 2.0
+function depOk(r) {
+  if (!r.det || !r.gt) return false;
+  const e = padBox(r.pred), g = r.gt;
+  const ga = Math.max(1, (g[2]-g[0]) * (g[3]-g[1]));
+  const ea = Math.max(0, e[2]-e[0]) * Math.max(0, e[3]-e[1]);
+  return e[0] <= g[0] && e[1] <= g[1] && e[2] >= g[2] && e[3] >= g[3]
+         && ea / ga <= 2.0;
+}
+
 function pick() {
   const m = $('mode').value;
   let rs = ROWS;
-  if (m === 'miss') rs = ROWS.filter(x => !x.det);
+  if (m === 'depfail') rs = ROWS.filter(x => x.gt && !x.dep);
+  else if (m === 'miss') rs = ROWS.filter(x => !x.det);
   else if (m === 'off') rs = ROWS.filter(x => x.det && x.contain <= 0.01);
   else if (m === 'part')
     rs = ROWS.filter(x => x.det && x.contain > 0.01 && x.contain < 0.999);
@@ -120,12 +149,15 @@ function pick() {
 function draw() {
   const rs = pick();
   $('grid').innerHTML = rs.map(r => {
-    const bad = !r.det || (r.contain !== null && r.contain < 0.999);
+    // 붉은 테두리는 **배포 기준**으로 판정한다. 원시 기준으로 칠하면
+    // 배포에서 멀쩡한 장이 전부 빨갛게 보인다.
+    const bad = !r.det || (r.gt ? !r.dep : false);
     return `<div class="cell${bad ? ' bad' : ''}">
       <div class="wrap">
         <img src="/photo?id=${encodeURIComponent(r.id)}&w=520"
              data-ow="${r.ow || 0}"
              data-pred="${r.det ? r.pred.join(',') : ''}"
+             data-pad="${r.det ? padBox(r.pred).join(',') : ''}"
              data-gt="${r.gt ? r.gt.join(',') : ''}">
         <canvas></canvas>
       </div>
@@ -134,7 +166,9 @@ function draw() {
         <span class="k">점수</span>${r.score}
         <span class="k">포함률</span>${r.contain === null ? '정답없음' : (r.det ? r.contain.toFixed(3) : '—')}
         <span class="k">IoU</span>${r.iou === null ? '—' : (r.det ? r.iou.toFixed(3) : '—')}
-        ${r.det ? '' : '<b style="color:#e55">검출 실패</b>'}
+        ${r.det ? (r.gt ? (r.dep ? '<b style="color:#3c6">배포 통과</b>'
+                                 : '<b style="color:#e55">배포 실패</b>') : '')
+                : '<b style="color:#e55">검출 실패</b>'}
       </div></div>`;
   }).join('');
   for (const img of document.querySelectorAll('#grid img')) {
@@ -164,12 +198,15 @@ function overlay(img) {
     ctx.strokeRect(b[0] * f, b[1] * f, (b[2] - b[0]) * f, (b[3] - b[1]) * f);
   };
   box(img.dataset.gt, '#3c6', 2);
+  if (document.getElementById('showpad').checked)
+    box(img.dataset.pad, '#fc6', 2);
   box(img.dataset.pred, '#e44', 2);
 }
 
 $('ck').onchange = loadRows;
 $('mode').onchange = draw;
 $('lim').onchange = draw;
+$('showpad').onchange = draw;
 addEventListener('resize', () => {
   for (const img of document.querySelectorAll('#grid img')) overlay(img);
 });
