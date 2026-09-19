@@ -493,10 +493,73 @@ def cmd_band_frame(limit=0):
                   f"| 선형 퍼짐 p90/p10={np.percentile(lin,90)/np.percentile(lin,10):.2f}배")
 
 
+
+def cmd_band_convention():
+    """**밴드를 얼마나 넓게 그리는가** — 우리 라벨 vs Roboflow READING.
+
+    왜(2026-09-19): 절차적 배경 조건이 상자를 밴드 크기로 줄이자 우리 밴드
+    라벨의 여백을 못 담아 게이트가 무너졌다. 그 실패가 "획을 잘랐다"인지
+    "사람 여백을 잘랐다"인지 가르려면, 먼저 **우리 여백이 남들보다 넓은지**를
+    알아야 한다.
+
+    분모는 화면(GM 스크린)이다. **무차원 비율이라 모집단이 달라도 맞댈 수
+    있다**(SPEC §6). 절대 넓이는 맞대지 않는다.
+
+    Roboflow 는 배제 결정이 있었으나 2026-09-19 에 사람이 **측정 한정**으로
+    쓰기로 정했다 — 이미지가 가중치에 들어가지 않고 커밋되지도 않는다.
+    학습 사용은 여전히 배제다(docs/LICENSES.md, SPEC §5.3).
+    """
+    import zipfile
+    import collections
+    from band_exclusions import load_excluded
+    ex = set(load_excluded())
+    ours = []
+    gm = {r["id"]: r for r in quad_rows()}
+    for line in BAND_BOXES.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        j = json.loads(line)
+        if not j.get("quad") or j["id"] in ex or j["id"] not in gm:
+            continue
+        b = np.asarray(j["quad"], float)
+        g = np.asarray(gm[j["id"]]["quad"], float)
+        ba = (b[:, 0].max()-b[:, 0].min()) * (b[:, 1].max()-b[:, 1].min())
+        ga = (g[:, 0].max()-g[:, 0].min()) * (g[:, 1].max()-g[:, 1].min())
+        if ga > 0:
+            ours.append(ba / ga)
+
+    z = (HERE.parent / "upstream" / "roboflow-glucometer-images"
+         / "Glucometer_images.coco.zip")
+    rf = []
+    with zipfile.ZipFile(z) as f:
+        for split in ("train", "valid"):
+            j = json.loads(f.read(f"{split}/_annotations.coco.json"))
+            cat = {c["id"]: c["name"] for c in j["categories"]}
+            per = collections.defaultdict(dict)
+            for a in j["annotations"]:
+                per[a["image_id"]][cat[a["category_id"]]] = a["bbox"]
+            for _, d in per.items():
+                if "READING" in d and "GM_SCREEN" in d:
+                    r, g = d["READING"], d["GM_SCREEN"]
+                    if g[2] * g[3] > 0:
+                        rf.append((r[2] * r[3]) / (g[2] * g[3]))
+    for name, v in (("우리 band_boxes", np.asarray(ours)),
+                    ("Roboflow READING", np.asarray(rf))):
+        lin = np.sqrt(v)
+        print(f"  {name:<18} n={len(v):<5} 밴드/화면 넓이 "
+              f"p10 {np.percentile(v,10):.3f} 중앙 {np.median(v):.3f} "
+              f"p90 {np.percentile(v,90):.3f} | 선형 중앙 {np.median(lin):.3f}")
+    if len(ours) and len(rf):
+        print(f"  => 우리 라벨이 Roboflow 보다 넓이로 "
+              f"{np.median(ours)/np.median(rf):.2f}배 "
+              f"(선형 {np.sqrt(np.median(ours)/np.median(rf)):.2f}배)")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("cmd", choices=["aspect", "band", "density", "synth-density",
                                     "synth-band", "coco", "band-frame",
+                                    "band-convention",
                                     "shortcut"])
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--frame-exc", type=float, default=0.0)
@@ -515,6 +578,8 @@ def main():
         cmd_band()
     elif a.cmd == "density":
         cmd_density(a.limit, a.frame_exc)
+    elif a.cmd == "band-convention":
+        cmd_band_convention()
     elif a.cmd == "band-frame":
         cmd_band_frame(a.limit)
     elif a.cmd == "coco":
