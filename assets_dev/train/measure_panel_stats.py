@@ -17,6 +17,7 @@
 #       --images <dir> --manifest <jsonl>
 import argparse
 import json
+from collections import defaultdict
 import sys
 from pathlib import Path
 
@@ -133,6 +134,91 @@ def _report_band(stats, pos):
               f"p90={p(cx, 90):.3f}]")
         print(f"  band_cy median={np.median(cy):.3f} [p10={p(cy, 10):.3f} "
               f"p90={p(cy, 90):.3f}]")
+
+
+def cmd_shortcut(fit_manifest, test_manifest, by="orient"):
+    """**숫자를 보지 않는 오라클**을 합성 게이트에 걸어 본다.
+
+    묻는 것: 우리 게이트가 "숫자 필드를 찾았다"를 재고 있는가, 아니면
+    "유리 쿼드를 고정 비율로 줄였다"만으로도 넘어가는가.
+
+    왜 이 자가 필요한가(2026-09-18 사람 지적 "학습이 모양을 보고 배우는 게
+    아니라 비율을 보고 배우냐"): 합성에서 정답 상자가 유리 쿼드의 거의 고정된
+    아핀 축소라면, 모델은 밴드의 **모양**(숫자 글리프의 범위)을 배우지 않고
+    유리 모서리를 찾아 비율만 곱하는 **지름길**을 배울 수 있다. 유리 모서리는
+    생성기가 베젤 홈·하이라이트까지 그려 넣은 가장 강한 모서리다. 지름길은
+    합성에서는 정답이지만 실촬에서는 기기 외곽으로 옮겨 붙는다.
+
+    방법: fit 세트에서 방향별로 (band/glass) 비율의 **중앙값 하나**를 뽑는다.
+    파라미터는 방향당 4개(cx, cy, w비, h비)뿐이고 픽셀은 한 장도 보지 않는다.
+    test 세트의 glass_quad 에 그 비율을 곱해 상자를 내고, 학습된 모델과
+    **같은 게이트**(digit_box 가 예측 상자에 100% 드는 장의 비율)로 잰다.
+
+    읽는 법: 이 오라클 점수가 모델 점수에 근접하면 게이트는 모양을 재고 있지
+    않다 — 지름길이 통과에 충분하다는 뜻이다. 낮게 나오면 모델은 유리만으로는
+    낼 수 없는 무언가를 배운 것이다.
+    """
+    def rows(p):
+        return [json.loads(l) for l in Path(p).read_text(encoding="utf-8")
+                .splitlines() if l.strip()]
+
+    def gbox(r):
+        g = np.asarray(r["glass_quad"], np.float64)
+        return (g[:, 0].min(), g[:, 1].min(), g[:, 0].max(), g[:, 1].max())
+
+    def orient(r):
+        x0, y0, x1, y1 = gbox(r)
+        o = "wide" if (x1 - x0) >= (y1 - y0) else "portrait"
+        # by=profile: 기기를 알아본 뒤 그 기기의 배치를 외우는 지름길을 잰다.
+        # 방향만으로 쓰는 것보다 강하지만, 실촬에서는 프로파일 목록에 없는
+        # 기기 앞에서 무너진다 — 어느 쪽이 통과를 설명하는지 갈라야 한다.
+        return f'{r.get("profile", "?")}|{o}' if by == "profile" else o
+
+    fit = defaultdict(list)
+    for r in rows(fit_manifest):
+        x0, y0, x1, y1 = gbox(r)
+        W, H = x1 - x0, y1 - y0
+        b = [float(v) for v in r["box"]]
+        fit[orient(r)].append((((b[0] + b[2]) / 2 - x0) / W,
+                               ((b[1] + b[3]) / 2 - y0) / H,
+                               (b[2] - b[0]) / W, (b[3] - b[1]) / H))
+    par = {k: np.median(np.asarray(v), axis=0) for k, v in fit.items()}
+    print(f"기준={by}  파라미터 {4 * len(par)}개 · 픽셀 0장")
+    print(f"fit  {Path(fit_manifest).parent.name}  n={sum(len(v) for v in fit.values())}")
+    if len(par) <= 4:
+        for k, p in sorted(par.items()):
+            print(f"  {k:<9} cx={p[0]:.3f} cy={p[1]:.3f} "
+                  f"w비={p[2]:.3f} h비={p[3]:.3f}")
+
+    te = rows(test_manifest)
+    per = defaultdict(lambda: [0, 0])
+    ok = n = 0
+    for r in te:
+        if "digit_box" not in r:
+            continue
+        x0, y0, x1, y1 = gbox(r)
+        W, H = x1 - x0, y1 - y0
+        k = orient(r)
+        if k not in par:      # fit 에 없는 조합은 채점에서 뺀다
+            continue
+        cx, cy, wr, hr = par[k]
+        px, py = x0 + cx * W, y0 + cy * H
+        pw, ph = wr * W / 2, hr * H / 2
+        p = (px - pw, py - ph, px + pw, py + ph)
+        d = [float(v) for v in r["digit_box"]]
+        hit = d[0] >= p[0] and d[1] >= p[1] and d[2] <= p[2] and d[3] <= p[3]
+        n += 1
+        ok += hit
+        s = per[r.get("profile", "?")]
+        s[0] += hit
+        s[1] += 1
+    print(f"test {Path(test_manifest).parent.name}  n={n}")
+    print(f"  **유리 비율 오라클({by}) 합격률 {100.0 * ok / n:.2f}%**  "
+          f"(게이트: digit_box 100% 포함, eval_band.py 와 같은 정의)")
+    worst = sorted(per.items(), key=lambda kv: kv[1][0] / kv[1][1])[:5]
+    print("  프로파일 최저 5:")
+    for name, (h, t) in worst:
+        print(f"    {name:<22} {100.0 * h / t:5.1f}%  ({h}/{t})")
 
 
 def cmd_synth_band(manifest, vs="canvas"):
@@ -410,12 +496,16 @@ def cmd_band_frame(limit=0):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("cmd", choices=["aspect", "band", "density", "synth-density",
-                                    "synth-band", "coco", "band-frame"])
+                                    "synth-band", "coco", "band-frame",
+                                    "shortcut"])
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--frame-exc", type=float, default=0.0)
     ap.add_argument("--images")
     ap.add_argument("--manifest")
     ap.add_argument("--coco", help="instances_*.json 경로")
+    ap.add_argument("--fit", help="shortcut: 비율을 뽑을 매니페스트")
+    ap.add_argument("--by", default="orient", choices=("orient", "profile"),
+                    help="shortcut: 비율을 방향별로 뽑나 기기별로 뽑나")
     ap.add_argument("--vs", default="canvas", choices=("canvas", "glass"),
                     help="synth-band 의 분모. 실사진과 맞댈 때는 glass")
     a = ap.parse_args()
@@ -432,6 +522,11 @@ def main():
             print("--coco 가 필요하다", file=sys.stderr)
             return 2
         cmd_coco(a.coco, a.limit)
+    elif a.cmd == "shortcut":
+        if not (a.manifest and a.fit):
+            print("--fit 과 --manifest 가 필요하다", file=sys.stderr)
+            return 2
+        cmd_shortcut(a.fit, a.manifest, a.by)
     elif a.cmd == "synth-band":
         if not a.manifest:
             print("--manifest 가 필요하다", file=sys.stderr)
