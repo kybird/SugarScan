@@ -518,6 +518,155 @@ CAM_POSE_P = 0.92          # 이 확률로 포즈를 준다. 나머지는 정면
 # 책상이 있다. 1단 구조(전체 사진 -> 밴드)로 간다면 생성기가 그것을 그려야 한다.
 CAM_ZOOM_RANGE = (0.25, 1.0)   # 2026-09-17 사람 선언: 매우 다양하게
 
+# ── 절차적 배경 (2026-09-19 사람 결정, SPEC §9.7.2) ──────────────────────
+#
+# 기기 바깥을 단색 판 대신 **방해 구조가 있는 배경**으로 채운다.
+#
+# 왜: 배경 개입 실험에서, 배율을 고정하고 기기 상자 바깥만 단색으로 덮으면
+# 예측이 기기 안에 드는 비율이 9.4% -> 63.2% 로 올랐다. 같은 자리에 같은
+# 사각 경계를 두고 **내용만 진짜 배경으로** 바꾸면 기준선 수준(10~14%,
+# 4회 제비뽑기)이다. 경계가 아니라 내용이다. 모델은 "프레임의 여러 사각형
+# 중 어느 것인가"를 배운 적이 없다 — 학습에 경쟁 사각형이 없었기 때문이다.
+#
+# **사실적인 장면을 만들지 않는다.** 목표는 책상·천·손의 재현이 아니라,
+# 검출기가 표적을 고를 때 실제로 경쟁하는 **구조의 집합**이다(도메인 랜덤화).
+# 사실성을 올리는 것은 끝이 없고 이 실험이 재려는 것도 아니다.
+#
+# 넣는 것:
+#   - 여러 공간 크기의 밝기 변화 (다중 옥타브 저주파 장)
+#   - 방향성 결 (줄무늬·격자·섬유)
+#   - 물체 같은 큰 경계 (회전 사각형·둥근 사각형·타원·굵은 선), **기기나
+#     LCD 와 크기가 비슷한 것 포함**
+#   - 표적과 특징을 공유하는 방해물 (어두운 테두리 안의 밝은 면, 평행선,
+#     분절된 획)
+# 안 넣는 것:
+#   - **읽히는 7세그먼트 숫자.** 무라벨 정답이 하나 더 생기면 "이미지당 객체
+#     1개"가 깨진다. 분절된 획은 글자가 아닌 추상 형태로만 그린다.
+#   - 백색잡음만으로 때우기. 실제 배경의 큰 경계·반복 구조와 다르고 416 으로
+#     줄이는 과정에서 평균화된다.
+#
+# 난수: **기기 렌더와 분리된 _brng 만** 쓴다. 여기서 rng 나 _orng 를 소비하면
+# 같은 시드에서 기기·자세·값이 달라져 "배경만 바꾼 비교"가 아니게 된다.
+PROCEDURAL_BG = False          # generate() 가 세운다. 기본은 구판(단색).
+BG_FLAT_P = 0.15               # 이 확률로는 예전처럼 단색만 둔다
+
+
+def _bg_field(W, H, brng, base):
+    """다중 옥타브 저주파 밝기 장. 작은 난수판을 키워서 만든다."""
+    out = np.full((H, W), float(base), np.float32)
+    for cells, amp in ((2, 0.55), (4, 0.30), (8, 0.18), (16, 0.10)):
+        if brng.random() < 0.25:
+            continue
+        n = np.asarray([[brng.uniform(-1, 1) for _ in range(cells)]
+                        for _ in range(cells)], np.float32)
+        big = cv2.resize(n, (W, H), interpolation=cv2.INTER_CUBIC)
+        out += big * (amp * brng.uniform(20, 70))
+    return out
+
+
+def _bg_grain(f, W, H, brng):
+    """방향성 결 — 줄무늬·격자. 천·나무·타일이 남기는 반복 구조."""
+    if brng.random() < 0.45:
+        return f
+    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+    for _ in range(1 if brng.random() < 0.7 else 2):
+        ang = brng.uniform(0, np.pi)
+        period = brng.uniform(0.01, 0.12) * min(W, H)
+        amp = brng.uniform(4, 22)
+        proj = xx * np.cos(ang) + yy * np.sin(ang)
+        f = f + amp * np.sin(2 * np.pi * proj / max(2.0, period))
+    return f
+
+
+def _bg_shapes(f, W, H, brng, base):
+    """물체 같은 큰 경계와 방해물.
+
+    크기를 **기기·LCD 대역까지** 키운다. 작은 얼룩만 뿌리면 '프레임에서 가장
+    큰 사각 구조는 여전히 기기 하나'라 경쟁이 생기지 않는다.
+    """
+    S = min(W, H)
+    img = f
+    for _ in range(brng.randrange(0, 9)):
+        kind = brng.choice(("rect", "round", "ellipse", "line", "framed",
+                            "parallel", "dashes"))
+        col = float(base) + brng.uniform(-80, 80)
+        w = int(S * brng.uniform(0.10, 0.80))
+        h = int(S * brng.uniform(0.10, 0.80))
+        cx = brng.randrange(0, W)
+        cy = brng.randrange(0, H)
+        ang = brng.uniform(0, 180)
+        lay = np.zeros((H, W), np.float32)
+        msk = np.zeros((H, W), np.uint8)
+        if kind in ("rect", "round", "framed"):
+            box = cv2.boxPoints(((cx, cy), (w, h), ang)).astype(np.int32)
+            cv2.fillConvexPoly(msk, box, 255)
+            if kind == "framed":
+                # 어두운 테두리 안의 밝은 면 — LCD 와 특징을 공유하는 방해물.
+                inner = cv2.boxPoints(((cx, cy), (w * 0.82, h * 0.72), ang))
+                mi = np.zeros((H, W), np.uint8)
+                cv2.fillConvexPoly(mi, inner.astype(np.int32), 255)
+                lay[msk > 0] = float(base) - brng.uniform(25, 70)
+                lay[mi > 0] = float(base) + brng.uniform(25, 80)
+                msk = np.maximum(msk, mi)
+            else:
+                lay[msk > 0] = col
+        elif kind == "ellipse":
+            cv2.ellipse(msk, (cx, cy), (max(2, w // 2), max(2, h // 2)),
+                        ang, 0, 360, 255, -1)
+            lay[msk > 0] = col
+        elif kind == "line":
+            t = max(2, int(S * brng.uniform(0.005, 0.06)))
+            dx = int(np.cos(np.radians(ang)) * S)
+            dy = int(np.sin(np.radians(ang)) * S)
+            cv2.line(msk, (cx - dx, cy - dy), (cx + dx, cy + dy), 255, t)
+            lay[msk > 0] = col
+        elif kind == "parallel":
+            t = max(1, int(S * brng.uniform(0.004, 0.02)))
+            gap = t * brng.randrange(2, 6)
+            dx = int(np.cos(np.radians(ang)) * S)
+            dy = int(np.sin(np.radians(ang)) * S)
+            nx = -np.sin(np.radians(ang))
+            ny = np.cos(np.radians(ang))
+            for k in range(brng.randrange(3, 8)):
+                ox, oy = int(nx * gap * k), int(ny * gap * k)
+                cv2.line(msk, (cx - dx + ox, cy - dy + oy),
+                         (cx + dx + ox, cy + dy + oy), 255, t)
+            lay[msk > 0] = col
+        else:   # dashes — 분절된 획. **글자를 만들지 않는다**(추상 형태만)
+            t = max(2, int(S * brng.uniform(0.008, 0.03)))
+            seg = int(S * brng.uniform(0.03, 0.10))
+            for k in range(brng.randrange(3, 9)):
+                x0 = cx + int(k * seg * 1.7 * np.cos(np.radians(ang)))
+                y0 = cy + int(k * seg * 1.7 * np.sin(np.radians(ang)))
+                cv2.line(msk, (x0, y0),
+                         (x0 + int(seg * np.cos(np.radians(ang + 90))),
+                          y0 + int(seg * np.sin(np.radians(ang + 90)))),
+                         255, t)
+            lay[msk > 0] = col
+        a = (msk > 0).astype(np.float32)
+        if brng.random() < 0.5:                       # 초점 밖 물체
+            k = 2 * brng.randrange(1, 6) + 1
+            a = cv2.GaussianBlur(a, (k, k), 0)
+            lay = cv2.GaussianBlur(lay, (k, k), 0)
+        alpha = a * brng.uniform(0.45, 1.0)           # 반투명·그림자
+        img = img * (1 - alpha) + lay * alpha
+    return img
+
+
+def procedural_bg(W, H, brng, base):
+    """기기 바깥을 채울 배경 한 장. **brng 만 소비한다.**"""
+    if brng.random() < BG_FLAT_P:
+        # 구판 분포도 일부 남긴다 — 단색 배경이 사라지면 그것대로 편향이다.
+        return np.full((H, W), float(base), np.float32)
+    f = _bg_field(W, H, brng, base)
+    f = _bg_grain(f, W, H, brng)
+    f = _bg_shapes(f, W, H, brng, base)
+    k = 2 * brng.randrange(0, 3) + 1
+    if k > 1:
+        f = cv2.GaussianBlur(f, (k, k), 0)
+    return f
+
+
 # ── 반사 유형 (카드 「합성 국소 광원 — 전역 그라데이션을 반사 패치로」 AC#3) ──
 #
 # 실사진에서 관찰한 세 유형이다. 근거 id 는 화면 크롭을 눈으로 보고 고른 것이고,
@@ -704,7 +853,13 @@ def _render_once(value, rng, profile, pid, inverted):
     # 그러면 **무엇을 고쳤는지 비교가 안 된다** — A/B 에서 통제 안 된 변인이
     # 같이 움직이는 것과 같다([[uncontrolled-budget-in-ab-comparison]]).
     # 여기서 한 번 갈라 두면 배치를 바꿔도 조명·각도는 그대로다.
-    _orng = random.Random(rng.getrandbits(63))
+    _oseed = rng.getrandbits(63)
+    _orng = random.Random(_oseed)
+    # 배경 난수는 **따로** 둔다(SPEC §9.7.2). 여기서 rng 를 한 번 더
+    # 뽑으면 소비 순서가 밀려 같은 시드에서 기기·자세·값이 전부 달라지고,
+    # 그러면 '배경만 바꾼 비교'가 아니게 된다. 그래서 **이미 뽑은 씨앗을
+    # 변형**해서 만든다 — rng 소비 횟수는 구판과 같다.
+    _brng = random.Random(_oseed ^ 0x5DEECE66D)
 
     # ── 캔버스 — 실측 종횡비, 긴 변 896(AC#1·#6) ──────────────────────────
     lay = profile.get("layout")   # 기기 고정 레이아웃(2026-09-13 재구조)
@@ -845,6 +1000,10 @@ def _render_once(value, rng, profile, pid, inverted):
     body_col = int(_fix("body_u", 50, 190))
     bg_col = int(body_col * rng.uniform(0.25, 0.55))   # 몸체 바깥(배경·표면)
     img = np.full((H, W), body_col, np.uint8)
+    # 기기 영역 마스크 — 배경 합성의 전경이다. **픽셀값 == bg_col 비교로
+    # 만들지 않는다**: 실제 기기 픽셀이 우연히 같은 밝기일 수 있다
+    # (2026-09-19 자문 지적). 렌더가 아는 것을 그대로 적는다.
+    body_mask = np.full((H, W), 255, np.uint8)
     # 몸체 표면 — 완만한 상→하 기울기(플라스틱 조명)
     grad = np.linspace(rng.uniform(-18, -4), rng.uniform(4, 18), H,
                        dtype=np.float32)[:, None]
@@ -889,6 +1048,7 @@ def _render_once(value, rng, profile, pid, inverted):
                          (rr, H - 1 - rr), (W - 1 - rr, H - 1 - rr)):
             cv2.circle(sil, (cx_, cy_), rr, 255, -1)
         img[sil == 0] = bg_col
+        body_mask[sil == 0] = 0
         img = cv2.GaussianBlur(img, (3, 3), 0)   # 곡면 부드러운 전이
 
     px0, py0, px1, py1 = mg_l, mg_t, W - mg_r, H - mg_b
@@ -2509,6 +2669,18 @@ def _render_once(value, rng, profile, pid, inverted):
         # 그래도 안 들어가면 포즈를 포기한다 — 자르는 것보다는 낫다.
         Mk, Mr = _mats(0.0)
         img = _warp_img(pre, cv2.INTER_LINEAR, Mk, Mr)
+    # 기기 커버리지를 **같은 행렬로** 워프한다. PROCEDURAL_BG 가 꺼져
+    # 있어도 계산한다 — 자가검사가 "기기 내부 픽셀이 두 코퍼스에서 같은가"를
+    # 이걸로 확인한다. 값 비교로 전경을 추정하면 안 된다.
+    cover = _warp_img(body_mask, cv2.INTER_LINEAR, Mk, Mr, border=0)
+    if PROCEDURAL_BG:
+        # 위 커버리지를 쓴다. 경계의 반투명(안티앨리어싱)
+        # 은 그대로 살려 합성한다 — 기기만 선명하고 배경만 흐린 합성 경계
+        # 지름길을 만들지 않기 위해서다(SPEC §9.7.2).
+        a = (cover.astype(np.float32) / 255.0)[..., None] if img.ndim == 3             else cover.astype(np.float32) / 255.0
+        bgim = procedural_bg(W, H, _brng, bg_col)
+        img = np.clip(img.astype(np.float32) * a + bgim * (1.0 - a),
+                      0, 255).astype(np.uint8)
     quad = _warp_pts(quad0, Mk, Mr)
     # 라벨이 프레임을 넘으면 **여백만 잘린다**. 유리가 프레임 안이고 숫자는
     # 유리 안이므로 잘리는 것은 여백뿐이다 — band_quad 의 clip 과 같은 규약이다.
@@ -2550,6 +2722,9 @@ def _render_once(value, rng, profile, pid, inverted):
                      float(_cw[:, 0].max()), float(_cw[:, 1].max())]
     return dict(panel=img, quad=np.asarray(quad, np.float32), label=label,
                 digit_box=digit_box,
+                # 기기 커버리지(워프 후). 자가검사가 '기기 내부가 두
+                # 코퍼스에서 같은가'를 이걸로 본다. 매니페스트에는 안 적는다.
+                cover=cover,
                 band_clip=int(_band_clip[0]),
                 glare=_glare_log, glare_cover=round(_glare_cover, 4),
                 glass_quad=np.asarray(glass_quad, np.float32),
@@ -2598,7 +2773,9 @@ def reader_view(sample):
     return warped, np.asarray(rq, np.float32)
 
 
-def generate(count, seed0, out_dir, with_reader=False):
+def generate(count, seed0, out_dir, with_reader=False, bg="flat"):
+    global PROCEDURAL_BG
+    PROCEDURAL_BG = (bg == "procedural")
     out = Path(out_dir)
     (out / "images").mkdir(parents=True, exist_ok=True)
     rng = random.Random(seed0)
@@ -2717,6 +2894,8 @@ if __name__ == "__main__":
                     help="가로형(선언 family=column/row) 프로파일의 합계 비중. "
                          "생략하면 균등(2/15=13.3%%). 예: 0.40")
     ap.add_argument("--seed", type=int, default=22000)
+    ap.add_argument("--bg", default="flat", choices=("flat", "procedural"),
+                    help="기기 바깥. procedural 은 SPEC §9.7.2 의 개입군")
     ap.add_argument("--out", default=str(HERE / "synth_panels_v2"))
     ap.add_argument("--reader", action="store_true")
     ap.add_argument("--images")
@@ -2726,7 +2905,8 @@ if __name__ == "__main__":
     args = ap.parse_args()
     if args.cmd == "gen":
         set_wide_share(args.wide_share)
-        v = generate(args.count, args.seed, args.out, with_reader=args.reader)
+        v = generate(args.count, args.seed, args.out, with_reader=args.reader,
+                     bg=args.bg)
         if v:
             sys.exit(1)
     else:
