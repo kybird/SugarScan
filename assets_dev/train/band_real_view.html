@@ -1,0 +1,177 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>밴드 검출망 — 실촬 검수</title>
+<!--
+  실촬 평가 결과를 **못한 순서로** 늘어놓고 눈으로 본다.
+
+  왜 전용 화면인가: 기종 탭은 2,512장 전부를 깔고 예측은 **선택한 한 장**에만
+  그린다. 예측이 있는 272장을 손으로 찾아야 해서 "어디를 봐야 하는지" 알 수 없다
+  (2026-09-18 사람 지적). 여기서는 평가한 장만, 못한 순서로 보여 준다.
+
+  좌표 규약: pred·gt 는 **원본 사진 픽셀**(band_quads_pred.jsonl 과 같은 규약).
+  캔버스에 그리려면 표시 크기로 스케일해야 한다 — 이미지가 로드된 뒤의
+  naturalWidth 로 비를 잡는다. 좌표계를 섞으면 상자가 통째로 어긋난다
+  (antipatterns/unnamed-coordinate-frame).
+-->
+<style>
+  body { margin:0; background:#111; color:#ddd; font:13px/1.5 system-ui, sans-serif; }
+  header { position:sticky; top:0; z-index:5; background:#1a1a1a; padding:10px 14px;
+           border-bottom:1px solid #333; display:flex; gap:14px; align-items:center;
+           flex-wrap:wrap; }
+  select, button { background:#222; color:#ddd; border:1px solid #444; padding:4px 8px;
+           border-radius:4px; font:inherit; }
+  .sum { color:#9ad; }
+  .warn { color:#fc6; }
+  #grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr));
+          gap:12px; padding:12px; }
+  .cell { background:#1a1a1a; border:1px solid #2c2c2c; border-radius:6px;
+          overflow:hidden; }
+  .cell.bad { border-color:#a33; }
+  .wrap { position:relative; background:#000; }
+  .wrap img { display:block; width:100%; }
+  .wrap canvas { position:absolute; left:0; top:0; width:100%; height:100%; }
+  .cap { padding:6px 8px; font-size:12px; display:flex; gap:10px; flex-wrap:wrap; }
+  .k { color:#888; }
+  .legend span { display:inline-block; width:10px; height:10px; margin-right:4px;
+                 vertical-align:middle; }
+</style>
+
+<header>
+  <b>밴드 검출망 — 실촬 검수</b>
+  <label>모델 <select id="ck"></select></label>
+  <!-- 실패의 **종류**로 가른다. 구판은 '못한 순'과 '파고든 장'이 같은 장을
+       보여 줬다 — 검출 실패가 0장이라 둘 다 포함률 낮은 순으로 같았다
+       (2026-09-18 사람 지적). 종류가 다르면 처방도 다르다. -->
+  <label>보기 <select id="mode">
+    <option value="off">완전히 딴 데 (포함률 0) — 버튼 등 오인</option>
+    <option value="part">파고듦 (0 &lt; 포함률 &lt; 1)</option>
+    <option value="big">다 담았는데 상자가 큼 (포함률 1, IoU 낮은 순)</option>
+    <option value="miss">검출 실패</option>
+    <option value="all">전부 (못한 순)</option>
+  </select></label>
+  <label>장수 <select id="lim">
+    <option>60</option><option>120</option><option>272</option>
+  </select></label>
+  <span class="legend"><span style="background:#3c6"></span>사람 밴드 라벨
+    &nbsp;<span style="background:#e44"></span>모델 예측</span>
+  <span id="sum" class="sum"></span>
+</header>
+<div id="grid"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+let ROWS = [];
+
+async function loadList() {
+  const r = await (await fetch('/api/bandreal')).json();
+  const done = r.done || [];
+  $('ck').innerHTML = done.map(d =>
+    `<option value="${d.name}">${d.name} — n=${d.n} · 실패 ${d.miss}`
+    + (d.gt ? ` · 포함률1.0 ${d.contain1}%` : ' · 정답 없음(눈으로만)') + `</option>`
+  ).join('');
+  if (done.length) { $('ck').value = done[done.length - 1].name; await loadRows(); }
+  else $('sum').textContent = '평가 결과가 아직 없다';
+}
+
+async function loadRows() {
+  const name = $('ck').value;
+  const r = await (await fetch('/api/bandreal?ckpt=' + encodeURIComponent(name))).json();
+  ROWS = r.rows || [];
+  const miss = ROWS.filter(x => !x.det).length;
+  const cut = ROWS.filter(x => x.det && x.contain < 0.999).length;
+  const wide = ROWS.filter(x => x.wide).length;
+  const hasGt = ROWS.some(x => x.gt);
+  if (!hasGt) {
+    // 정답이 없는 코퍼스 — 셀 것이 없다. 눈으로 보는 화면이라고 밝힌다.
+    $('sum').innerHTML = `n=${ROWS.length} · 검출 실패 ${miss}`
+      + ' · <b>정답 라벨이 없다 — 점수 없음. 예측만 본다</b>';
+    draw();
+    return;
+  }
+  const off = ROWS.filter(x => x.det && x.contain <= 0.01).length;
+  const part = ROWS.filter(x => x.det && x.contain > 0.01 && x.contain < 0.999).length;
+  const big = ROWS.filter(x => x.det && x.contain >= 0.999);
+  const bigMed = big.length
+    ? big.map(x => x.iou).sort((a, b) => a - b)[Math.floor(big.length / 2)] : 0;
+  $('sum').innerHTML =
+    `n=${ROWS.length} · 검출 실패 ${miss}`
+    + ` · <span class="warn">딴 데 ${off}</span>`
+    + ` · <span class="warn">파고듦 ${part}</span>`
+    + ` · 다 담음 ${big.length}(IoU 중앙 ${bigMed.toFixed(3)})`
+    + ` · 가로형 ${wide}`;
+  draw();
+}
+
+function pick() {
+  const m = $('mode').value;
+  let rs = ROWS;
+  if (m === 'miss') rs = ROWS.filter(x => !x.det);
+  else if (m === 'off') rs = ROWS.filter(x => x.det && x.contain <= 0.01);
+  else if (m === 'part')
+    rs = ROWS.filter(x => x.det && x.contain > 0.01 && x.contain < 0.999);
+  else if (m === 'big')
+    // 다 담았는데 상자가 큰 장. **IoU 낮은 순** — 포함률로는 다 1.0 이라
+    // 정렬이 안 된다. 이 무리가 실촬 실패의 절반을 차지한다.
+    rs = ROWS.filter(x => x.det && x.contain >= 0.999)
+             .sort((a, b) => a.iou - b.iou);
+  return rs.slice(0, parseInt($('lim').value, 10));
+}
+
+function draw() {
+  const rs = pick();
+  $('grid').innerHTML = rs.map(r => {
+    const bad = !r.det || (r.contain !== null && r.contain < 0.999);
+    return `<div class="cell${bad ? ' bad' : ''}">
+      <div class="wrap">
+        <img src="/photo?id=${encodeURIComponent(r.id)}&w=520"
+             data-ow="${r.ow || 0}"
+             data-pred="${r.det ? r.pred.join(',') : ''}"
+             data-gt="${r.gt ? r.gt.join(',') : ''}">
+        <canvas></canvas>
+      </div>
+      <div class="cap">
+        <span>${r.id}${r.wide ? ' <b style="color:#fc6">가로</b>' : ''}</span>
+        <span class="k">점수</span>${r.score}
+        <span class="k">포함률</span>${r.contain === null ? '정답없음' : (r.det ? r.contain.toFixed(3) : '—')}
+        <span class="k">IoU</span>${r.iou === null ? '—' : (r.det ? r.iou.toFixed(3) : '—')}
+        ${r.det ? '' : '<b style="color:#e55">검출 실패</b>'}
+      </div></div>`;
+  }).join('');
+  for (const img of document.querySelectorAll('#grid img')) {
+    if (img.complete) overlay(img);
+    else img.onload = () => overlay(img);
+  }
+}
+
+function overlay(img) {
+  const cv = img.parentElement.querySelector('canvas');
+  // 캔버스 픽셀을 표시 픽셀에 맞춘다. 원본 좌표 -> 표시 좌표 비는
+  // naturalWidth 로 잡는다(서버가 w=520 으로 줄여 주므로 1이 아니다).
+  const W = img.clientWidth, H = img.clientHeight;
+  if (!W || !H) return;
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+  const box = (str, col, lw) => {
+    if (!str) return;
+    const b = str.split(',').map(Number);
+    // pred·gt 는 **원본 사진 픽셀**이다. 서버가 이미지를 줄여 주므로
+    // naturalWidth 는 줄인 뒤 크기다 — 원본 폭(data-ow)이 있어야 비가 맞는다.
+    const ow = parseFloat(img.dataset.ow || '0');
+    if (!ow) return;
+    const f = W / ow;
+    ctx.strokeStyle = col; ctx.lineWidth = lw;
+    ctx.strokeRect(b[0] * f, b[1] * f, (b[2] - b[0]) * f, (b[3] - b[1]) * f);
+  };
+  box(img.dataset.gt, '#3c6', 2);
+  box(img.dataset.pred, '#e44', 2);
+}
+
+$('ck').onchange = loadRows;
+$('mode').onchange = draw;
+$('lim').onchange = draw;
+addEventListener('resize', () => {
+  for (const img of document.querySelectorAll('#grid img')) overlay(img);
+});
+loadList();
+</script>

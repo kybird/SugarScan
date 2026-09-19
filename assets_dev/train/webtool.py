@@ -32,6 +32,14 @@ from PIL import Image, ImageOps
 HERE = Path(__file__).resolve().parent
 DATUMO = HERE.parent / "upstream" / "datumo"
 IMAGES = DATUMO / "extracted" / "TILDE"
+# 다른 실촬 코퍼스도 같은 뷰어로 본다. id 앞머리가 코퍼스 이름이다
+# ("datacluster/<파일이름>"). Datumo 만 보던 구판은 다른 코퍼스를 띄울 방법이
+# 없었다 — 라이선스가 자유로운 코퍼스(CC0)에서 모델이 어떻게 하는지 보려면
+# 필요하다(docs/LICENSES.md §3).
+ALT_CORPORA = {
+    "datacluster": (HERE.parent / "upstream" / "datacluster-glucometer-ocr"
+                    / "glucometer_images"),
+}
 CACHE = HERE / "cache"
 SYNTH_HTML = HERE / "synth_view.html"   # 합성 코퍼스 열람 — 읽기 전용
 PROFEDIT_HTML = HERE / "prof_edit.html"  # 프로파일 에디터 — 덮어쓰기만 쓴다
@@ -81,6 +89,11 @@ DET_PID = HERE / "band_det_pid.json"
 # 띄웠다(2026-09-16). 화면이 거짓말한 게 아니라 엉뚱한 파일을 본 것이다.
 # **가장 최근에 쓰인 로그**를 따라간다.
 DET_LOGS = (HERE / "band_det_train.log", HERE / "band_det_sweep.log")
+# 2026-09-18 — 새 밴드 검출망(BandNet, docs/SPEC.md §5.3)은 band_out/ 에 로그를
+# 남긴다. 위 둘은 **폐기된 계열**이다(CLAUDE.md "이전 모델 실험은 전부 폐기했다").
+# 화면이 죽은 파이프라인의 마지막 줄을 계속 보여 주는 사고가 이미 한 번 있었으므로
+# (이 파일 71행 주석) 새 로그를 함께 보고 **가장 최근에 쓰인 것**을 따라간다.
+BAND_OUT = HERE / "band_out"
 # 오버레이 — 기종 탭이 그리는 예측. predict_band_quads.py 가 채운다.
 OVL_LOG = HERE / "band_quads_overlay.log"
 OVL_PID = HERE / "band_quads_overlay.pid"
@@ -89,6 +102,7 @@ DIAG = HERE / "_diag"
 
 def _det_log():
     live = [p for p in DET_LOGS if p.exists()]
+    live += sorted(BAND_OUT.glob("*.log")) if BAND_OUT.exists() else []
     return max(live, key=lambda p: p.stat().st_mtime) if live else DET_LOG
 
 # 표시(EXIF 적용) 이미지 좌표계가 이 도구의 유일한 좌표 정본이다.
@@ -372,6 +386,54 @@ def api_devicetags(qs):
             "review_priority": summary.get("review_priority", {})}
 
 
+@route("/api/bandreal")
+def api_bandreal(qs):
+    """실촬 평가(eval_band_real.py)의 진행 상황과 끝난 결과들.
+
+    도는 동안 사람이 볼 수 있어야 한다 — 평가기가 한 장마다 흘려 쓰고
+    여기서 그걸 읽는다. 예측 상자는 band_quads_pred.jsonl 로도 나가므로
+    기종 탭에서 사진 위에 겹쳐 보인다.
+    """
+    d = HERE / "_diag" / "band_real"
+    prog = {}
+    pp = d / "progress.json"
+    if pp.exists():
+        try:
+            prog = json.loads(pp.read_text(encoding="utf-8"))
+        except Exception:
+            prog = {}
+    done = []
+    if d.exists():
+        for f in sorted(d.glob("*.jsonl")):
+            rows = [json.loads(l) for l in
+                    f.read_text(encoding="utf-8").splitlines() if l.strip()]
+            if not rows:
+                continue
+            hit = [r for r in rows if r.get("det")]
+            # **정답이 없는 코퍼스가 있다**(Datacluster CC0 238장 — 밴드 라벨
+            # 없음). 그 행의 contain·iou 는 None 이다. 0 으로 채우면 "0점"으로
+            # 읽혀 성적표에 섞인다 — 정답이 없는 것과 0점인 것은 다르다.
+            has_gt = any(r.get("gt") for r in rows)
+            c1 = sum(1 for r in hit if (r.get("contain") or 0) >= 0.999)
+            done.append({"name": f.stem, "n": len(rows),
+                         "miss": len(rows) - len(hit),
+                         "gt": has_gt,
+                         "contain1": round(100 * c1 / len(rows), 2) if has_gt else None,
+                         "wide_n": sum(1 for r in rows if r.get("wide"))})
+    # ?ckpt=<이름> 이면 그 모델의 장별 결과를 준다 — 검수 화면(/bandreal)이 쓴다.
+    # **못한 순서로** 준다. 잘된 장을 먼저 보여 주면 무엇이 문제인지 안 보인다.
+    want = qs.get("ckpt", [""])[0]
+    rows = []
+    if want:
+        f = d / f"{want}.jsonl"
+        if f.exists():
+            rows = [json.loads(l) for l in
+                    f.read_text(encoding="utf-8").splitlines() if l.strip()]
+            rows.sort(key=lambda r: (r.get("det", False),
+                                     r.get("contain") or 0, r.get("iou") or 0))
+    return {"progress": prog, "done": done, "rows": rows, "ckpt": want}
+
+
 @route("/api/quads")
 def api_quads(qs):
     kind = qs.get("kind", ["band"])[0]
@@ -428,6 +490,20 @@ def parse_det_log(path=None):
         rows.append({"epoch": int(m.group(1)),
                      "train": float(m.group(2)),
                      "val": float(m.group(3))})
+    # BandNet(train_band.py)은 **스텝 기반**이라 에폭 줄이 없다. 형식:
+    #   step 250/8000 loss 0.3010 (obj 0.0143 box 0.1546) iou 0.848 lr 2.00e-03 17s
+    # 화면의 x축은 그대로 쓰고(에폭 칸에 스텝을 넣는다) val 자리에는 학습 IoU 를
+    # 넣는다 — 이 학습에는 val 루프가 없고, 성적은 eval_band.py 가 따로 낸다.
+    if not rows:
+        for m in re.finditer(
+                r"step\s+(\d+)/\d+\s+loss\s+([0-9.eE+-]+).*?iou\s+([0-9.eE+-]+)",
+                raw):
+            rows.append({"epoch": int(m.group(1)),
+                         "train": float(m.group(2)),
+                         "val": float(m.group(3))})
+        for ln in raw.splitlines():
+            if ln.startswith("장수 ") or ln.startswith("-> "):
+                head = (head + " · " if head else "") + ln.strip()
     for m in re.finditer(r"saved (\S+)", raw):
         saved.append(m.group(1))
     for ln in raw.splitlines():
@@ -1155,6 +1231,10 @@ def api_image(qs):
     if not cid or ".." in cid or cid.startswith("/"):
         return {"error": "bad id"}
     src = IMAGES / f"{cid}.jpg"
+    if "/" in cid:
+        pre, rest = cid.split("/", 1)
+        if pre in ALT_CORPORA:
+            src = ALT_CORPORA[pre] / f"{rest}.jpg"
     if not src.exists():
         return {"error": "not found"}
     # 박스 좌표계는 EXIF 적용(표시) 이미지 기준 — 라벨러·검수·캐시 전부 동일 관례
@@ -1719,6 +1799,13 @@ class Handler(BaseHTTPRequestHandler):
                 return
             mime = "image/png" if f.suffix == ".png" else "image/jpeg"
             self._send(200, f.read_bytes(), mime)
+            return
+        if u.path == "/bandreal":
+            f = HERE / "band_real_view.html"
+            if f.exists():
+                self._send(200, f.read_bytes(), "text/html; charset=utf-8")
+            else:
+                self._send(404, "band_real_view.html 없음".encode(), "text/plain")
             return
         if u.path == "/devices":
             if DEVICES_HTML.exists():
