@@ -43,12 +43,21 @@ def letterbox(img, size):
 class CocoBand(Dataset):
     """COCO 주석 한 벌 + 그레이스케일 이미지. 정답은 box 하나(SPEC 9.5).
 
-    학습 증강을 넣지 않는다 — 변이는 **생성기가** 만든다(SPEC 9). 여기서 또
-    흔들면 생성기가 선언한 분포가 아닌 것을 학습하게 되고, 무엇이 무엇을
-    움직였는지 못 가른다.
+    구판은 학습 증강을 넣지 않았다 — 변이는 생성기가 만든다는 원칙이었다
+    (SPEC §9). 그 원칙의 값은 **무엇이 무엇을 움직였는지 가를 수 있다**는
+    것이었다.
+
+    2026-09-19 에 사람이 뒤집었다: "데이터증강을 해야하는거아니냐". 근거가
+    있다 — 생성기가 아직 안 그리는 축이 SPEC §9.7.4 에 남아 있다(센서 잡음 ·
+    JPEG 압축 흔적 · 조명 불균일). 그리고 배율 민감도는 실촬에서 측정됐다
+    (가까움 23.1% / 멂 1.3%, 2026-09-18). 증강은 그 둘을 생성기 재작업 없이
+    덮는다.
+
+    **--aug 로만 켠다.** 기본은 끔이라, 켠 조건과 끈 조건을 나란히 재면
+    원칙이 지키려던 "무엇이 움직였나"도 그대로 답할 수 있다.
     """
 
-    def __init__(self, root, ann, size=416, repeat=1):
+    def __init__(self, root, ann, size=416, repeat=1, grow=0.0, aug=False):
         root = Path(root)
         j = json.loads((root / "annotations" / ann).read_text(encoding="utf-8"))
         by = {a["image_id"]: a["bbox"] for a in j["annotations"]}
@@ -62,14 +71,77 @@ class CocoBand(Dataset):
                                [b[0], b[1], b[0] + b[2], b[1] + b[3]]))
         self.size = size
         self.repeat = repeat
+        # grow: 정답 상자를 **상자 높이 비율**로 사방 확대한다.
+        # 왜(2026-09-19): 실촬에서 원시 예측이 숫자 칸을 24.7% 에서 잘랐다.
+        # 자르는 것은 치명적이고(리더가 못 읽는다) 큰 것은 싸다(τ=2.0 까지
+        # 허용). 정답을 키워 배우게 하면 그 비대칭이 상자에 반영된다.
+        # **이미지를 다시 굽지 않는다** — lcd_layout 이 2026-09-16 에 그림용
+        # LAYOUT_MARGIN 과 라벨용 BAND_MARGIN 을 갈라 놨기 때문에, 라벨만
+        # 키우는 것은 그림과 무관하다. 여기서 적재 시점에 더하는 것은 그
+        # 분리를 데이터 재생성 없이 쓰는 것과 같다.
+        self.grow = grow
+        self.aug = aug
 
     def __len__(self):
         return len(self.items) * self.repeat
 
+    def _photo(self, img, rng):
+        """광학 열화 — 생성기가 안 그리는 축(SPEC §9.7.4)을 여기서 덮는다.
+
+        순서가 실제 촬영·저장 경로를 닮아야 해석이 쉽다:
+        초점 흐림 -> 밝기/대비 -> 센서 잡음 -> JPEG. 최종 이미지에 필터를
+        무차별로 거는 것보다 낫다.
+        """
+        if rng.random() < 0.35:
+            k = 2 * rng.randrange(1, 3) + 1
+            img = cv2.GaussianBlur(img, (k, k), 0)
+        if rng.random() < 0.6:
+            a = rng.uniform(0.7, 1.35)          # 대비
+            b = rng.uniform(-35, 35)            # 밝기
+            img = np.clip(img.astype(np.float32) * a + b, 0, 255).astype(np.uint8)
+        if rng.random() < 0.4:
+            n = rng.uniform(2, 10)
+            img = np.clip(img.astype(np.float32)
+                          + np.random.normal(0, n, img.shape), 0,
+                          255).astype(np.uint8)
+        if rng.random() < 0.5:
+            q = rng.randrange(35, 92)
+            ok, enc = cv2.imencode(".jpg", img,
+                                   [int(cv2.IMWRITE_JPEG_QUALITY), q])
+            if ok:
+                img = cv2.imdecode(enc, cv2.IMREAD_GRAYSCALE)
+        return img
+
     def __getitem__(self, i):
         path, box = self.items[i % len(self.items)]
         img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+        if self.aug:
+            rng = random.Random((i * 2654435761) & 0xFFFFFFFF)
+            img = self._photo(img, rng)
+            # **배율·위치 흔들기.** 실촬에서 촬영 거리가 성적을 강하게 물었다
+            # (가까움 23.1% / 멂 1.3%). 생성기의 CAM_ZOOM_RANGE 가 덮지 못한
+            # 구간을 여기서 넓힌다. 캔버스를 키우거나 잘라 상자를 같이 옮긴다.
+            h0, w0 = img.shape
+            sc = rng.uniform(0.55, 1.25)
+            nw, nh = max(8, int(w0 * sc)), max(8, int(h0 * sc))
+            img = cv2.resize(img, (nw, nh), interpolation=cv2.INTER_LINEAR)
+            box = [v * sc for v in box]
+            # 캔버스를 다시 원본 크기로 — 남는 자리는 PAD, 넘치면 잘린다.
+            cvs = np.full((h0, w0), PAD, np.uint8)
+            ox = rng.randint(min(0, w0 - nw), max(0, w0 - nw))
+            oy = rng.randint(min(0, h0 - nh), max(0, h0 - nh))
+            sx0, sy0 = max(0, -ox), max(0, -oy)
+            dx0, dy0 = max(0, ox), max(0, oy)
+            cw = min(nw - sx0, w0 - dx0)
+            ch = min(nh - sy0, h0 - dy0)
+            if cw > 0 and ch > 0:
+                cvs[dy0:dy0+ch, dx0:dx0+cw] = img[sy0:sy0+ch, sx0:sx0+cw]
+                img = cvs
+                box = [box[0] + ox, box[1] + oy, box[2] + ox, box[3] + oy]
         img, r, dx, dy = letterbox(img, self.size)
+        if self.grow > 0:
+            m = (box[3] - box[1]) * self.grow
+            box = [box[0] - m, box[1] - m, box[2] + m, box[3] + m]
         b = np.array([box[0] * r + dx, box[1] * r + dy,
                       box[2] * r + dx, box[3] * r + dy], np.float32)
         x = torch.from_numpy(img).float().div_(255.).unsqueeze(0)
@@ -134,7 +206,8 @@ def run(args):
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)
-    ds = CocoBand(args.data, args.train_ann, args.size, args.repeat)
+    ds = CocoBand(args.data, args.train_ann, args.size, args.repeat,
+                  grow=args.grow, aug=args.aug)
     dl = DataLoader(ds, batch_size=args.batch, shuffle=True,
                     num_workers=args.workers, drop_last=True, pin_memory=True,
                     persistent_workers=args.workers > 0)
@@ -177,6 +250,13 @@ def run(args):
         pr = reg.permute(0, 2, 3, 1)[pos]
         tg = tgt.permute(0, 2, 3, 1)[pos]
         lb, iou = giou_loss(pr, tg)
+        if args.under_w > 1.0:
+            # **자르는 것과 큰 것은 대가가 다르다.** 숫자를 자르면 리더가
+            # 못 읽고(치명), 크면 τ 안에서는 무해하다. GIoU 는 둘을 같게
+            # 본다. 그래서 각 변이 **정답보다 모자란 만큼**에만 추가
+            # 벌점을 준다. 넘치는 쪽에는 주지 않는다 — 그건 τ 가 본다.
+            short = (tg - pr).clamp(min=0) / tg.clamp(min=1.0)
+            lb = lb + (args.under_w - 1.0) * short.sum(-1)
         # 점수 타깃 — 2026-09-18 실패 분해가 병목으로 지목한 자리다.
         # 실촬에서 정답 양성 영역(9칸 남짓) 안의 **최고점 칸**은 38.6%,
         # **최선 칸**은 73.9% 였다. 붙어 있는 칸들인데 상자 품질이 갈리고
@@ -236,7 +316,9 @@ def run(args):
     torch.save({"model": model.state_dict(), "width": args.width,
                 "size": args.size, "steps": total,
                 "n_images": len(ds.items), "param": nparam,
-                "score_target": args.score_target, "seed": args.seed}, out)
+                "score_target": args.score_target, "seed": args.seed,
+                "grow": args.grow, "under_w": args.under_w,
+                "aug": bool(args.aug)}, out)
     print(f"-> {out}  ({time.time()-t0:.0f}s)", flush=True)
 
 
@@ -260,6 +342,12 @@ def main():
     ap.add_argument("--score-target", default="bce",
                     choices=("bce", "iou", "centerness"),
                     help="objectness 타깃. 순위에 상자 품질을 넣을지")
+    ap.add_argument("--aug", action="store_true",
+                    help="학습 증강 — 광학 열화 + 배율·위치 흔들기")
+    ap.add_argument("--grow", type=float, default=0.0,
+                    help="정답 상자를 상자 높이의 이 비율만큼 사방 확대")
+    ap.add_argument("--under-w", type=float, default=1.0,
+                    help=">1 이면 정답보다 모자란 변에 추가 벌점")
     ap.add_argument("--score-warm", type=int, default=1000,
                     help="score-target=iou 일 때 1.0 에서 넘기는 스텝 수")
     run(ap.parse_args())
