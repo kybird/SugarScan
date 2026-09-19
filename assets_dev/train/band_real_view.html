@@ -78,7 +78,16 @@ async function loadList() {
     `<option value="${d.name}">${d.name} — n=${d.n} · 실패 ${d.miss}`
     + (d.gt ? ` · 원시 ${d.contain1}% · **배포 ${d.deploy}%**`            : ' · 정답 없음(눈으로만)') + `</option>`
   ).join('');
-  if (done.length) { $('ck').value = done[done.length - 1].name; await loadRows(); }
+  // 기본 선택은 **코퍼스 A(우리 손라벨 272장)의 마지막 모델**이다.
+  // 그냥 마지막을 고르면 파일 이름 순으로 roboflow_* 가 걸린다. 정답이
+  // 있느냐(gt)로는 안 갈린다 — 로보플로도 READING 라벨이 있다.
+  // 코퍼스는 이름 앞머리로 가른다(2026-09-19 사람 보고 뒤 수정).
+  const ALT = ['roboflow_', 'datacluster_'];
+  const isA = d => !ALT.some(a => d.name.startsWith(a));
+  const pool = done.filter(isA).length ? done.filter(isA) : done;
+  // 이름 순이 아니라 **가장 최근에 평가한 것**을 고른다.
+  const first = pool.slice().sort((a, b) => (a.mtime||0) - (b.mtime||0)).pop();
+  if (first) { $('ck').value = first.name; await loadRows(); }
   else $('sum').textContent = '평가 결과가 아직 없다';
 }
 

@@ -40,9 +40,17 @@ IMAGES = DATUMO / "extracted" / "TILDE"
 # ("datacluster/<파일이름>"). Datumo 만 보던 구판은 다른 코퍼스를 띄울 방법이
 # 없었다 — 라이선스가 자유로운 코퍼스(CC0)에서 모델이 어떻게 하는지 보려면
 # 필요하다(docs/LICENSES.md §3).
+# 밴드 평가에 쓰는 **다른 실촬 코퍼스**들. id 앞머리로 가른다.
+# 여기 없는 앞머리는 /photo 가 404 를 낸다 — 검수 화면이 통째로 깨져 보인다
+# (2026-09-19 사람 보고: "bandreal 들어가면 모든 사진이 깨져있는데").
+# 평가기에 새 코퍼스를 붙이면 **여기도 같이 붙인다.**
 ALT_CORPORA = {
     "datacluster": (HERE.parent / "upstream" / "datacluster-glucometer-ocr"
                     / "glucometer_images"),
+    # Roboflow 는 id 에 split 이 들어간다(rf/train/... · rf/valid/...)
+    # 이라 rest 가 그대로 하위 경로가 된다.
+    "rf": (HERE.parent / "upstream" / "roboflow-glucometer-images"
+           / "extracted"),
 }
 CACHE = HERE / "cache"
 SYNTH_HTML = HERE / "synth_view.html"   # 합성 코퍼스 열람 — 읽기 전용
@@ -413,6 +421,13 @@ def api_bandreal(qs):
                     f.read_text(encoding="utf-8").splitlines() if l.strip()]
             if not rows:
                 continue
+            # **이 폴더에는 평가 결과가 아닌 것도 산다.** diag_band_cells 의
+            # cells_*.jsonl(실패 분해)과 추정치 파일이 같이 놓인다. 이름으로
+            # 거르면 새 진단이 생길 때마다 또 샌다 — **스키마로 거른다.**
+            # 2026-09-19 에 이것 때문에 검수 화면이 진단 파일을 모델로 골라
+            # "검출 실패 272" 를 띄웠다.
+            if not ("pred" in rows[0] and "det" in rows[0]):
+                continue
             hit = [r for r in rows if r.get("det")]
             # **정답이 없는 코퍼스가 있다**(Datacluster CC0 238장 — 밴드 라벨
             # 없음). 그 행의 contain·iou 는 None 이다. 0 으로 채우면 "0점"으로
@@ -437,6 +452,10 @@ def api_bandreal(qs):
                         ok += 1
                 dep = round(100 * ok / len(rows), 2)
             done.append({"name": f.stem, "n": len(rows), "deploy": dep,
+                         # 검수 화면이 **가장 최근에 평가한 모델**을 기본으로
+                         # 고르는 데 쓴다. 이름 순으로 고르면 엉뚱한 조건이
+                         # 첫 화면에 뜬다(2026-09-19).
+                         "mtime": int(f.stat().st_mtime),
                          "miss": len(rows) - len(hit),
                          "gt": has_gt,
                          "contain1": round(100 * c1 / len(rows), 2) if has_gt else None,
@@ -1258,7 +1277,18 @@ def api_image(qs):
     if "/" in cid:
         pre, rest = cid.split("/", 1)
         if pre in ALT_CORPORA:
-            src = ALT_CORPORA[pre] / f"{rest}.jpg"
+            # **확장자를 하나로 가정하지 않는다.** Roboflow 는 .jpg 와 .jpeg
+            # 가 섞여 있고(1,273장 중 123장이 .jpeg), id 는 확장자를 떼고
+            # 만들어진다. .jpg 만 붙이면 그 장들이 404 로 깨져 보인다
+            # (2026-09-19 사람 보고). 평가는 실제 파일명을 썼으므로 수치는
+            # 멀쩡하고 **화면 조회만** 깨졌던 것이다.
+            for _ext in (".jpg", ".jpeg", ".png", ".JPG", ".JPEG"):
+                cand = ALT_CORPORA[pre] / f"{rest}{_ext}"
+                if cand.exists():
+                    src = cand
+                    break
+            else:
+                src = ALT_CORPORA[pre] / f"{rest}.jpg"
     if not src.exists():
         return {"error": "not found"}
     # 박스 좌표계는 EXIF 적용(표시) 이미지 기준 — 라벨러·검수·캐시 전부 동일 관례
