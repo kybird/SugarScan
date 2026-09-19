@@ -19,6 +19,7 @@
 # band_quads_pred.jsonl 을 함께 갱신한다(축정렬 상자를 네 귀로 적는다).
 import argparse
 import json
+import random
 import time
 from collections import defaultdict
 from pathlib import Path
@@ -105,6 +106,44 @@ def device_boxes(xml_dir):
     return out
 
 
+def bg_tiles(devbox, photo_dir):
+    """기기가 없는 배경 조각 풀. **같은 허용 코퍼스 안에서만** 가져온다.
+
+    각 사진에서 기기 상자와 겹치지 않는 가장 큰 띠(위/아래/왼/오)를 하나
+    고른다. 다른 혈당측정기가 섞여 들어가면 "이미지당 객체 1개" 조건이
+    깨지므로, 기기 상자 바깥에서만 잘라 낸다.
+    """
+    pool = []
+    for stem, d in devbox.items():
+        fp = Path(photo_dir) / f"{stem}.jpg"
+        if not fp.exists():
+            continue
+        pool.append((fp, d))
+    return pool
+
+
+def _tile_for(pool, rng, W, H):
+    """풀에서 하나 골라 (W,H) 를 덮을 배경 타일을 만든다. 실패하면 None."""
+    for _ in range(8):
+        fp, d = pool[rng.randrange(len(pool))]
+        im = cv2.imread(str(fp), cv2.IMREAD_GRAYSCALE)
+        if im is None:
+            continue
+        h, w = im.shape
+        x0, y0 = max(0, int(d[0])), max(0, int(d[1]))
+        x1, y1 = min(w, int(d[2])), min(h, int(d[3]))
+        # 기기 상자와 겹치지 않는 네 띠 중 넓은 것
+        cands = [(0, 0, w, y0), (0, y1, w, h), (0, 0, x0, h), (x1, 0, w, h)]
+        cands = [c for c in cands if c[2]-c[0] >= 16 and c[3]-c[1] >= 16]
+        if not cands:
+            continue
+        a, b, c2, d2 = max(cands, key=lambda c: (c[2]-c[0]) * (c[3]-c[1]))
+        strip = im[b:d2, a:c2]
+        if strip.size == 0:
+            continue
+        return cv2.resize(strip, (W, H), interpolation=cv2.INTER_LINEAR)
+    return None
+
 def device_stats(rows, dev):
     """예측을 **기기 상자**에 대고 잰다. 밴드 정답이 아니므로 합격률이 아니다.
 
@@ -158,7 +197,8 @@ def device_stats(rows, dev):
 
 @torch.no_grad()
 def predict_dir(ckpt, photo_dir, prefix, conf=0.25, limit=0, tag=None,
-                xml_dir=None, crop=False, crop_pad=0.05, mask_bg=False):
+                xml_dir=None, crop=False, crop_pad=0.05, mask_bg=False,
+                swap_bg=False, swap_seed=0):
     """정답이 없는 사진 폴더에 예측만 낸다.
 
     왜 필요한가: 라이선스가 자유로운 코퍼스(Datacluster CC0, 238장)에는 밴드
@@ -189,9 +229,12 @@ def predict_dir(ckpt, photo_dir, prefix, conf=0.25, limit=0, tag=None,
     size = c["size"]
     name = tag or (f"{prefix}_{Path(ckpt).stem}"
                    + ("_crop" if crop else "")
-                   + ("_flatbg" if mask_bg else ""))
+                   + ("_flatbg" if mask_bg else "")
+                   + (f"_swapbg{swap_seed}" if swap_bg else ""))
     devbox = device_boxes(xml_dir) if xml_dir else {}
-    if (crop or mask_bg) and not devbox:
+    pool = bg_tiles(devbox, photo_dir) if swap_bg else []
+    rng = random.Random(1000 + swap_seed)
+    if (crop or mask_bg or swap_bg) and not devbox:
         raise SystemExit("--crop 은 --xml 이 있어야 한다 — 자를 상자가 없다")
     files = sorted(Path(photo_dir).glob("*.jpg"))
     if limit:
@@ -208,6 +251,29 @@ def predict_dir(ckpt, photo_dir, prefix, conf=0.25, limit=0, tag=None,
                 continue
             ox = oy = 0          # 크롭 원점. 되돌릴 때 더한다.
             ow, oh = int(img.shape[1]), int(img.shape[0])
+            if swap_bg:
+                # **배경 내용만 바꾼다.** 단색 마스킹은 경계와 동시에 "균일한
+                # 바깥 vs 내용 있는 안쪽"이라는 강한 대비를 만든다(2026-09-18
+                # 자문 지적). 다른 사진의 배경을 같은 자리에 붙이면 경계는
+                # 남고 내용만 진짜가 된다. 휘도는 원래 배경 평균에 맞춰
+                # "단순히 밝아졌다"는 대안 설명을 줄인다. 대비(결)는 재려는
+                # 변화라 손대지 않는다.
+                d = devbox.get(fp.stem)
+                if d is None:
+                    continue
+                m = np.zeros(img.shape, np.uint8)
+                m[max(0, int(d[1])):int(d[3]), max(0, int(d[0])):int(d[2])] = 1
+                if m.sum() == 0 or m.sum() == m.size:
+                    continue
+                tile = _tile_for(pool, rng, img.shape[1], img.shape[0])
+                if tile is None:
+                    continue
+                src_mu = float(img[m == 0].mean())
+                t_mu = float(tile.mean())
+                if t_mu > 1.0:
+                    tile = np.clip(tile.astype(np.float32) * (src_mu / t_mu),
+                                   0, 255).astype(np.uint8)
+                img = np.where(m == 1, img, tile).astype(np.uint8)
             if mask_bg:
                 # **배율은 그대로 두고 배경 내용만 없앤다.** 크롭은 배율과
                 # 배경을 함께 바꿔서 둘을 가르지 못한다(pad 쓸기로 확인).
@@ -307,6 +373,13 @@ def evaluate(ckpt, conf=0.25, limit=0, overlay=True, tag=None):
                    "pred": [round(v, 1) for v in p], "gt": [round(v, 1) for v in gt],
                    "iou": round(iou(p, gt), 4) if det else 0.0,
                    "contain": round(contain(gt, p), 4) if det else 0.0,
+                   # τ 게이트용 과대 상자 자. 실촬에는 digit_box 가 없어
+                   # **사람이 그린 밴드 전체 포함**을 쓴다 — 숫자 포함보다
+                   # 엄격하다(숫자는 온전히 담고 사람 여백만 잘라도 실패).
+                   # 그래서 "실촬 숫자 포함률"이라고 부르지 않는다.
+                   "area_ratio": round(
+                       ((p[2]-p[0]) * (p[3]-p[1]))
+                       / max(1.0, (gt[2]-gt[0]) * (gt[3]-gt[1])), 4),
                    "wide": cid in wide}
             rows.append(row)
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
@@ -360,6 +433,16 @@ def summarize(name, rows, meta, n_ex, res_p):
               f"포함률 1.0 {int((cv >= .999).sum())}장 "
               f"({100*(cv >= .999).sum()/len(sel):.1f}%) "
               f"중앙 {np.median(cv):.4f} · IoU 중앙 {np.median(iv):.4f}")
+    if hit:
+        ar = np.array([r["area_ratio"] for r in hit])
+        cv2_ = np.array([r["contain"] for r in hit]) >= 0.999
+        print("  τ 게이트 (**밴드 전체** 포함 그리고 예측넓이/정답넓이 <= τ)")
+        print(f"    면적비 분포  p50={np.median(ar):.2f} "
+              f"p90={np.percentile(ar,90):.2f} max={ar.max():.2f}")
+        print("    " + "  ".join(
+            f"τ={t:<4.1f} {100*(cv2_ & (ar <= t)).sum()/len(rows):6.2f}%"
+            for t in (1.2, 1.5, 2.0, 3.0, 5.0)))
+        print("    **보수적인 밴드 기준이다 — 합성 합격률과 한 표에 놓지 않는다.**")
     print(f"  -> {res_p}")
     cv = np.array([r["contain"] for r in hit]) if hit else np.array([0.0])
     return {"name": name, "n": n, "miss": n - len(hit),
@@ -382,6 +465,12 @@ def main():
     ap.add_argument("--crop", action="store_true",
                     help="기기 상자로 잘라 넣는다 — 진단용 오라클, 배포에 없다")
     ap.add_argument("--crop-pad", type=float, default=0.05)
+    ap.add_argument("--swap-bg", action="store_true",
+                    help="기기 바깥을 **다른 사진의 배경**으로 교체한다 — "
+                         "경계는 남기고 내용만 바꾸는 대조. 배포에 없다")
+    ap.add_argument("--swap-seed", type=int, default=0,
+                    help="교체 배경 제비뽑기. 여러 번 돌려 우연히 쉬운 배경 "
+                         "하나를 고르는 것을 막는다")
     ap.add_argument("--mask-bg", action="store_true",
                     help="기기 상자 바깥을 단색으로 덮는다 — 배율은 두고 "
                          "배경 내용만 없애는 갈림 실험. 배포에 없다")
@@ -390,7 +479,8 @@ def main():
         for c in a.ckpt:
             predict_dir(c, a.photodir, a.prefix, a.conf, a.limit,
                         xml_dir=a.xml, crop=a.crop, crop_pad=a.crop_pad,
-                        mask_bg=a.mask_bg)
+                        mask_bg=a.mask_bg, swap_bg=a.swap_bg,
+                        swap_seed=a.swap_seed)
         return
     out = []
     for c in a.ckpt:

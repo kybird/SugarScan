@@ -99,6 +99,13 @@ def evaluate(ckpt, root, ann, manifest, conf=0.25, batch=32, out=None):
                 "digit_box": db,
                 # 밴드가 프레임에서 차지하는 **선형** 비. 촬영 배율의 자다
                 # (CAM_ZOOM_RANGE 가 만드는 다양성이 그대로 여기에 나온다).
+                # 과대 상자 제한용. **포함률만 최적화하면 이미지 전체를
+                # 내는 퇴화해가 통과한다**(2026-09-18 자문 지적). 정답 밴드
+                # 넓이에 대한 예측 넓이의 비를 함께 적어 τ 곡선을 낸다.
+                # τ 확정은 후속 숫자 인식기의 입력 규격이 정해진 뒤다 —
+                # 인식기가 아직 없으므로 여기서는 **곡선으로만** 보고한다.
+                "area_ratio": float(((p[2]-p[0]) * (p[3]-p[1]))
+                                    / max(1.0, (gt[2]-gt[0]) * (gt[3]-gt[1]))),
                 "frac": float(np.sqrt(max(0.0, (gt[2]-gt[0]) * (gt[3]-gt[1]))
                                       / max(1.0, mm.get("w", 1) * mm.get("h", 1)))),
             })
@@ -126,6 +133,16 @@ def evaluate(ckpt, root, ann, manifest, conf=0.25, batch=32, out=None):
         agg[r["profile"]].append(r)
     worst = sorted(((sum(1 for r in v if r["pass"])/len(v), k, len(v))
                     for k, v in agg.items()))
+    # τ 게이트 곡선 — 포함률 ∧ 면적비<=τ
+    ar = np.array([r["area_ratio"] for r in rows])
+    ps = np.array([r["pass"] for r in rows])
+    print("  τ 게이트 (숫자 100% 포함 **그리고** 예측넓이/정답넓이 <= τ)")
+    print(f"    면적비 분포  p50={np.median(ar):.2f} p90={np.percentile(ar,90):.2f} "
+          f"p99={np.percentile(ar,99):.2f} max={ar.max():.2f}")
+    cells = "  ".join(f"τ={t:<4.1f} {100*(ps & (ar <= t)).mean():6.2f}%"
+                      for t in (1.2, 1.5, 2.0, 3.0, 5.0))
+    print(f"    {cells}")
+    print("    **τ 확정은 숫자 인식기의 입력 규격이 나온 뒤다 — 곡선만 낸다.**")
     print("  프로파일별 합격률 (낮은 순 5) — **평균으로 판정하지 않는다**")
     for rate, k, cnt in worst[:5]:
         print(f"    {k:<24} {100*rate:6.2f}%  (n={cnt})")
