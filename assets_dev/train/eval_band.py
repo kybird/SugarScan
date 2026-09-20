@@ -49,10 +49,10 @@ def iou(a, b):
 
 
 @torch.no_grad()
-def evaluate(ckpt, root, ann, manifest, conf=0.25, batch=32, out=None):
+def evaluate(ckpt, root, ann, manifest, conf=0.25, batch=32, out=None, input_size=None):
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     model, meta = load(ckpt, dev)
-    size = meta["size"]
+    size = input_size or meta["size"]
     root = Path(root)
     j = json.loads((root / "annotations" / ann).read_text(encoding="utf-8"))
     split = "val2017" if "val" in ann else "train2017"
@@ -181,8 +181,10 @@ def main():
     ap.add_argument("--manifest", required=True)
     ap.add_argument("--conf", type=float, default=0.25)
     ap.add_argument("--out", default=None)
+    ap.add_argument("--input-size", type=int, help="진단용 해상도; 가중치는 그대로")
     a = ap.parse_args()
-    evaluate(a.ckpt, a.data, a.ann, a.manifest, a.conf, out=a.out)
+    evaluate(a.ckpt, a.data, a.ann, a.manifest, a.conf, out=a.out,
+             input_size=a.input_size)
 
 
 if __name__ == "__main__":

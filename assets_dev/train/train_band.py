@@ -102,7 +102,7 @@ class CocoBand(Dataset):
         if rng.random() < 0.4:
             n = rng.uniform(2, 10)
             img = np.clip(img.astype(np.float32)
-                          + np.random.normal(0, n, img.shape), 0,
+                          + np.random.default_rng(rng.getrandbits(64)).normal(0, n, img.shape), 0,
                           255).astype(np.uint8)
         if rng.random() < 0.5:
             q = rng.randrange(35, 92)
@@ -116,8 +116,11 @@ class CocoBand(Dataset):
         path, box = self.items[i % len(self.items)]
         img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
         if self.aug:
-            rng = random.Random((i * 2654435761) & 0xFFFFFFFF)
+            # DataLoader seeds each worker's Python RNG. Draw per visit rather
+            # than from the image index: epochs must not repeat a fixed transform.
+            rng = random.Random(random.getrandbits(64))
             img = self._photo(img, rng)
+            photo = img
             # **배율·위치 흔들기.** 실촬에서 촬영 거리가 성적을 강하게 물었다
             # (가까움 23.1% / 멂 1.3%). 생성기의 CAM_ZOOM_RANGE 가 덮지 못한
             # 구간을 여기서 넓힌다. 캔버스를 키우거나 잘라 상자를 같이 옮긴다.
@@ -125,11 +128,25 @@ class CocoBand(Dataset):
             sc = rng.uniform(0.55, 1.25)
             nw, nh = max(8, int(w0 * sc)), max(8, int(h0 * sc))
             img = cv2.resize(img, (nw, nh), interpolation=cv2.INTER_LINEAR)
-            box = [v * sc for v in box]
+            sx, sy = nw / w0, nh / h0
+            box = [box[0] * sx, box[1] * sy, box[2] * sx, box[3] * sy]
             # 캔버스를 다시 원본 크기로 — 남는 자리는 PAD, 넘치면 잘린다.
             cvs = np.full((h0, w0), PAD, np.uint8)
-            ox = rng.randint(min(0, w0 - nw), max(0, w0 - nw))
-            oy = rng.randint(min(0, h0 - nh), max(0, h0 - nh))
+            # Keep the entire target visible. Clipping the label would teach
+            # that truncated digits are a complete band; retaining an invisible
+            # label would supervise content that the input does not contain.
+            xmin = max(min(0, w0-nw), math.ceil(-box[0]))
+            xmax = min(max(0, w0-nw), math.floor(w0-box[2]))
+            ymin = max(min(0, h0-nh), math.ceil(-box[1]))
+            ymax = min(max(0, h0-nh), math.floor(h0-box[3]))
+            if xmin > xmax or ymin > ymax:
+                # A target wider than the canvas cannot be translated into it.
+                # Fall back to the original geometry, retaining photo effects.
+                img = photo
+                box = list(self.items[i % len(self.items)][1])
+                return self._tensor(img, box)
+            ox = rng.randint(xmin, xmax)
+            oy = rng.randint(ymin, ymax)
             sx0, sy0 = max(0, -ox), max(0, -oy)
             dx0, dy0 = max(0, ox), max(0, oy)
             cw = min(nw - sx0, w0 - dx0)
@@ -138,6 +155,9 @@ class CocoBand(Dataset):
                 cvs[dy0:dy0+ch, dx0:dx0+cw] = img[sy0:sy0+ch, sx0:sx0+cw]
                 img = cvs
                 box = [box[0] + ox, box[1] + oy, box[2] + ox, box[3] + oy]
+        return self._tensor(img, box)
+
+    def _tensor(self, img, box):
         img, r, dx, dy = letterbox(img, self.size)
         if self.grow > 0:
             m = (box[3] - box[1]) * self.grow
@@ -201,7 +221,14 @@ def giou_loss(pred, tgt):
     return (1 - giou), iou
 
 
+def init_worker(_):
+    # Each loader process already runs in parallel. OpenCV's own thread pool
+    # per worker oversubscribes the host during blur/resize/JPEG augmentation.
+    cv2.setNumThreads(1)
+
+
 def run(args):
+    cv2.setNumThreads(1)
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     torch.manual_seed(args.seed)
     random.seed(args.seed)
@@ -210,7 +237,8 @@ def run(args):
                   grow=args.grow, aug=args.aug)
     dl = DataLoader(ds, batch_size=args.batch, shuffle=True,
                     num_workers=args.workers, drop_last=True, pin_memory=True,
-                    persistent_workers=args.workers > 0)
+                    persistent_workers=args.workers > 0,
+                    worker_init_fn=init_worker)
     model = BandNet(width=args.width).to(dev)
     nparam = sum(p.numel() for p in model.parameters())
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=5e-4)

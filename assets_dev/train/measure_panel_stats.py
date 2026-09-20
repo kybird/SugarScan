@@ -555,24 +555,76 @@ def cmd_band_convention():
               f"(선형 {np.sqrt(np.median(ours)/np.median(rf)):.2f}배)")
 
 
+def cmd_input_scale(coco=None, predictions=None, size=416):
+    """입력 레터박스에서 실제 GT 짧은 변과 실패를 잰다. 원본 픽셀과 혼동 금지.
+
+    COCO는 저장된 이미지 크기, 평가 JSONL은 디코드한 ow/oh를 사용한다.
+    size는 층화 기준 해상도다. 서로 다른 추론 해상도를 비교할 때 같은
+    기준값을 주어 사진이 크기 구간 사이를 이동하지 않게 한다.
+    실촬의 숫자 칸을 추정하지 않고 각 코퍼스의 원래 라벨로만 집계한다.
+    """
+    from report_fix_arms import pad, covers
+    samples = []
+    if coco:
+        j = json.loads(Path(coco).read_text(encoding="utf-8"))
+        images = {im["id"]: im for im in j["images"]}
+        for ann in j["annotations"]:
+            im = images[ann["image_id"]]
+            b = ann["bbox"]
+            samples.append((min(b[2:]) * size / max(im["width"], im["height"]), None))
+    else:
+        for r in _load_jsonl(predictions):
+            if not r.get("gt"):
+                continue
+            g = r["gt"]
+            short = min(g[2]-g[0], g[3]-g[1]) * size / max(r["ow"], r["oh"])
+            p = pad(r["pred"])
+            ratio = ((p[2]-p[0])*(p[3]-p[1])) / ((g[2]-g[0])*(g[3]-g[1]))
+            samples.append((short, (bool(r["det"]), covers(p, g), ratio)))
+    v = np.asarray([s[0] for s in samples])
+    if not len(v):
+        raise ValueError("empty population")
+    print(f"source={coco or predictions} n={len(v)} input={size}")
+    print("GT short side px min/p10/p50/p90/max=" +
+          "/".join(f"{x:.2f}" for x in np.percentile(v, [0, 10, 50, 90, 100])))
+    for lo, hi in ((0, float("inf")), (0, 16), (16, 32), (32, 64), (64, float("inf"))):
+        rows = [s for s in samples if lo <= s[0] < hi]
+        if not rows:
+            continue
+        label = f"[{lo},{hi}) n={len(rows)}"
+        if predictions:
+            vals = [s[1] for s in rows]
+            gate = np.mean([d and c and a <= 2 for d,c,a in vals])
+            det = np.mean([d for d,c,a in vals])
+            ar = np.median([a for d,c,a in vals])
+            label += f" detected={det:.4f} deployed_label_gate={gate:.4f} area_p50_all={ar:.3f}"
+        print(label)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("cmd", choices=["aspect", "band", "density", "synth-density",
                                     "synth-band", "coco", "band-frame",
-                                    "band-convention",
+                                    "band-convention", "input-scale",
                                     "shortcut"])
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--frame-exc", type=float, default=0.0)
     ap.add_argument("--images")
     ap.add_argument("--manifest")
     ap.add_argument("--coco", help="instances_*.json 경로")
+    ap.add_argument("--predictions", help="input-scale: 평가 JSONL")
+    ap.add_argument("--size", type=int, default=416)
     ap.add_argument("--fit", help="shortcut: 비율을 뽑을 매니페스트")
     ap.add_argument("--by", default="orient", choices=("orient", "profile"),
                     help="shortcut: 비율을 방향별로 뽑나 기기별로 뽑나")
     ap.add_argument("--vs", default="canvas", choices=("canvas", "glass"),
                     help="synth-band 의 분모. 실사진과 맞댈 때는 glass")
     a = ap.parse_args()
-    if a.cmd == "aspect":
+    if a.cmd == "input-scale":
+        if bool(a.coco) == bool(a.predictions):
+            ap.error("input-scale needs exactly one of --coco / --predictions")
+        cmd_input_scale(a.coco, a.predictions, a.size)
+    elif a.cmd == "aspect":
         cmd_aspect()
     elif a.cmd == "band":
         cmd_band()

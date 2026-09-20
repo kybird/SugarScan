@@ -331,13 +331,16 @@ def predict_dir(ckpt, photo_dir, prefix, conf=0.25, limit=0, tag=None,
 
 
 @torch.no_grad()
-def evaluate(ckpt, conf=0.25, limit=0, overlay=True, tag=None):
+def evaluate(ckpt, conf=0.25, limit=0, overlay=True, tag=None,
+             input_size=None, out_dir=None):
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     c = torch.load(ckpt, map_location="cpu", weights_only=False)
     model = BandNet(width=c["width"]).to(dev).eval()
     model.load_state_dict(c["model"])
-    size = c["size"]
+    size = input_size or c["size"]
     name = tag or Path(ckpt).stem
+    if input_size is not None:
+        name += f"_size{size}"
 
     ids, band, lab, n_ex = population()
     if limit:
@@ -345,9 +348,10 @@ def evaluate(ckpt, conf=0.25, limit=0, overlay=True, tag=None):
     wide = set(json.loads(WIDE_IDS.read_text(encoding="utf-8"))) \
         if WIDE_IDS.exists() else set()
 
-    OUT.mkdir(parents=True, exist_ok=True)
-    res_p = OUT / f"{name}.jsonl"
-    prog_p = OUT / "progress.json"
+    output = Path(out_dir) if out_dir else OUT
+    output.mkdir(parents=True, exist_ok=True)
+    res_p = output / f"{name}.jsonl"
+    prog_p = output / "progress.json"
     ovl = []
     rows = []
     t0 = time.time()
@@ -456,6 +460,8 @@ def main():
     ap.add_argument("--conf", type=float, default=0.25)
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--no-overlay", action="store_true")
+    ap.add_argument("--input-size", type=int, help="밴드 라벨 평가의 진단용 입력 해상도")
+    ap.add_argument("--out-dir", help="밴드 라벨 평가 결과의 별도 디렉터리")
     ap.add_argument("--photodir", default=None,
                     help="정답 없는 사진 폴더에 예측만 낸다")
     ap.add_argument("--prefix", default="datacluster",
@@ -475,6 +481,8 @@ def main():
                     help="기기 상자 바깥을 단색으로 덮는다 — 배율은 두고 "
                          "배경 내용만 없애는 갈림 실험. 배포에 없다")
     a = ap.parse_args()
+    if a.photodir and (a.input_size is not None or a.out_dir is not None):
+        ap.error("--input-size/--out-dir are supported for labelled evaluation only")
     if a.photodir:
         for c in a.ckpt:
             predict_dir(c, a.photodir, a.prefix, a.conf, a.limit,
@@ -484,7 +492,8 @@ def main():
         return
     out = []
     for c in a.ckpt:
-        out.append(evaluate(c, a.conf, a.limit, not a.no_overlay))
+        out.append(evaluate(c, a.conf, a.limit, not a.no_overlay,
+                            input_size=a.input_size, out_dir=a.out_dir))
         print()
     print(f"{'체크포인트':<18}{'n':>5}{'실패':>6}{'포함률1.0':>11}{'IoU중앙':>9}")
     for s in out:

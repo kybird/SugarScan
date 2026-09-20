@@ -63,20 +63,23 @@ def population():
 
 
 @torch.no_grad()
-def evaluate(ckpt, conf=0.25, limit=0):
+def evaluate(ckpt, conf=0.25, limit=0, input_size=None, out_dir=None):
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     c = torch.load(ckpt, map_location="cpu", weights_only=False)
     model = BandNet(width=c["width"]).to(dev).eval()
     model.load_state_dict(c["model"])
-    size = c["size"]
+    size = input_size or c["size"]
     name = f"roboflow_{Path(ckpt).stem}"
 
     pop = population()
     ids = sorted(pop)
     if limit:
         ids = ids[:limit]
-    OUT.mkdir(parents=True, exist_ok=True)
-    res = OUT / f"{name}.jsonl"
+    output = Path(out_dir) if out_dir else OUT
+    if input_size is not None:
+        name += f"_size{size}"
+    output.mkdir(parents=True, exist_ok=True)
+    res = output / f"{name}.jsonl"
     rows = []
     t0 = time.time()
     with res.open("w", encoding="utf-8") as f:
@@ -126,9 +129,11 @@ def main():
     ap.add_argument("--ckpt", nargs="+", required=True)
     ap.add_argument("--conf", type=float, default=0.25)
     ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--input-size", type=int, help="진단용 해상도 변경, 기존 결과에 덮어쓰지 않음")
+    ap.add_argument("--out-dir", help="진단 결과 별도 디렉터리")
     a = ap.parse_args()
     for c in a.ckpt:
-        evaluate(c, a.conf, a.limit)
+        evaluate(c, a.conf, a.limit, a.input_size, a.out_dir)
         print()
 
 
