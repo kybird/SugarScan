@@ -1,7 +1,7 @@
 ---
 name: work-loop
 description: Unattended kanban loop — pick a card, resolve it with objective evidence, park judgment calls and move on. Board is the only task list; converge, don't diverge.
-skill-version: 7
+skill-version: 8
 ---
 # When to use
 
@@ -21,10 +21,12 @@ skill-version: 7
 # Loop start — bring the monitor up (사람의 실시간 관측)
 
 루프를 시작할 때 `llm-wiki monitor`를 백그라운드로 띄운다 — 밤중에 사람이 들어와도
-클레임·진행·마일스톤이 살아 있는 보드를 본다. **멱등이다**: 이미 떠 있으면 exit 0으로
-같은 URL을 되뇌므로 그대로 쓰고, 백그라운드 실행이 안 되는 환경이면 건너뛴다 —
-모니터는 관측이지 의존성이 아니다. 정지 규칙에서도 모니터는 끄지 않는다(아침의
-사람이 본다) — 읽기 전용이라 남겨두는 비용이 없다.
+클레임·진행·마일스톤이 살아 있는 보드를 본다. **멱등이다**: 이 루프의 보드(같은
+프로젝트) 모니터가 이미 떠 있으면 exit 0으로 같은 URL을 되뇐다. 다른 프로젝트의
+모니터가 기본 포트를 쓰고 있으면 **다음 포트에 자기 보드를 띄운다** — 멀티
+프로젝트 밤에도 각자의 보드가 각자의 URL에 뜬다. 백그라운드 실행이 안 되는
+환경이면 건너뛴다 — 모니터는 관측이지 의존성이 아니다. 정지 규칙에서도 모니터는
+끄지 않는다(아침의 사람이 본다) — 읽기 전용이라 남겨두는 비용이 없다.
 
 # Loop graph
 
