@@ -15,16 +15,23 @@
 # 대조군은 둘 다 atone (TC · 416 · --aug --under-w 3.0). 다시 굽지 않는다.
 #
 # 사전 등록한 판정 (§18.7):
-#   주 지표  **Datumo 272**, 배포 상자가 숫자 칸을 담는 비율. Roboflow 는
-#            좌우 규약이 우리와 달라(쏠림 +0.247) 부 지표로 내렸다. n=272 로
-#            작다는 것을 함께 적는다.
-#   부 지표  실패 구성. A 는 딴 데, B 는 일부만. 노린 칸이 아닌 칸이 움직이면
-#            기전 설명이 틀린 것이므로 그렇게 적는다.
+#   주 지표  **Roboflow 개발 586 의 실패 구성.** A 는 딴 데, B 는 일부만.
+#            power_check.py 로 재 보고 정했다 — 이 모집단에서만 갈린다:
+#              딴 데  11장 중 4장(36%) 이상 고치면 95% 구간이 0 을 벗어난다
+#              일부만 22장 중 4장(18%) 이상
+#   절대값   **Datumo 272 는 우리 규약으로 재는 유일한 모집단**이라 담음률의
+#            절대값은 여기서 읽는다. 다만 실패가 각 분류 2장뿐이라
+#            **완전히 고쳐도 통계적으로 못 가른다.** 팔 사이 순위를 여기서
+#            매기지 않는다 — 퇴행 감시용이다.
 #   면적     게이트(담음 ∧ 면적<=2)를 함께 낸다. 담음이 올라도 게이트가
 #            내려가면 이득이 아니다.
 #   퇴행     각 조건의 자기 도메인 — A 는 VD, B 는 VC.
-#   주의     0.8~1.9% 구간이다. 유의하지 않게 나올 가능성이 높고, 그 경우
-#            "움직이지 않았다"가 아니라 **"이 표본으로는 가를 수 없다"**로 적는다.
+#   봉인     시험 687 은 판정에만. 거기서는 딴 데가 5장뿐이라 못 가른다.
+#
+# 시드를 8 -> 4 로 줄였다. power_check.py 가 **사진 잡음이 지배적**임을 보였다:
+# 시드 8개로 줄인 시드잡음 0.10~0.29 대 사진잡음 0.31~0.78. 시드를 8에서
+# 4로 줄이면 전체 잡음이 0.591 -> 0.618 (4.6%) 늘고 시간은 절반이 된다.
+# 사진을 늘릴 수 없는 이상 시드를 더 태우는 것은 헛돈이다.
 set -e
 PY=C:/Users/admin/miniconda3/envs/sugartrain/python.exe
 H=D:/Project/sugarScan/assets_dev/train
@@ -45,7 +52,7 @@ for ARM in scene size512; do
     scene)   DATA=$H/synth_coco/TD; VAL=$H/synth_coco/VD; SZ=416 ;;
     size512) DATA=$H/synth_coco/TC; VAL=$H/synth_coco/VC; SZ=512 ;;
   esac
-  for S in 0 1 2 3 4 5 6 7; do
+  for S in 0 1 2 3; do
     N="a${ARM}_s${S}"
     [ -f "$O/$N.pt" ] && { echo "  $N 이미 있음"; continue; }
     echo "=== $N 시작 $(date +%H:%M:%S)"
@@ -66,14 +73,14 @@ for ARM in scene size512; do
     size512) VAL=$H/synth_coco/VC ;;
   esac
   CK=""
-  for S in 0 1 2 3 4 5 6 7; do CK="$CK $O/a${ARM}_s${S}.pt"; done
+  for S in 0 1 2 3; do CK="$CK $O/a${ARM}_s${S}.pt"; done
   echo "--- $ARM Datumo (주 지표) $(date +%H:%M:%S)"
   for C in $CK; do "$PY" "$H/eval_band_real.py" --ckpt "$C" --no-overlay \
       --out-dir "$D" > /dev/null 2>&1; done
   echo "--- $ARM Roboflow (부 지표) $(date +%H:%M:%S)"
   "$PY" "$H/eval_band_roboflow.py" --ckpt $CK --out-dir "$D" 2>&1 | grep -c jsonl
   echo "--- $ARM 자기 도메인 (퇴행) $(date +%H:%M:%S)"
-  for S in 0 1 2 3 4 5 6 7; do
+  for S in 0 1 2 3; do
     "$PY" "$H/eval_band.py" --ckpt "$O/a${ARM}_s${S}.pt" --data "$VAL" \
       --ann instances_train2017.json --manifest "$VAL/manifest.jsonl" \
       --out "$D/synth_a${ARM}_s${S}.jsonl" > /dev/null 2>&1
