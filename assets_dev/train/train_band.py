@@ -227,6 +227,56 @@ def init_worker(_):
     cv2.setNumThreads(1)
 
 
+def _save(path, model, args, nparam, n_images, steps):
+    """중간/최종 체크포인트를 같은 스키마로 쓴다 — 평가기가 구분 없이 읽는다."""
+    torch.save({"model": model.state_dict(), "width": args.width,
+                "size": args.size, "steps": steps,
+                "n_images": n_images, "param": nparam,
+                "score_target": args.score_target, "seed": args.seed,
+                "grow": args.grow, "under_w": args.under_w,
+                "aug": bool(args.aug)}, path)
+
+
+@torch.no_grad()
+def _quick_gate(model, args, dev, n=200):
+    """중간 품질검사 — **합성 홀드아웃 일부**만 빠르게.
+
+    실촬을 여기서 재지 않는다. 학습 루프 안에서 실촬을 보면 그것으로 고르게
+    되고 홀드아웃이 오염된다. 여기서 보는 것은 "학습이 무너지지 않았나"다.
+    """
+    from band_net import decode
+    root = Path(args.mid_data)
+    man = {}
+    for line in (root / "manifest.jsonl").read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            m = json.loads(line)
+            man[m["id"]] = m
+    ids = sorted(man)[:n]
+    model.eval()
+    ok = miss = 0
+    for cid in ids:
+        m = man[cid]
+        if m.get("digit_box") is None:
+            continue
+        img = cv2.imread(str(root / "train2017" / f"{cid}.png"), cv2.IMREAD_GRAYSCALE)
+        if img is None:
+            continue
+        lb, r, dx, dy = letterbox(img, args.size)
+        x = torch.from_numpy(lb).float().div_(255.).unsqueeze(0).unsqueeze(0)
+        o, g = model(x.to(dev))
+        b, sc = decode(o.float(), g.float(), model.stride)
+        b = b[0].cpu().numpy()
+        if float(sc[0].cpu()) < 0.25:
+            miss += 1
+            continue
+        p = [(b[0]-dx)/r, (b[1]-dy)/r, (b[2]-dx)/r, (b[3]-dy)/r]
+        d = [float(v) for v in m["digit_box"]]
+        if p[0] <= d[0] and p[1] <= d[1] and p[2] >= d[2] and p[3] >= d[3]:
+            ok += 1
+    tot = max(1, len(ids))
+    return f"합성게이트 {100*ok/tot:.1f}% (n={tot} 미검출 {miss})"
+
+
 def run(args):
     cv2.setNumThreads(1)
     dev = "cuda" if torch.cuda.is_available() else "cpu"
@@ -255,6 +305,8 @@ def run(args):
     print(f"장수 {len(ds.items)} (반복 {args.repeat} -> 에포크 {len(ds)}) "
           f"batch {args.batch} steps {total} width {args.width} "
           f"param {nparam/1e6:.3f}M size {args.size}", flush=True)
+    out_path = Path(args.out)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     step = 0
     t0 = time.time()
     it = iter(dl)
@@ -334,12 +386,28 @@ def run(args):
         scaler.step(opt)
         scaler.update()
         step += 1
+        # **중간 저장 + 중간 품질검사** (2026-09-20 사람 요청: "훈련은 에포크
+        # 단위로 짤라서 중간중간 품질검사할수있게해줘"). 스텝 기준 학습이라
+        # 에포크가 없으므로 --save-every 스텝을 한 구간으로 본다.
+        #
+        # 저장은 **덮어쓰지 않는다** — <out>_step<N>.pt 로 따로 남긴다. 그래야
+        # 나중에 "언제부터 나빠졌나"를 되짚을 수 있다.
+        # 중간 평가는 합성 홀드아웃 일부만 본다(빠르게). 실촬은 여기서 안 잰다 —
+        # 학습 루프 안에서 실촬을 보면 그걸로 고르게 되고 홀드아웃이 오염된다.
+        if args.save_every and (step % args.save_every == 0) and step < total:
+            _p = out_path.with_name(f"{out_path.stem}_step{step}{out_path.suffix}")
+            _save(_p, model, args, nparam, len(ds.items), step)
+            msg = f"  [중간] step {step} -> {_p.name}"
+            if args.mid_eval:
+                msg += "  " + _quick_gate(model, args, dev)
+            print(msg, flush=True)
+            model.train()
         if step % args.log == 0 or step == total:
             print(f"  step {step}/{total} loss {loss.item():.4f} "
                   f"(obj {lo.item():.4f} box {lb.item():.4f}) "
                   f"iou {iou.mean().item():.3f} lr {lr_at(step):.2e} "
                   f"{time.time()-t0:.0f}s", flush=True)
-    out = Path(args.out)
+    out = out_path
     out.parent.mkdir(parents=True, exist_ok=True)
     torch.save({"model": model.state_dict(), "width": args.width,
                 "size": args.size, "steps": total,
@@ -370,6 +438,12 @@ def main():
     ap.add_argument("--score-target", default="bce",
                     choices=("bce", "iou", "centerness"),
                     help="objectness 타깃. 순위에 상자 품질을 넣을지")
+    ap.add_argument("--save-every", type=int, default=0,
+                    help="이 스텝마다 중간 체크포인트를 따로 남긴다")
+    ap.add_argument("--mid-eval", action="store_true",
+                    help="중간 저장 때 합성 홀드아웃 일부로 품질검사")
+    ap.add_argument("--mid-data", default=str(HERE / "synth_coco" / "VB"),
+                    help="중간 품질검사용 홀드아웃")
     ap.add_argument("--aug", action="store_true",
                     help="학습 증강 — 광학 열화 + 배율·위치 흔들기")
     ap.add_argument("--grow", type=float, default=0.0,
