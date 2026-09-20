@@ -398,6 +398,68 @@ def api_devicetags(qs):
             "review_priority": summary.get("review_priority", {})}
 
 
+# ── 학습 증강 열람 ────────────────────────────────────────────────────
+# 사람 요청(2026-09-20): "훈련에사용된 데이터 증강물을 웹툴에서 확인하게해줘".
+#
+# **재구현하지 않는다.** train_band.CocoBand 를 그대로 불러 쓴다 — 여기서
+# 따로 그리면 학습이 보는 것과 다른 것을 보여 주게 되고, 그 차이는 눈으로
+# 못 잡는다. 같은 인덱스를 aug 켠 것과 끈 것 두 벌로 만들어 나란히 준다.
+#
+# 반환은 **레터박스 416 입력 그대로**다. 모델이 받는 바로 그 텐서를 이미지로
+# 되돌린 것이고, 상자도 그 좌표계의 것이다.
+_AUGDS = {}
+
+
+def _augds(aug):
+    """(비)증강 CocoBand 를 만들어 캐시한다. torch 는 여기서만 부른다."""
+    key = bool(aug)
+    if key not in _AUGDS:
+        import sys
+        sys.path.insert(0, str(HERE))
+        from train_band import CocoBand
+        _AUGDS[key] = CocoBand(HERE / "synth_coco" / "TB",
+                               "instances_curve_07998.json",
+                               size=416, aug=key)
+    return _AUGDS[key]
+
+
+@route("/api/aug")
+def api_aug(qs):
+    """증강 표본 n장. 같은 장을 원본/증강 두 벌로 준다."""
+    try:
+        n = max(1, min(24, int(qs.get("n", ["8"])[0])))
+        start = int(qs.get("start", ["0"])[0])
+        draws = max(1, min(4, int(qs.get("draws", ["1"])[0])))
+    except ValueError:
+        return {"error": "bad args"}
+    try:
+        ds0, ds1 = _augds(False), _augds(True)
+    except Exception as e:                       # torch 없음 등
+        return {"error": f"{type(e).__name__}: {e}"}
+    total = len(ds0.items)
+    out = []
+    for k in range(n):
+        i = (start + k) % total
+        name = Path(ds0.items[i][0]).stem
+        row = {"i": i, "name": name, "plain": _aug_png(ds0, i),
+               "aug": [_aug_png(ds1, i) for _ in range(draws)]}
+        out.append(row)
+    return {"n": total, "start": start, "rows": out,
+            "note": "train_band.CocoBand 를 그대로 호출한다. 레터박스 416 입력."}
+
+
+def _aug_png(ds, i):
+    """CocoBand 한 장 -> (data URI, 상자). 상자는 레터박스 좌표다."""
+    x, b = ds[i]
+    img = (x[0].numpy() * 255.0).clip(0, 255).astype("uint8")
+    vis = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+    q = [int(round(float(v))) for v in b.tolist()]
+    cv2.rectangle(vis, (q[0], q[1]), (q[2], q[3]), (90, 220, 90), 2)
+    ok, buf = cv2.imencode(".png", vis)
+    return {"png": "data:image/png;base64," + base64.b64encode(buf).decode(),
+            "box": [round(float(v), 1) for v in b.tolist()]}
+
+
 @route("/api/bandreal")
 def api_bandreal(qs):
     """실촬 평가(eval_band_real.py)의 진행 상황과 끝난 결과들.
@@ -1853,6 +1915,13 @@ class Handler(BaseHTTPRequestHandler):
                 return
             mime = "image/png" if f.suffix == ".png" else "image/jpeg"
             self._send(200, f.read_bytes(), mime)
+            return
+        if u.path == "/aug":
+            f = HERE / "aug_view.html"
+            if f.exists():
+                self._send(200, f.read_bytes(), "text/html; charset=utf-8")
+            else:
+                self._send(404, "aug_view.html 없음".encode(), "text/plain")
             return
         if u.path == "/bandreal":
             f = HERE / "band_real_view.html"
