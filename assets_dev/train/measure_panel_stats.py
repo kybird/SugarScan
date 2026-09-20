@@ -580,7 +580,9 @@ def cmd_input_scale(coco=None, predictions=None, size=416):
             short = min(g[2]-g[0], g[3]-g[1]) * size / max(r["ow"], r["oh"])
             p = pad(r["pred"])
             ratio = ((p[2]-p[0])*(p[3]-p[1])) / ((g[2]-g[0])*(g[3]-g[1]))
-            samples.append((short, (bool(r["det"]), covers(p, g), ratio)))
+            overlap = (min(p[2], g[2]) > max(p[0], g[0]) and
+                       min(p[3], g[3]) > max(p[1], g[1]))
+            samples.append((short, (bool(r["det"]), covers(p, g), ratio, overlap)))
     v = np.asarray([s[0] for s in samples])
     if not len(v):
         raise ValueError("empty population")
@@ -594,10 +596,18 @@ def cmd_input_scale(coco=None, predictions=None, size=416):
         label = f"[{lo},{hi}) n={len(rows)}"
         if predictions:
             vals = [s[1] for s in rows]
-            gate = np.mean([d and c and a <= 2 for d,c,a in vals])
-            det = np.mean([d for d,c,a in vals])
-            ar = np.median([a for d,c,a in vals])
+            gate = np.mean([d and c and a <= 2 for d,c,a,o in vals])
+            det = np.mean([d for d,c,a,o in vals])
+            ar = np.median([a for d,c,a,o in vals])
             label += f" detected={det:.4f} deployed_label_gate={gate:.4f} area_p50_all={ar:.3f}"
+            # Disjoint geometric categories; do not call label clipping digit
+            # clipping, or infer a button/logo identity from box overlap alone.
+            counts = dict(missed=0, disjoint=0, partial_label=0, oversized=0, passed=0)
+            for d, c, a, o in vals:
+                key = ("missed" if not d else "disjoint" if not o else
+                       "partial_label" if not c else "oversized" if a > 2 else "passed")
+                counts[key] += 1
+            label += " failures=" + json.dumps(counts, separators=(",", ":"))
         print(label)
 
 

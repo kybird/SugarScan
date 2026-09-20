@@ -750,7 +750,7 @@ def _reflection_mask(W, H, kind, orng):
     return msk, alpha
 
 
-def render_panel(value, rng, profile=None):
+def render_panel(value, rng, profile=None, scene="panel"):
     """물리 패널 한 장. 반환 dict:
       panel   최종 캔버스(uint8, 긴 변 896)
       quad    밴드 쿼드 4x2(float32, 캔버스 픽셀, TL-TR-BR-BL) — 이미지와 같은
@@ -797,7 +797,7 @@ def render_panel(value, rng, profile=None):
     #
     # 렌더는 이제 1회다. 화면에 무엇이 있는지는 기기가 정하고, 밀도는 그
     # 결과를 재서 보고만 한다(manifest.density).
-    return _render_once(value, rng, profile, pid, inverted)
+    return _render_once(value, rng, profile, pid, inverted, scene=scene)
 
 
 def _gpc_bg_contrast(img, quad, glass_rect):
@@ -805,7 +805,7 @@ def _gpc_bg_contrast(img, quad, glass_rect):
     부분의 중앙값이고, 대비는 쿼드 bbox 안 p95-p5 — 실측 자
     measure_polarity.polarity_of 와 같은 정의다."""
     H, W = img.shape[:2]
-    px0, py0, px1, py1 = glass_rect
+    px0, py0, px1, py1 = map(round, glass_rect)
     qx0, qx1 = int(quad[:, 0].min()), int(np.ceil(quad[:, 0].max()))
     qy0, qy1 = int(quad[:, 1].min()), int(np.ceil(quad[:, 1].max()))
     glass = img[max(0, py0):min(H, py1),
@@ -840,7 +840,7 @@ def glyph_plane_score(img, quad, glyph_warped, glass_rect, ink_thr=None):
     return float((ink & sel).sum()) / max(1, sel.sum())
 
 
-def _render_once(value, rng, profile, pid, inverted):
+def _render_once(value, rng, profile, pid, inverted, scene="panel"):
     label = str(value)
     assert label.isdigit(), f"라벨 오염: {label!r}"
 
@@ -2531,6 +2531,37 @@ def _render_once(value, rng, profile, pid, inverted):
     #    찍으면 사다리꼴이지 평행사변형이 아니다. 쿼드(점 집합)는 이미지 워프와
     #    수학적으로 같은 변환의 점 전용 경로(perspectiveTransform·transform)로
     #    돌린다 — 이미지 워프 함수에 점을 넣는 것은 값/좌표 혼동이다.
+    scene_kind = "panel"
+    if scene not in ("panel", "device", "mixed"):
+        raise ValueError(f"unknown scene: {scene}")
+    # Independent RNG: adding a body must not change the next sample's LCD,
+    # camera draws, or background draws. All geometry is shifted together here.
+    _srng = random.Random(_oseed ^ 0x6A09E667)
+    if scene == "device" or (scene == "mixed" and _srng.random() < .7):
+        from device_scene import compose
+        img, body_mask, glyph_plane, (ox, oy) = compose(
+            img, body_mask, glyph_plane, _srng, body_col, bg_col)
+        quad = quad + np.float32([ox, oy])
+        px0, px1, py0, py1 = px0+ox, px1+ox, py0+oy, py1+oy
+        placer.rects = [(r[0]+ox, r[1]+oy, r[2]+ox, r[3]+oy, *r[4:])
+                        for r in placer.rects]
+        H, W = img.shape
+        # Keep the raster budget equal to the existing panel corpus. The body
+        # adds scene context, not extra input pixels. Resize every plane and
+        # coordinate using the actual integer output dimensions.
+        scale = LONG_SIDE / max(H, W)
+        nh, nw = max(1, round(H*scale)), max(1, round(W*scale))
+        sx, sy = nw/W, nh/H
+        img = cv2.resize(img, (nw, nh), interpolation=cv2.INTER_AREA)
+        body_mask = cv2.resize(body_mask, (nw, nh), interpolation=cv2.INTER_AREA)
+        glyph_plane = cv2.resize(glyph_plane, (nw, nh), interpolation=cv2.INTER_NEAREST)
+        quad *= np.float32([sx, sy])
+        px0, px1, py0, py1 = px0*sx, px1*sx, py0*sy, py1*sy
+        placer.rects = [(r[0]*sx, r[1]*sy, r[2]*sx, r[3]*sy, *r[4:])
+                        for r in placer.rects]
+        H, W = nh, nw
+        mg_l, mg_r, mg_t, mg_b = px0, W-px1, py0, H-py1
+        scene_kind = "device"
     quad0 = quad.copy()
     gp0 = glyph_plane.copy()
     pre = img.copy()
@@ -2735,7 +2766,7 @@ def _render_once(value, rng, profile, pid, inverted):
                 # [[unnamed-coordinate-frame]]
                 rects=placer.rects, quad_panel=np.asarray(quad0, np.float32),
                 dropped=dropped, wh=W / H, W=W, H=H,
-                profile=pid, inverted=bool(inverted),
+                profile=pid, inverted=bool(inverted), scene=scene_kind,
                 glyph_plane_check=round(gpc, 4),
                 glyph_warped=glyph_warped,
                 density=dens if dens is not None else 0.0,
@@ -2773,7 +2804,7 @@ def reader_view(sample):
     return warped, np.asarray(rq, np.float32)
 
 
-def generate(count, seed0, out_dir, with_reader=False, bg="flat"):
+def generate(count, seed0, out_dir, with_reader=False, bg="flat", scene="panel"):
     global PROCEDURAL_BG
     PROCEDURAL_BG = (bg == "procedural")
     out = Path(out_dir)
@@ -2784,8 +2815,13 @@ def generate(count, seed0, out_dir, with_reader=False, bg="flat"):
     clip_total = 0          # 밴드 쿼드가 숫자 필드를 자른 장 수(자가검사)
     for i in range(count):
         val = sample_value(rng)
-        s = render_panel(val, rng)
+        s = render_panel(val, rng, scene=scene)
         name = f"panel_{seed0}_{i}"
+        if scene != "panel":
+            lo, hi = s["quad"].min(0), s["quad"].max(0)
+            dc = s["digit_box"]
+            assert dc is not None and np.all(lo <= np.asarray(dc[:2])+1) and \
+                np.all(hi >= np.asarray(dc[2:])-1), f"digit containment: {name}"
         cv2.imwrite(str(out / "images" / f"{name}.png"), s["panel"])
         q = np.round(s["quad"], 2)
         assert q[:, 0].min() >= 0 and q[:, 0].max() <= s["W"] - 1, \
@@ -2810,7 +2846,7 @@ def generate(count, seed0, out_dir, with_reader=False, bg="flat"):
             # 상자(이미지 좌표). '예측 상자가 숫자를 온전히 담았는가'를 잰다.
             digit_box=None if s["digit_box"] is None
             else [round(float(v), 1) for v in s["digit_box"]],
-            label=s["label"],
+            label=s["label"], scene=s["scene"],
             # 유리 쿼드 — 리더 프레이밍의 입력(실사진의 GM 쿼드에 해당).
             glass_quad=np.round(s["glass_quad"], 2).tolist(),
             inverted=s["inverted"], glyph_plane_check=s["glyph_plane_check"],
@@ -2831,6 +2867,8 @@ def generate(count, seed0, out_dir, with_reader=False, bg="flat"):
             cv2.imwrite(str(out / "reader" / f"{name}.png"), rv)
             rec["quad_reader"] = np.round(rq, 2).tolist()
         manifest.append(rec)
+        if (i+1) % 250 == 0:
+            print(f"rendered {i+1}/{count} scene={scene}", flush=True)
     with open(out / "manifest.jsonl", "w", encoding="utf-8") as f:
         for m in manifest:
             f.write(json.dumps(m, ensure_ascii=False) + "\n")

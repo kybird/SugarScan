@@ -120,7 +120,7 @@ def box_to_bbox(box, w, h):
     return [round(x0, 2), round(y0, 2), round(x1 - x0, 2), round(y1 - y0, 2)]
 
 
-def build_set(name, count, seed, out_root, wide_share=None, bg="flat"):
+def build_set(name, count, seed, out_root, wide_share=None, bg="flat", scene="panel"):
     set_dir = out_root / name
     if set_dir.exists():
         shutil.rmtree(set_dir)
@@ -131,7 +131,7 @@ def build_set(name, count, seed, out_root, wide_share=None, bg="flat"):
     # docs/SPEC.md §9.6). 구판은 None 을 넘겨 프로파일 균등(가로 13.3%)이 됐다.
     synth_panel.set_wide_share(
         synth_panel.DEFAULT_WIDE_SHARE if wide_share is None else wide_share)
-    synth_panel.generate(count, seed, set_dir, bg=bg)
+    synth_panel.generate(count, seed, set_dir, bg=bg, scene=scene)
     (set_dir / "images").rename(set_dir / "train2017")
 
     rows = [json.loads(l) for l in

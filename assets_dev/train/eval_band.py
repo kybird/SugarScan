@@ -92,6 +92,7 @@ def evaluate(ckpt, root, ann, manifest, conf=0.25, batch=32, out=None, input_siz
             det = bool(sc >= conf)
             rows.append({
                 "file_name": fn, "profile": mm.get("profile", "?"),
+                "scene": mm.get("scene", "panel"),
                 "score": float(sc), "pred": [round(v, 1) for v in p],
                 "gt": gt, "iou": round(iou(p, gt), 4) if det else 0.0,
                 "det": det,
@@ -142,6 +143,10 @@ def evaluate(ckpt, root, ann, manifest, conf=0.25, batch=32, out=None, input_siz
     cells = "  ".join(f"τ={t:<4.1f} {100*(ps & (ar <= t)).mean():6.2f}%"
                       for t in (1.2, 1.5, 2.0, 3.0, 5.0))
     print(f"    {cells}")
+    for scene in sorted({r["scene"] for r in rows}):
+        group = [r for r in rows if r["scene"] == scene]
+        passed = sum(r["pass"] and r["area_ratio"] <= 1.2 for r in group)
+        print(f"    scene={scene} n={len(group)} τ=1.2 {100*passed/len(group):.2f}%")
     print("    **τ 확정은 숫자 인식기의 입력 규격이 나온 뒤다 — 곡선만 낸다.**")
     print("  프로파일별 합격률 (낮은 순 5) — **평균으로 판정하지 않는다**")
     for rate, k, cnt in worst[:5]:

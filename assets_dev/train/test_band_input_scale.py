@@ -30,12 +30,16 @@ class InputScaleTest(unittest.TestCase):
             base = {"ow": 416, "oh": 416, "gt": [100, 100, 200, 150],
                     "pred": [100, 100, 200, 150], "det": True}
             rows = [base, dict(base, det=False),
-                    dict(base, pred=[0, 0, 400, 400])]
+                    dict(base, pred=[0, 0, 400, 400]),
+                    dict(base, pred=[0, 0, 20, 20]),
+                    dict(base, pred=[130, 100, 200, 150])]
             path.write_text("\n".join(json.dumps(r) for r in rows))
             out = io.StringIO()
             with contextlib.redirect_stdout(out):
                 cmd_input_scale(predictions=path)
-            self.assertIn("n=3 detected=0.6667 deployed_label_gate=0.3333", out.getvalue())
+            self.assertIn("n=5 detected=0.8000 deployed_label_gate=0.2000", out.getvalue())
+            self.assertIn('"missed":1,"disjoint":1,"partial_label":1,"oversized":1,"passed":1',
+                          out.getvalue())
 
 
 if __name__ == "__main__":
