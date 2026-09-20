@@ -129,6 +129,24 @@ weights/yolox_nano.pth            COCO 사전학습 (Megvii 공식 배포본으�
 있었다. 로컬 재작성만으로는 GitHub 에서 사라지지 않는다 — 강제 푸시가
 필요하고, 그 뒤에도 GitHub 이 수거하기 전까지 커밋 해시로 접근될 수 있다.
 
+### 1.4.1 실촬 코퍼스는 저장소 **바깥**에 산다 (2026-09-19)
+
+95GB 를 `assets_dev/upstream/` 에서 `D:\Project\sugarScan-corpus\` 로 옮기고,
+원래 자리에 **디렉터리 정션**을 걸었다. 코드 참조 82곳을 고치지 않았다.
+
+```
+assets_dev/upstream  --(junction)-->  D:\Project\sugarScan-corpus
+```
+
+왜: (1) 실수로 커밋될 여지를 없앤다 — 위 §1.4 의 사고가 실제로 있었다.
+(2) git 작업(히스토리 재작성·클론·브랜치 전환)이 95GB 를 건드리지 않는다.
+
+**이 폴더는 저장소에 없다. 따로 백업해야 한다.** 내역과 정션 복구 명령은
+`D:\Project\sugarScan-corpus\README.md`.
+
+우리가 그린 라벨(`band_boxes.jsonl` 등)은 **좌표뿐이라 저장소 안에 그대로**
+둔다. 바깥 폴더에는 남의 이미지와 남의 주석만 둔다.
+
 ## 1.5 학습·평가 데이터셋
 
 2026-08-22 확보. 전부 `assets_dev/upstream/` 에 두며 **저장소에 커밋하지 않는다**
