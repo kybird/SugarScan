@@ -100,6 +100,17 @@ SETS = {
     # 네 번째 값이 배경 종류다.
     "TB": (16000, 20261001, 0.50, "procedural"),
     "VB": (1000, 20261002, 0.50, "procedural"),
+
+    # ── 톤 선언 이후 (2026-09-20) ────────────────────────────────────────
+    # TB/VB 와 **시드가 같다.** 배경 밝기 선언(어두움:밝음 = 50:50)만 다르다 —
+    # 생성기가 rng 소비를 안 늘리므로 기기·자세·값이 그대로다. 그래서 TB 와
+    # TC 를 맞대면 **톤 하나만 바꾼 비교**가 된다.
+    "TC": (16000, 20261001, 0.50, "procedural"),
+    "VC": (1000, 20261002, 0.50, "procedural"),
+    # TD/VD 는 위에 **전체 기기 장면**(몸체·버튼)을 더한다. scene=mixed 는
+    # 전체 기기와 기존 크롭을 섞는다 — 실촬에 둘 다 있다.
+    "TD": (16000, 20261001, 0.50, "procedural", "mixed"),
+    "VD": (1000, 20261002, 0.50, "procedural", "mixed"),
 }
 
 CATEGORY = {"id": 1, "name": "glucose_band", "supercategory": "none"}
@@ -278,11 +289,12 @@ def main():
         count, seed = spec[0], spec[1]
         share = spec[2] if len(spec) > 2 else None
         bg = spec[3] if len(spec) > 3 else "flat"
+        scene = spec[4] if len(spec) > 4 else "panel"
         # 배경만 다른 짝(T/TB, V/VB)은 **시드가 같아야** 한다. 그 외에는
         # 겹치면 검출기가 외운 장에 추론하게 되므로 계속 막는다.
         if bg == "flat":
             assert seed not in seeds.values(), f"시드 중복: {name}"
-        coco = build_set(name, count, seed, out_root, share, bg)
+        coco = build_set(name, count, seed, out_root, share, bg, scene)
         seeds[name] = seed
         box_sheet(out_root / name, coco, out_root / f"{name}_boxcheck.png",
                   n=args.sheet_n)
