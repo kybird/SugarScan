@@ -611,11 +611,123 @@ def cmd_input_scale(coco=None, predictions=None, size=416):
         print(label)
 
 
+
+def cmd_tone(limit=0):
+    """**명암 분포**를 합성과 실촬에서 맞댄다 — 색이 아니라 밝기다.
+
+    왜(2026-09-20 사람 물음 "훈련데이터의 색깔이 실제색이랑 많이다른데 이건
+    성능에 영향미치지않나?"): 모델 입력은 **1채널 그레이스케일**이고 학습·평가
+    모두 IMREAD_GRAYSCALE 로 읽는다. 색은 양쪽에서 버려지므로 모델에 도달하지
+    않는다. 그러나 **밝기 분포는 도달한다.** 그래서 색 대신 톤을 잰다.
+
+    셋을 본다:
+      전체 밝기   레터박스 전 원본의 p10/중앙/p90 과 표준편차
+      밴드 안 대비 정답 상자 안에서 밝은 쪽(p90) - 어두운 쪽(p10)
+      밴드/주변   밴드 안 중앙값 - 밴드 바깥 중앙값 (표적이 얼마나 튀는가)
+
+    무차원이 아니라 절대 밝기라 모집단이 달라도 맞댈 수 있는 축이다(0~255 는
+    같은 자다). 다만 **촬영 노출이 다르면 전체 밝기는 당연히 다르다** —
+    읽을 값은 세 번째(밴드가 주변보다 얼마나 튀는가)다.
+    """
+    import zipfile
+    import collections
+    from band_exclusions import load_excluded
+
+    def stats(pairs, name):
+        gl, ct, pop = [], [], []
+        for img, box in pairs:
+            if img is None:
+                continue
+            gl.append((float(np.percentile(img, 10)), float(np.median(img)),
+                       float(np.percentile(img, 90)), float(img.std())))
+            x0, y0, x1, y1 = [int(round(v)) for v in box]
+            x0, y0 = max(0, x0), max(0, y0)
+            x1, y1 = min(img.shape[1], x1), min(img.shape[0], y1)
+            if x1 - x0 < 8 or y1 - y0 < 8:
+                continue
+            inb = img[y0:y1, x0:x1]
+            ct.append(float(np.percentile(inb, 90) - np.percentile(inb, 10)))
+            m = np.ones(img.shape, bool)
+            m[y0:y1, x0:x1] = False
+            if m.any():
+                pop.append(float(np.median(inb) - np.median(img[m])))
+        g = np.asarray(gl)
+        print(f"  {name:<22} n={len(g)}")
+        print(f"    전체 밝기   p10 {g[:,0].mean():5.1f}  중앙 {g[:,1].mean():5.1f}"
+              f"  p90 {g[:,2].mean():5.1f}  |  장내 표준편차 {g[:,3].mean():5.1f}")
+        print(f"    밴드 안 대비(p90-p10)  중앙 {np.median(ct):5.1f}"
+              f"  p10 {np.percentile(ct,10):5.1f}  p90 {np.percentile(ct,90):5.1f}")
+        print(f"    밴드-주변 밝기 차      중앙 {np.median(pop):+5.1f}"
+              f"  p10 {np.percentile(pop,10):+5.1f}  p90 {np.percentile(pop,90):+5.1f}")
+
+    # 합성
+    root = HERE / "synth_coco" / "V"
+    rows = [json.loads(l) for l in
+            (root / "manifest.jsonl").read_text(encoding="utf-8").splitlines()
+            if l.strip()]
+    if limit:
+        rows = rows[:limit]
+    stats([(cv2.imread(str(root / "train2017" / f"{r['id']}.png"),
+                       cv2.IMREAD_GRAYSCALE), [float(v) for v in r["box"]])
+           for r in rows], "합성 V")
+
+    # 실촬 A
+    ex = set(load_excluded())
+    lab = {}
+    for line in (UPSTREAM / "labels.jsonl").read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            j = json.loads(line)
+            lab[j["id"]] = j["image"]
+    band = {}
+    for line in BAND_BOXES.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            j = json.loads(line)
+            if j.get("quad"):
+                a = np.asarray(j["quad"], float)
+                band[j["id"]] = [a[:, 0].min(), a[:, 1].min(),
+                                 a[:, 0].max(), a[:, 1].max()]
+    ids = [i for i in sorted(band) if i in lab and i not in ex]
+    if limit:
+        ids = ids[:limit]
+    stats([(cv2.imread(str(UPSTREAM / lab[i]), cv2.IMREAD_GRAYSCALE), band[i])
+           for i in ids], "실촬 Datumo")
+
+    # Roboflow READING
+    z = (HERE.parent / "upstream" / "roboflow-glucometer-images"
+         / "Glucometer_images.coco.zip")
+    ext = z.parent / "extracted"
+    pairs = []
+    with zipfile.ZipFile(z) as f:
+        for split in ("train", "valid"):
+            j = json.loads(f.read(f"{split}/_annotations.coco.json"))
+            cat = {c["id"]: c["name"] for c in j["categories"]}
+            per = collections.defaultdict(dict)
+            for a in j["annotations"]:
+                per[a["image_id"]][cat[a["category_id"]]] = a["bbox"]
+            for im in j["images"]:
+                d = per.get(im["id"], {})
+                if "READING" not in d:
+                    continue
+                fp = ext / split / im["file_name"]
+                if not fp.exists():
+                    continue
+                b = d["READING"]
+                pairs.append((cv2.imread(str(fp), cv2.IMREAD_GRAYSCALE),
+                              [b[0], b[1], b[0]+b[2], b[1]+b[3]]))
+                if limit and len(pairs) >= limit:
+                    break
+            if limit and len(pairs) >= limit:
+                break
+    stats(pairs, "실촬 Roboflow")
+    print("  **색은 모델에 도달하지 않는다** — 입력 1채널, 양쪽 다 "
+          "IMREAD_GRAYSCALE. 읽을 값은 밴드가 주변보다 얼마나 튀는가다.")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("cmd", choices=["aspect", "band", "density", "synth-density",
                                     "synth-band", "coco", "band-frame",
-                                    "band-convention", "input-scale",
+                                    "band-convention", "tone", "input-scale",
                                     "shortcut"])
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--frame-exc", type=float, default=0.0)
@@ -640,6 +752,8 @@ def main():
         cmd_band()
     elif a.cmd == "density":
         cmd_density(a.limit, a.frame_exc)
+    elif a.cmd == "tone":
+        cmd_tone(a.limit)
     elif a.cmd == "band-convention":
         cmd_band_convention()
     elif a.cmd == "band-frame":
