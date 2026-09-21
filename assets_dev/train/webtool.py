@@ -62,6 +62,14 @@ PROFEDIT_HTML = HERE / "prof_edit.html"  # 프로파일 에디터 — 덮어쓰�
 # 승인하기 쉽다(시범 79장 중 10장이 여기 걸린다).
 # LCD 라벨도 같은 이유로 `screen_boxes.jsonl` 을 새로 팠다 — 그 선례를 따른다.
 BAND_FILE = HERE / "band_boxes.jsonl"
+# Roboflow 사진을 **우리 밴드 규약으로** 잰 라벨. 별도 파일이다 —
+# band_boxes.jsonl 은 Datumo 전용이고 읽기 전용이다. 섞으면 두 코퍼스의
+# 라벨 주체가 한 파일에 들어가 나중에 무엇이 무엇인지 못 가른다.
+# 용도는 **측정 하나뿐**이다: Roboflow 의 READING 라벨과 우리 규약이 얼마나
+# 다른지(좌-우 쏠림 +0.247, BAND_EXP_PLAN §18.6) 를 가른다.
+# **학습에 쓰지 않는다** — Roboflow 는 CC BY 4.0 (docs/LICENSES.md §1.4).
+RF_BAND_FILE = HERE / "rf_band_boxes.jsonl"
+RF_QUEUE = HERE / "rf_label_queue.json"
 BAND_LEGACY = HERE / "labeled.jsonl"   # 보존만. 읽지도 쓰지도 않는다.
 LCD_FILE = HERE / "screen_boxes.jsonl"
 GT_FIX = HERE / "gt_corrections.jsonl"
@@ -158,6 +166,12 @@ def write_jsonl(p: Path, rows: dict):
     tmp.replace(p)
 
 
+def _label_file(mode):
+    """라벨 모드 -> 파일. **모르는 모드를 기본값으로 떨어뜨리지 않는다** —
+    떨어뜨리면 오타 하나가 엉뚱한 파일을 덮어쓴다."""
+    return {"band": BAND_FILE, "lcd": LCD_FILE, "rfband": RF_BAND_FILE}[mode]
+
+
 def load_readings():
     rows = read_jsonl(DATUMO / "labels.jsonl")
     return {k: v["reading"] for k, v in rows.items()}
@@ -198,7 +212,7 @@ def api_meta(qs):
 @route("/api/labels")
 def api_labels(qs):
     mode = qs.get("mode", ["band"])[0]
-    p = BAND_FILE if mode == "band" else LCD_FILE
+    p = _label_file(mode)
     rows = read_jsonl(p)
     out = {}
     for cid, j in rows.items():
@@ -1328,6 +1342,47 @@ def api_synth_real(qs):
             "labeled": sorted(labeled & set(ids)), "ids": ids}
 
 
+def resolve_photo(cid):
+    """사진 id -> 실제 파일 경로. 없으면 None.
+
+    api_image 와 _verify_frame 이 **같은 규칙**을 써야 한다. 갈라지면 화면에는
+    보이는데 저장이 거부되거나(그 반대) 하는 상태가 생긴다.
+    """
+    if not cid or ".." in cid or cid.startswith("/"):
+        return None
+    src = IMAGES / f"{cid}.jpg"
+    if "/" in cid:
+        pre, rest = cid.split("/", 1)
+        if pre in ALT_CORPORA:
+            # **확장자를 하나로 가정하지 않는다.** Roboflow 는 .jpg 와 .jpeg 가
+            # 섞여 있다(1,273장 중 123장). 2026-09-19 에 여기서 깨졌다.
+            for _ext in (".jpg", ".jpeg", ".png", ".JPG", ".JPEG"):
+                cand = ALT_CORPORA[pre] / f"{rest}{_ext}"
+                if cand.exists():
+                    return cand
+            return None
+    return src if src.exists() else None
+
+
+@route("/api/rfqueue")
+def api_rfqueue(qs):
+    """Roboflow 라벨 대기열 — build_rf_label_queue.py 가 만든다.
+
+    대기열에는 **모델 예측도 Roboflow 라벨도 담지 않는다.** 화면에 미리
+    보여 주면 사람이 그것을 따라 그리게 되고, 그러면 '규약 차이'를 재려던
+    측정이 '모델과의 일치도' 측정으로 바뀐다.
+    """
+    if not RF_QUEUE.exists():
+        return {"error": "대기열 없음 — build_rf_label_queue.py 를 먼저 돌릴 것"}
+    q = json.loads(RF_QUEUE.read_text(encoding="utf-8"))
+    done = read_jsonl(RF_BAND_FILE)
+    for it in q["items"]:
+        r = done.get(it["id"]) or {}
+        it["done"] = bool(r.get("quad")) or r.get("source") == "skipped"
+    return {"items": q["items"], "note": q.get("note", ""),
+            "done_count": sum(1 for i in q["items"] if i["done"])}
+
+
 @route("/api/image")
 def api_image(qs):
     cid = qs.get("id", [""])[0]
@@ -1335,23 +1390,8 @@ def api_image(qs):
     # id 는 하위폴더 포함 경로명(glucose_batch1/1) — .. 만 차단
     if not cid or ".." in cid or cid.startswith("/"):
         return {"error": "bad id"}
-    src = IMAGES / f"{cid}.jpg"
-    if "/" in cid:
-        pre, rest = cid.split("/", 1)
-        if pre in ALT_CORPORA:
-            # **확장자를 하나로 가정하지 않는다.** Roboflow 는 .jpg 와 .jpeg
-            # 가 섞여 있고(1,273장 중 123장이 .jpeg), id 는 확장자를 떼고
-            # 만들어진다. .jpg 만 붙이면 그 장들이 404 로 깨져 보인다
-            # (2026-09-19 사람 보고). 평가는 실제 파일명을 썼으므로 수치는
-            # 멀쩡하고 **화면 조회만** 깨졌던 것이다.
-            for _ext in (".jpg", ".jpeg", ".png", ".JPG", ".JPEG"):
-                cand = ALT_CORPORA[pre] / f"{rest}{_ext}"
-                if cand.exists():
-                    src = cand
-                    break
-            else:
-                src = ALT_CORPORA[pre] / f"{rest}.jpg"
-    if not src.exists():
+    src = resolve_photo(cid)
+    if src is None:
         return {"error": "not found"}
     # 박스 좌표계는 EXIF 적용(표시) 이미지 기준 — 라벨러·검수·캐시 전부 동일 관례
     ow, oh = _oriented_size(src)
@@ -1702,8 +1742,8 @@ def _verify_frame(cid, quad, body):
 
     반환: (에러문자열 또는 None, ow, oh)
     """
-    src = IMAGES / f"{cid}.jpg"
-    if not src.exists():
+    src = resolve_photo(cid)
+    if src is None:
         return f"원본 이미지 없음: {cid}", 0, 0
     try:
         ow, oh = _oriented_size(src)
@@ -1921,6 +1961,13 @@ class Handler(BaseHTTPRequestHandler):
             mime = "image/png" if f.suffix == ".png" else "image/jpeg"
             self._send(200, f.read_bytes(), mime)
             return
+        if u.path == "/rfband":
+            f = HERE / "rf_band_label.html"
+            if f.exists():
+                self._send(200, f.read_bytes(), "text/html; charset=utf-8")
+            else:
+                self._send(404, "rf_band_label.html 없음".encode(), "text/plain")
+            return
         if u.path == "/aug":
             f = HERE / "aug_view.html"
             if f.exists():
@@ -2049,7 +2096,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         if u.path == "/api/label":
             mode = body.get("mode", "band")
-            p = BAND_FILE if mode == "band" else LCD_FILE
+            p = _label_file(mode)
             rows = read_jsonl(p)
             cid = body.get("id", "")
             src = body.get("source", "human")

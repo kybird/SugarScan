@@ -1,0 +1,329 @@
+{
+ "items": [
+  {
+   "id": "rf/valid/IMG20241209124821_jpg.rf.4iJuSOu41Zw8OvxS5UkA",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/valid/VID20241209133213_mp4-0001_jpg.rf.OnDaEIifjlNOUZZCmn1C",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/train/IMG_6143_jpg.rf.u2igTt4484uDoZw53TL2",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/train/IMG_5773_jpg.rf.q6QsRSThaV4ehir3588Z",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/valid/IMG20241209125544_jpg.rf.09ffBLP0CabLUwUd6Fx5",
+   "stratum": "fail"
+  },
+  {
+   "id": "rf/train/IMG_6305_jpg.rf.qBxc9NMhGdbtMdVBCgm2",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/train/IMG_6779_jpg.rf.4WxXpuAMTi8IEqgOghhs",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/valid/IMG20241209125247_jpg.rf.4ahlDKdkDf8LkWjakPMT",
+   "stratum": "fail"
+  },
+  {
+   "id": "rf/valid/IMG20241209151503_jpg.rf.xu3Zy3vUUwSiTCYZ0oqu",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/valid/IMG20241209123937_jpg.rf.6eNqrZnaoSVP1X8yAq0v",
+   "stratum": "fail"
+  },
+  {
+   "id": "rf/train/IMG_6946_jpg.rf.Xmbpi00MuNUQ1CTN6XkE",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/valid/IMG20241209151216_jpg.rf.qg3zrQFtEPVEr0k2Ldew",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/valid/IMG20241209124103_jpg.rf.3kL08ZUegJ75aYCphYsM",
+   "stratum": "fail"
+  },
+  {
+   "id": "rf/train/IMG_6285_jpg.rf.ESCwQSYey7pjmy8tjoDp",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/train/IMG_6754_jpg.rf.tszAFOtkIyqQvpICRHzb",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/valid/IMG20241209125540_jpg.rf.ZhTcXPSUJGhAKTgWzQ1D",
+   "stratum": "fail"
+  },
+  {
+   "id": "rf/train/IMG_6102_jpg.rf.eqGtTpLfQiBMfXBPRPLX",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/train/IMG_6216_jpg.rf.RRQK6TpCThkaSHhYGdax",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/valid/IMG20241209125218_jpg.rf.8MlPjh9RdwMFTtjXbUiY",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/valid/IMG20241209125543 (1)_jpg.rf.jVUZ1GtqTqBM42n2UreB",
+   "stratum": "fail"
+  },
+  {
+   "id": "rf/valid/VID20241209133213_mp4-0000_jpg.rf.dPBewv2uwY7M1Y7oiimC",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/valid/IMG20241209125538_01_jpg.rf.peRzXwEYN3Q7SE1eKhri",
+   "stratum": "fail"
+  },
+  {
+   "id": "rf/valid/IMG20241209124135_jpg.rf.z0YCoWHMWkKtfboml7Io",
+   "stratum": "fail"
+  },
+  {
+   "id": "rf/valid/IMG20241209124854_jpg.rf.0iK5aWtNzHu78Z6LR3ew",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/train/IMG20241209132904_jpg.rf.HBtL51iAxepeoONzpyRQ",
+   "stratum": "fail"
+  },
+  {
+   "id": "rf/train/IMG_5904_jpg.rf.6NUi1zgQAKxNCHRDEEbd",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/valid/IMG20241209132420_jpg.rf.BYzfiAGm8q44TdpKSpgV",
+   "stratum": "fail"
+  },
+  {
+   "id": "rf/train/IMG20241209124034_jpg.rf.XJGo342YIx19LFoqiW1d",
+   "stratum": "fail"
+  },
+  {
+   "id": "rf/train/IMG_5906_jpg.rf.akXKn6VcMdgUWQGVHcdV",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/train/IMG_6945_jpg.rf.JqDKy7ttB97cdzvGfOa0",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/valid/IMG20241209125158_jpg.rf.FQWNmTbCtETdZjEsMG9V",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/valid/IMG20241209125238_jpg.rf.IadUKD40sGZsNe3P2ftV",
+   "stratum": "fail"
+  },
+  {
+   "id": "rf/train/IMG20241209124859_jpg.rf.Ke3ClhQB5IsMIZh6upLy",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/train/IMG_6240_jpg.rf.VCqyztMMLBvG74QVwFml",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/valid/IMG_6957_MOV-0000_jpg.rf.iQ1Ar6H8pcoG3JLq6vM8",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/valid/IMG20241209123958_jpg.rf.GqQFKr7hdgQEazFY9GUd",
+   "stratum": "fail"
+  },
+  {
+   "id": "rf/valid/IMG20241209124112_jpg.rf.1u2vlEcyr7eywFfQXJ8L",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/train/IMG_5781_jpg.rf.kr7n0qxO0NvAD9TN8ngo",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/train/IMG_6212_jpg.rf.28nHFEjpTXhG8vlnOOk6",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/train/IMG_6103_jpg.rf.9fAim6vRJH7PASZicSoz",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/train/IMG_6214_jpg.rf.OAxXlCPziBzrKz2xPPhZ",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/valid/IMG20241209125543_jpg.rf.zHfMne1DCWX00sAeiJjB",
+   "stratum": "fail"
+  },
+  {
+   "id": "rf/valid/IMG20241209151231_jpg.rf.HotqsFyRo7pVDHKIUVl4",
+   "stratum": "fail"
+  },
+  {
+   "id": "rf/train/IMG20241209132901_jpg.rf.6bGFp1ODWCjbIH7ueTS8",
+   "stratum": "fail"
+  },
+  {
+   "id": "rf/train/IMG20241209125539_jpg.rf.S3sS49OiQXZOYX6OoabX",
+   "stratum": "fail"
+  },
+  {
+   "id": "rf/train/IMG_6755_jpg.rf.915CZTvQ4cuRl0CDrxci",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/train/IMG_6766_jpg.rf.iYUBcFkZsv4rG51lpcn9",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/valid/WhatsApp Image 2024-12-09 at 3-45-27 PM (5)_jpeg.rf.E5NvWsuLmD3A87S3A4KX",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/train/IMG_6078_jpg.rf.tF0xn3XCV2blICMxJNDh",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/valid/IMG20241209125239_jpg.rf.kbekaWOCwhxtDTsy66fX",
+   "stratum": "fail"
+  },
+  {
+   "id": "rf/train/IMG20241209124146_jpg.rf.9p6Fr5j12tdWk5RMTzaa",
+   "stratum": "fail"
+  },
+  {
+   "id": "rf/train/IMG_7030_jpg.rf.6BtzYtWCVb6BQ05Z5Wil",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/valid/IMG20241209125534_jpg.rf.KuxFyEDHcZUZFFhSbIaj",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/train/IMG_6073_jpg.rf.0j4oJU67TOxXBhL4gPlT",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/train/IMG20241209124150_jpg.rf.PCFRJsInaeM0VLMoJn6R",
+   "stratum": "fail"
+  },
+  {
+   "id": "rf/valid/IMG20241209151345_jpg.rf.E3JFNOVkmN3N0GR4JsIl",
+   "stratum": "fail"
+  },
+  {
+   "id": "rf/valid/IMG20241209125330_jpg.rf.vPRMjydUG7DPtLwq931w",
+   "stratum": "fail"
+  },
+  {
+   "id": "rf/train/IMG20241209132419_jpg.rf.kCJAOUiLtKs89DT08srE",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/valid/IMG20241209123936_jpg.rf.AePpXWnnnvOjJKmnsnSs",
+   "stratum": "fail"
+  },
+  {
+   "id": "rf/train/IMG20241209132055_jpg.rf.lzUAo4UbDAx7MsKT4VHi",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/valid/IMG20241209125558_jpg.rf.WgNeZnQ5zsY45LXZv5bw",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/valid/IMG20241209125250_jpg.rf.LujZ4diy8geD3ZYoUUEx",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/valid/IMG20241209132422_jpg.rf.4RtwGZSLPgJ9avo3IKVF",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/train/IMG20241209124147_jpg.rf.eICqmednwUqt1APHvdgQ",
+   "stratum": "fail"
+  },
+  {
+   "id": "rf/train/IMG_5949_jpg.rf.Cw4PNc7Yq5rrIu6nMNMX",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/train/IMG20241209151255_jpg.rf.cxYF2gdqgPWwp4aZpFgM",
+   "stratum": "fail"
+  },
+  {
+   "id": "rf/train/IMG_6955_jpg.rf.Jw3xTFkXFmORno7BVtcW",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/valid/IMG20241209132945_jpg.rf.hTsWUyTaxHr8KIiboOIw",
+   "stratum": "fail"
+  },
+  {
+   "id": "rf/train/IMG_5907_jpg.rf.u6K7vndNrS1jrG9mPSYg",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/train/IMG_6300_jpg.rf.wB6SUTFabqxNJaQAm4RY",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/train/IMG_6806_jpg.rf.ltbRzQ3F3h40AO159dUh",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/valid/IMG20241209123913_jpg.rf.TqiL9kJJ6biyikzZ3MP9",
+   "stratum": "fail"
+  },
+  {
+   "id": "rf/train/IMG_6920_jpg.rf.NS77yWYNYS8oLpT9O8yu",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/train/IMG_6791_jpg.rf.up80AIGotjm5IT6F61RV",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/train/IMG_5814_jpg.rf.WAgRvjaOejIUP0GKxTKS",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/train/IMG_6958_MOV-0001_jpg.rf.4HDlQjthh4xWxo1CNj3j",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/train/IMG20241209124039_jpg.rf.YkQ6SjiOECJcd7tzXLVR",
+   "stratum": "fail"
+  },
+  {
+   "id": "rf/train/WhatsApp Image 2024-12-09 at 3-47-54 PM_jpeg.rf.qMH6AUWnLh5j2sPzoZ5k",
+   "stratum": "rand"
+  },
+  {
+   "id": "rf/train/IMG_5843_jpg.rf.C18RvW2VOE2K7znrgX21",
+   "stratum": "fail"
+  }
+ ],
+ "arm": "atone",
+ "seeds": [
+  0,
+  1,
+  2,
+  3
+ ],
+ "pick_seed": 20260920,
+ "note": "개발 586 에서 79장 — 일부만 29 · 무작위 50. 우리 규약(숫자 칸 + 사방 0.10x숫자높이)으로 그린다. 측정 전용, 학습 금지."
+}
