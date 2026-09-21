@@ -2237,6 +2237,43 @@ def _atlas_proxy(handler, path, method="GET", body=None):
                       "text/plain; charset=utf-8")
 
 
+# ── 공유 상단 메뉴 — 모든 페이지가 같은 것을 쓴다 (2026-09-21) ─────────────
+# 사람 지시: "상위메뉴는 모든 페이지가 공유하게 하자.. 존나헤깔린다. 상단메뉴는
+# 모든 페이지가 공유하게하라 패널간 전환할수있도록".
+# 여기 한 곳에 정의하고 페이지를 내줄 때 <body> 바로 뒤에 주입한다 — 8개
+# 화면에 각자 복사하면 다시 흩어진다. 작업대(/)는 자체 탭+버튼 머리글이
+# 같은 역할을 하므로 주입하지 않고, 대신 /#탭 해시로 탭이 열리게 했다.
+_NAV_TABS = (("labeler", "라벨러"), ("monitor", "모니터"), ("devices", "기종"),
+             ("atlas", "아틀라스"), ("train", "훈련"))
+_NAV_PAGES = (("/livecmp", "실촬 검수"), ("/devices", "기종 라벨링"),
+              ("/synth", "합성 코퍼스"), ("/profedit", "프로파일"),
+              ("/aug", "증강"), ("/inkclip", "잉크 검사"),
+              ("/rfband", "Roboflow 라벨"))
+_NAV_CSS = (
+    "<style>#topnav{display:flex;flex-wrap:wrap;gap:6px;align-items:center;"
+    "padding:6px 12px;background:#14161a;border-bottom:1px solid #333;"
+    "font:12.5px system-ui,sans-serif;}"
+    "#topnav a{color:#9aa3ad;background:#23262c;border:1px solid #3a3e46;"
+    "padding:4px 12px;border-radius:6px;text-decoration:none;white-space:nowrap;}"
+    "#topnav a:hover{color:#fff;border-color:#5b8dbf;}"
+    "#topnav a.cur{color:#06121f;background:#5b8dbf;border-color:#5b8dbf;"
+    "font-weight:700;}"
+    "#topnav .sep{width:1px;height:18px;background:#3a3e46;margin:0 4px;}"
+    "#topnav .cap{color:#666;margin-right:2px;}</style>")
+
+
+def _topnav(cur):
+    h = [_NAV_CSS, '<nav id="topnav">']
+    h.append('<span class="cap">작업대</span>')
+    h += [f'<a href="/#{t}">{L}</a>' for t, L in _NAV_TABS]
+    h.append('<span class="sep"></span><span class="cap">화면</span>')
+    for p, L in _NAV_PAGES:
+        k = ' class="cur"' if p == cur else ""
+        h.append(f'<a href="{p}"{k}>{L}</a>')
+    h.append("</nav>")
+    return "".join(h)
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         pass  # 요청 로그 조용히 (콘솔에 학습 로그만)
@@ -2252,6 +2289,27 @@ class Handler(BaseHTTPRequestHandler):
     def _json(self, obj, code=200):
         self._send(code, json.dumps(obj, ensure_ascii=False).encode("utf-8"),
                    "application/json; charset=utf-8")
+
+    def _send_page(self, fname, cur):
+        """페이지 HTML 에 공유 상단 메뉴(_topnav)를 주입해 내준다.
+
+        <body> 가 없는 페이지(암묵 body — 대부분 그렇다)는 첫 <header> 앞에
+        넣는다. doctype 앞에 넣으면 quirks mode 로 떨어진다.
+        """
+        f = HERE / fname
+        if not f.exists():
+            self._send(404, f"{fname} 없음".encode(), "text/plain")
+            return
+        html = f.read_text(encoding="utf-8")
+        bar = _topnav(cur)
+        m = re.search(r"<body[^>]*>", html)
+        at = m.end() if m else None
+        if at is None:
+            m = re.search(r"<header", html)
+            # 둘 다 없으면 doctype 다음 줄 — doctype 앞에 넣으면 quirks mode
+            at = m.start() if m else html.find("\n") + 1
+        html = html[:at] + bar + html[at:]
+        self._send(200, html.encode("utf-8"), "text/html; charset=utf-8")
 
     def do_GET(self):
         u = urlparse(self.path)
@@ -2269,17 +2327,10 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(404, "webtool.html 없음 — 서버 옆에 만들 것".encode(), "text/plain")
             return
         if u.path == "/synth":
-            if SYNTH_HTML.exists():
-                self._send(200, SYNTH_HTML.read_bytes(), "text/html; charset=utf-8")
-            else:
-                self._send(404, "synth_view.html 없음".encode(), "text/plain")
+            self._send_page("synth_view.html", "/synth")
             return
         if u.path == "/profedit":
-            if PROFEDIT_HTML.exists():
-                self._send(200, PROFEDIT_HTML.read_bytes(),
-                           "text/html; charset=utf-8")
-            else:
-                self._send(404, "prof_edit.html 없음".encode(), "text/plain")
+            self._send_page("prof_edit.html", "/profedit")
             return
         if u.path == "/synthimg":
             # 합성 PNG 를 그대로 낸다. 리사이즈하지 않는다 — 좌표가 manifest
@@ -2320,32 +2371,16 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             return
         if u.path == "/livecmp":
-            f = HERE / "live_view.html"
-            if f.exists():
-                self._send(200, f.read_bytes(), "text/html; charset=utf-8")
-            else:
-                self._send(404, "live_view.html 없음".encode(), "text/plain")
+            self._send_page("live_view.html", "/livecmp")
             return
         if u.path == "/inkclip":
-            f = HERE / "ink_clip_view.html"
-            if f.exists():
-                self._send(200, f.read_bytes(), "text/html; charset=utf-8")
-            else:
-                self._send(404, "ink_clip_view.html 없음".encode(), "text/plain")
+            self._send_page("ink_clip_view.html", "/inkclip")
             return
         if u.path == "/rfband":
-            f = HERE / "rf_band_label.html"
-            if f.exists():
-                self._send(200, f.read_bytes(), "text/html; charset=utf-8")
-            else:
-                self._send(404, "rf_band_label.html 없음".encode(), "text/plain")
+            self._send_page("rf_band_label.html", "/rfband")
             return
         if u.path == "/aug":
-            f = HERE / "aug_view.html"
-            if f.exists():
-                self._send(200, f.read_bytes(), "text/html; charset=utf-8")
-            else:
-                self._send(404, "aug_view.html 없음".encode(), "text/plain")
+            self._send_page("aug_view.html", "/aug")
             return
         if u.path == "/bandreal":
             # 2026-09-21 사람 지시로 /livecmp 에 흡수됐다(라이브 추론으로
@@ -2355,11 +2390,7 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             return
         if u.path == "/devices":
-            if DEVICES_HTML.exists():
-                self._send(200, DEVICES_HTML.read_bytes(),
-                           "text/html; charset=utf-8")
-            else:
-                self._send(404, "devices.html 없음".encode(), "text/plain")
+            self._send_page("devices.html", "/devices")
             return
         if u.path == "/photo":
             # <img src> 가 한 번에 쓸 수 있는 이진 응답. /api/image 는 JSON 으로

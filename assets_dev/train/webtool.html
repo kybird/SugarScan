@@ -342,6 +342,14 @@ function fmtPct(x) { return (100 * x).toFixed(1) + "%"; }
 
 /* ================= 탭 전환 ================= */
 let activeTab = "labeler";
+const activateTab = name => {
+  const btn = document.querySelector(`nav .tab[data-tab="${name}"]`);
+  if (btn) btn.click();
+};
+// 공유 상단 메뉴(다른 페이지의 #topnav)가 /#모니터 처럼 해시로 탭을
+// 지정해 들어온다(2026-09-21 사람 지시: 상단 메뉴를 모든 페이지가 공유).
+addEventListener("hashchange", () => activateTab(location.hash.slice(1)));
+if (location.hash) activateTab(location.hash.slice(1));
 document.querySelectorAll("nav .tab").forEach(btn => {
   btn.addEventListener("click", () => {
     activeTab = btn.dataset.tab;
