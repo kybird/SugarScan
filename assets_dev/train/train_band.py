@@ -428,8 +428,8 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--size", type=int, default=416)
     ap.add_argument("--stride", type=int, default=16, choices=(8, 16),
-                    help="검출 특징맵 stride. /8 허용은 2026-09-21 사람 결정"
-                         "(SPEC §5.3). 기본 16 은 기존 팔과 같다")
+                    help="검출 특징맵 stride. /8 은 8번(2026-09-21)이 기각해"
+                         " SPEC 밖이다 — 재현용으로만 남아 있다")
     ap.add_argument("--width", type=float, default=1.0)
     ap.add_argument("--batch", type=int, default=32)
     ap.add_argument("--steps", type=int, default=6000)
