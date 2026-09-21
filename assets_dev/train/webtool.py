@@ -1386,6 +1386,10 @@ def api_inkclip(qs):
         sel = [r for r in rows_ if r["cut"] and r["cls"] == "통과"]
     elif only == "insane":             # 잉크가 READING 밖으로 나간 장
         sel = [r for r in rows_ if not r.get("sane", True)]
+    elif only in ("일부만", "딴 데"):
+        # **원인이 다를 수 있으니 섞어 놓지 않는다.** 딴 데는 정의상 다른
+        # 물체를 잡은 것이라, 같이 보면 일부만의 실제 어긋남이 가려진다.
+        sel = [r for r in rows_ if r["cut"] and r["cls"] == only]
     else:
         sel = rows_
     # 모자란 폭이 큰 것부터 — 애매한 것보다 명백한 것을 먼저 보여 줘야
