@@ -1367,6 +1367,113 @@ def resolve_photo(cid):
     return src if src.exists() else None
 
 
+@route("/api/arms")
+def api_arms(qs):
+    """**팔끼리 맞대 눈으로 본다.** 2026-09-20 사람 규칙:
+    "결과가나오면 앞으로 항상 웹툴에서 눈으로 검사하게하자".
+
+    왜 이 화면이 필요한가: 같은 회차에서 다섯 팔을 '담음' 열만 보고 기각했다가
+    게이트로 다시 재니 다섯 다 유의하게 이겼다(BAND_EXP_PLAN §22). 상자가
+    **조여진 것**이었는데 숫자 한 열로는 안 보였다. 두 팔의 상자를 같은
+    사진에 겹쳐 그리면 한눈에 보인다.
+
+    판정을 **두 자로 함께** 낸다 — 담음과 게이트. 한 열만 내면 같은 실수를
+    반복한다.
+    """
+    import importlib
+    rfm = importlib.import_module("report_fail_mix")
+    a = qs.get("a", [""])[0]
+    b = qs.get("b", [""])[0]
+    if not a:
+        # 팔 목록 — _diag 아래에서 roboflow_*_s0.jsonl 을 찾는다.
+        out = []
+        for d in sorted((HERE / "_diag").glob("*/")):
+            for f in sorted(d.glob("roboflow_*_s0.jsonl")):
+                out.append({"arm": f.name[len("roboflow_"):-len("_s0.jsonl")],
+                            "dir": f"_diag/{d.name}"})
+        return {"arms": out}
+
+    seeds = [int(x) for x in qs.get("seeds", ["0,1,2,3"])[0].split(",")]
+    split = qs.get("split", ["dev"])[0]
+    keep = None
+    sp = HERE / "rf_split.json"
+    if split != "all" and sp.exists():
+        keep = set(json.loads(sp.read_text(encoding="utf-8"))[split])
+
+    def load(spec):
+        arm, d = spec.split("@")
+        acc = {}
+        for sd in seeds:
+            for r in rfm.rows(HERE / d / f"roboflow_{arm}_s{sd}.jsonl"):
+                if keep is not None and r["id"] not in keep:
+                    continue
+                if not r.get("gt"):
+                    continue
+                cls = rfm.classify(r)
+                gate = False
+                ar = float("nan")
+                if r.get("det"):
+                    e = rfm.pad(r["pred"])
+                    g = r["gt"]
+                    ga = max(1.0, (g[2]-g[0]) * (g[3]-g[1]))
+                    ar = max(0.0, e[2]-e[0]) * max(0.0, e[3]-e[1]) / ga
+                    gate = (cls == "통과") and ar <= 2.0
+                x = acc.setdefault(r["id"], {"gt": r["gt"], "ow": r["ow"],
+                                             "oh": r["oh"], "cls": [],
+                                             "gate": [], "ar": [],
+                                             "pred": None})
+                x["cls"].append(cls); x["gate"].append(gate); x["ar"].append(ar)
+                if sd == seeds[0]:
+                    x["pred"] = r.get("pred")
+        return acc
+
+    A, B = load(a), load(b) if b else {}
+    ids = sorted(set(A) & set(B)) if B else sorted(A)
+    only = qs.get("only", ["gate_diff"])[0]
+
+    def frac(x, k):
+        v = x[k]
+        return sum(1 for t in v if (t is True or t == "통과")) / max(1, len(v))
+
+    items = []
+    for i in ids:
+        ga, gb = frac(A[i], "gate"), (frac(B[i], "gate") if B else 0.0)
+        ca, cb = frac(A[i], "cls"), (frac(B[i], "cls") if B else 0.0)
+        if only == "gate_diff" and B and abs(ga - gb) < 0.5:
+            continue
+        if only == "b_better" and not (B and gb - ga >= 0.5):
+            continue
+        if only == "a_better" and not (B and ga - gb >= 0.5):
+            continue
+        if only == "both_fail" and not (ca < 0.5 and (not B or cb < 0.5)):
+            continue
+        rr = min(416 / A[i]["ow"], 416 / A[i]["oh"])
+        items.append({
+            "id": i, "gt": A[i]["gt"],
+            "cells": round((A[i]["gt"][3]-A[i]["gt"][1]) * rr / 16.0, 2),
+            "digit": [round(v, 1) for v in rfm.digit_cell(A[i]["gt"])],
+            "a": {"pred": A[i]["pred"],
+                  "deploy": [round(v, 1) for v in rfm.pad(A[i]["pred"])]
+                  if A[i]["pred"] else None,
+                  "cont": round(100*ca), "gate": round(100*ga),
+                  "ar": round(float(np.nanmedian(A[i]["ar"])), 2)},
+            "b": ({"pred": B[i]["pred"],
+                   "deploy": [round(v, 1) for v in rfm.pad(B[i]["pred"])]
+                   if B[i]["pred"] else None,
+                   "cont": round(100*cb), "gate": round(100*gb),
+                   "ar": round(float(np.nanmedian(B[i]["ar"])), 2)}
+                  if B else None)})
+    items.sort(key=lambda t: (t["cells"], t["id"]))
+    summ = {"n": len(ids),
+            "a_cont": round(100*np.mean([frac(A[i], "cls") for i in ids]), 1),
+            "a_gate": round(100*np.mean([frac(A[i], "gate") for i in ids]), 1)}
+    if B:
+        summ["b_cont"] = round(100*np.mean([frac(B[i], "cls") for i in ids]), 1)
+        summ["b_gate"] = round(100*np.mean([frac(B[i], "gate") for i in ids]), 1)
+    return {"items": items[:200], "shown": min(200, len(items)),
+            "matched": len(items), "summary": summ}
+
+
 @route("/api/inkclip")
 def api_inkclip(qs):
     """잉크 자가 **잘렸다**고 판정한 장들. 상자 네 개를 다 넘긴다.
@@ -1999,6 +2106,13 @@ class Handler(BaseHTTPRequestHandler):
                 return
             mime = "image/png" if f.suffix == ".png" else "image/jpeg"
             self._send(200, f.read_bytes(), mime)
+            return
+        if u.path == "/arms":
+            f = HERE / "arms_view.html"
+            if f.exists():
+                self._send(200, f.read_bytes(), "text/html; charset=utf-8")
+            else:
+                self._send(404, "arms_view.html 없음".encode(), "text/plain")
             return
         if u.path == "/inkclip":
             f = HERE / "ink_clip_view.html"
