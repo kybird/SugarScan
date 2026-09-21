@@ -1,18 +1,19 @@
 <!doctype html>
 <meta charset="utf-8">
-<title>라이브 팔 비교 — 요청 때마다 추론한다</title>
+<title>실촬 검수 — 라이브 팔 비교</title>
 <!--
-  사람 지시(2026-09-21): "매번 요청할때마다 새로 추론하게 하면 안되냐".
-  /arms 는 배치 평가 결과(_diag/*.jsonl)를 그린다 — 평가를 돌린 팔·시드만
-  볼 수 있고 산물이 낡으면 화면도 모르게 낡는다. 이 화면은 고른 체크포인트가
-  **방금** 추론한 상자를 그린다. 어떤 팔·시든, 그 자리에서.
+  사람 지시(2026-09-21): "매번 요청할때마다 새로 추론하게 하면 안되냐" +
+  "bandreal livecmp 하나로 합쳐라". 두 모드가 한 화면에 있다:
+    단장 비교 — 사진 한 장을 A·B 가 방금 추론한 상자로 겹쳐/나란히 본다.
+    실패 목록 — 코퍼스 전량을 라이브로 스캔해 실패 유형별로 묶는다
+               (/bandreal 의 몫. 배치 _diag 를 읽지 않는다).
+  /bandreal 은 이 화면으로 흡수됐다.
 
-  지키는 것(/arms 와 같은 규칙):
+  지키는 것(/arms 에서 온 규칙):
   1. **두 자를 함께 낸다** — 담음과 게이트. 눈으로 보는 상자 옆에 숫자가 있다.
   2. **전체 사진 틀을 고를 수 있다** — 상자 주변만 잘라 보면 "사진의 어디냐"에
-     답이 미리 정해진다(Case 9).
-  3. **미검출도 보여 준다** — conf 0.25 밑은 "미검출"로 적는다. 832 의
-     미검출 2배는 사라지지 않고 늘어나는 대가다(BAND_EXP_PLAN §24).
+     답이 미리 정해진다(Case 9). 목록 카드도 전체 사진이다.
+  3. **미검출도 보여 준다** — conf 0.25 밑은 미검출. 교환의 한쪽이다.
 -->
 <style>
   :root { --bg:#111; --fg:#ddd; --line:#333; }
@@ -22,10 +23,8 @@
   header { position:sticky; top:0; z-index:9; background:#1a1a1a;
            border-bottom:1px solid var(--line); padding:9px 14px;
            display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-  select, button, input { background:#242424; color:var(--fg);
-           border:1px solid #444; padding:4px 9px; border-radius:4px;
-           font:inherit; }
-  button { cursor:pointer; }
+  select, button { background:#242424; color:var(--fg); border:1px solid #444;
+           padding:4px 9px; border-radius:4px; font:inherit; cursor:pointer; }
   .legend { display:flex; gap:10px; flex-wrap:wrap; font-size:12px; }
   .legend i { display:inline-block; width:11px; height:11px; margin-right:4px;
               vertical-align:-1px; border-radius:2px; }
@@ -40,34 +39,64 @@
            font-variant-numeric:tabular-nums; }
   #info { font-size:12px; color:#9ad; padding-bottom:10px;
           font-variant-numeric:tabular-nums; }
+  #grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(310px,1fr));
+          gap:10px; }
+  .card { background:#1a1a1a; border:1px solid #2c2c2c; border-radius:6px;
+          padding:6px; cursor:pointer; }
+  .card:hover { border-color:#666; }
+  .card canvas { width:100%; display:block; background:#000; border-radius:3px; }
+  .cap { font-size:11px; color:#999; padding-top:4px; line-height:1.6;
+         font-variant-numeric:tabular-nums; }
   .miss { color:#f87171; font-weight:600; }
   .win { color:#4ade80; } .lose { color:#f87171; }
   .cells { color:#fde68a; }
+  .off { color:#f87171; } .part { color:#fc6; }
 </style>
 
 <header>
-  <b>라이브 비교</b>
+  <b>실촬 검수</b>
+  <label>모드 <select id="mode">
+    <option value="one" selected>단장 비교</option>
+    <option value="list">실패 목록 (전량 스캔)</option>
+  </select></label>
   <label>A <select id="a"></select></label>
   <label>B <select id="b"></select></label>
   <label>코퍼스 <select id="corpus"></select></label>
-  <label>순서 <select id="order">
-    <option value="small" selected>작은 밴드부터</option>
-    <option value="big">큰 밴드부터</option>
-    <option value="rand">무작위</option>
-    <option value="name">이름순</option>
-  </select></label>
-  <label>틀 <select id="frame">
-    <option value="crop" selected>상자 주변</option>
-    <option value="full">전체 사진</option>
-  </select></label>
-  <label>보기 <select id="view">
-    <option value="stack" selected>겹침(한 판)</option>
-    <option value="side">나란히(두 판)</option>
-  </select></label>
-  <button id="prev">◀</button>
-  <span id="pos">–</span>
-  <button id="next">▶</button>
-  <button id="rand">🎲</button>
+  <span id="oneCtl">
+    <label>순서 <select id="order">
+      <option value="small" selected>작은 밴드부터</option>
+      <option value="big">큰 밴드부터</option>
+      <option value="rand">무작위</option>
+      <option value="name">이름순</option>
+    </select></label>
+    <label>틀 <select id="frame">
+      <option value="crop" selected>상자 주변</option>
+      <option value="full">전체 사진</option>
+    </select></label>
+    <label>보기 <select id="view">
+      <option value="stack" selected>겹침(한 판)</option>
+      <option value="side">나란히(두 판)</option>
+    </select></label>
+    <button id="prev">◀</button>
+    <span id="pos">–</span>
+    <button id="next">▶</button>
+    <button id="rand">🎲</button>
+  </span>
+  <span id="listCtl" style="display:none">
+    <label>대상 <select id="ftgt">
+      <option value="a" selected>A</option>
+      <option value="b">B</option>
+      <option value="diff">갈림(A≠B)</option>
+    </select></label>
+    <label>유형 <select id="fcls">
+      <option value="gate_fail" selected>게이트 탈락(담았는데 큼)</option>
+      <option value="딴 데">딴 데</option>
+      <option value="일부만">일부만 담음</option>
+      <option value="미검출">미검출</option>
+      <option value="fail">실패 전부</option>
+      <option value="all">전부</option>
+    </select></label>
+  </span>
   <div class="legend">
     <span><i style="background:#22c55e"></i>사람 라벨</span>
     <span><i style="background:#ef4444"></i>숫자 칸</span>
@@ -77,19 +106,20 @@
 </header>
 <div class="note">
   <b>요청 때마다 추론한다</b> — 배치 산물이 아니라 방금 고른 체크포인트가 낸
-  상자다. 담음·게이트·면적비가 같은 판에 함께 뜬다. 키보드 ◀▶ 이동, R 무작위.
-  conf &lt; 0.25 는 <span class="miss">미검출</span>로 적는다 — 교환의 한쪽이다.
+  상자다. 목록 모드는 처음에 전량 스캔(586장에 1분 남짓) 후 캐시.
+  conf &lt; 0.25 는 <span class="miss">미검출</span>. 키보드 ◀▶·R(단장 모드).
 </div>
 <div id="wrap">
   <div id="info"></div>
-  <div id="panels"><div class="pmeta">체크포인트를 고른다…</div></div>
+  <div id="body"><div class="pmeta">체크포인트를 고른다…</div></div>
 </div>
 
 <script>
 const $ = i => document.getElementById(i);
 const COL = {gt:'#22c55e', digit:'#ef4444', a:'#eab308', b:'#38bdf8'};
-let CK = [], IDS = [], pos = -1, CUR = null, RNG = Math.random;
-
+const CLSCOL = {'통과': 'win', '딴 데': 'off', '일부만': 'part', '미검출': 'miss'};
+let CK = [], IDS = [], pos = -1, CUR = null, SCAN = null, pollT = null;
+const RNG = Math.random;
 const MARK = {keep: '채택', reject: '기각', super: '대체됨', evidence: '증거',
               aside: '사슬 밖', '미등록': '미등록'};
 
@@ -140,9 +170,7 @@ async function show() {
     corpus: $('corpus').value, id});
   CUR = await (await fetch('/api/livecmp?' + q)).json();
   if (CUR.error) { $('info').textContent = CUR.error; return; }
-  const cells = CUR.cells != null ? `<span class="cells">${CUR.cells}칸</span> · ` : '';
-  $('info').innerHTML = `${cells}${CUR.id} — 방금 추론`;
-  render();
+  renderOne();
 }
 
 function line(k, m, other) {
@@ -161,9 +189,16 @@ function line(k, m, other) {
   return `<div style="color:${COL[k]}"><b>${k.toUpperCase()}</b> ${nm}: ${body}</div>`;
 }
 
-async function render() {
-  const P = $('panels');
+function renderOne() {
+  const P = $('body');
   P.innerHTML = '';
+  const cells = CUR.cells != null
+    ? `<span class="cells">${CUR.cells}칸</span> · ` : '';
+  $('info').innerHTML = `${cells}${CUR.id} — 방금 추론`;
+  renderOneInto(P);
+}
+
+async function renderOneInto(P) {
   const meta = await (await fetch(
     `/api/image?id=${encodeURIComponent(CUR.id)}&w=1200`)).json();
   if (meta.error) { P.textContent = meta.error; return; }
@@ -182,14 +217,17 @@ async function render() {
                   : withBox === 'b' ? line('b', CUR.b, CUR.a)
                   : line('a', CUR.a, CUR.b) + line('b', CUR.b, CUR.a);
     d.appendChild(m);
-    paint(cv, img, s, meta, withBox);
+    paintCrop(cv, img, s, meta, withBox);
     return d;
   };
-  if ($('view').value === 'side') { P.appendChild(mk('a')); P.appendChild(mk('b')); }
-  else P.appendChild(mk('both'));
+  const wrap = document.createElement('div');
+  wrap.id = 'panels';
+  if ($('view').value === 'side') { wrap.appendChild(mk('a')); wrap.appendChild(mk('b')); }
+  else wrap.appendChild(mk('both'));
+  P.appendChild(wrap);
 }
 
-async function paint(cv, img, s, meta, withBox) {
+async function paintCrop(cv, img, s, meta, withBox) {
   let x0, y0, x1, y1;
   if ($('frame').value === 'full' || !CUR.gt) {
     x0 = 0; y0 = 0; x1 = img.width; y1 = img.height;
@@ -209,13 +247,6 @@ async function paint(cv, img, s, meta, withBox) {
   cv.width = CW; cv.height = Math.round(CW * h / w);
   const k = CW / w, cx = cv.getContext('2d');
   cx.drawImage(img, x0, y0, w, h, 0, 0, CW, cv.height);
-  if ($('frame').value === 'full') {
-    cx.save(); cx.setLineDash([6, 6]); cx.strokeStyle = '#ffffff44';
-    cx.lineWidth = 1.5; cx.beginPath();
-    cx.moveTo(CW / 2, 0); cx.lineTo(CW / 2, cv.height);
-    cx.moveTo(0, cv.height / 2); cx.lineTo(CW, cv.height / 2);
-    cx.stroke(); cx.restore();
-  }
   const box = (b, col, lw, dash) => {
     if (!b) return;
     cx.save();
@@ -231,15 +262,148 @@ async function paint(cv, img, s, meta, withBox) {
   if (withBox !== 'a' && CUR.b && CUR.b.deploy) box(CUR.b.deploy, COL.b, 3, [7, 5]);
 }
 
+// ── 실패 목록 모드 — 전량 라이브 스캔 (/bandreal 흡수) ────────────────────
+async function scan() {
+  const q = new URLSearchParams({scan: 1, a: $('a').value, b: $('b').value,
+                                 corpus: $('corpus').value});
+  for (;;) {
+    const r = await (await fetch('/api/livecmp?' + q)).json();
+    if (r.error) { $('info').textContent = r.error; return null; }
+    if (r.done) { SCAN = r.rows; return SCAN; }
+    $('info').textContent =
+      `전량 스캔 중… ${r.progress}/${r.n_total} — 첫 스캔 후 캐시`;
+    await new Promise(res => pollT = setTimeout(res, 1000));
+  }
+}
+
+function summary(rows) {
+  const cnt = m => { const c = {}; for (const k of ['통과','일부만','딴 데','미검출'])
+    c[k] = rows.filter(r => r[m] && r[m].cls === k).length;
+    c.게이트 = rows.filter(r => r[m] && r[m].gate).length; return c; };
+  const fmt = (m, nm) => {
+    if (!$(m).value) return '';
+    const c = cnt(m);
+    return `<span style="color:${COL[m]}"><b>${nm}</b> `
+      + `게이트 ${Math.round(100*c.게이트/rows.length)}% `
+      + `(${c['통과']}/${c['일부만']}/${c['딴 데']}/${c['미검출']})</span>`;
+  };
+  return `n=${rows.length} · 통과/일부만/딴데/미검출 · `
+    + fmt('a', 'A') + ' · ' + fmt('b', 'B');
+}
+
+function pick(row) {
+  const t = $('ftgt').value, f = $('fcls').value;
+  const clsOf = m => (row[m] && row[m].cls) || null;
+  if (t === 'diff') {
+    if (clsOf('a') === clsOf('b')) return false;
+  } else if (!clsOf(t)) return false;
+  if (f === 'all') return true;
+  if (f === 'fail') {
+    const m = t === 'diff' ? ['a','b'] : [t];
+    return m.some(k => clsOf(k) && clsOf(k) !== '통과');
+  }
+  if (f === 'gate_fail') {
+    const m = t === 'diff' ? ['a','b'] : [t];
+    return m.some(k => row[k] && row[k].contain && !row[k].gate);
+  }
+  const m = t === 'diff' ? ['a','b'] : [t];
+  return m.some(k => clsOf(k) === f);
+}
+
+async function renderList() {
+  const P = $('body');
+  P.innerHTML = '';
+  const rows = await scan();
+  if (!rows) return;
+  const sel = rows.filter(pick);
+  sel.sort((x, y) => x.cells - y.cells || (x.id < y.id ? -1 : 1));
+  $('info').innerHTML = summary(rows) + ` · 표시 ${sel.length}장 — 칸수순`;
+  const g = document.createElement('div');
+  g.id = 'grid';
+  P.appendChild(g);
+  for (const row of sel) g.appendChild(await card(row));
+}
+
+async function card(row) {
+  const d = document.createElement('div');
+  d.className = 'card';
+  d.onclick = () => {                 // 카드를 누르면 단장 모드로 파고든다
+    const idx = IDS.findIndex(x => x.id === row.id);
+    if (idx >= 0) { pos = idx; $('mode').value = 'one'; switchMode(); show(); }
+  };
+  const cv = document.createElement('canvas');
+  d.appendChild(cv);
+  const cap = document.createElement('div');
+  cap.className = 'cap';
+  const seg = k => {
+    if (!$('b').value && k === 'b') return '';
+    const m = row[k];
+    if (!m) return '';
+    if (!m.det) return ` <span style="color:${COL[k]}"><b>${k.toUpperCase()}</b>`
+      + ` <span class="miss">미검출</span></span>`;
+    return ` <span style="color:${COL[k]}"><b>${k.toUpperCase()}</b>`
+      + ` <span class="${CLSCOL[m.cls] || ''}">${m.cls}</span> ${m.ar}</span>`;
+  };
+  cap.innerHTML = `<span class="cells">${row.cells}칸</span> `
+    + row.id.split('/').pop().slice(0, 26) + seg('a') + seg('b');
+  d.appendChild(cap);
+  const meta = await (await fetch(
+    `/api/image?id=${encodeURIComponent(row.id)}&w=640`)).json();
+  if (meta.error) { cap.textContent = meta.error; return d; }
+  const img = new Image();
+  await new Promise(res => { img.onload = res; img.src = meta.url; });
+  const s = img.width / meta.ow;
+  const CW = 300;
+  cv.width = CW; cv.height = Math.round(CW * img.height / img.width);
+  const cx = cv.getContext('2d');
+  const k = CW / img.width;
+  cx.drawImage(img, 0, 0, CW, cv.height);
+  const box = (b, col, lw, dash) => {
+    if (!b) return;
+    cx.save();
+    if (dash) cx.setLineDash(dash);
+    cx.lineWidth = lw; cx.strokeStyle = col;
+    cx.strokeRect(b[0]*s*k, b[1]*s*k, (b[2]-b[0])*s*k, (b[3]-b[1])*s*k);
+    cx.restore();
+  };
+  box(row.gt, COL.gt, 1.5);
+  if (row.a && row.a.deploy) box(row.a.deploy, COL.a, 2);
+  if (row.b && row.b.deploy) box(row.b.deploy, COL.b, 2, [5, 4]);
+  return d;
+}
+
+function switchMode() {
+  const one = $('mode').value === 'one';
+  $('oneCtl').style.display = one ? '' : 'none';
+  $('listCtl').style.display = one ? 'none' : '';
+  if (pollT) { clearTimeout(pollT); pollT = null; }
+  if (one) { if (CUR) renderOne(); else if (IDS.length) show(); }
+  else renderList();
+}
+
+$('mode').onchange = switchMode;
 $('prev').onclick = () => { if (pos > 0) { pos--; show(); } };
 $('next').onclick = () => { if (pos < IDS.length - 1) { pos++; show(); } };
 $('rand').onclick = () => { pos = Math.floor(RNG() * IDS.length); show(); };
-for (const id of ['a', 'b', 'frame', 'view'])
-  $(id).onchange = () => { if (CUR) render(); };
-$('corpus').onchange = async () => { pos = 0; await loadList(); show(); };
+// **A·B 를 바꾸면 다시 추론한다.** 구판은 캐시를 다시 그리기만 해서
+// 상자가 안 움직였다(2026-09-21 사람 보고). 프레임·보기만 다시 그린다.
+for (const id of ['a', 'b'])
+  $(id).onchange = () => {
+    if ($('mode').value === 'one') { if (CUR) show(); }
+    else renderList();
+  };
+for (const id of ['frame', 'view'])
+  $(id).onchange = () => { if (CUR && $('mode').value === 'one') renderOne(); };
+$('corpus').onchange = async () => {
+  pos = 0; await loadList();
+  if ($('mode').value === 'one') show(); else renderList();
+};
 $('order').onchange = () => { resort(); pos = 0; show(); };
+for (const id of ['ftgt', 'fcls'])
+  $(id).onchange = () => { if (SCAN) renderList(); };
 addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if ($('mode').value !== 'one') return;
   if (e.key === 'ArrowLeft') $('prev').click();
   if (e.key === 'ArrowRight') $('next').click();
   if (e.key === 'r' || e.key === 'R') $('rand').click();

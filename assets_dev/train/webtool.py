@@ -471,84 +471,6 @@ def _aug_png(ds, i):
             "box": [round(float(v), 1) for v in b.tolist()]}
 
 
-@route("/api/bandreal")
-def api_bandreal(qs):
-    """실촬 평가(eval_band_real.py)의 진행 상황과 끝난 결과들.
-
-    도는 동안 사람이 볼 수 있어야 한다 — 평가기가 한 장마다 흘려 쓰고
-    여기서 그걸 읽는다. 예측 상자는 band_quads_pred.jsonl 로도 나가므로
-    기종 탭에서 사진 위에 겹쳐 보인다.
-    """
-    d = HERE / "_diag" / "band_real"
-    prog = {}
-    pp = d / "progress.json"
-    if pp.exists():
-        try:
-            prog = json.loads(pp.read_text(encoding="utf-8"))
-        except Exception:
-            prog = {}
-    done = []
-    if d.exists():
-        for f in sorted(d.glob("*.jsonl")):
-            rows = [json.loads(l) for l in
-                    f.read_text(encoding="utf-8").splitlines() if l.strip()]
-            if not rows:
-                continue
-            # **이 폴더에는 평가 결과가 아닌 것도 산다.** diag_band_cells 의
-            # cells_*.jsonl(실패 분해)과 추정치 파일이 같이 놓인다. 이름으로
-            # 거르면 새 진단이 생길 때마다 또 샌다 — **스키마로 거른다.**
-            # 2026-09-19 에 이것 때문에 검수 화면이 진단 파일을 모델로 골라
-            # "검출 실패 272" 를 띄웠다.
-            if not ("pred" in rows[0] and "det" in rows[0]):
-                continue
-            hit = [r for r in rows if r.get("det")]
-            # **정답이 없는 코퍼스가 있다**(Datacluster CC0 238장 — 밴드 라벨
-            # 없음). 그 행의 contain·iou 는 None 이다. 0 으로 채우면 "0점"으로
-            # 읽혀 성적표에 섞인다 — 정답이 없는 것과 0점인 것은 다르다.
-            has_gt = any(r.get("gt") for r in rows)
-            c1 = sum(1 for r in hit if (r.get("contain") or 0) >= 0.999)
-            # 배포 프레이밍 규약(BOX_MARGIN)을 적용한 게이트도 같이 낸다.
-            # **원시 예측만 보면 이 계열을 체계적으로 낮게 본다** — 배포에서는
-            # 검출 상자에 사방 10% 를 더해 리더에게 넘긴다(2026-09-19).
-            dep = None
-            if has_gt:
-                ok = 0
-                for r in hit:
-                    q, g = r["pred"], r["gt"]
-                    w, h = q[2]-q[0], q[3]-q[1]
-                    ml, mr, mt, mb = BOX_MARGIN
-                    e = [q[0]-w*ml, q[1]-h*mt, q[2]+w*mr, q[3]+h*mb]
-                    ga = max(1.0, (g[2]-g[0])*(g[3]-g[1]))
-                    if (e[0] <= g[0] and e[1] <= g[1] and e[2] >= g[2]
-                            and e[3] >= g[3]
-                            and max(0.0, e[2]-e[0])*max(0.0, e[3]-e[1])/ga <= 2.0):
-                        ok += 1
-                dep = round(100 * ok / len(rows), 2)
-            done.append({"name": f.stem, "n": len(rows), "deploy": dep,
-                         # 검수 화면이 **가장 최근에 평가한 모델**을 기본으로
-                         # 고르는 데 쓴다. 이름 순으로 고르면 엉뚱한 조건이
-                         # 첫 화면에 뜬다(2026-09-19).
-                         "mtime": int(f.stat().st_mtime),
-                         "miss": len(rows) - len(hit),
-                         "gt": has_gt,
-                         "contain1": round(100 * c1 / len(rows), 2) if has_gt else None,
-                         "wide_n": sum(1 for r in rows if r.get("wide"))})
-    # ?ckpt=<이름> 이면 그 모델의 장별 결과를 준다 — 검수 화면(/bandreal)이 쓴다.
-    # **못한 순서로** 준다. 잘된 장을 먼저 보여 주면 무엇이 문제인지 안 보인다.
-    want = qs.get("ckpt", [""])[0]
-    # 화면이 확장 상자를 그리려면 규약이 필요하다. 값을 같이 보낸다.
-
-    rows = []
-    if want:
-        f = d / f"{want}.jsonl"
-        if f.exists():
-            rows = [json.loads(l) for l in
-                    f.read_text(encoding="utf-8").splitlines() if l.strip()]
-            rows.sort(key=lambda r: (r.get("det", False),
-                                     r.get("contain") or 0, r.get("iou") or 0))
-    return {"progress": prog, "done": done, "rows": rows,
-            "ckpt": want, "box_margin": list(BOX_MARGIN)}
-
 
 @route("/api/quads")
 def api_quads(qs):
@@ -1493,7 +1415,85 @@ def api_arms(qs):
 _LIVE_MODELS = {}
 _LIVE_LOCK = threading.Lock()
 _LIVE_CORPUS = {}
+_LIVE_SCAN = {"key": None, "n": 0, "N": 0, "rows": [], "done": False,
+              "err": None}
 LIVE_CONF = 0.25        # 배포 문턱과 같은 값 — 미검출도 교환의 한쪽이다
+
+
+def _live_cls(det, deploy, digit):
+    """/api/arms·report_fail_mix.classify 와 같은 네 규칙 — 배포 상자 기준."""
+    if not det:
+        return "미검출"
+    if (deploy[0] <= digit[0] and deploy[1] <= digit[1]
+            and deploy[2] >= digit[2] and deploy[3] >= digit[3]):
+        return "통과"
+    ix = min(deploy[2], digit[2]) - max(deploy[0], digit[0])
+    iy = min(deploy[3], digit[3]) - max(deploy[1], digit[1])
+    return "일부만" if (ix > 0 and iy > 0) else "딴 데"
+
+
+def _live_scan_run(a, b, ids, items, st):
+    """코퍼스 전량을 두 모델로 라이브 추론해 실패 유형별로 묶는다.
+
+    /bandreal 의 몫을 이쪽으로 옮겼다(2026-09-21 사람 지시: 하나로 합쳐라).
+    배치 _diag 를 읽지 않는다 — 어떤 팔·시드든 그 자리에서 재고, 낡은 산물이
+    화면에 뜨는 일이 원천적으로 없다. 사진 해독이 병목이라 586장에 1분 남짓
+    걸린다 — (코퍼스, a, b) 키로 캐시하고 진행은 폴링으로 본다.
+    """
+    import torch
+    import importlib
+    rfm = importlib.import_module("report_fail_mix")
+    from band_net import decode
+    from train_band import letterbox
+    try:
+        got = {k: _live_model(rel) for k, rel in (("a", a), ("b", b)) if rel}
+        for i in items:
+            v = ids[i]
+            with Image.open(v["path"]) as pil:
+                img = ImageOps.exif_transpose(pil).convert("L")
+            gray = np.asarray(img)
+            ow, oh = img.size
+            gt = v["gt"]
+            digit = rfm.digit_cell(gt)
+            ga = max(1.0, (gt[2]-gt[0]) * (gt[3]-gt[1]))
+            row = {"id": i, "gt": gt, "digit": [round(x, 1) for x in digit],
+                   "ow": ow, "oh": oh,
+                   "cells": round((gt[3]-gt[1]) * min(416/ow, 416/oh) / 16.0, 2)}
+            for k, rel in (("a", a), ("b", b)):
+                if not rel:
+                    continue
+                m, c, dev = got[k]
+                lb, r, dx, dy = letterbox(gray, c["size"])
+                x = (torch.from_numpy(lb).float().div_(255.)
+                     .unsqueeze(0).unsqueeze(0))
+                with torch.no_grad(), _LIVE_LOCK:
+                    o, g = m(x.to(dev))
+                    bx, sc = decode(o.float(), g.float(), m.stride)
+                bx = bx[0].cpu().numpy()
+                sc = float(sc[0].cpu())
+                if sc < LIVE_CONF:
+                    row[k] = {"det": False, "score": round(sc, 4),
+                              "cls": "미검출"}
+                    continue
+                p = [(float(bx[0])-dx)/r, (float(bx[1])-dy)/r,
+                     (float(bx[2])-dx)/r, (float(bx[3])-dy)/r]
+                e = rfm.pad(p)
+                cov = (e[0] <= digit[0] and e[1] <= digit[1]
+                       and e[2] >= digit[2] and e[3] >= digit[3])
+                ar = (max(0.0, e[2]-e[0]) * max(0.0, e[3]-e[1])) / ga
+                row[k] = {"det": True, "score": round(sc, 4),
+                          "pred": [round(z, 1) for z in p],
+                          "deploy": [round(z, 1) for z in e],
+                          "contain": cov, "ar": round(ar, 2),
+                          "gate": bool(cov and ar <= 2.0),
+                          "cls": _live_cls(True, e, digit)}
+            st["rows"].append(row)
+            st["n"] += 1
+        st["rows"].sort(key=lambda t: (t["cells"], t["id"]))
+        st["done"] = True
+    except Exception as ex:                           # noqa: BLE001
+        st["err"] = str(ex)
+        st["done"] = True
 
 
 def _live_model(rel):
@@ -1620,6 +1620,23 @@ def api_livecmp(qs):
                             ["rftest", "Roboflow 봉인 시험 687"],
                             ["datumo", "Datumo 밴드 라벨 277"]]}
     ids = _live_corpus(corpus)
+    if qs.get("scan", [""])[0] == "1":
+        # 전량 스캔 — /bandreal 의 실패 목록을 라이브로 대신한다.
+        if not a:
+            return {"error": "스캔은 A 체크포인트가 필요하다"}
+        key = (corpus, a, b)
+        st = _LIVE_SCAN
+        if st["key"] != key or st["err"]:
+            items = sorted(i for i, v in ids.items()
+                           if v["path"] and v.get("gt"))
+            st.update(key=key, n=0, N=len(items), rows=[], done=False, err=None)
+            threading.Thread(target=_live_scan_run,
+                             args=(a, b, ids, items, st), daemon=True).start()
+        if not st["done"]:
+            return {"done": False, "progress": st["n"], "n_total": st["N"]}
+        if st["err"]:
+            return {"error": st["err"]}
+        return {"done": True, "rows": st["rows"]}
     if qs.get("list", [""])[0] == "1":
         items = []
         for i, v in ids.items():
@@ -2331,11 +2348,11 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(404, "aug_view.html 없음".encode(), "text/plain")
             return
         if u.path == "/bandreal":
-            f = HERE / "band_real_view.html"
-            if f.exists():
-                self._send(200, f.read_bytes(), "text/html; charset=utf-8")
-            else:
-                self._send(404, "band_real_view.html 없음".encode(), "text/plain")
+            # 2026-09-21 사람 지시로 /livecmp 에 흡수됐다(라이브 추론으로
+            # 실패 목록을 낸다). 옛 링크는 끊지 않고 보낸다.
+            self.send_response(302)
+            self.send_header("Location", "/livecmp")
+            self.end_headers()
             return
         if u.path == "/devices":
             if DEVICES_HTML.exists():
