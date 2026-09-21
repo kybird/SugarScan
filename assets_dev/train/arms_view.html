@@ -73,10 +73,12 @@
   <span id="sum" class="sum"></span>
 </header>
 <div class="note">
+  <b id="why" style="color:#fde68a"></b><br>
   판정을 <b>두 자로 함께</b> 낸다 — <b>담음</b>(숫자 칸을 덮었나)과
   <b>게이트</b>(덮었고 면적비 ≤ 2인가). 담음만 보면 큰 상자가 이긴다.
   카드는 <b>칸 수 오름차순</b>이다(작은 밴드가 먼저). 2.5칸 밑이 절벽 구간이다.
 </div>
+<div class="note" id="desc" style="color:#777"></div>
 <div id="grid">팔을 고르고 불러오기를 누른다.</div>
 
 <script>
@@ -84,18 +86,29 @@ const $ = i => document.getElementById(i);
 const COL = {gt:'#22c55e', digit:'#ef4444', a:'#eab308', b:'#38bdf8'};
 let ARMS = [];
 
+const MARK = {keep: '채택', reject: '기각', super: '대체됨',
+              running: '진행중', aside: '사슬 밖', '미등록': '미등록'};
+
 async function init() {
   const r = await (await fetch('/api/arms')).json();
   ARMS = r.arms || [];
+  // **이름만 내면 뭘 봐야 하는지 알 수 없다.** 회차·개입·판정을 같이 적고
+  // 회차 순으로 낸다 — 사슬을 따라 읽히게.
+  const label = x => `${x.stage != null ? x.stage + '회 ' : ''}`
+    + `${x.arm} — ${x.what || '(설명 없음)'} [${MARK[x.verdict] || x.verdict}]`;
   for (const sel of [$('a'), $('b')]) {
     sel.innerHTML = (sel.id === 'b' ? '<option value="">(없음)</option>' : '')
-      + ARMS.map(x => `<option value="${x.arm}@${x.dir}">${x.arm}</option>`).join('');
+      + ARMS.map(x => `<option value="${x.arm}@${x.dir}">${label(x)}</option>`).join('');
   }
   const pick = (sel, name) => {
     const o = [...sel.options].find(o => o.value.startsWith(name + '@'));
     if (o) sel.value = o.value;
   };
-  pick($('a'), 'atone'); pick($('b'), 'asize512');
+  const p = r.pick || {};
+  pick($('a'), p.A || 'atone'); pick($('b'), p.B || 'asize512');
+  if (p['왜']) $('why').textContent = `기본 선택 ${p.A} 대 ${p.B} — ${p['왜']}`;
+  $('desc').textContent = ARMS.filter(x => x.note)
+    .map(x => `${x.arm}: ${x.note}`).join('   ·   ');
 }
 
 async function load() {

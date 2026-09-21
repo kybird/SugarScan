@@ -1386,12 +1386,26 @@ def api_arms(qs):
     b = qs.get("b", [""])[0]
     if not a:
         # 팔 목록 — _diag 아래에서 roboflow_*_s0.jsonl 을 찾는다.
+        # 목록만 내면 "뭘 봐야 하는지"를 알 수 없다(2026-09-20 사람 지적).
+        # arm_registry.json 이 회차·개입·판정을 적어 두고, 여기서 붙여 낸다.
+        reg = {}
+        rp = HERE / "arm_registry.json"
+        if rp.exists():
+            reg = json.loads(rp.read_text(encoding="utf-8"))
+        meta = reg.get("arms", {})
         out = []
         for d in sorted((HERE / "_diag").glob("*/")):
             for f in sorted(d.glob("roboflow_*_s0.jsonl")):
-                out.append({"arm": f.name[len("roboflow_"):-len("_s0.jsonl")],
-                            "dir": f"_diag/{d.name}"})
-        return {"arms": out}
+                nm = f.name[len("roboflow_"):-len("_s0.jsonl")]
+                m = meta.get(nm, {})
+                out.append({"arm": nm, "dir": f"_diag/{d.name}",
+                            "stage": m.get("stage"), "what": m.get("what", ""),
+                            "verdict": m.get("verdict", "미등록"),
+                            "note": m.get("note", "")})
+        # 회차 순, 같은 회차면 이름 순. 사슬을 따라 읽히게 한다.
+        out.sort(key=lambda x: (99 if x["stage"] is None else x["stage"],
+                                x["arm"]))
+        return {"arms": out, "pick": reg.get("지금_볼_것", {})}
 
     seeds = [int(x) for x in qs.get("seeds", ["0,1,2,3"])[0].split(",")]
     split = qs.get("split", ["dev"])[0]
