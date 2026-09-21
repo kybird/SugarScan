@@ -25,6 +25,9 @@ header {
 header .title { font-weight: 700; letter-spacing: .3px; }
 header .title small { color: var(--dim); font-weight: 400; margin-left: 8px; }
 nav { display: flex; gap: 6px; }
+nav.pages { margin-left: auto; gap: 10px; font-size: 12px; }
+nav.pages a { color: var(--dim); text-decoration: none; }
+nav.pages a:hover { color: var(--fg); text-decoration: underline; }
 nav button {
   background: var(--panel2); color: var(--fg); border: 1px solid var(--line);
   padding: 6px 18px; border-radius: 6px; cursor: pointer; font-size: 14px;
@@ -153,6 +156,19 @@ tr.miss td.mono { color: var(--bad); }
     <button class="tab" data-tab="devices">기종</button>
     <button class="tab" data-tab="atlas">아틀라스</button>
     <button class="tab" data-tab="train">훈련</button>
+  </nav>
+  <!-- 독립 화면 링크 — 2026-09-21 사람 지시로 만들었다. 이전엔 링크가
+       하나도 없어 URL 을 직접 쳐야 했고, 그래서 화면이 늘어나도
+       발견되지 않았다. 목록의 정본은 WEBTOOL.md — 화면을 늘리거나
+       줄이면 이 줄도 함께 고친다. -->
+  <nav class="pages">
+    <a href="/livecmp">실촬 검수</a>
+    <a href="/devices">기종 라벨링</a>
+    <a href="/synth">합성 열람</a>
+    <a href="/profedit">프로파일</a>
+    <a href="/aug">증강</a>
+    <a href="/inkclip">잉크 검사</a>
+    <a href="/rfband">Roboflow 라벨</a>
   </nav>
 </header>
 <main>
