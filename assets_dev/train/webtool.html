@@ -18,16 +18,22 @@ body {
   display: flex; flex-direction: column; overflow: hidden;
 }
 header {
-  display: flex; align-items: center; gap: 18px;
+  display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
   padding: 8px 16px; background: var(--panel); border-bottom: 1px solid var(--line);
   flex: 0 0 auto;
 }
 header .title { font-weight: 700; letter-spacing: .3px; }
 header .title small { color: var(--dim); font-weight: 400; margin-left: 8px; }
-nav { display: flex; gap: 6px; }
-nav.pages { margin-left: auto; gap: 10px; font-size: 12px; }
-nav.pages a { color: var(--dim); text-decoration: none; }
-nav.pages a:hover { color: var(--fg); text-decoration: underline; }
+nav { display: flex; gap: 6px; flex-wrap: wrap; }
+nav.pages { margin-left: auto; gap: 6px; }
+/* 독립 화면 진입 버튼 — 탭 버튼과 같은 옷을 입힌다(2026-09-21 사람 지시:
+   "버튼으로 다바꿔"). 작은 글자 링크는 눈에 안 들어왔다. */
+nav.pages a {
+  display: inline-block; background: var(--panel2); color: var(--fg);
+  border: 1px solid var(--line); padding: 4px 12px; border-radius: 6px;
+  font-size: 12.5px; text-decoration: none;
+}
+nav.pages a:hover { border-color: var(--acc); color: var(--acc); }
 nav button {
   background: var(--panel2); color: var(--fg); border: 1px solid var(--line);
   padding: 6px 18px; border-radius: 6px; cursor: pointer; font-size: 14px;
