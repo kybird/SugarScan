@@ -3,16 +3,9 @@
 # 실행:  conda run -n sugartrain python webtool.py   (포트 8777)
 # 브라우저: http://127.0.0.1:8777/
 #
-# 제공:
-#   /                       라벨러+모니터 SPA (webtool.html)
-#   /api/meta               이미지 id 목록·GT·라벨 현황
-#   /api/image?id=&w=       리사이즈 JPEG (디스크 캐시)
-#   /api/labels?mode=       band(band_boxes.jsonl) | lcd(screen_boxes.jsonl)
-#   POST /api/label         {mode,id,quad,source} 저장
-#   POST /api/gtfix         {id,corrected} GT 교정 기록
-#   /api/quads?kind=        모델 예측 사전표시용 (band=datumo_quads, gm=gmscreen_quads)
-#   /api/trainlog           ctc_train_gpu.log loss 궤적
-#   /api/preds_holdout      reader_preds.json (평가 완료 시)
+# 화면·API 지도의 정본은 WEBTOOL.md 다(2026-09-21 — 여기 적던 목록은 낡아서
+# 갱신이 안 됐다). **새 화면을 만들기 전에 WEBTOOL.md 부터 읽고 거기에 먼저
+# 한 줄을 적는다.** 기존 화면으로 커버되면 화면을 늘리지 않는다.
 import base64
 import hashlib
 import json
