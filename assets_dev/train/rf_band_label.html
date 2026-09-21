@@ -32,7 +32,6 @@
   #msg { margin-left:auto; }
   .ok { color:var(--accent); } .err { color:#f87171; }
   #wrap { display:flex; gap:14px; padding:12px; align-items:flex-start; }
-  @media (max-width:900px) { #wrap { flex-wrap:wrap; } aside { width:100%; } }
   /* 캔버스는 원본 픽셀로 잡고 **화면에서만** 줄인다. at() 이
      getBoundingClientRect 비율로 되돌리므로 좌표 정본은 그대로다.
      세로 사진이 1400 폭이면 2500px 가까이 되어 화면 밖으로 나간다.
@@ -41,8 +40,9 @@
      그러면 getBoundingClientRect 가 그림이 아니라 상자를 재게 되어 클릭
      좌표가 통째로 어긋난다. max-width/max-height 만 주면 고유 종횡비가
      유지된 채 상자 자체가 줄어들어 둘이 일치한다. */
-  #cv { border:1px solid var(--line); background:#000; cursor:crosshair;
-        max-width:100%; max-height:calc(100vh - 86px); touch-action:none; }
+  #stage { flex:1; min-width:0; overflow:auto; max-height:calc(100vh - 86px);
+           border:1px solid var(--line); background:#000; }
+  #cv { display:block; cursor:crosshair; touch-action:none; }
   aside { width:290px; flex:none; font-size:12px; color:#bbb; }
   aside h3 { color:var(--fg); font-size:13px; margin:14px 0 5px; }
   aside p { margin:5px 0; }
@@ -52,6 +52,14 @@
   .rule { border-left:3px solid #713f12; padding-left:9px; margin:8px 0; }
   #zoom { border:1px solid var(--line); background:#000; display:block;
           margin-top:8px; }
+  /* 좁은 창에서는 줄바꿈. **#stage 에 flex-basis:100% 를 줘야 한다** —
+     안 주면 aside(width:100%)와 같은 줄을 다투다 stage 가 6px 로 찌부러져
+     스크롤이 죽는다(2026-09-20 에 실제로 그랬다). */
+  @media (max-width:900px) {
+    #wrap { flex-wrap:wrap; }
+    #stage { flex:1 1 100%; }
+    aside { width:100%; }
+  }
 </style>
 
 <header>
@@ -63,11 +71,17 @@
   <button id="skip" class="s">이 장 건너뛰기 (K)</button>
   <button id="clear">지우기 (C)</button>
   <button id="jump">미완료로</button>
+  <label>배율 <select id="zf">
+    <option value="fit" selected>맞춤</option>
+    <option value="1">100%</option>
+    <option value="2">200%</option>
+    <option value="3">300%</option>
+  </select></label>
   <span id="msg"></span>
 </header>
 
 <div id="wrap">
-  <canvas id="cv"></canvas>
+  <div id="stage"><canvas id="cv"></canvas></div>
   <aside>
     <h3>규약 — 숫자 칸을 <b>0.10 × 숫자높이</b>만큼 넘겨 감싼다</h3>
     <div class="rule">
@@ -101,7 +115,7 @@ const $ = i => document.getElementById(i);
 const cv = $('cv'), cx = cv.getContext('2d');
 const zm = $('zoom'), zx = zm.getContext('2d');
 let Q = [], idx = 0, img = new Image(), meta = null;
-let pts = null, drag = -1, start = null;
+let pts = null, drag = -1, start = null, move = null;
 const VIEW_W = 1400;                 // 서버에 요청하는 표시 폭
 
 function msg(t, cls) { $('msg').className = cls || ''; $('msg').textContent = t; }
@@ -116,7 +130,7 @@ async function loadQueue() {
 }
 
 async function show() {
-  pts = null; drag = -1; start = null;
+  pts = null; drag = -1; start = null; move = null;
   const it = Q[idx];
   const done = Q.filter(i => i.done).length;
   $('prog').textContent = `${idx + 1} / ${Q.length}  ·  끝낸 것 ${done}`
@@ -128,6 +142,7 @@ async function show() {
   meta = m;
   await new Promise(res => { img.onload = res; img.src = m.url; });
   cv.width = img.width; cv.height = img.height;
+  applyZoom();
   // 기존 라벨이 있으면 되불러 온다(고칠 수 있게).
   const L = await (await fetch('/api/labels?mode=rfband')).json();
   const prev = (L.labels || {})[it.id];
@@ -141,15 +156,49 @@ const sc = () => meta.ow / cv.width;
 const toOrig = p => [p[0] * sc(), p[1] * sc()];
 const toView = p => [p[0] / sc(), p[1] / sc()];
 
+function applyZoom() {
+  // 표시 크기만 바꾼다. 캔버스의 **내부 픽셀(cv.width)은 그대로**라
+  // 좌표 정본도 그대로다 — at() 이 화면/내부 비율로 되돌린다.
+  const v = $('zf').value;
+  // 폭은 무대에서 잰다. 무대가 0 으로 찌부러진 상태라면 그 값을 믿으면
+  // 안 되므로 바깥(#wrap)을 본다 — 마법의 상수로 때우지 않는다.
+  const st = $('stage').clientWidth || $('wrap').clientWidth || innerWidth;
+  // 100% 는 **캔버스 픽셀 1 = 화면 픽셀 1**이다. 그 상태에서 찍은 점이
+  // 가장 정확하고, 맞춤은 전체를 보려고 줄인 것뿐이다.
+  const w = v === 'fit'
+    ? Math.min(cv.width, st - 2, (innerHeight - 96) * cv.width / cv.height)
+    : cv.width * parseFloat(v);
+  cv.style.width = Math.max(120, Math.round(w)) + 'px';
+  cv.style.height = 'auto';
+  draw();
+}
+$('zf').onchange = applyZoom;
+addEventListener('resize', () => { if (meta) applyZoom(); });
+
+// 캔버스는 화면에서 k 배 줄어 그려진다(세로 사진이면 4~5배). 손잡이와
+// 판정 반경을 캔버스 좌표로 박으면 화면에서는 그 1/k 이 된다 — 처음에
+// 판정 반경 11 이 화면 2.4px, 손잡이 4 가 0.9px 이라 **모서리를 잡는 것이
+// 물리적으로 불가능했고**, 그래서 사각형밖에 못 그렸다(2026-09-20 사람 보고).
+// 눈과 손에 닿는 값은 전부 화면 픽셀로 정하고 k 를 곱해 캔버스로 옮긴다.
+const k = () => cv.width / cv.getBoundingClientRect().width;
+const HANDLE_R = 7;     // 손잡이 반지름 (화면 px)
+const HIT_R = 16;       // 모서리 판정 반경 (화면 px) — 손잡이보다 넉넉히
+const LINE_W = 2;       // 선 두께 (화면 px)
+
 function draw() {
+  if (!img.width) return;            // 아직 안 실린 상태에서 부를 수 있다
   cx.drawImage(img, 0, 0);
   if (!pts) return;
-  cx.lineWidth = 2; cx.strokeStyle = '#4ade80';
+  const z = k();
+  cx.lineWidth = LINE_W * z; cx.strokeStyle = '#4ade80';
   cx.beginPath();
   pts.forEach((p, i) => i ? cx.lineTo(p[0], p[1]) : cx.moveTo(p[0], p[1]));
   cx.closePath(); cx.stroke();
-  cx.fillStyle = '#4ade80';
-  pts.forEach(p => { cx.beginPath(); cx.arc(p[0], p[1], 4, 0, 7); cx.fill(); });
+  pts.forEach((p, i) => {
+    cx.beginPath(); cx.arc(p[0], p[1], HANDLE_R * z, 0, 7);
+    cx.fillStyle = (i === drag) ? '#fde68a' : '#4ade80'; cx.fill();
+    cx.lineWidth = 1.5 * z; cx.strokeStyle = '#0a0a0a'; cx.stroke();
+  });
 }
 
 function at(e) {
@@ -161,19 +210,45 @@ function at(e) {
 cv.addEventListener('pointerdown', e => {
   const p = at(e);
   if (pts) {
+    // 가장 가까운 모서리를 집는다. 여럿이 반경 안에 들어오면 제일 가까운
+    // 것이어야 한다 — 먼저 만나는 것을 집으면 겹친 모서리에서 엉뚱한 점이
+    // 끌려간다.
+    const r = HIT_R * k();
+    let best = -1, bd = r;
     for (let i = 0; i < 4; i++) {
-      if (Math.hypot(pts[i][0] - p[0], pts[i][1] - p[1]) < 11) {
-        drag = i; cv.setPointerCapture(e.pointerId); return;
-      }
+      const d = Math.hypot(pts[i][0] - p[0], pts[i][1] - p[1]);
+      if (d < bd) { bd = d; best = i; }
+    }
+    if (best >= 0) {
+      drag = best; cv.setPointerCapture(e.pointerId); draw(); return;
+    }
+    if (inside(p)) {          // 상자 안을 끌면 통째로 옮긴다
+      move = p; cv.setPointerCapture(e.pointerId); return;
     }
   }
   start = p; drag = -1; cv.setPointerCapture(e.pointerId);
 });
 
+function inside(p) {
+  // 볼록 사각형 안쪽 판정 — 네 변에 대해 외적 부호가 모두 같으면 안이다.
+  let pos = 0, neg = 0;
+  for (let i = 0; i < 4; i++) {
+    const a = pts[i], b = pts[(i + 1) % 4];
+    const c = (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]);
+    if (c > 0) pos++; else if (c < 0) neg++;
+  }
+  return pos === 0 || neg === 0;
+}
+
 cv.addEventListener('pointermove', e => {
   const p = at(e);
   zoom(p);
   if (drag >= 0) { pts[drag] = p; draw(); return; }
+  if (move) {
+    const dx = p[0] - move[0], dy = p[1] - move[1];
+    pts = pts.map(q => [q[0] + dx, q[1] + dy]);
+    move = p; draw(); return;
+  }
   if (start) {
     const [x0, y0] = start, [x1, y1] = p;
     pts = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
@@ -181,7 +256,7 @@ cv.addEventListener('pointermove', e => {
   }
 });
 
-function up() { start = null; drag = -1; }
+function up() { start = null; drag = -1; move = null; draw(); }
 cv.addEventListener('pointerup', up);
 cv.addEventListener('pointercancel', up);
 
