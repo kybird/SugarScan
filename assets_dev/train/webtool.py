@@ -17,7 +17,7 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, unquote
 
 import cv2
 
@@ -2401,7 +2401,10 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(404, b"not found", "text/plain")
             return
         if u.path.startswith("/cache/"):
-            p = CACHE / Path(u.path).name
+            # 브라우저는 파일명의 공백을 %20 으로 보낸다. 디코딩하지 않으면
+            # "WhatsApp Image ..." 123장(파일명에 공백)만 404 로 떨어져 화면이
+            # 검게 나온다(2026-09-21 사람 보고).
+            p = CACHE / Path(unquote(u.path)).name
             if p.exists():
                 self._send(200, p.read_bytes(), "image/jpeg")
             else:

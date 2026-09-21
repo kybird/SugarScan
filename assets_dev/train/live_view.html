@@ -198,12 +198,24 @@ function renderOne() {
   renderOneInto(P);
 }
 
+async function loadImg(url, onFail) {
+  const img = new Image();
+  await new Promise(res => {
+    img.onload = res;
+    img.onerror = () => { img._fail = true; res(); };   // 검은 캔버스로 못 내게
+    img.src = url;
+  });
+  if (img._fail && onFail) onFail();
+  return img;
+}
+
 async function renderOneInto(P) {
   const meta = await (await fetch(
     `/api/image?id=${encodeURIComponent(CUR.id)}&w=1200`)).json();
   if (meta.error) { P.textContent = meta.error; return; }
-  const img = new Image();
-  await new Promise(res => { img.onload = res; img.src = meta.url; });
+  const img = await loadImg(meta.url,
+                            () => { P.textContent = '이미지 로드 실패: ' + meta.url; });
+  if (img._fail) return;
   const s = img.width / meta.ow;              // 표시본 배율 — 모든 상자에 동일
 
   const mk = withBox => {
@@ -350,8 +362,8 @@ async function card(row) {
   const meta = await (await fetch(
     `/api/image?id=${encodeURIComponent(row.id)}&w=640`)).json();
   if (meta.error) { cap.textContent = meta.error; return d; }
-  const img = new Image();
-  await new Promise(res => { img.onload = res; img.src = meta.url; });
+  const img = await loadImg(meta.url, () => { cap.textContent = '이미지 로드 실패'; });
+  if (img._fail) return d;
   const s = img.width / meta.ow;
   const CW = 300;
   cv.width = CW; cv.height = Math.round(CW * img.height / img.width);
