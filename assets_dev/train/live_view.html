@@ -3,11 +3,14 @@
 <title>실촬 검수 — 라이브 팔 비교</title>
 <!--
   사람 지시(2026-09-21): "매번 요청할때마다 새로 추론하게 하면 안되냐" +
-  "bandreal livecmp 하나로 합쳐라". 두 모드가 한 화면에 있다:
+  "bandreal livecmp 하나로 합쳐라" + "정리해". 세 모드가 한 화면에 있다:
     단장 비교 — 사진 한 장을 A·B 가 방금 추론한 상자로 겹쳐/나란히 본다.
     실패 목록 — 코퍼스 전량을 라이브로 스캔해 실패 유형별로 묶는다
-               (/bandreal 의 몫. 배치 _diag 를 읽지 않는다).
-  /bandreal 은 이 화면으로 흡수됐다.
+               (/bandreal 흡수. 배치 _diag 를 읽지 않는다).
+    집약     — 팔 단위 4시드 배치 비교, 게이트 갈림 장 필터
+               (/arms 흡수. 시드 잡음까지 보려면 배치가 필요해 라이브 대체
+               불가다. 같은 질문의 세 번째 뷰가 아니라 같은 화면의 모드다).
+  /bandreal · /arms 는 이 화면으로 흡수됐다(302 로 들어온다).
 
   지키는 것(/arms 에서 온 규칙):
   1. **두 자를 함께 낸다** — 담음과 게이트. 눈으로 보는 상자 옆에 숫자가 있다.
@@ -58,6 +61,7 @@
   <label>모드 <select id="mode">
     <option value="one" selected>단장 비교</option>
     <option value="list">실패 목록 (전량 스캔)</option>
+    <option value="agg">집약 (4시드 배치)</option>
   </select></label>
   <label>A <select id="a"></select></label>
   <label>B <select id="b"></select></label>
@@ -68,10 +72,6 @@
       <option value="big">큰 밴드부터</option>
       <option value="rand">무작위</option>
       <option value="name">이름순</option>
-    </select></label>
-    <label>틀 <select id="frame">
-      <option value="crop" selected>상자 주변</option>
-      <option value="full">전체 사진</option>
     </select></label>
     <label>보기 <select id="view">
       <option value="stack" selected>겹침(한 판)</option>
@@ -97,6 +97,19 @@
       <option value="all">전부</option>
     </select></label>
   </span>
+  <span id="aggCtl" style="display:none">
+    <label>보기 <select id="aggonly">
+      <option value="gate_diff" selected>게이트가 갈린 장</option>
+      <option value="b_better">B 가 이긴 장</option>
+      <option value="a_better">A 가 이긴 장</option>
+      <option value="both_fail">둘 다 못 담은 장</option>
+      <option value="all">전부</option>
+    </select></label>
+  </span>
+  <label>틀 <select id="frame">
+    <option value="crop" selected>상자 주변</option>
+    <option value="full">전체 사진</option>
+  </select></label>
   <div class="legend">
     <span><i style="background:#22c55e"></i>사람 라벨</span>
     <span><i style="background:#ef4444"></i>숫자 칸</span>
@@ -105,9 +118,11 @@
   </div>
 </header>
 <div class="note">
-  <b>요청 때마다 추론한다</b> — 배치 산물이 아니라 방금 고른 체크포인트가 낸
-  상자다. 목록 모드는 처음에 전량 스캔(586장에 1분 남짓) 후 캐시.
-  conf &lt; 0.25 는 <span class="miss">미검출</span>. 키보드 ◀▶·R(단장 모드).
+  <b>요청 때마다 추론한다</b> — 단장·목록은 방금 고른 체크포인트가 낸 상자다
+  (목록은 처음에 전량 스캔 후 캐시). 집약만 팔 단위 4시드 배치(_diag)를
+  읽는다 — 시드 잡음은 배치로만 잰다. conf &lt; 0.25 는
+  <span class="miss">미검출</span>. 키보드 ◀▶·R(단장 모드). 카드를 누르면
+  단장 모드로 파고든다.
 </div>
 <div id="wrap">
   <div id="info"></div>
@@ -118,7 +133,7 @@
 const $ = i => document.getElementById(i);
 const COL = {gt:'#22c55e', digit:'#ef4444', a:'#eab308', b:'#38bdf8'};
 const CLSCOL = {'통과': 'win', '딴 데': 'off', '일부만': 'part', '미검출': 'miss'};
-let CK = [], IDS = [], pos = -1, CUR = null, SCAN = null, pollT = null;
+let CK = [], ARMS = [], IDS = [], pos = -1, CUR = null, SCAN = null, pollT = null;
 const RNG = Math.random;
 const MARK = {keep: '채택', reject: '기각', super: '대체됨', evidence: '증거',
               aside: '사슬 밖', '미등록': '미등록'};
@@ -126,6 +141,7 @@ const MARK = {keep: '채택', reject: '기각', super: '대체됨', evidence: '�
 async function init() {
   const r = await (await fetch('/api/livecmp')).json();
   CK = r.ckpts || [];
+  ARMS = (await (await fetch('/api/arms')).json()).arms || [];
   const label = x => `${x.stage != null ? x.stage + '회 ' : ''}${x.arm}`
     + (x.seed != null ? ' s' + x.seed : '')
     + ` — ${x.what || '(설명 없음)'} [${MARK[x.verdict] || x.verdict}]`;
@@ -384,12 +400,101 @@ async function card(row) {
   return d;
 }
 
+// ── 집약 모드 — 팔 단위 4시드 배치 비교 (/arms 흡수) ──────────────────────
+// 단장·목록이 시드 하나를 방금 추론한다면, 여기는 시드 4개를 합친 배치
+// 평가를 읽는다(_diag). 시드 잡음까지 재는 데는 배치가 필요해 라이브로
+// 대체할 수 없다 — 그래서 흡수는 했지만 모드로 산다.
+function armOf(sel) {
+  const rel = $(sel).value;
+  const arm = (CK.find(x => x.rel === rel) || {}).arm;
+  const ent = ARMS.find(x => x.arm === arm) || {};
+  return {arm, spec: ent.dir ? `${arm}@${ent.dir}` : ''};
+}
+
+async function renderAgg() {
+  const P = $('body');
+  P.innerHTML = '';
+  const split = {rfdev: 'dev', rftest: 'test'}[$('corpus').value];
+  if (!split) {
+    $('info').textContent = '집약은 Roboflow 표본(dev·test)에서만 된다 — 코퍼스를 바꿔라';
+    return;
+  }
+  const A = armOf('a'), B = armOf('b');
+  if (!A.spec) { $('info').textContent = `A(${A.arm}) 에 배치 결과가 없다`; return; }
+  if (!B.spec) { $('info').textContent = `B(${B.arm}) 에 배치 결과가 없다`; return; }
+  const q = new URLSearchParams({a: A.spec, b: B.spec,
+    only: $('aggonly').value, split});
+  const r = await (await fetch('/api/arms?' + q)).json();
+  if (r.error) { $('info').textContent = r.error; return; }
+  const s = r.summary;
+  $('info').innerHTML = `팔 집약(4시드) — 표시 ${r.shown}/${r.matched}장 · 전체 ${s.n} · `
+    + `A 담음 ${s.a_cont}% 게이트 <b>${s.a_gate}%</b>`
+    + (s.b_gate !== undefined
+       ? ` · B 담음 ${s.b_cont}% 게이트 <b>${s.b_gate}%</b>` : '');
+  const g = document.createElement('div');
+  g.id = 'grid';
+  P.appendChild(g);
+  for (const it of r.items) g.appendChild(await aggCard(it, split));
+}
+
+async function aggCard(it, split) {
+  const d = document.createElement('div');
+  d.className = 'card';
+  d.onclick = async () => {          // 카드 → 단장 모드로 파고든다(라이브 추론)
+    $('corpus').value = split === 'dev' ? 'rfdev' : 'rftest';
+    pos = 0; await loadList();
+    const idx = IDS.findIndex(x => x.id === it.id);
+    if (idx >= 0) { pos = idx; $('mode').value = 'one'; switchMode(); show(); }
+  };
+  const cv = document.createElement('canvas');
+  d.appendChild(cv);
+  const cap = document.createElement('div');
+  cap.className = 'cap';
+  const seg = (k, m, other) => {
+    if (!m) return '';
+    const w = other ? (m.gate > other.gate ? 'win' : m.gate < other.gate
+                      ? 'lose' : '') : '';
+    return ` <span style="color:${COL[k]}"><b>${k.toUpperCase()}</b>`
+      + ` <span class="${w}">${m.gate}%</span>·${m.ar}</span>`;
+  };
+  cap.innerHTML = `<span class="cells">${it.cells}칸</span> `
+    + it.id.split('/').pop().slice(0, 26) + seg('a', it.a, it.b) + seg('b', it.b, it.a);
+  d.appendChild(cap);
+  const meta = await (await fetch(
+    `/api/image?id=${encodeURIComponent(it.id)}&w=640`)).json();
+  if (meta.error) { cap.textContent = meta.error; return d; }
+  const img = await loadImg(meta.url,
+                            () => { cap.textContent = '이미지 로드 실패'; });
+  if (img._fail) return d;
+  const s = img.width / meta.ow;
+  const CW = 300;
+  cv.width = CW; cv.height = Math.round(CW * img.height / img.width);
+  const cx = cv.getContext('2d');
+  const k = CW / img.width;
+  cx.drawImage(img, 0, 0, CW, cv.height);
+  const box = (b, col, lw, dash) => {
+    if (!b) return;
+    cx.save();
+    if (dash) cx.setLineDash(dash);
+    cx.lineWidth = lw; cx.strokeStyle = col;
+    cx.strokeRect(b[0]*s*k, b[1]*s*k, (b[2]-b[0])*s*k, (b[3]-b[1])*s*k);
+    cx.restore();
+  };
+  box(it.gt, COL.gt, 1.5);
+  if (it.a && it.a.deploy) box(it.a.deploy, COL.a, 2);
+  if (it.b && it.b.deploy) box(it.b.deploy, COL.b, 2, [5, 4]);
+  return d;
+}
+
 function switchMode() {
   const one = $('mode').value === 'one';
+  const agg = $('mode').value === 'agg';
   $('oneCtl').style.display = one ? '' : 'none';
-  $('listCtl').style.display = one ? 'none' : '';
+  $('listCtl').style.display = $('mode').value === 'list' ? '' : 'none';
+  $('aggCtl').style.display = agg ? '' : 'none';
   if (pollT) { clearTimeout(pollT); pollT = null; }
   if (one) { if (CUR) renderOne(); else if (IDS.length) show(); }
+  else if (agg) renderAgg();
   else renderList();
 }
 
@@ -402,17 +507,24 @@ $('rand').onclick = () => { pos = Math.floor(RNG() * IDS.length); show(); };
 for (const id of ['a', 'b'])
   $(id).onchange = () => {
     if ($('mode').value === 'one') { if (CUR) show(); }
+    else if ($('mode').value === 'agg') renderAgg();
     else renderList();
   };
 for (const id of ['frame', 'view'])
-  $(id).onchange = () => { if (CUR && $('mode').value === 'one') renderOne(); };
+  $(id).onchange = () => {
+    if ($('mode').value === 'one') { if (CUR) renderOne(); }
+    else if ($('mode').value === 'agg') renderAgg();
+  };
 $('corpus').onchange = async () => {
   pos = 0; await loadList();
-  if ($('mode').value === 'one') show(); else renderList();
+  if ($('mode').value === 'one') show();
+  else if ($('mode').value === 'agg') renderAgg();
+  else renderList();
 };
 $('order').onchange = () => { resort(); pos = 0; show(); };
 for (const id of ['ftgt', 'fcls'])
   $(id).onchange = () => { if (SCAN) renderList(); };
+$('aggonly').onchange = () => { if ($('mode').value === 'agg') renderAgg(); };
 addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
   if ($('mode').value !== 'one') return;

@@ -2313,11 +2313,11 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, f.read_bytes(), mime)
             return
         if u.path == "/arms":
-            f = HERE / "arms_view.html"
-            if f.exists():
-                self._send(200, f.read_bytes(), "text/html; charset=utf-8")
-            else:
-                self._send(404, "arms_view.html 없음".encode(), "text/plain")
+            # 2026-09-21 사람 지시("정리해")로 /livecmp 의 집약 모드로
+            # 흡수됐다. /api/arms 는 그 모드가 읽는 데이터원으로 남는다.
+            self.send_response(302)
+            self.send_header("Location", "/livecmp")
+            self.end_headers()
             return
         if u.path == "/livecmp":
             f = HERE / "live_view.html"
