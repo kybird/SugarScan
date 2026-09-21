@@ -57,7 +57,8 @@ class CocoBand(Dataset):
     원칙이 지키려던 "무엇이 움직였나"도 그대로 답할 수 있다.
     """
 
-    def __init__(self, root, ann, size=416, repeat=1, grow=0.0, aug=False):
+    def __init__(self, root, ann, size=416, repeat=1, grow=0.0, aug=False,
+                 scale_min=0.55):
         root = Path(root)
         j = json.loads((root / "annotations" / ann).read_text(encoding="utf-8"))
         by = {a["image_id"]: a["bbox"] for a in j["annotations"]}
@@ -80,6 +81,11 @@ class CocoBand(Dataset):
         # 키우는 것은 그림과 무관하다. 여기서 적재 시점에 더하는 것은 그
         # 분리를 데이터 재생성 없이 쓰는 것과 같다.
         self.grow = grow
+        # 증강 축소 하한. 기본 0.55 는 **사람이 정한 값**이고 여기서
+        # 바꾸지 않는다 — 실험은 플래그로 한다(BAND_EXP_PLAN §19.4).
+        # 배경: 합성 밴드는 실촬보다 2.3~4배 크다(§19.3). 0.55 로는
+        # 학습이 닿는 구간이 [0.266, 0.605]라 실촬 중앙 0.118 에 못 닿는다.
+        self.scale_min = scale_min
         self.aug = aug
 
     def __len__(self):
@@ -125,7 +131,7 @@ class CocoBand(Dataset):
             # (가까움 23.1% / 멂 1.3%). 생성기의 CAM_ZOOM_RANGE 가 덮지 못한
             # 구간을 여기서 넓힌다. 캔버스를 키우거나 잘라 상자를 같이 옮긴다.
             h0, w0 = img.shape
-            sc = rng.uniform(0.55, 1.25)
+            sc = rng.uniform(self.scale_min, 1.25)
             nw, nh = max(8, int(w0 * sc)), max(8, int(h0 * sc))
             img = cv2.resize(img, (nw, nh), interpolation=cv2.INTER_LINEAR)
             sx, sy = nw / w0, nh / h0
@@ -234,6 +240,7 @@ def _save(path, model, args, nparam, n_images, steps):
                 "n_images": n_images, "param": nparam,
                 "score_target": args.score_target, "seed": args.seed,
                 "grow": args.grow, "under_w": args.under_w,
+                "aug_scale_min": args.aug_scale_min,
                 "aug": bool(args.aug)}, path)
 
 
@@ -284,7 +291,8 @@ def run(args):
     random.seed(args.seed)
     np.random.seed(args.seed)
     ds = CocoBand(args.data, args.train_ann, args.size, args.repeat,
-                  grow=args.grow, aug=args.aug)
+                  grow=args.grow, aug=args.aug,
+                  scale_min=args.aug_scale_min)
     dl = DataLoader(ds, batch_size=args.batch, shuffle=True,
                     num_workers=args.workers, drop_last=True, pin_memory=True,
                     persistent_workers=args.workers > 0,
@@ -414,6 +422,7 @@ def run(args):
                 "n_images": len(ds.items), "param": nparam,
                 "score_target": args.score_target, "seed": args.seed,
                 "grow": args.grow, "under_w": args.under_w,
+                "aug_scale_min": args.aug_scale_min,
                 "aug": bool(args.aug)}, out)
     print(f"-> {out}  ({time.time()-t0:.0f}s)", flush=True)
 
@@ -446,6 +455,8 @@ def main():
                     help="중간 품질검사용 홀드아웃")
     ap.add_argument("--aug", action="store_true",
                     help="학습 증강 — 광학 열화 + 배율·위치 흔들기")
+    ap.add_argument("--aug-scale-min", type=float, default=0.55,
+                    help="증강 축소 하한. 기본값은 사람이 정한 값이다")
     ap.add_argument("--grow", type=float, default=0.0,
                     help="정답 상자를 상자 높이의 이 비율만큼 사방 확대")
     ap.add_argument("--under-w", type=float, default=1.0,
