@@ -83,6 +83,8 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--split", default="dev")
     ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--dump", default="",
+                    help="장별 결과를 jsonl 로 — 웹툴 눈검사(/inkclip)가 읽는다")
     a = ap.parse_args()
 
     from eval_band_roboflow import population
@@ -96,6 +98,7 @@ def main():
 
     stat = {}
     sane_in, sane_n = 0, 0
+    dump = []
     for r in rs:
         p = pop.get(r["id"])
         if p is None:
@@ -113,12 +116,26 @@ def main():
         g = r["gt"]
         mw, mh = (g[2]-g[0]) * 0.06, (g[3]-g[1]) * 0.06
         sane_n += 1
-        if (ib[0] >= g[0]-mw and ib[1] >= g[1]-mh
-                and ib[2] <= g[2]+mw and ib[3] <= g[3]+mh):
+        sane = (ib[0] >= g[0]-mw and ib[1] >= g[1]-mh
+                and ib[2] <= g[2]+mw and ib[3] <= g[3]+mh)
+        if sane:
             sane_in += 1
         e = pad(r["pred"])
         cut = not (e[0] <= ib[0] and e[1] <= ib[1]
                    and e[2] >= ib[2] and e[3] >= ib[3])
+        if a.dump:
+            # 어느 변이 얼마나 모자란지도 같이 낸다 — 눈으로 볼 때
+            # "어디가 잘렸다는 건지"를 바로 알 수 있어야 한다.
+            short = {"왼": e[0] - ib[0], "위": e[1] - ib[1],
+                     "오른": ib[2] - e[2], "아래": ib[3] - e[3]}
+            dump.append({"id": r["id"], "cls": cls, "cut": bool(cut),
+                         "sane": bool(sane),
+                         "gt": [round(float(v), 1) for v in r["gt"]],
+                         "digit": [round(float(v), 1) for v in digit_cell(r["gt"])],
+                         "deploy": [round(float(v), 1) for v in e],
+                         "ink": [round(float(v), 1) for v in ib],
+                         "short": {k: round(float(v), 1)
+                                   for k, v in short.items() if v > 0}})
         d = stat.setdefault(cls, {})
         d["n"] = d.get("n", 0) + 1
         d["잉크잘림"] = d.get("잉크잘림", 0) + int(cut)
@@ -133,6 +150,15 @@ def main():
             continue
         print(f"  {cls:<8}{d['n']:>6}{d.get('잉크잘림', 0):>15}"
               f"{100*d.get('잉크잘림',0)/d['n']:>7.1f}%{d.get('잉크실패',0):>9}")
+    if a.dump:
+        q = HERE / a.dump
+        q.parent.mkdir(parents=True, exist_ok=True)
+        q.write_text("".join(json.dumps(x, ensure_ascii=False) + chr(10)
+                             for x in dump), encoding="utf-8")
+        print()
+        print(f"  -> {q}  ({len(dump)}장 · 잘림 "
+              f"{sum(1 for x in dump if x['cut'])}장)")
+
     print("\n  읽는 법: `일부만`의 잉크잘림이 낮으면 **숫자는 안 잘렸다** —")
     print("  라벨 규약 차이로 떨어진 것이다. 높으면 진짜 잘린 것이다.")
 

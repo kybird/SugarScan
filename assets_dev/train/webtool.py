@@ -70,6 +70,9 @@ BAND_FILE = HERE / "band_boxes.jsonl"
 # **학습에 쓰지 않는다** — Roboflow 는 CC BY 4.0 (docs/LICENSES.md §1.4).
 RF_BAND_FILE = HERE / "rf_band_boxes.jsonl"
 RF_QUEUE = HERE / "rf_label_queue.json"
+# 잉크 자(diag_ink_clip.py)가 낸 장별 결과. **자를 눈으로 검사하라고** 있는
+# 파일이라 사람이 보는 것이 목적이다 — 수치만 믿지 말라는 요구(2026-09-20).
+INK_CLIP = HERE / "_diag" / "ink_clip.jsonl"
 BAND_LEGACY = HERE / "labeled.jsonl"   # 보존만. 읽지도 쓰지도 않는다.
 LCD_FILE = HERE / "screen_boxes.jsonl"
 GT_FIX = HERE / "gt_corrections.jsonl"
@@ -1364,6 +1367,38 @@ def resolve_photo(cid):
     return src if src.exists() else None
 
 
+@route("/api/inkclip")
+def api_inkclip(qs):
+    """잉크 자가 **잘렸다**고 판정한 장들. 상자 네 개를 다 넘긴다.
+
+    사람이 검사하는 대상은 사진이 아니라 **자**다. 그래서 잉크 상자를
+    반드시 같이 보내고, 판정이 통과인데 잘렸다고 나온 장(거짓양성 후보)도
+    같이 낸다 — 자가 틀리는 자리를 숨기면 검사가 아니다.
+    """
+    if not INK_CLIP.exists():
+        return {"error": "결과 없음 — diag_ink_clip.py --dump _diag/ink_clip.jsonl"}
+    rows_ = [json.loads(l) for l in
+             INK_CLIP.read_text(encoding="utf-8").splitlines() if l.strip()]
+    only = qs.get("only", ["cut"])[0]
+    if only == "cut":
+        sel = [r for r in rows_ if r["cut"]]
+    elif only == "fp":                 # 통과인데 잘렸다 -> 자가 틀렸을 후보
+        sel = [r for r in rows_ if r["cut"] and r["cls"] == "통과"]
+    elif only == "insane":             # 잉크가 READING 밖으로 나간 장
+        sel = [r for r in rows_ if not r.get("sane", True)]
+    else:
+        sel = rows_
+    # 모자란 폭이 큰 것부터 — 애매한 것보다 명백한 것을 먼저 보여 줘야
+    # 자가 맞는지 틀리는지 빨리 판단할 수 있다.
+    sel.sort(key=lambda r: -max(r.get("short", {}).values() or [0]))
+    return {"items": sel, "total": len(rows_),
+            "counts": {"잘림": sum(1 for r in rows_ if r["cut"]),
+                       "통과인데잘림": sum(1 for r in rows_ if r["cut"]
+                                      and r["cls"] == "통과"),
+                       "자벗어남": sum(1 for r in rows_
+                                   if not r.get("sane", True))}}
+
+
 @route("/api/rfqueue")
 def api_rfqueue(qs):
     """Roboflow 라벨 대기열 — build_rf_label_queue.py 가 만든다.
@@ -1960,6 +1995,13 @@ class Handler(BaseHTTPRequestHandler):
                 return
             mime = "image/png" if f.suffix == ".png" else "image/jpeg"
             self._send(200, f.read_bytes(), mime)
+            return
+        if u.path == "/inkclip":
+            f = HERE / "ink_clip_view.html"
+            if f.exists():
+                self._send(200, f.read_bytes(), "text/html; charset=utf-8")
+            else:
+                self._send(404, "ink_clip_view.html 없음".encode(), "text/plain")
             return
         if u.path == "/rfband":
             f = HERE / "rf_band_label.html"
