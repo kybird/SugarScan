@@ -1,0 +1,248 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>라이브 팔 비교 — 요청 때마다 추론한다</title>
+<!--
+  사람 지시(2026-09-21): "매번 요청할때마다 새로 추론하게 하면 안되냐".
+  /arms 는 배치 평가 결과(_diag/*.jsonl)를 그린다 — 평가를 돌린 팔·시드만
+  볼 수 있고 산물이 낡으면 화면도 모르게 낡는다. 이 화면은 고른 체크포인트가
+  **방금** 추론한 상자를 그린다. 어떤 팔·시든, 그 자리에서.
+
+  지키는 것(/arms 와 같은 규칙):
+  1. **두 자를 함께 낸다** — 담음과 게이트. 눈으로 보는 상자 옆에 숫자가 있다.
+  2. **전체 사진 틀을 고를 수 있다** — 상자 주변만 잘라 보면 "사진의 어디냐"에
+     답이 미리 정해진다(Case 9).
+  3. **미검출도 보여 준다** — conf 0.25 밑은 "미검출"로 적는다. 832 의
+     미검출 2배는 사라지지 않고 늘어나는 대가다(BAND_EXP_PLAN §24).
+-->
+<style>
+  :root { --bg:#111; --fg:#ddd; --line:#333; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font:13px/1.55 system-ui, sans-serif; }
+  header { position:sticky; top:0; z-index:9; background:#1a1a1a;
+           border-bottom:1px solid var(--line); padding:9px 14px;
+           display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  select, button, input { background:#242424; color:var(--fg);
+           border:1px solid #444; padding:4px 9px; border-radius:4px;
+           font:inherit; }
+  button { cursor:pointer; }
+  .legend { display:flex; gap:10px; flex-wrap:wrap; font-size:12px; }
+  .legend i { display:inline-block; width:11px; height:11px; margin-right:4px;
+              vertical-align:-1px; border-radius:2px; }
+  .note { padding:9px 14px; color:#aaa; font-size:12px; background:#151515;
+          border-bottom:1px solid var(--line); }
+  #wrap { padding:14px; }
+  #panels { display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap; }
+  .panel { background:#1a1a1a; border:1px solid #2c2c2c; border-radius:6px;
+           padding:8px; }
+  .panel canvas { display:block; background:#000; border-radius:3px; }
+  .pmeta { font-size:12px; padding-top:6px; line-height:1.7;
+           font-variant-numeric:tabular-nums; }
+  #info { font-size:12px; color:#9ad; padding-bottom:10px;
+          font-variant-numeric:tabular-nums; }
+  .miss { color:#f87171; font-weight:600; }
+  .win { color:#4ade80; } .lose { color:#f87171; }
+  .cells { color:#fde68a; }
+</style>
+
+<header>
+  <b>라이브 비교</b>
+  <label>A <select id="a"></select></label>
+  <label>B <select id="b"></select></label>
+  <label>코퍼스 <select id="corpus"></select></label>
+  <label>순서 <select id="order">
+    <option value="small" selected>작은 밴드부터</option>
+    <option value="big">큰 밴드부터</option>
+    <option value="rand">무작위</option>
+    <option value="name">이름순</option>
+  </select></label>
+  <label>틀 <select id="frame">
+    <option value="crop" selected>상자 주변</option>
+    <option value="full">전체 사진</option>
+  </select></label>
+  <label>보기 <select id="view">
+    <option value="stack" selected>겹침(한 판)</option>
+    <option value="side">나란히(두 판)</option>
+  </select></label>
+  <button id="prev">◀</button>
+  <span id="pos">–</span>
+  <button id="next">▶</button>
+  <button id="rand">🎲</button>
+  <div class="legend">
+    <span><i style="background:#22c55e"></i>사람 라벨</span>
+    <span><i style="background:#ef4444"></i>숫자 칸</span>
+    <span><i style="background:#eab308"></i><b>A</b> 배포 상자</span>
+    <span><i style="background:#38bdf8"></i><b>B</b> 배포 상자(점선)</span>
+  </div>
+</header>
+<div class="note">
+  <b>요청 때마다 추론한다</b> — 배치 산물이 아니라 방금 고른 체크포인트가 낸
+  상자다. 담음·게이트·면적비가 같은 판에 함께 뜬다. 키보드 ◀▶ 이동, R 무작위.
+  conf &lt; 0.25 는 <span class="miss">미검출</span>로 적는다 — 교환의 한쪽이다.
+</div>
+<div id="wrap">
+  <div id="info"></div>
+  <div id="panels"><div class="pmeta">체크포인트를 고른다…</div></div>
+</div>
+
+<script>
+const $ = i => document.getElementById(i);
+const COL = {gt:'#22c55e', digit:'#ef4444', a:'#eab308', b:'#38bdf8'};
+let CK = [], IDS = [], pos = -1, CUR = null, RNG = Math.random;
+
+const MARK = {keep: '채택', reject: '기각', super: '대체됨', evidence: '증거',
+              aside: '사슬 밖', '미등록': '미등록'};
+
+async function init() {
+  const r = await (await fetch('/api/livecmp')).json();
+  CK = r.ckpts || [];
+  const label = x => `${x.stage != null ? x.stage + '회 ' : ''}${x.arm}`
+    + (x.seed != null ? ' s' + x.seed : '')
+    + ` — ${x.what || '(설명 없음)'} [${MARK[x.verdict] || x.verdict}]`;
+  for (const sel of [$('a'), $('b')])
+    sel.innerHTML = CK.map(x =>
+      `<option value="${x.rel}">${label(x)}</option>`).join('');
+  const pickArm = (sel, name) => {
+    const cands = CK.filter(x => x.arm === name && x.seed === 0);
+    const o = [...sel.options].find(o => o.value ===
+      (cands[0] || CK.find(x => x.arm === name) || {}).rel);
+    if (o) sel.value = o.value;
+  };
+  const p = r.pick || {};
+  pickArm($('a'), p.A || 'asize512'); pickArm($('b'), p.B || 'abig');
+  $('corpus').innerHTML = (r.corpora || [])
+    .map(c => `<option value="${c[0]}">${c[1]}</option>`).join('');
+  await loadList();
+  if (IDS.length) { pos = 0; show(); }
+}
+
+async function loadList() {
+  const q = new URLSearchParams({list: 1, corpus: $('corpus').value});
+  const r = await (await fetch('/api/livecmp?' + q)).json();
+  IDS = r.ids || [];
+  resort();
+}
+
+function resort() {
+  const o = $('order').value;
+  if (o === 'small') IDS.sort((x, y) => x.cells - y.cells || (x.id < y.id ? -1 : 1));
+  if (o === 'big')   IDS.sort((x, y) => y.cells - x.cells || (x.id < y.id ? -1 : 1));
+  if (o === 'name')  IDS.sort((x, y) => x.id < y.id ? -1 : 1);
+  if (o === 'rand')  IDS.sort(() => RNG() - 0.5);
+  pos = Math.min(pos < 0 ? 0 : pos, IDS.length - 1);
+}
+
+async function show() {
+  if (!IDS.length || pos < 0) return;
+  const id = IDS[pos].id;
+  $('pos').textContent = `${pos + 1}/${IDS.length}`;
+  const q = new URLSearchParams({a: $('a').value, b: $('b').value,
+    corpus: $('corpus').value, id});
+  CUR = await (await fetch('/api/livecmp?' + q)).json();
+  if (CUR.error) { $('info').textContent = CUR.error; return; }
+  const cells = CUR.cells != null ? `<span class="cells">${CUR.cells}칸</span> · ` : '';
+  $('info').innerHTML = `${cells}${CUR.id} — 방금 추론`;
+  render();
+}
+
+function line(k, m, other) {
+  const nm = (CK.find(x => x.rel === $(k).value) || {}).arm || k;
+  let body;
+  if (!m) body = '(선택 안 함)';
+  else if (m.error) body = m.error;
+  else if (!m.det) body = `<span class="miss">미검출</span> (score ${m.score})`;
+  else {
+    const w = other && other.det
+      ? (m.gate && !other.gate ? 'win' : !m.gate && other.gate ? 'lose' : '')
+      : (m.gate ? 'win' : '');
+    body = `score ${m.score} · 담음 ${m.contain ? 'O' : 'X'} · `
+      + `게이트 <span class="${w}">${m.gate ? 'O' : 'X'}</span> · 면적비 ${m.ar}`;
+  }
+  return `<div style="color:${COL[k]}"><b>${k.toUpperCase()}</b> ${nm}: ${body}</div>`;
+}
+
+async function render() {
+  const P = $('panels');
+  P.innerHTML = '';
+  const meta = await (await fetch(
+    `/api/image?id=${encodeURIComponent(CUR.id)}&w=1200`)).json();
+  if (meta.error) { P.textContent = meta.error; return; }
+  const img = new Image();
+  await new Promise(res => { img.onload = res; img.src = meta.url; });
+  const s = img.width / meta.ow;              // 표시본 배율 — 모든 상자에 동일
+
+  const mk = withBox => {
+    const d = document.createElement('div');
+    d.className = 'panel';
+    const cv = document.createElement('canvas');
+    d.appendChild(cv);
+    const m = document.createElement('div');
+    m.className = 'pmeta';
+    m.innerHTML = withBox === 'a' ? line('a', CUR.a, CUR.b)
+                  : withBox === 'b' ? line('b', CUR.b, CUR.a)
+                  : line('a', CUR.a, CUR.b) + line('b', CUR.b, CUR.a);
+    d.appendChild(m);
+    paint(cv, img, s, meta, withBox);
+    return d;
+  };
+  if ($('view').value === 'side') { P.appendChild(mk('a')); P.appendChild(mk('b')); }
+  else P.appendChild(mk('both'));
+}
+
+async function paint(cv, img, s, meta, withBox) {
+  let x0, y0, x1, y1;
+  if ($('frame').value === 'full' || !CUR.gt) {
+    x0 = 0; y0 = 0; x1 = img.width; y1 = img.height;
+  } else {
+    const all = [CUR.gt];
+    for (const k of ['a', 'b'])
+      if (CUR[k] && CUR[k].deploy) all.push(CUR[k].deploy);
+    x0 = Math.min(...all.map(b => b[0])); y0 = Math.min(...all.map(b => b[1]));
+    x1 = Math.max(...all.map(b => b[2])); y1 = Math.max(...all.map(b => b[3]));
+    const px = (x1 - x0) * 0.2, py = (y1 - y0) * 0.2;
+    x0 = Math.max(0, (x0 - px) * s); y0 = Math.max(0, (y0 - py) * s);
+    x1 = Math.min(img.width, (x1 + px) * s);
+    y1 = Math.min(img.height, (y1 + py) * s);
+  }
+  const w = Math.max(8, x1 - x0), h = Math.max(8, y1 - y0);
+  const CW = 620;
+  cv.width = CW; cv.height = Math.round(CW * h / w);
+  const k = CW / w, cx = cv.getContext('2d');
+  cx.drawImage(img, x0, y0, w, h, 0, 0, CW, cv.height);
+  if ($('frame').value === 'full') {
+    cx.save(); cx.setLineDash([6, 6]); cx.strokeStyle = '#ffffff44';
+    cx.lineWidth = 1.5; cx.beginPath();
+    cx.moveTo(CW / 2, 0); cx.lineTo(CW / 2, cv.height);
+    cx.moveTo(0, cv.height / 2); cx.lineTo(CW, cv.height / 2);
+    cx.stroke(); cx.restore();
+  }
+  const box = (b, col, lw, dash) => {
+    if (!b) return;
+    cx.save();
+    if (dash) cx.setLineDash(dash);
+    cx.lineWidth = lw; cx.strokeStyle = col;
+    cx.strokeRect(b[0]*s*k - x0*k, b[1]*s*k - y0*k,
+                  (b[2]-b[0])*s*k, (b[3]-b[1])*s*k);
+    cx.restore();
+  };
+  box(CUR.gt, COL.gt, 2);
+  box(CUR.digit, COL.digit, 1.5, [4, 4]);
+  if (withBox !== 'b' && CUR.a && CUR.a.deploy) box(CUR.a.deploy, COL.a, 3);
+  if (withBox !== 'a' && CUR.b && CUR.b.deploy) box(CUR.b.deploy, COL.b, 3, [7, 5]);
+}
+
+$('prev').onclick = () => { if (pos > 0) { pos--; show(); } };
+$('next').onclick = () => { if (pos < IDS.length - 1) { pos++; show(); } };
+$('rand').onclick = () => { pos = Math.floor(RNG() * IDS.length); show(); };
+for (const id of ['a', 'b', 'frame', 'view'])
+  $(id).onchange = () => { if (CUR) render(); };
+$('corpus').onchange = async () => { pos = 0; await loadList(); show(); };
+$('order').onchange = () => { resort(); pos = 0; show(); };
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if (e.key === 'ArrowLeft') $('prev').click();
+  if (e.key === 'ArrowRight') $('next').click();
+  if (e.key === 'r' || e.key === 'R') $('rand').click();
+});
+init();
+</script>

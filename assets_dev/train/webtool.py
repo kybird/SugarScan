@@ -20,6 +20,7 @@ import os
 import re
 import subprocess
 import sys
+import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -1488,6 +1489,186 @@ def api_arms(qs):
             "matched": len(items), "summary": summ}
 
 
+# ── 라이브 팔 비교 — 요청 때마다 추론한다 (2026-09-21) ────────────────────
+# 사람 지시: "매번 요청할때마다 새로 추론하게 하면 안되냐". 지금까지 화면은
+# 전부 배치 산물을 렌더링했다(band_quads_pred.jsonl · _diag/*.jsonl). 그 방식은
+# 두 번 사고를 냈다 — 라벨러 오버레이가 두 팔 뒤진 bg_s1 인 걸 아무도 몰랐고
+# (2026-09-21), 화면이 죽은 파이프라인의 마지막 줄을 계속 보여 줬다(이 파일
+# 머리말 71행). 라이브 추론은 **지금 고른 체크포인트가 방금 낸 상자**만 보여
+# 준다. BandNet 이 0.6M 파라미터라 장당 밀리초다 — 배치할 이유가 없다.
+# 모델 적재가 추론보다 느리니 캐시하고, torch 는 첫 요청에만 든다.
+_LIVE_MODELS = {}
+_LIVE_LOCK = threading.Lock()
+_LIVE_CORPUS = {}
+LIVE_CONF = 0.25        # 배포 문턱과 같은 값 — 미검출도 교환의 한쪽이다
+
+
+def _live_model(rel):
+    """band_out 상대경로 -> (model, meta, dev). band_out 안의 .pt 만 연다."""
+    rel = str(rel).replace("\\", "/").lstrip("./")
+    p = (BAND_OUT / rel).resolve()
+    if p.suffix != ".pt" or BAND_OUT.resolve() not in p.parents:
+        return None
+    with _LIVE_LOCK:
+        if rel not in _LIVE_MODELS:
+            import torch                                   # 첫 요청에만 적재
+            from band_net import BandNet
+            c = torch.load(p, map_location="cpu", weights_only=False)
+            dev = "cuda" if torch.cuda.is_available() else "cpu"
+            m = BandNet(width=c["width"], stride=c.get("stride", 16))
+            m.load_state_dict(c["model"])
+            _LIVE_MODELS[rel] = (m.to(dev).eval(), c, dev)
+            if len(_LIVE_MODELS) > 8:                      # 오래된 것부터 비운다
+                _LIVE_MODELS.pop(next(iter(_LIVE_MODELS)))
+        return _LIVE_MODELS[rel]
+
+
+def _live_corpus(name):
+    """'rfdev'|'rftest'|'datumo' -> {id: {path, gt}}. gt 는 표시 좌표다."""
+    if name in _LIVE_CORPUS:
+        return _LIVE_CORPUS[name]
+    out = {}
+    if name.startswith("rf"):
+        import eval_band_roboflow as ebr
+        split = {"rfdev": "dev", "rftest": "test"}[name]
+        keep = set(json.loads((HERE / "rf_split.json")
+                              .read_text(encoding="utf-8"))[split])
+        for i, (p, gt) in ebr.population().items():
+            if i in keep:
+                out[i] = {"path": p, "gt": gt}
+    else:
+        # Datumo — 사람 밴드 라벨이 있는 장만(라벨 277장). 사진 목록 정본은
+        # labels.jsonl, 좌표 정본은 band_boxes.jsonl(읽기 전용).
+        lab = {}
+        for line in (DATUMO / "labels.jsonl").read_text(
+                encoding="utf-8").splitlines():
+            if line.strip():
+                j = json.loads(line)
+                lab[j["id"]] = DATUMO / j["image"]
+        for line in BAND_FILE.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            j = json.loads(line)
+            q = j.get("quad") or []
+            if len(q) == 4 and lab.get(j["id"]):
+                out[j["id"]] = {"path": lab[j["id"]],
+                                "gt": [q[0][0], q[0][1], q[2][0], q[2][1]]}
+    _LIVE_CORPUS[name] = out
+    return out
+
+
+def _live_pred(rel, path):
+    """한 장을 한 모델로 추론. 좌표는 표시(EXIF 적용) 픽셀 — api_image 와
+    같은 관례다([[frame-provenance-binding]]). cv2.imread 는 EXIF 를 무시하므로
+    PIL exif_transpose 로 읽는다."""
+    got = _live_model(rel)
+    if got is None:
+        return {"error": f"체크포인트를 못 연다: {rel}"}
+    m, c, dev = got
+    import torch
+    from band_net import decode
+    from train_band import letterbox
+    try:
+        with Image.open(path) as pil:
+            img = ImageOps.exif_transpose(pil).convert("L")
+    except OSError:
+        return {"error": "이미지를 못 읽는다"}
+    lb, r, dx, dy = letterbox(np.asarray(img), c["size"])
+    x = torch.from_numpy(lb).float().div_(255.).unsqueeze(0).unsqueeze(0)
+    with torch.no_grad(), _LIVE_LOCK:
+        o, g = m(x.to(dev))
+        bx, sc = decode(o.float(), g.float(), m.stride)
+    bx = bx[0].cpu().numpy()
+    sc = float(sc[0].cpu())
+    if sc < LIVE_CONF:
+        return {"det": False, "score": round(sc, 4)}
+    p = [(float(bx[0])-dx)/r, (float(bx[1])-dy)/r,
+         (float(bx[2])-dx)/r, (float(bx[3])-dy)/r]
+    return {"det": True, "score": round(sc, 4),
+            "pred": [round(v, 1) for v in p]}
+
+
+@route("/api/livecmp")
+def api_livecmp(qs):
+    """라이브 비교 — a·b 체크포인트가 요청 때마다 직접 추론한다.
+
+    담음·게이트·면적비는 /api/arms 와 같은 자로 함께 낸다 — 눈과 숫자를
+    같은 판에서 보는 것이 이 화면의 목적이다.
+    """
+    import importlib
+    rfm = importlib.import_module("report_fail_mix")
+    a = qs.get("a", [""])[0]
+    b = qs.get("b", [""])[0]
+    corpus = qs.get("corpus", ["rfdev"])[0]
+    if corpus not in ("rfdev", "rftest", "datumo"):
+        return {"error": f"모르는 코퍼스: {corpus}"}
+    if not a and not b and qs.get("list", [""])[0] != "1":
+        # 체크포인트 목록 — band_out 의 최종 팔만(중간 step 은 뺀다).
+        reg = json.loads((HERE / "arm_registry.json")
+                         .read_text(encoding="utf-8"))
+        meta = reg.get("arms", {})
+        out = []
+        for f in sorted((HERE / "band_out").glob("*/*.pt")):
+            if "_step" in f.stem:
+                continue
+            arm, _, sd = f.stem.rpartition("_s")
+            m = meta.get(arm, {})
+            out.append({"rel": f"{f.parent.name}/{f.name}", "arm": arm,
+                        "seed": int(sd) if sd.isdigit() else None,
+                        "stage": m.get("stage"),
+                        "what": m.get("what", ""),
+                        "verdict": m.get("verdict", "미등록"),
+                        "note": m.get("note", "")})
+        out.sort(key=lambda x: (x["stage"] if x["stage"] is not None else 99,
+                                x["arm"],
+                                x["seed"] if x["seed"] is not None else -1))
+        return {"ckpts": out, "pick": reg.get("지금_볼_것", {}),
+                "corpora": [["rfdev", "Roboflow 개발 586"],
+                            ["rftest", "Roboflow 봉인 시험 687"],
+                            ["datumo", "Datumo 밴드 라벨 277"]]}
+    ids = _live_corpus(corpus)
+    if qs.get("list", [""])[0] == "1":
+        items = []
+        for i, v in ids.items():
+            if v["path"] is None or not v.get("gt"):
+                continue
+            ow, oh = _oriented_size(v["path"])
+            rr = min(416 / ow, 416 / oh)
+            items.append({"id": i,
+                          "cells": round((v["gt"][3]-v["gt"][1]) * rr / 16.0,
+                                         2)})
+        items.sort(key=lambda t: (t["cells"], t["id"]))
+        return {"ids": items, "n": len(items)}
+    cid = qs.get("id", [""])[0]
+    v = ids.get(cid)
+    if v is None or v["path"] is None:
+        return {"error": f"사진이 없다: {cid}"}
+    ow, oh = _oriented_size(v["path"])
+    res = {"id": cid, "corpus": corpus, "ow": ow, "oh": oh, "gt": v["gt"]}
+    if v["gt"]:
+        rr = min(416 / ow, 416 / oh)
+        res["cells"] = round((v["gt"][3]-v["gt"][1]) * rr / 16.0, 2)
+        res["digit"] = [round(x, 1) for x in rfm.digit_cell(v["gt"])]
+    for k, rel in (("a", a), ("b", b)):
+        if not rel:
+            continue
+        pr = _live_pred(rel, v["path"])
+        ent = dict(pr)
+        if v["gt"] and pr.get("det"):
+            e = rfm.pad(pr["pred"])
+            g = v["gt"]
+            d = rfm.digit_cell(g)
+            cov = (e[0] <= d[0] and e[1] <= d[1]
+                   and e[2] >= d[2] and e[3] >= d[3])
+            ga = max(1.0, (g[2]-g[0]) * (g[3]-g[1]))
+            ar = (max(0.0, e[2]-e[0]) * max(0.0, e[3]-e[1])) / ga
+            ent.update(deploy=[round(x, 1) for x in e],
+                       contain=cov, ar=round(ar, 2),
+                       gate=bool(cov and ar <= 2.0))
+        res[k] = ent
+    return res
+
+
 @route("/api/inkclip")
 def api_inkclip(qs):
     """잉크 자가 **잘렸다**고 판정한 장들. 상자 네 개를 다 넘긴다.
@@ -2127,6 +2308,13 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(200, f.read_bytes(), "text/html; charset=utf-8")
             else:
                 self._send(404, "arms_view.html 없음".encode(), "text/plain")
+            return
+        if u.path == "/livecmp":
+            f = HERE / "live_view.html"
+            if f.exists():
+                self._send(200, f.read_bytes(), "text/html; charset=utf-8")
+            else:
+                self._send(404, "live_view.html 없음".encode(), "text/plain")
             return
         if u.path == "/inkclip":
             f = HERE / "ink_clip_view.html"
