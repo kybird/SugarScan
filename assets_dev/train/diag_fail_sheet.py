@@ -36,6 +36,10 @@ def main():
     ap.add_argument("--split", default="dev")
     ap.add_argument("--n", type=int, default=12)
     ap.add_argument("--cell", type=int, default=320)
+    ap.add_argument("--full", action="store_true",
+                    help="사진 전체를 보여 준다 — **상자가 사진의 어디인지**를"
+                         " 보려면 이쪽. 상자 주변만 자르면 어떤 상자든 칸"
+                         " 한가운데에 놓여 전부 중앙으로 보인다.")
     ap.add_argument("--out", default="_diag/fail_sheet.png")
     a = ap.parse_args()
 
@@ -77,13 +81,16 @@ def main():
         d = digit_cell(g)
         e = pad(r["pred"]) if r.get("det") else None
         # 밴드를 중심으로 넉넉히 잘라 낸다 — 주변에 무엇이 있는지 봐야 한다.
-        cx, cy = (g[0] + g[2]) / 2, (g[1] + g[3]) / 2
-        half = max(g[2] - g[0], g[3] - g[1]) * 1.6
-        if e is not None:                       # 예측이 밖이면 같이 담는다
-            half = max(half, abs(e[0]-cx), abs(e[2]-cx),
-                       abs(e[1]-cy), abs(e[3]-cy)) * 1.15
-        x0, y0 = int(cx - half), int(cy - half)
-        x1, y1 = int(cx + half), int(cy + half)
+        if a.full:
+            x0, y0, x1, y1 = 0, 0, img.shape[1], img.shape[0]
+        else:
+            cx, cy = (g[0] + g[2]) / 2, (g[1] + g[3]) / 2
+            half = max(g[2] - g[0], g[3] - g[1]) * 1.6
+            if e is not None:                   # 예측이 밖이면 같이 담는다
+                half = max(half, abs(e[0]-cx), abs(e[2]-cx),
+                           abs(e[1]-cy), abs(e[3]-cy)) * 1.15
+            x0, y0 = int(cx - half), int(cy - half)
+            x1, y1 = int(cx + half), int(cy + half)
         px0, py0 = max(0, -x0), max(0, -y0)
         sx0, sy0 = max(0, x0), max(0, y0)
         sx1, sy1 = min(img.shape[1], x1), min(img.shape[0], y1)
@@ -91,6 +98,11 @@ def main():
         crop[py0:py0+(sy1-sy0), px0:px0+(sx1-sx0)] = img[sy0:sy1, sx0:sx1]
         s = C / max(1, crop.shape[0])
         crop = cv2.resize(crop, (C, C))
+        if a.full:
+            # 사진 한가운데를 십자로 — "중앙인가"를 눈대중이 아니라
+            # 기준선으로 보게 한다.
+            cv2.line(crop, (C//2, 0), (C//2, C), (90, 90, 90), 1)
+            cv2.line(crop, (0, C//2), (C, C//2), (90, 90, 90), 1)
         def box(b, col, th=2):
             cv2.rectangle(crop, (int((b[0]-x0)*s), int((b[1]-y0)*s)),
                           (int((b[2]-x0)*s), int((b[3]-y0)*s)), col, th)
