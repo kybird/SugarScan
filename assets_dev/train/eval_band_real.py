@@ -224,7 +224,7 @@ def predict_dir(ckpt, photo_dir, prefix, conf=0.25, limit=0, tag=None,
     """
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     c = torch.load(ckpt, map_location="cpu", weights_only=False)
-    model = BandNet(width=c["width"]).to(dev).eval()
+    model = BandNet(width=c["width"], stride=c.get("stride", 16)).to(dev).eval()
     model.load_state_dict(c["model"])
     size = c["size"]
     name = tag or (f"{prefix}_{Path(ckpt).stem}"
@@ -335,7 +335,7 @@ def evaluate(ckpt, conf=0.25, limit=0, overlay=True, tag=None,
              input_size=None, out_dir=None):
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     c = torch.load(ckpt, map_location="cpu", weights_only=False)
-    model = BandNet(width=c["width"]).to(dev).eval()
+    model = BandNet(width=c["width"], stride=c.get("stride", 16)).to(dev).eval()
     model.load_state_dict(c["model"])
     size = input_size or c["size"]
     name = tag or Path(ckpt).stem

@@ -241,7 +241,7 @@ def _save(path, model, args, nparam, n_images, steps):
                 "score_target": args.score_target, "seed": args.seed,
                 "grow": args.grow, "under_w": args.under_w,
                 "aug_scale_min": args.aug_scale_min,
-                "aug": bool(args.aug)}, path)
+                "aug": bool(args.aug), "stride": args.stride}, path)
 
 
 @torch.no_grad()
@@ -297,7 +297,7 @@ def run(args):
                     num_workers=args.workers, drop_last=True, pin_memory=True,
                     persistent_workers=args.workers > 0,
                     worker_init_fn=init_worker)
-    model = BandNet(width=args.width).to(dev)
+    model = BandNet(width=args.width, stride=args.stride).to(dev)
     nparam = sum(p.numel() for p in model.parameters())
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=5e-4)
     scaler = torch.amp.GradScaler(dev, enabled=(dev == "cuda"))
@@ -417,13 +417,7 @@ def run(args):
                   f"{time.time()-t0:.0f}s", flush=True)
     out = out_path
     out.parent.mkdir(parents=True, exist_ok=True)
-    torch.save({"model": model.state_dict(), "width": args.width,
-                "size": args.size, "steps": total,
-                "n_images": len(ds.items), "param": nparam,
-                "score_target": args.score_target, "seed": args.seed,
-                "grow": args.grow, "under_w": args.under_w,
-                "aug_scale_min": args.aug_scale_min,
-                "aug": bool(args.aug)}, out)
+    _save(out, model, args, nparam, len(ds.items), total)
     print(f"-> {out}  ({time.time()-t0:.0f}s)", flush=True)
 
 
@@ -433,6 +427,9 @@ def main():
     ap.add_argument("--train-ann", default="instances_train2017.json")
     ap.add_argument("--out", required=True)
     ap.add_argument("--size", type=int, default=416)
+    ap.add_argument("--stride", type=int, default=16, choices=(8, 16),
+                    help="검출 특징맵 stride. /8 허용은 2026-09-21 사람 결정"
+                         "(SPEC §5.3). 기본 16 은 기존 팔과 같다")
     ap.add_argument("--width", type=float, default=1.0)
     ap.add_argument("--batch", type=int, default=32)
     ap.add_argument("--steps", type=int, default=6000)

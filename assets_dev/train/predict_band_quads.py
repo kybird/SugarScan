@@ -63,7 +63,7 @@ def main():
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     ck = HERE / args.ckpt if not Path(args.ckpt).is_absolute() else Path(args.ckpt)
     c = torch.load(ck, map_location="cpu", weights_only=False)
-    model = BandNet(width=c["width"]).to(dev).eval()
+    model = BandNet(width=c["width"], stride=c.get("stride", 16)).to(dev).eval()
     model.load_state_dict(c["model"])
     size = c["size"]
 

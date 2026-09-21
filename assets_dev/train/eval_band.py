@@ -29,7 +29,7 @@ WIDE_PROFILES = {"onetouch_ultramini", "wide_unknown"}
 
 def load(ckpt, dev):
     c = torch.load(ckpt, map_location="cpu", weights_only=False)
-    m = BandNet(width=c["width"]).to(dev).eval()
+    m = BandNet(width=c["width"], stride=c.get("stride", 16)).to(dev).eval()
     m.load_state_dict(c["model"])
     return m, c
 

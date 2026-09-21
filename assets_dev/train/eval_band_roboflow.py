@@ -66,7 +66,7 @@ def population():
 def evaluate(ckpt, conf=0.25, limit=0, input_size=None, out_dir=None):
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     c = torch.load(ckpt, map_location="cpu", weights_only=False)
-    model = BandNet(width=c["width"]).to(dev).eval()
+    model = BandNet(width=c["width"], stride=c.get("stride", 16)).to(dev).eval()
     model.load_state_dict(c["model"])
     size = input_size or c["size"]
     name = f"roboflow_{Path(ckpt).stem}"

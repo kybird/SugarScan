@@ -8,9 +8,13 @@
 # 설계 요지
 #   입력   1채널 그레이스케일. 합성기가 이미 1채널로 굽고, 실사진은 추론 때
 #          gray 로 바꾼다. 첫 conv 비용이 1/3 이다.
-#   출력   /16 특징맵 한 장. stride 8 을 만들지 않는다 — 실측으로 밴드 짧은변이
-#          입력 416 에서 실촬 중앙 87px · 최소 55px 라 stride 16 에서도 5.4 / 3.4
-#          칸을 덮는다. stride 32 는 최소 1.7 칸이라 너무 성기다.
+#   출력   특징맵 한 장(단일 스케일). /16 이 기본이고 /8 을 고를 수 있다.
+#          ~~stride 8 을 만들지 않는다 — 실측으로 밴드 짧은변이 입력 416 에서
+#          실촬 중앙 87px 라 stride 16 에서도 5.4칸을 덮는다~~ → **2026-09-21
+#          사람 결정으로 /8 을 허용했다(SPEC §5.3).** 그 실측은 사람 밴드
+#          라벨 기준이고 실촬 하위 10~15% 는 /16 격자에서 세로 2.5칸 미만이라
+#          성적 절벽이 있다(BAND_EXP_PLAN §21.5). stride 32 는 성기다 — 안 쓴다.
+#          다중 스케일 FPN 은 여전히 제외: /8 칸 하나에 검출 헤드를 얹는다.
 #   헤드   칸마다 objectness 1 + box 4. box 는 **칸 중심에서 네 변까지의 거리**
 #          (l, t, r, b) 다. 절대 좌표를 내면 칸마다 좌표를 외워야 해서 CNN 의
 #          평행이동 등변성과 싸운다. 거리는 항상 양수고 국소 정보라 안정적이다.
@@ -57,8 +61,10 @@ class DWBlock(nn.Module):
 
 
 class BandNet(nn.Module):
-    def __init__(self, width=1.0, in_ch=1, blocks=(2, 2, 3, 2)):
+    def __init__(self, width=1.0, in_ch=1, blocks=(2, 2, 3, 2), stride=16):
         super().__init__()
+        if stride not in (8, 16):
+            raise ValueError(f"stride 는 8 또는 16 만 지원 — {stride}")
         c1, c2, c3, c4, c5 = (_c(16, width), _c(24, width), _c(48, width),
                               _c(96, width), _c(128, width))
         self.stem = ConvBN(in_ch, c1, 3, 2)                  # /2
@@ -73,10 +79,18 @@ class BandNet(nn.Module):
         # /32 를 /16 으로 올려 더한다 — 큰 물체의 문맥을 헤드에 준다.
         self.lat = ConvBN(c5, c4, 1, 1)
         self.fuse = ConvBN(c4, c4, 3, 1)
+        if stride == 8:
+            # /8 헤드 — 2026-09-21 사람 결정(SPEC §5.3). /16 맵(그 안에 /32
+            # 문맥이 이미 들어 있다)을 한 번 더 올려 s2(/8) 에 더한다. 융합
+            # 방식은 /16 헤드가 /32 를 더하는 것과 같은 이치다. 헤드 자체는
+            # /16 팔과 동일하다(채널·깊이 그대로).
+            self.up2 = ConvBN(c3, c4, 1, 1)
+            self.lat2 = ConvBN(c4, c4, 1, 1)
+            self.fuse8 = ConvBN(c4, c4, 3, 1)
         self.head = nn.Sequential(ConvBN(c4, c4, 3, 1), ConvBN(c4, c4, 3, 1))
         self.obj = nn.Conv2d(c4, 1, 1)
         self.reg = nn.Conv2d(c4, 4, 1)
-        self.stride = 16
+        self.stride = stride
         self._init()
 
     def _init(self):
@@ -93,11 +107,18 @@ class BandNet(nn.Module):
 
     def forward(self, x):
         x = self.stem(x)
-        x = self.s1(x); x = self.s2(x)
-        p4 = self.s3(x)
+        x = self.s1(x)
+        x2 = self.s2(x)
+        p4 = self.s3(x2)
         p5 = self.s4(p4)
         p = self.fuse(p4 + F.interpolate(self.lat(p5), size=p4.shape[-2:],
                                          mode="nearest"))
+        if self.stride == 8:
+            # 416 + /8 격자는 832 + /16 과 같은 칸 수다(52x52). 백본이 보는
+            # 화소는 4분의 1이다.
+            p = self.fuse8(self.up2(x2)
+                           + F.interpolate(self.lat2(p), size=x2.shape[-2:],
+                                           mode="nearest"))
         p = self.head(p)
         # reg 는 **칸 중심에서 네 변까지의 거리**다. 항상 양수여야 하므로 exp 대신
         # softplus 를 쓴다 — exp 는 초기에 발산하기 쉽다.
@@ -122,5 +143,9 @@ if __name__ == "__main__":
     for w in (0.5, 1.0, 2.0):
         m = BandNet(width=w)
         n = sum(p.numel() for p in m.parameters())
-        o, r = m(torch.zeros(1, 1, 416, 416))
-        print(f"width={w:<4} 파라미터 {n/1e6:.3f}M  출력 {tuple(o.shape)} {tuple(r.shape)}")
+        o, _ = m(torch.zeros(1, 1, 416, 416))
+        m8 = BandNet(width=w, stride=8)
+        n8 = sum(p.numel() for p in m8.parameters())
+        o8, _ = m8(torch.zeros(1, 1, 416, 416))
+        print(f"width={w:<4} /16 파라미터 {n/1e6:.3f}M 출력 {tuple(o.shape)} · "
+              f"/8 파라미터 {n8/1e6:.3f}M 출력 {tuple(o8.shape)}")
