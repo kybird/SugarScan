@@ -2291,12 +2291,13 @@ def _atlas_fail_html(err):
 # 여기 한 곳에 정의하고 페이지를 내줄 때 <body> 바로 뒤에 주입한다 — 8개
 # 화면에 각자 복사하면 다시 흩어진다. 작업대(/)는 자체 탭+버튼 머리글이
 # 같은 역할을 하므로 주입하지 않고, 대신 /#탭 해시로 탭이 열리게 했다.
-_NAV_TABS = (("labeler", "라벨러"), ("monitor", "모니터"), ("devices", "기종"),
-             ("atlas", "아틀라스"), ("train", "훈련"))
-_NAV_PAGES = (("/livecmp", "실촬 검수"), ("/devices", "기종 라벨링"),
-              ("/synth", "합성 코퍼스"), ("/profedit", "프로파일"),
-              ("/aug", "증강"), ("/inkclip", "잉크 검사"),
-              ("/rfband", "Roboflow 라벨"))
+# 기종·아틀라스는 2026-09-21 카드로 작업대 탭(iframe 이중 진입)을 없애고
+# 독립 화면 하나로 통합했다 — '작업대' 줄이 아니라 '화면' 줄에만 있다.
+_NAV_TABS = (("labeler", "라벨러"), ("monitor", "모니터"), ("train", "훈련"))
+_NAV_PAGES = (("/livecmp", "실촬 검수"), ("/devices", "기종"),
+              ("/atlas", "아틀라스"), ("/synth", "합성 코퍼스"),
+              ("/profedit", "프로파일"), ("/aug", "증강"),
+              ("/inkclip", "잉크 검사"), ("/rfband", "Roboflow 라벨"))
 _NAV_CSS = (
     "<style>#topnav{display:flex;flex-wrap:wrap;gap:6px;align-items:center;"
     "padding:6px 12px;background:#14161a;border-bottom:1px solid #333;"
