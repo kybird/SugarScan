@@ -36,6 +36,26 @@ def rows(p):
             if l.strip()]
 
 
+def load_foreign(p):
+    """이물 태그 {id: tag} — 사람 전용 파일(rf_foreign_tags.jsonl)을 읽는다.
+
+    헤더(_meta 행)는 규약이므로 무시한다. 이 도구는 태그를 **읽기만** 한다 —
+    태그 값을 만드는 것은 사람 몫이다(카드 '로보플로우 이물층 태그 규약').
+    """
+    if not p or not Path(p).exists():
+        return {}
+    out = {}
+    for l in Path(p).read_text(encoding="utf-8").splitlines():
+        if not l.strip():
+            continue
+        j = json.loads(l)
+        if "_meta" in j:
+            continue
+        if "id" in j and "tag" in j:
+            out[j["id"]] = j["tag"]
+    return out
+
+
 def digit_cell(g):
     m = (g[3] - g[1]) * K
     return [g[0] + m, g[1] + m, g[2] - m, g[3] - m]
@@ -62,8 +82,8 @@ def classify(r):
     return "일부만" if (ix > 0 and iy > 0) else "딴 데"
 
 
-def per_seed(paths, keep):
-    """시드마다 {장 id: 분류}."""
+def per_seed(paths, keep, drop=frozenset()):
+    """시드마다 {장 id: 분류}. drop 은 이물 태그 장(제외 표용)."""
     out = []
     for p in paths:
         rs = rows(p)
@@ -72,6 +92,8 @@ def per_seed(paths, keep):
         m = {}
         for r in rs:
             if keep is not None and r["id"] not in keep:
+                continue
+            if r["id"] in drop:
                 continue
             c = classify(r)
             if c:
@@ -201,6 +223,10 @@ def main():
     ap.add_argument("--sweep", default="",
                     help="추론 부풀림 스윕, 예: 0,0.05,0.1,0.15,0.2,0.3")
     ap.add_argument("--tau", type=float, default=2.0)
+    ap.add_argument("--foreign", default="rf_foreign_tags.jsonl",
+                    help="이물 태그 파일(사람 전용, 헤더에 규약). 태그된 장이 "
+                         "모집단에 있으면 이물 포함/제외 두 표를 나란히 낸다. "
+                         "'' 로 끈다.")
     ap.add_argument("--anatomy", action="store_true",
                     help="일부만으로 떨어진 장의 변별 해부를 함께 낸다")
     a = ap.parse_args()
@@ -215,27 +241,43 @@ def main():
     if a.split != "all" and sp.exists():
         keep = set(json.loads(sp.read_text(encoding="utf-8"))[a.split])
 
+    # 이물 태그(사람이 채운 것만). 도구는 읽기 전용이다.
+    foreign = load_foreign((HERE / a.foreign) if a.foreign else "")
+
     label = {"dev": "Roboflow 개발 586",
              "test": "Roboflow 봉인 시험 687",
              "all": ("Datumo 272" if a.corpus == "datumo"
                      else "Roboflow 전량")}[a.split]
     print(f"실패 구성 — {label} · 배포 상자 대 숫자 칸")
-    print(f"  {'':<12}" + "".join(f"{c:>10}" for c in CLASSES) + f"{'n':>7}{'시드':>6}")
+    if foreign:
+        from collections import Counter
+        print(f"  이물 태그 {len(foreign)}건 "
+              f"({', '.join(f'{k} {v}' for k, v in sorted(Counter(foreign.values()).items()))}) "
+              f"— 포함/제외 두 표를 나란히 낸다")
+    print(f"  {'':<18}" + "".join(f"{c:>10}" for c in CLASSES) + f"{'n':>7}{'시드':>6}")
 
-    arms = []
-    for spec in a.arms.split(","):
-        name, d = spec.split(":")
-        ss = per_seed([HERE / d / (PFX + f"{name}_s{s}.jsonl") for s in seeds],
-                      keep)
-        if not ss:
-            print(f"  [{name}] 결과 없음")
-            continue
-        arms.append((name, ss))
+    def arm_row(name, ss):
         cells = ""
         for c in CLASSES:
             v = share(ss, c)
             cells += f"{v.mean():>7.2f}±{v.std(ddof=1) if len(v) > 1 else 0:<2.1f}"
-        print(f"  {name:<12}{cells}{len(ss[0]):>7}{len(ss):>6}")
+        print(f"  {name:<18}{cells}{len(ss[0]):>7}{len(ss):>6}")
+
+    arms = []
+    for spec in a.arms.split(","):
+        name, d = spec.split(":")
+        paths = [HERE / d / (PFX + f"{name}_s{s}.jsonl") for s in seeds]
+        ss = per_seed(paths, keep)
+        if not ss:
+            print(f"  [{name}] 결과 없음")
+            continue
+        arms.append((name, ss))
+        arm_row(name, ss)
+        # 이물 제외 표 — 태그된 장을 뺀 같은 자. 게이트 수치가 이물 때문에
+        # 실제보다 나쁘게 왜곡되는지를 이 표에서 가른다(카드 AC#2).
+        ssx = per_seed(paths, keep, drop=set(foreign)) if foreign else []
+        if ssx and ssx[0].keys() != ss[0].keys():
+            arm_row(name + "ˣ이물제외", ssx)
 
     if a.anatomy:
         print()
