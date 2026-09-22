@@ -529,6 +529,11 @@ CAM_POSE_P = 0.92          # 이 확률로 포즈를 준다. 나머지는 정면
 # 획이 원래 해상도에서 출발한다. 배율 하한을 증강으로 내린 실험은 단조롭게
 # 나빠졌다(§20.1) — 같은 '작음'이 아니라는 뜻이다.
 CAM_ZOOM_RANGE = (0.10, 1.0)   # 2026-09-20 사람 선언 (구: 0.25, 2026-09-17)
+# 구도 축의 목표 분포(2026-09-21 카드 B4 가 이 상수들의 근거로 명시):
+# 로보플로우 dev 586 의 READING 구도(classify_rf_miss.py — B1 완전 미검출
+# 3분할 보고서와 같은 자) area_frac p10 0.0103 / 중앙 0.0266 / p90 0.0527.
+# zoom 하한 0.10 은 이 분포의 작은 쪽(조연 구도)을 덮기 위해 09-20 에 사람이
+# 선언한 값이다 — 완전 미검출 12장 중 과반이 면적 하위 10% 조연 세션이었다.
 
 # 물러나 찍었을 때 피사체를 **화면 가운데에만 두지 않는다.** 남는 여백의
 # 최대 몇 할까지 밀어낼 수 있는가. 0 이면 구판(항상 중앙)이다.
@@ -3063,9 +3068,54 @@ def montage(out_png, images_dir, manifest, n=12, with_quad=True, quad_key="box")
     print(f"montage {len(rows)} -> {out_png}")
 
 
+def _framing_sheet(seed):
+    """구도 축 적용 샘플 시트(2026-09-21 카드 B4) — cam_zoom(배율) ×
+    offcenter(위치) 스펙트럼. 두 축은 사람 선언값(2026-09-20)이 정본이고
+    시트는 그 축이 실제로 닮는 모습을 눈으로 검수하는 재료다. 같은 시드로
+    장을 고정하고 두 축만 잠깐 갈아끼운다(webtool 이 BAND_MARGIN 을
+    갈아끼우는 것과 같은 관례 — 정본 상수는 안 건드린다)."""
+    global CAM_ZOOM_RANGE, CAM_OFFCENTER
+    zooms = (1.0, 0.6, 0.3, 0.15, 0.10)
+    offs = (0.0, 0.4, 0.75)
+    sz, so = CAM_ZOOM_RANGE, CAM_OFFCENTER
+    tw = 300
+    tiles = []
+    try:
+        for oz in zooms:
+            for oo in offs:
+                CAM_ZOOM_RANGE, CAM_OFFCENTER = (oz, oz), oo
+                rng = random.Random(seed)
+                s = render_panel(sample_value(rng), rng, scene="device")
+                im = s["panel"]
+                sc = tw / im.shape[1]
+                t = cv2.resize(im, (tw, max(1, int(im.shape[0] * sc))),
+                               interpolation=cv2.INTER_AREA)
+                if t.ndim == 2:
+                    t = cv2.cvtColor(t, cv2.COLOR_GRAY2BGR)
+                cv2.putText(t, f"zoom {oz:.2f} off {oo:.2f}", (6, 16),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.42,
+                            (255, 255, 255), 1, cv2.LINE_AA)
+                tiles.append(t)
+    finally:
+        CAM_ZOOM_RANGE, CAM_OFFCENTER = sz, so
+    cols = 3
+    h = max(t.shape[0] for t in tiles)
+    grid = np.zeros((h * ((len(tiles) + cols - 1) // cols),
+                     tw * cols, 3), np.uint8)
+    for k, t in enumerate(tiles):
+        grid[(k // cols) * h:(k // cols) * h + t.shape[0],
+             (k % cols) * tw:(k % cols) * tw + tw] = t
+    out_png = HERE / "_diag" / "framing_spectrum.png"
+    out_png.parent.mkdir(exist_ok=True)
+    cv2.imwrite(str(out_png), grid)
+    print(f"saved {out_png} · 타일 {len(tiles)} · "
+          f"(정본 상수 복원: zoom {sz} off {so})")
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["gen", "montage", "degrade-sheet"])
+    ap.add_argument("cmd", choices=["gen", "montage", "degrade-sheet",
+                                     "framing-sheet"])
     ap.add_argument("--count", type=int, default=500)
     ap.add_argument("--wide-share", type=float, default=None,
                     help="가로형(선언 family=column/row) 프로파일의 합계 비중. "
@@ -3131,6 +3181,8 @@ if __name__ == "__main__":
         out_png.parent.mkdir(exist_ok=True)
         cv2.imwrite(str(out_png), grid)
         print(f"saved {out_png} · 타일 {len(tiles)}")
+    elif args.cmd == "framing-sheet":
+        _framing_sheet(args.seed)
     else:
         rows = [json.loads(l) for l in Path(args.manifest).read_text(
             encoding="utf-8").splitlines() if l.strip()]

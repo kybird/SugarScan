@@ -157,6 +157,13 @@ def main():
     print(f"dev 분포 n={len(dev_sig)} · p5/p95 기준:")
     for k in keys:
         print(f"  {k:16s} p5={p5[k]:<10g} p95={p95[k]:<10g}")
+    # 구도 축 카드(B4)용 목표 분포 — dev 586 전체의 READING 구도 요약.
+    # 이 값이 합성기 배율·위치 축(CAM_ZOOM_RANGE·CAM_OFFCENTER)이 닮아야
+    # 하는 실측 분포다(B1: 로보플로우 완전 미검출 3분할 보고서와 같은 자).
+    print("dev 586 구도 분포(B1 목표 분포, READING 기준):")
+    for k in ("area_frac", "center_dist"):
+        v = np.percentile(dist[k], [10, 50, 90])
+        print(f"  {k:14s} p10={v[0]:.4f}  중앙={v[1]:.4f}  p90={v[2]:.4f}")
 
     rows = []
     for sid in targets:

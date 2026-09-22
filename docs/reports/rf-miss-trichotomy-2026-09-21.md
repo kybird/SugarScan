@@ -93,3 +93,16 @@ cd assets_dev/train && conda run -n sugartrain python classify_rf_miss.py
   규약을 만들고 집계에서 분리한다"로 이관).
 - 옛 계보(2026-09-17 폐기) 수치와의 병치 없음 — 이 표의 모든 수치는
   이번 측정의 것이다.
+
+## 부록 — dev 586 전체의 READING 구도 분포 (B4 구도 축의 목표 분포)
+
+같은 자(classify_rf_miss.py)로 잰 dev 586 전체 분포. 합성기 배율·위치 축
+(`synth_panel.py` CAM_ZOOM_RANGE·CAM_OFFCENTER, build_synth_coco TE/VE)이
+닮아야 하는 실측이다:
+
+| 신호 | p10 | 중앙 | p90 |
+|---|---|---|---|
+| READING 면적/이미지 면적 | 0.0103 | 0.0266 | 0.0527 |
+| 중심-이미지중심 거리(대각선 절반 대비) | 0.0697 | 0.1686 | 0.3307 |
+
+재현: `conda run -n sugartrain python classify_rf_miss.py` (콘솔 요약 출력).
