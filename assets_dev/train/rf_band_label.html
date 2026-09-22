@@ -76,6 +76,8 @@
   <button id="next">다음 ▶</button>
   <button id="save" class="p">저장 (S)</button>
   <button id="skip" class="s">이 장 건너뛰기 (K)</button>
+  <label style="margin-left:10px;font-size:12px;color:#8aa0ae">
+    <input type="checkbox" id="hfail" checked> fail 층 숨김 (지금은 rand 50장만)</label>
   <button id="clear">지우기 (C)</button>
   <button id="jump">미완료로</button>
   <label>배율 <select id="zf">
@@ -134,7 +136,10 @@ function msg(t, cls) { $('msg').className = cls || ''; $('msg').textContent = t;
 async function loadQueue() {
   const r = await (await fetch('/api/rfqueue')).json();
   if (r.error) { msg(r.error, 'err'); return; }
-  Q = r.items;
+  // fail 층은 카드 지시로 아직 열지 않는다(새 검출기 실패장으로 재구성 예정).
+  // 보이면 K 로 넘기는 순간 skip 기록이 남아 재구성 후에도 그 장이 비게 된다.
+  const hide = $('hfail').checked;
+  Q = hide ? r.items.filter(i => i.stratum !== 'fail') : r.items;
   const first = Q.findIndex(i => !i.done);
   idx = first < 0 ? 0 : first;
   await show();
@@ -145,6 +150,7 @@ async function show() {
   const it = Q[idx];
   const done = Q.filter(i => i.done).length;
   $('prog').textContent = `${idx + 1} / ${Q.length}  ·  끝낸 것 ${done}`
+    + `  ·  [${it.stratum || '?'}] `
     + `  ·  ${it.id.split('/').pop().slice(0, 22)}`;
   msg(it.done ? '이미 끝낸 장' : '', it.done ? 'ok' : '');
   const m = await (await fetch(
@@ -358,5 +364,6 @@ addEventListener('keydown', e => {
   else if (e.key === 'ArrowLeft') $('prev').click();
   else if (e.key === 'ArrowRight') $('next').click();
 });
+$('hfail').onchange = () => loadQueue();
 loadQueue();
 </script>
