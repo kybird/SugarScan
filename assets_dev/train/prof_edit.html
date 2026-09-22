@@ -478,31 +478,21 @@ async function preview() {
       const c = cv.getContext("2d");
       c.drawImage(im, 0, 0);
       const lw = Math.max(2, s.w / 220);
-      // 회색 = 배치 칸(워프 전). 요소가 어디에 예약됐는지 보는 자리.
-      if (s.quad_panel) {
-        c.strokeStyle = "#8a8a8e"; c.lineWidth = lw; c.setLineDash([6, 5]);
-        c.beginPath();
-        s.quad_panel.forEach((p, i) =>
-          i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]));
-        c.closePath(); c.stroke(); c.setLineDash([]);
+      // 초록 = 정답 — 축정렬 box 하나(2026-09-17 사람 결정, SPEC §9.5).
+      // 검출기가 내는 것과 같은 형식이라 '정답이 축정렬이다'가 화면과 매진다.
+      if (s.box) {
+        c.strokeStyle = "#32d74b"; c.lineWidth = lw;
+        c.strokeRect(s.box[0], s.box[1], s.box[2] - s.box[0], s.box[3] - s.box[1]);
       }
-      // 녹색 = 검출기가 받는 정답(워프 후). 사진과 같은 좌표계라 기울어진다.
-      c.strokeStyle = "#32d74b"; c.lineWidth = lw;
-      c.beginPath();
-      s.quad.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]));
-      c.closePath(); c.stroke();
     };
     im.src = s.png;
     const cap = document.createElement("div");
     cap.className = "cap";
-    // 기울기 — 녹색 쿼드의 위·아래 변 평균. 0 에 가까우면 촬영 변인이
-    // 얕다는 뜻이고, 그건 화면에 숫자로 떠야 사람이 판단할 수 있다.
-    const _t = (q) => {
-      const d = (a, b) => Math.atan2(q[b][1] - q[a][1], q[b][0] - q[a][0]);
-      return (d(0, 1) + d(3, 2)) / 2 * 180 / Math.PI;
-    };
+    // 기울기 — 서버가 계산한 촬영 변인(쿼드 위·아래 변 평균, 도). 0 에
+    // 가까우면 촬영 변인이 얕다는 뜻이고, 그건 화면에 숫자로 떠야 사람이
+    // 판단할 수 있다. 회전 쿼드를 다시 그리는 대신 수치만 받는다.
     cap.textContent = "값 " + s.label + " · 기울기 " +
-      _t(s.quad).toFixed(2) + "° · " +
+      s.tilt.toFixed(2) + "° · " +
       Array.from(new Set(s.rects.map(r => r[4]))).sort().join(" ");
     wrap.append(cv, cap);
     // 선언했는데 자리가 없어 빠진 요소. 이걸 안 보여 주면 값을 고쳐도

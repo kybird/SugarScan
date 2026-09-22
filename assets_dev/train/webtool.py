@@ -1004,6 +1004,7 @@ def _coco_rows(d):
                 "profile": f"{d.name}/{split}",
                 "label": cats.get(a["category_id"], "?"),
                 "w": im["width"], "h": im["height"],
+                "box": [x, y, x + w, y + h],
                 "quad": [[x, y], [x + w, y], [x + w, y + h], [x, y + h]],
                 "rects": [[x, y, x + w, y + h, cats.get(a["category_id"], "?")]],
                 "inverted": False, "dropped": [],
@@ -1109,7 +1110,7 @@ def api_synth_list(qs):
     has_pred = _synth_pred_file(name) is not None
     return {"total": len(rows), "offset": off, "has_pred": has_pred, "items": [
         {"id": r["id"], "profile": r.get("profile"), "label": r.get("label"),
-         "w": r["w"], "h": r["h"], "quad": r["quad"],
+         "w": r["w"], "h": r["h"], "box": r.get("box"), "quad": r.get("quad"),
          "glass_quad": r.get("glass_quad"), "inverted": r.get("inverted"),
          "dropped": r.get("dropped"), "rects": r.get("rects"),
          "pred": r.get("pred"), "pred_score": r.get("pred_score"),
@@ -1206,7 +1207,15 @@ def api_prof_get(qs):
 
 
 def _prof_render(pid, prof_ov, reg_ov, seed, n, band_margin=None):
-    """덮어쓰기를 얹어 n 장 그린다. 반환 [(png bytes, quad, label)]."""
+    """덮어쓰기를 얹어 n 장 그린다. 반환 [(png bytes, box, tilt, label, …)].
+
+    정답은 쿼드의 축정렬 외접 사각형 box 하나다(2026-09-17 사람 결정,
+    SPEC §9.5 — synth_panel 매니페스트와 같은 정의). 회전 쿼드를 웹툴이
+    '정답'으로 그리던 옛 세계관을 이 프리뷰에서도 걷어낸다. tilt(위·아래
+    변 평균 기울기, 도)는 촬영 변인을 사람이 숫자로 보게 하는 캡션 재료로
+    서버에서 계산해 낸다 — quad 를 통째로 내주면 화면이 다시 쿼드를
+    그리게 되므로 수치만 내놓는다.
+    """
     import random
     m = _prof_mods()
     P, panel, ov = m["profiles"], m["panel"], m["ov"]
@@ -1234,19 +1243,16 @@ def _prof_render(pid, prof_ov, reg_ov, seed, n, band_margin=None):
             okp, buf = cv2.imencode(".png", s["panel"])
             # dropped 를 같이 낸다 — 선언했는데 자리가 없어 빠진 요소가
             # 화면에 안 보이면 "고쳐도 안 바뀐다"로 읽힌다(사람 2026-09-15).
-            # quad 는 **워프 후** — 학습이 실제로 받는 정답 그대로다
-            # (train_band_detector.py 가 manifest 의 quad 를 쓴다).
-            # 구판은 quad_panel(워프 전)을 넘겼다. rects 와 좌표계를 맞추려던
-            # 것이었는데, 이미지는 워프 후라 상자만 안 기운 세계에 남았고
-            # 화면에서는 "정답이 축정렬이다"로 읽혔다(사람 의심 2026-09-15).
-            # 두 좌표계를 둘 다 낸다 — quad 가 정답, quad_panel 은 배치 칸.
-            # [[unnamed-coordinate-frame]]
-            out.append((buf.tobytes(),
-                        np.round(s["quad"], 1).tolist(),
+            q = np.asarray(s["quad"], dtype=float)
+            box = [round(float(q[:, 0].min()), 1), round(float(q[:, 1].min()), 1),
+                   round(float(q[:, 0].max()), 1), round(float(q[:, 1].max()), 1)]
+            tilt = round(float(np.degrees(
+                (np.arctan2(q[1][1] - q[0][1], q[1][0] - q[0][0])
+                 + np.arctan2(q[2][1] - q[3][1], q[2][0] - q[3][0])) / 2)), 2)
+            out.append((buf.tobytes(), box, tilt,
                         s["label"], s["W"], s["H"],
                         [list(r) for r in s["rects"]],
-                        sorted(set(s.get("dropped") or [])),
-                        np.round(s["quad_panel"], 1).tolist()))
+                        sorted(set(s.get("dropped") or []))))
     finally:
         _lay.BAND_MARGIN = _saved_bm
         if reg_ov:
@@ -2603,9 +2609,9 @@ class Handler(BaseHTTPRequestHandler):
                 return
             self._json({"shots": [
                 {"png": "data:image/png;base64," + base64.b64encode(b).decode(),
-                 "quad": q, "label": lb, "w": w, "h": h, "rects": rc,
-                 "dropped": dr, "quad_panel": qp}
-                for b, q, lb, w, h, rc, dr, qp in shots]})
+                 "box": bx, "tilt": tl, "label": lb, "w": w, "h": h,
+                 "rects": rc, "dropped": dr}
+                for b, bx, tl, lb, w, h, rc, dr in shots]})
             return
         if u.path == "/api/prof/save":
             # 정본(synth_profiles.py)은 건드리지 않는다. 덮어쓰기 JSON 만 쓴다.
