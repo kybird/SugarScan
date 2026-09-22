@@ -936,6 +936,83 @@ def build_serve_html(meta, review, seed_crc32):
         f"<script>{js}</script></body></html>")
 
 
+def atlas_get(state, path):
+    """아틀라스 serve 의 GET 하나를 (code, body, ctype) 로 응답한다.
+    standalone --serve 와 웹툴 in-process 위임이 같은 처리를 쓰는 단일 경로.
+    모르는 경로는 None — 호출자가 자기 404 로 응답한다."""
+    if path in ("/", "/index.html"):
+        return 200, state.page.encode("utf-8"), "text/html; charset=utf-8"
+    if path == "/api/cases":
+        return 200, state.cases_json.encode("utf-8"), \
+            "application/json; charset=utf-8"
+    if path == "/api/review":
+        return 200, json.dumps(state.store.get(),
+                               ensure_ascii=False).encode("utf-8"), \
+            "application/json; charset=utf-8"
+    if path.startswith("/imgs/"):
+        name = path[len("/imgs/"):]
+        # 데이터 루트 밖 경로 차단 — 이름에 경로 성분 자체를 허용하지 않는다.
+        if not name or "/" in name or "\\" in name or ".." in name:
+            return 403, b"forbidden", "text/plain"
+        p = (state.imgs_dir / name).resolve()
+        try:
+            p.relative_to(state.imgs_dir.resolve())
+        except ValueError:
+            return 403, b"forbidden", "text/plain"
+        if not p.is_file():
+            return 404, b"not found", "text/plain"
+        ctype = ("image/png" if p.suffix == ".png"
+                 else "image/jpeg" if p.suffix == ".jpg"
+                 else "application/octet-stream")
+        return 200, p.read_bytes(), ctype
+    return None
+
+
+def atlas_post_review(state, body: bytes):
+    """POST /api/review 하나를 (code, 응답 dict) 로 처리한다."""
+    try:
+        payload = json.loads(body or b"{}")
+    except Exception as e:
+        return 400, {"error": f"bad body: {e}"}
+    rid = payload.get("id")
+    if not isinstance(rid, str):
+        return 400, {"error": "id 없음"}
+    det = payload.get("det")
+    note = payload.get("note", "")
+    if not isinstance(note, str):
+        return 400, {"error": "note 는 문자열"}
+    try:
+        rec = state.store.apply(rid, det, note,
+                                bool(payload.get("checked", False)))
+    except ValueError as e:
+        return 400, {"error": str(e)}
+    return 200, {"ok": True, "rec": rec}
+
+
+def init_serve_state(root: Path, args) -> object:
+    """serve 상태(페이지 HTML·케이스 JSON·리뷰 저장소·이미지 디렉터리)를
+    만든다. standalone --serve 와 웹툴 in-process 위임이 같은 초기화 경로를
+    쓴다 — 한쪽만 고쳐 화면이 어긋나는 일이 없게 하는 단일 경로다."""
+    cases, meta = build_cases(root, args, SERVE_OUT)
+    (SERVE_OUT / "atlas_meta.json").write_text(
+        json.dumps(meta, ensure_ascii=False, indent=1, default=str),
+        encoding="utf-8")
+    review_path = Path(args.review) if args.review else OUT / "agent_review.json"
+    store = ReviewStore(review_path, {c["id"] for c in cases})
+    state = type("State", (), {})()
+    state.store = store
+    state.review_path = review_path
+    state.imgs_dir = SERVE_OUT / "imgs"
+    state.page = build_serve_html(meta, store.get(), meta["seed_crc32"])
+    slim = [{k: v for k, v in c.items()
+             if k not in ("lcd_label", "band_label", "lcd_metrics")}
+            for c in cases]
+    state.cases_json = json.dumps(
+        {"blurb": meta["blurb"], "cases": slim},
+        ensure_ascii=False, default=str)
+    return state
+
+
 class AtlasHandler(BaseHTTPRequestHandler):
     # 검토 서버. 상태(케이스 JSON·페이지 HTML·리뷰 저장소)는 서버 시작 전에
     # 클래스 속성으로 묶는다 — 요청 처리 중 무거운 계산은 없다.
@@ -957,68 +1034,19 @@ class AtlasHandler(BaseHTTPRequestHandler):
                    "application/json; charset=utf-8")
 
     def do_GET(self):
-        u = urlparse(self.path)
-        st = self.state
-        if u.path in ("/", "/index.html"):
-            self._send(200, st.page.encode("utf-8"),
-                       "text/html; charset=utf-8")
-            return
-        if u.path == "/api/cases":
-            self._send(200, st.cases_json.encode("utf-8"),
-                       "application/json; charset=utf-8")
-            return
-        if u.path == "/api/review":
-            self._json(st.store.get())
-            return
-        if u.path.startswith("/imgs/"):
-            name = u.path[len("/imgs/"):]
-            # 데이터 루트 밖 경로 차단 — 이름에 경로 성분 자체를 허용하지 않는다.
-            if not name or "/" in name or "\\" in name or ".." in name:
-                self._send(403, b"forbidden", "text/plain")
-                return
-            p = (st.imgs_dir / name).resolve()
-            try:
-                p.relative_to(st.imgs_dir.resolve())
-            except ValueError:
-                self._send(403, b"forbidden", "text/plain")
-                return
-            if not p.is_file():
-                self._send(404, b"not found", "text/plain")
-                return
-            ctype = ("image/png" if p.suffix == ".png"
-                     else "image/jpeg" if p.suffix == ".jpg"
-                     else "application/octet-stream")
-            self._send(200, p.read_bytes(), ctype)
-            return
-        self._send(404, b"not found", "text/plain")
+        resp = atlas_get(self.state, urlparse(self.path).path)
+        if resp is None:
+            self._send(404, b"not found", "text/plain")
+        else:
+            self._send(*resp)
 
     def do_POST(self):
-        u = urlparse(self.path)
-        if u.path != "/api/review":
+        if urlparse(self.path).path != "/api/review":
             self._json({"error": "unknown api"}, 404)
             return
-        try:
-            ln = int(self.headers.get("Content-Length", 0))
-            body = json.loads(self.rfile.read(ln) or b"{}")
-        except Exception as e:
-            self._json({"error": f"bad body: {e}"}, 400)
-            return
-        rid = body.get("id")
-        if not isinstance(rid, str):
-            self._json({"error": "id 없음"}, 400)
-            return
-        det = body.get("det")
-        note = body.get("note", "")
-        if not isinstance(note, str):
-            self._json({"error": "note 는 문자열"}, 400)
-            return
-        try:
-            rec = self.state.store.apply(rid, det, note,
-                                         bool(body.get("checked", False)))
-        except ValueError as e:
-            self._json({"error": str(e)}, 400)
-            return
-        self._json({"ok": True, "rec": rec})
+        ln = int(self.headers.get("Content-Length", 0))
+        code, obj = atlas_post_review(self.state, self.rfile.read(ln))
+        self._json(obj, code)
 
 
 def build_cases(root: Path, args, out_dir: Path):
@@ -1329,13 +1357,11 @@ def main() -> int:
     args = ap.parse_args()
     root = Path(args.data_root).resolve()
 
-    out_dir = SERVE_OUT if args.serve else OUT
-    cases, meta = build_cases(root, args, out_dir)
-    (out_dir / "atlas_meta.json").write_text(
-        json.dumps(meta, ensure_ascii=False, indent=1, default=str),
-        encoding="utf-8")
-
     if not args.serve:
+        cases, meta = build_cases(root, args, OUT)
+        (OUT / "atlas_meta.json").write_text(
+            json.dumps(meta, ensure_ascii=False, indent=1, default=str),
+            encoding="utf-8")
         review = review_load(Path(args.review)) if args.review else None
         (OUT / "index.html").write_text(
             build_html(cases, meta, review, meta["seed_crc32"]),
@@ -1344,22 +1370,12 @@ def main() -> int:
               f"이미지 {len(cases) * 4}장")
         return 0
 
-    review_path = Path(args.review) if args.review else OUT / "agent_review.json"
-    store = ReviewStore(review_path, {c["id"] for c in cases})
-    state = type("State", (), {})()
-    state.store = store
-    state.imgs_dir = SERVE_OUT / "imgs"
-    state.page = build_serve_html(meta, store.get(), meta["seed_crc32"])
-    slim = [{k: v for k, v in c.items()
-             if k not in ("lcd_label", "band_label", "lcd_metrics")}
-            for c in cases]
-    state.cases_json = json.dumps(
-        {"blurb": meta["blurb"], "cases": slim},
-        ensure_ascii=False, default=str)
+    # serve — 상태 구성은 init_serve_state 가 build_cases 까지 함께 돈다.
+    state = init_serve_state(root, args)
     AtlasHandler.state = state
     srv = ThreadingHTTPServer(("127.0.0.1", args.port), AtlasHandler)
     print(f"검토 서버: http://127.0.0.1:{args.port}/  (Ctrl+C 중지)")
-    print(f"판정 저장: {review_path} (첫 저장 전에 .bak 을 한 번 남긴다)")
+    print(f"판정 저장: {state.review_path} (첫 저장 전에 .bak 을 한 번 남긴다)")
     print(meta["blurb"])
     srv.serve_forever()
     return 0

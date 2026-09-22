@@ -2206,35 +2206,83 @@ def api_selftest(qs):
     return report
 
 
-# ---- 아틀라스 프록시 ----------------------------------------------------
-# make_failure_atlas.py --serve 는 별도 서버(기본 8790)다. 편집 백엔드가 따로
-# 있어(agent_review.json 저장) 이 서버로 흡수하지 않고 **주소만 합친다**.
-# iframe 을 8790 으로 직접 물리면 출처가 달라(localhost:8777 vs 127.0.0.1:8790)
-# 브라우저에 따라 프레임이 비어 보인다. 그래서 같은 출처로 중계한다.
-# 아틀라스 페이지가 쓰는 경로는 /imgs/* · /api/cases · /api/review 뿐이고
-# 이 서버에는 셋 다 없다 — 충돌하지 않는다(2026-09-11 확인).
-ATLAS_PORT = 8790
+# ---- 아틀라스 in-process ------------------------------------------------
+# 2026-09-21 카드: 8790 standalone 서버를 없애고 웹툴(8777) 하나가 /atlas 를
+# in-process 로 서빙한다. make_failure_atlas 는 module level 에서 tensorflow 를
+# import 하므로 **웹툴 기동 시점 import 금지** — 첫 /atlas 요청에서 백그라운드
+# 초기화한다(합성 모듈의 늦은 import 와 같은 규칙). 초기화 중 요청은 진행 안내
+# 페이지, 실패는 빌드 안내로 응답한다 — 초기화가 늦다고 요청이 타임아웃으로
+# 죽으면 안 된다. 아틀라스 페이지가 쓰는 경로(/imgs/* · /api/cases ·
+# /api/review)는 이 서버에 없다 — 충돌하지 않는다(2026-09-11 확인).
 ATLAS_PATHS = ("/imgs/", "/api/cases", "/api/review")
+_ATLAS_STATE = None   # 초기화가 끝나면 make_failure_atlas 의 serve 상태
+_ATLAS_ERR = None     # 초기화가 실패하면 원인(빌드 안내 문구 재료)
+_ATLAS_STARTED = False
+_ATLAS_LOCK = threading.Lock()
 
 
-def _atlas_proxy(handler, path, method="GET", body=None):
-    import http.client
-    try:
-        c = http.client.HTTPConnection("127.0.0.1", ATLAS_PORT, timeout=10)
-        c.request(method, path, body=body,
-                  headers={"Content-Type": "application/json"} if body else {})
-        r = c.getresponse()
-        data = r.read()
-        ctype = r.getheader("Content-Type", "application/octet-stream")
-        handler._send(r.status, data, ctype)
-    except OSError:
-        # 서버가 안 떠 있는 것은 오류가 아니라 정상 상태다 — 안내를 띄운다.
-        handler._send(503, ("아틀라스 서버(포트 %d)가 떠 있지 않다. "
-                            "cd assets_dev/train && conda run -n sugartrain "
-                            "python make_failure_atlas.py --serve "
-                            "--data-root D:/Project/sugarScan/assets_dev/train"
-                            % ATLAS_PORT).encode("utf-8"),
-                      "text/plain; charset=utf-8")
+class _AtlasArgs:
+    """make_failure_atlas standalone --serve 의 기본 인자와 같은 값.
+    한쪽만 다른 값을 쓰면 저장 경로·프레이밍 짝이 어긋난다."""
+
+    serve = True
+    review = None            # 지정 없음 → _diag/atlas/agent_review.json
+    model = "reader_model"
+    preds = "reader_preds.json"
+    cache = "data_cache_v2.npz"
+    compare_preds = None
+
+
+def _atlas_ensure():
+    """아틀라스 serve 상태가 없으면 백그라운드 초기화를 한 번만 시작한다."""
+    global _ATLAS_STARTED
+    with _ATLAS_LOCK:
+        if _ATLAS_STARTED:
+            return
+        _ATLAS_STARTED = True
+
+    def run():
+        global _ATLAS_STATE, _ATLAS_ERR
+        try:
+            import make_failure_atlas as mfa
+            _ATLAS_STATE = mfa.init_serve_state(HERE, _AtlasArgs())
+        except BaseException as e:  # SystemExit 포함 — build_cases 는 등가성
+            # 검사에서 SystemExit 를 던진다. Exception 만 잡으면 초기화 스레드가
+            # 조용히 죽고 /atlas 는 영원히 '준비 중'이 된다(2026-09-21 실제로 겪음).
+            import traceback
+            traceback.print_exc()
+            _ATLAS_ERR = f"{type(e).__name__}: {e}"
+
+    threading.Thread(target=run, daemon=True, name="atlas-init").start()
+
+
+_ATLAS_WAIT_HTML = (
+    "<!DOCTYPE html><html lang=ko><head><meta charset=utf-8>"
+    "<meta http-equiv=refresh content=5>"
+    "<title>판독 실패 아틀라스 — 준비 중</title></head>"
+    "<body style=\"background:#141719;color:#d8dde2;"
+    "font:14px/1.6 'Segoe UI',sans-serif;padding:24px\">"
+    "<h1>아틀라스를 준비하고 있다</h1>"
+    "<p>모델 적재·케이스 렌더·추론에 몇 분 걸린다. "
+    "이 페이지는 5초마다 다시 확인한다.</p></body></html>")
+
+
+def _atlas_fail_html(err):
+    from html import escape
+    return (
+        "<!DOCTYPE html><html lang=ko><head><meta charset=utf-8>"
+        "<title>판독 실패 아틀라스 — 준비 실패</title></head>"
+        "<body style=\"background:#141719;color:#d8dde2;"
+        "font:14px/1.6 'Segoe UI',sans-serif;padding:24px\">"
+        "<h1>아틀라스를 준비하지 못했다</h1>"
+        f"<p>원인: <code>{escape(err)}</code></p>"
+        "<p>아틀라스 데이터가 아직 없을 수 있다(미빌드). 전제 산출물을 만들고 "
+        "이 페이지를 다시 열 것 — 준비는 자동으로 시작한다."
+        "<br>· reader_preds.json — eval_reader.py 로 리더 예측을 낸다"
+        "<br>· reader_model · data_cache_v2.npz · gmscreen_quads.jsonl"
+        "<br>확인: cd assets_dev/train && conda run -n sugartrain "
+        "python make_failure_atlas.py (정적 빌드 — 같은 초기화 경로다)"
+        "</p></body></html>")
 
 
 # ── 공유 상단 메뉴 — 모든 페이지가 같은 것을 쓴다 (2026-09-21) ─────────────
@@ -2311,14 +2359,33 @@ class Handler(BaseHTTPRequestHandler):
         html = html[:at] + bar + html[at:]
         self._send(200, html.encode("utf-8"), "text/html; charset=utf-8")
 
+    def _atlas_get(self, path):
+        """/atlas 계열 GET 을 in-process 로 위임한다(초기화 보장 포함)."""
+        _atlas_ensure()
+        st = _ATLAS_STATE
+        if st is None:
+            if _ATLAS_ERR:
+                self._send(503, _atlas_fail_html(_ATLAS_ERR).encode("utf-8"),
+                           "text/html; charset=utf-8")
+            else:
+                self._send(200, _ATLAS_WAIT_HTML.encode("utf-8"),
+                           "text/html; charset=utf-8")
+            return
+        import make_failure_atlas as mfa
+        resp = mfa.atlas_get(st, path)
+        if resp is None:
+            self._send(404, b"not found", "text/plain")
+        else:
+            self._send(*resp)
+
     def do_GET(self):
         u = urlparse(self.path)
         qs = parse_qs(u.query)
         if u.path == "/atlas":
-            _atlas_proxy(self, "/")
+            self._atlas_get("/")
             return
         if u.path.startswith(ATLAS_PATHS):
-            _atlas_proxy(self, self.path)
+            self._atlas_get(u.path)
             return
         if u.path == "/" or u.path == "/index.html":
             if HTML.exists():
@@ -2455,7 +2522,19 @@ class Handler(BaseHTTPRequestHandler):
         ln = int(self.headers.get("Content-Length", 0))
         raw = self.rfile.read(ln) or b"{}"
         if u.path.startswith(ATLAS_PATHS):
-            _atlas_proxy(self, self.path, "POST", raw)
+            _atlas_ensure()
+            st = _ATLAS_STATE
+            if st is None:
+                self._json({"error": "아틀라스가 아직 준비되지 않았다"
+                           + (" — 초기화 실패, /atlas 를 열어 안내를 볼 것"
+                              if _ATLAS_ERR else "")}, 503)
+                return
+            if u.path != "/api/review":
+                self._json({"error": "unknown api"}, 404)
+                return
+            import make_failure_atlas as mfa
+            code, obj = mfa.atlas_post_review(st, raw)
+            self._json(obj, code)
             return
         body = json.loads(raw)
         if u.path == "/api/prof/preview":

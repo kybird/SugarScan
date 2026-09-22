@@ -59,7 +59,8 @@
 - **모니터** — 학습 로그. `band_out/` 의 가장 최근 로그를 따라간다.
 - **기종** — 사진 위 예측 오버레이 + 검출기 갈아끼우기. 오버레이는
   `band_quads_pred.jsonl`(배치).
-- **아틀라스** — 8790 포트의 `atlas_synth_vs_real.py` 서버를 프록시.
+- **아틀라스** — 같은 서버가 `/atlas` 를 in-process 로 서빙(2026-09-21 흡수).
+  첫 요청에 백그라운드로 초기화한다 — 그동안 진행 안내 페이지가 뜬다.
 - **훈련** — 검출기 학습 시작·중지·게이트. 옛 계열(`band_det_*`) 버튼이
   남아 있다 — 아래 "정리 후보".
 
@@ -69,7 +70,9 @@
   쓰는 이진 응답. **둘이 갈라진 이유가 있다**(G34: JSON 을 img 태그에
   물리면 깨진다). 리사이즈 규약은 공유 — 갈라지면 안 된다.
 - `/synthimg` — 합성 PNG 원본(좌표가 manifest 화소 기준이라 리사이즈 금지).
-- `/atlas`·`/imgs/`·`/api/cases`·`/api/review` — 8790 아틀라스 프록시.
+- `/atlas`·`/imgs/`·`/api/cases`·`/api/review` — 아틀라스 in-process
+  (make_failure_atlas 의 초기화·요청 처리를 함수로 불러 쓴다. 8790 standalone
+  `--serve` 도 살아 있지만 웹툴을 쓸 때는 띄울 필요가 없다).
 - `/api/livecmp` · `/api/arms` · `/api/inkclip` · `/api/aug` ·
   `/api/bandreal` · `/api/rfqueue` — 각 화면의 데이터.
 
