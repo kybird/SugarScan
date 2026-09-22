@@ -2343,20 +2343,29 @@ class Handler(BaseHTTPRequestHandler):
 
         <body> 가 없는 페이지(암묵 body — 대부분 그렇다)는 첫 <header> 앞에
         넣는다. doctype 앞에 넣으면 quirks mode 로 떨어진다.
+
+        iframe 안(작업대 탭)에서는 주입하지 않는다 — 바깥 작업대 머리글과
+        두 겹이 된다. 판별의 정본은 Sec-Fetch-Dest: iframe 요청 헤더이고,
+        그 헤더를 안 보내는 옛 브라우저 폴백으로 iframe 을 싣는 작업대가
+        ?embed=1 을 함께 붙인다(둘 중 하나만으로도 주입이 멈는다).
         """
         f = HERE / fname
         if not f.exists():
             self._send(404, f"{fname} 없음".encode(), "text/plain")
             return
         html = f.read_text(encoding="utf-8")
-        bar = _topnav(cur)
-        m = re.search(r"<body[^>]*>", html)
-        at = m.end() if m else None
-        if at is None:
-            m = re.search(r"<header", html)
-            # 둘 다 없으면 doctype 다음 줄 — doctype 앞에 넣으면 quirks mode
-            at = m.start() if m else html.find("\n") + 1
-        html = html[:at] + bar + html[at:]
+        q = parse_qs(urlparse(self.path).query)
+        embedded = (self.headers.get("Sec-Fetch-Dest") == "iframe"
+                    or q.get("embed", [""])[0] == "1")
+        if not embedded:
+            bar = _topnav(cur)
+            m = re.search(r"<body[^>]*>", html)
+            at = m.end() if m else None
+            if at is None:
+                m = re.search(r"<header", html)
+                # 둘 다 없으면 doctype 다음 줄 — doctype 앞에 넣으면 quirks mode
+                at = m.start() if m else html.find("\n") + 1
+            html = html[:at] + bar + html[at:]
         self._send(200, html.encode("utf-8"), "text/html; charset=utf-8")
 
     def _atlas_get(self, path):

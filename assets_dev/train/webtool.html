@@ -362,7 +362,9 @@ document.querySelectorAll("nav .tab").forEach(btn => {
     // 기종 페이지와 외부 서버를 같이 깨우면 첫 화면이 느려진다.
     if (activeTab === "devices") {
       const fr = document.getElementById("fr-devices");
-      if (!fr.getAttribute("src")) fr.setAttribute("src", "/devices");
+      // ?embed=1 — iframe 안 문서의 상단 메뉴 주입을 끄는 폴백 힌트
+      // (정본 판별은 Sec-Fetch-Dest 헤더. webtool.py _send_page 참조).
+      if (!fr.getAttribute("src")) fr.setAttribute("src", "/devices?embed=1");
     }
     if (activeTab === "atlas") {
       const fr = document.getElementById("fr-atlas");
