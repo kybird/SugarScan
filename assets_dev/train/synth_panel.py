@@ -2871,7 +2871,72 @@ def reader_view(sample):
     return warped, np.asarray(rq, np.float32)
 
 
-def generate(count, seed0, out_dir, with_reader=False, bg="flat", scene="panel"):
+# ── 열화 사슬 축 (2026-09-21 카드 — 사람 결정 #10) ─────────────────────
+# 배포(갤러리 사진) 품질을 학습 분포에 반영한다. 사슬 순서는 BAND_EXP_PLAN §7
+# (블러 → ISO 잡음 → JPEG 재압축). **이미지 전체(패널 포함)에** 걸린다 —
+# 패널만 선명하면 모델이 배우는 건 '시끄러운 배경 무시'지 '열화된 기기
+# 탐지'가 아니다. 세 축은 각자 독립 토글·세기다 — 한 축 세기가 다른 축을
+# 끌고 가면 요소별 조율이 무너진다(coupled-budget-loop-defeats-per-
+# element-tuning). 난수는 렌더 rng 와 **별도 스트림**에서 뽑는다: 열화를
+# 꺼면 기존 코퍼스와 바이트 동일 재현, 켜도 레이아웃·정답 box 는 그대로다.
+
+def parse_degrade(s):
+    """'blur=0.3:1.2,noise=3:10,jpeg=70:95' -> {축: (lo, hi)}.
+    'off'·빈 문자열 → None(무변환). 축 이름 off 로 단일 토글도 된다."""
+    if not s or s == "off":
+        return None
+    out = {}
+    for part in s.split(","):
+        k, _, v = part.partition("=")
+        k = k.strip()
+        if k not in ("blur", "noise", "jpeg"):
+            raise SystemExit(f"모르는 열화 축: {k!r} — blur·noise·jpeg")
+        v = v.strip()
+        if not v or v == "off":
+            continue
+        lo, _, hi = v.partition(":")
+        out[k] = (float(lo), float(hi if hi else lo))
+    return out or None
+
+
+def degrade(img, rng, spec):
+    """사슬을 이미지 전체에 적용하고 (이미지, 적용 세기) 를 돌려준다.
+
+    noise 는 ISO 잡음의 근사다 — 밝기 의존(shot) 성분과 고정(read) 성분을
+    0.65:0.35 로 섞은 클립 가우시안. 센서 시뮬레이션이 아니라 '어두운
+    부분이 더 시끄러운' 분포 특성만 재현한다(정확한 물성은 요구 사항이
+    아니다 — 학습 분포가 배포를 닮게 하는 것이 목적이다).
+    """
+    out = img
+    ap = {}
+    if spec.get("blur"):
+        lo, hi = spec["blur"]
+        sig = rng.uniform(lo, hi)
+        if sig > 0.01:
+            out = cv2.GaussianBlur(out, (0, 0), sig)
+        ap["blur"] = round(sig, 3)
+    if spec.get("noise"):
+        lo, hi = spec["noise"]
+        v = rng.uniform(lo, hi)
+        if v > 0.05:
+            nrng = np.random.RandomState(rng.randrange(1 << 30))
+            f = out.astype(np.float32)
+            dep = 0.35 + 0.65 * f / 255.0
+            out = np.clip(f + nrng.normal(0.0, 1.0, f.shape) * (v * dep),
+                          0, 255).astype(np.uint8)
+        ap["noise"] = round(v, 2)
+    if spec.get("jpeg"):
+        lo, hi = spec["jpeg"]
+        q = int(round(rng.uniform(lo, hi)))
+        ok, buf = cv2.imencode(".jpg", out, [cv2.IMWRITE_JPEG_QUALITY, q])
+        if ok:
+            out = cv2.imdecode(buf, cv2.IMREAD_UNCHANGED)
+        ap["jpeg"] = q
+    return out, ap
+
+
+def generate(count, seed0, out_dir, with_reader=False, bg="flat", scene="panel",
+             degrade_spec=None):
     global PROCEDURAL_BG
     PROCEDURAL_BG = (bg == "procedural")
     out = Path(out_dir)
@@ -2884,6 +2949,11 @@ def generate(count, seed0, out_dir, with_reader=False, bg="flat", scene="panel")
         val = sample_value(rng)
         s = render_panel(val, rng, scene=scene)
         name = f"panel_{seed0}_{i}"
+        # 열화 사슬 — 렌더 rng 와 별도 스트림: 시드가 같으면 열화 on/off 와
+        # 무관하게 레이아웃·정답 box 가 동일하다(위 주석 참조).
+        if degrade_spec:
+            s["panel"], s["degrade"] = degrade(
+                s["panel"], random.Random(seed0 * 1_000_003 + i), degrade_spec)
         if scene != "panel":
             lo, hi = s["quad"].min(0), s["quad"].max(0)
             dc = s["digit_box"]
@@ -2928,6 +2998,8 @@ def generate(count, seed0, out_dir, with_reader=False, bg="flat", scene="panel")
         )
         if s["bezel"]:
             rec["bezel"] = s["bezel"]
+        if degrade_spec and s.get("degrade"):
+            rec["degrade"] = s["degrade"]
         if with_reader:
             rv, rq = reader_view(s)
             (out / "reader").mkdir(exist_ok=True)
@@ -2993,7 +3065,7 @@ def montage(out_png, images_dir, manifest, n=12, with_quad=True, quad_key="box")
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["gen", "montage"])
+    ap.add_argument("cmd", choices=["gen", "montage", "degrade-sheet"])
     ap.add_argument("--count", type=int, default=500)
     ap.add_argument("--wide-share", type=float, default=None,
                     help="가로형(선언 family=column/row) 프로파일의 합계 비중. "
@@ -3007,13 +3079,58 @@ if __name__ == "__main__":
     ap.add_argument("--manifest")
     ap.add_argument("--n", type=int, default=12)
     ap.add_argument("--quad-key", default="box")
+    ap.add_argument("--degrade", default="off",
+                    help="열화 사슬 — 'blur=0.3:1.2,noise=3:10,jpeg=70:95'. "
+                         "off(기본)면 무변환(기존 코퍼스 바이트 동일 재현). "
+                         "각 축 '축=off' 로 단일 토글.")
     args = ap.parse_args()
     if args.cmd == "gen":
         set_wide_share(args.wide_share)
         v = generate(args.count, args.seed, args.out, with_reader=args.reader,
-                     bg=args.bg)
+                     bg=args.bg, degrade_spec=parse_degrade(args.degrade))
         if v:
             sys.exit(1)
+    elif args.cmd == "degrade-sheet":
+        # 세기 스펙트럼 시트(2026-09-21 카드 AC#3) — 각 축을 단독 세기 단계로
+        # 걸어 눈으로 검수한다. 같은 패널에 걸어야 축 간 비교가 된다.
+        rng = random.Random(args.seed)
+        s = render_panel(sample_value(rng), rng)
+        base = s["panel"]
+        rows = [("원본(열화 없음)", base)]
+        steps = {"blur": (0.3, 0.8, 1.5, 3.0),
+                 "noise": (3, 8, 15, 25),
+                 "jpeg": (90, 75, 55, 35)}
+        for ax, ss in steps.items():
+            for v_ in ss:
+                im, _ = degrade(base, random.Random(1), {ax: (v_, v_)})
+                rows.append((f"{ax}={v_}", im))
+        for j, q in enumerate((85, 70, 50)):
+            spec = {"blur": (0.3, 0.8), "noise": (3, 10), "jpeg": (q, q)}
+            im, ap_ = degrade(base, random.Random(2), spec)
+            rows.append((f"사슬{['ⅰ', 'ⅱ', 'ⅲ'][j]} " + " ".join(
+                f"{k}={ap_[k]}" for k in ("blur", "noise", "jpeg")), im))
+        tw = 300
+        tiles = []
+        for label, im in rows:
+            sc = tw / im.shape[1]
+            t = cv2.resize(im, (tw, max(1, int(im.shape[0] * sc))),
+                           interpolation=cv2.INTER_AREA)
+            if t.ndim == 2:
+                t = cv2.cvtColor(t, cv2.COLOR_GRAY2BGR)
+            cv2.putText(t, label, (6, 16), cv2.FONT_HERSHEY_SIMPLEX, 0.42,
+                        (255, 255, 255), 1, cv2.LINE_AA)
+            tiles.append(t)
+        cols = 5
+        h = max(t.shape[0] for t in tiles)
+        grid = np.zeros((h * ((len(tiles) + cols - 1) // cols),
+                         tw * cols, 3), np.uint8)
+        for k, t in enumerate(tiles):
+            grid[(k // cols) * h:(k // cols) * h + t.shape[0],
+                 (k % cols) * tw:(k % cols) * tw + tw] = t
+        out_png = HERE / "_diag" / "degrade_spectrum.png"
+        out_png.parent.mkdir(exist_ok=True)
+        cv2.imwrite(str(out_png), grid)
+        print(f"saved {out_png} · 타일 {len(tiles)}")
     else:
         rows = [json.loads(l) for l in Path(args.manifest).read_text(
             encoding="utf-8").splitlines() if l.strip()]

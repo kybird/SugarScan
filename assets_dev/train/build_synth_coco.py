@@ -143,7 +143,8 @@ def box_to_bbox(box, w, h):
     return [round(x0, 2), round(y0, 2), round(x1 - x0, 2), round(y1 - y0, 2)]
 
 
-def build_set(name, count, seed, out_root, wide_share=None, bg="flat", scene="panel"):
+def build_set(name, count, seed, out_root, wide_share=None, bg="flat",
+              scene="panel", degrade_spec=None):
     set_dir = out_root / name
     if set_dir.exists():
         shutil.rmtree(set_dir)
@@ -154,7 +155,9 @@ def build_set(name, count, seed, out_root, wide_share=None, bg="flat", scene="pa
     # docs/SPEC.md §9.6). 구판은 None 을 넘겨 프로파일 균등(가로 13.3%)이 됐다.
     synth_panel.set_wide_share(
         synth_panel.DEFAULT_WIDE_SHARE if wide_share is None else wide_share)
-    synth_panel.generate(count, seed, set_dir, bg=bg, scene=scene)
+    # 열화 사슬(2026-09-21 카드) — off 면 기존 코퍼스 바이트 동일 재현.
+    synth_panel.generate(count, seed, set_dir, bg=bg, scene=scene,
+                         degrade_spec=degrade_spec)
     (set_dir / "images").rename(set_dir / "train2017")
 
     rows = [json.loads(l) for l in
@@ -286,6 +289,9 @@ def main():
     ap.add_argument("--sheet-n", type=int, default=10)
     ap.add_argument("--verify", action="store_true",
                     help="굽지 않고 이미 구운 결과만 검사한다")
+    ap.add_argument("--degrade", default="off",
+                    help="열화 사슬을 모든 세트에 적용 — synth_panel.py 의 "
+                         "형식(blur=…,noise=…,jpeg=…). off 면 기존 재현.")
     args = ap.parse_args()
 
     out_root = Path(args.out)
@@ -306,7 +312,8 @@ def main():
         # 겹치면 검출기가 외운 장에 추론하게 되므로 계속 막는다.
         if bg == "flat":
             assert seed not in seeds.values(), f"시드 중복: {name}"
-        coco = build_set(name, count, seed, out_root, share, bg, scene)
+        coco = build_set(name, count, seed, out_root, share, bg, scene,
+                         synth_panel.parse_degrade(args.degrade))
         seeds[name] = seed
         box_sheet(out_root / name, coco, out_root / f"{name}_boxcheck.png",
                   n=args.sheet_n)
