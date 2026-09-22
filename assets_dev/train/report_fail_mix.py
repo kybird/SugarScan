@@ -82,8 +82,12 @@ def classify(r):
     return "일부만" if (ix > 0 and iy > 0) else "딴 데"
 
 
-def per_seed(paths, keep, drop=frozenset()):
-    """시드마다 {장 id: 분류}. drop 은 이물 태그 장(제외 표용)."""
+def per_seed(paths, keep, drop=frozenset(), gt_override=None):
+    """시드마다 {장 id: 분류}. drop 은 이물 태그 장(제외 표용).
+
+    gt_override({id: [x0,y0,x1,y1]})를 주면 그 장의 정답을 그 값으로 바꿔
+    채점한다 — 사람이 그린 우리 규약 라벨(rf_band_boxes.jsonl)로 READING 과
+    나란히 채점하기 위한 것(§20.5 '규약 차이 vs 모델 결함')."""
     out = []
     for p in paths:
         rs = rows(p)
@@ -95,6 +99,8 @@ def per_seed(paths, keep, drop=frozenset()):
                 continue
             if r["id"] in drop:
                 continue
+            if gt_override is not None and r["id"] in gt_override:
+                r = dict(r, gt=gt_override[r["id"]])
             c = classify(r)
             if c:
                 m[r["id"]] = c
@@ -227,6 +233,14 @@ def main():
                     help="이물 태그 파일(사람 전용, 헤더에 규약). 태그된 장이 "
                          "모집단에 있으면 이물 포함/제외 두 표를 나란히 낸다. "
                          "'' 로 끈다.")
+    ap.add_argument("--gt", default="reading", choices=["reading", "rfband"],
+                    help="rfband: 사람이 그린 우리 규약 라벨(rf_band_boxes.jsonl)"
+                         "이 있는 장으로 측정을 좁히고, 같은 장에서 READING "
+                         "기준과 우리 규약 기준을 나란히 낸다(§20.5).")
+    ap.add_argument("--stratum", default="", choices=["", "rand", "fail"],
+                    help="rf_label_queue.json 의 층으로 좁힌다(rand=실패 제외 "
+                         "무작위, fail='일부만' 2시드 이상 실패장). 층 편향을 "
+                         "분해할 때 쓴다 — rand 성적은 dev 전체 대표가 아니다.")
     ap.add_argument("--anatomy", action="store_true",
                     help="일부만으로 떨어진 장의 변별 해부를 함께 낸다")
     a = ap.parse_args()
@@ -243,6 +257,23 @@ def main():
 
     # 이물 태그(사람이 채운 것만). 도구는 읽기 전용이다.
     foreign = load_foreign((HERE / a.foreign) if a.foreign else "")
+
+    # 우리 규약 사람 라벨 — §20.5 '규약 차이 vs 모델 결함' 병렬 채점용.
+    ours = {}
+    if a.gt == "rfband":
+        fb = HERE / "rf_band_boxes.jsonl"
+        for l in rows(fb):
+            if "id" in l and l.get("quad"):
+                q = l["quad"]
+                ours[l["id"]] = [q[0][0], q[0][1], q[2][0], q[2][1]]
+        if not ours:
+            raise SystemExit("rf_band_boxes.jsonl 에 상자 라벨이 없다")
+        keep = (set(ours) if keep is None else keep & set(ours))
+    if a.stratum:
+        q = json.loads((HERE / "rf_label_queue.json").read_text(
+            encoding="utf-8"))["items"]
+        ids = {i["id"] for i in q if i["stratum"] == a.stratum}
+        keep = ids if keep is None else keep & ids
 
     label = {"dev": "Roboflow 개발 586",
              "test": "Roboflow 봉인 시험 687",
@@ -273,6 +304,11 @@ def main():
             continue
         arms.append((name, ss))
         arm_row(name, ss)
+        if ours:
+            # §20.5 병렬 채점 — 같은 장·같은 시드, 정답만 우리 규약으로.
+            ss_o = per_seed(paths, keep, gt_override=ours)
+            arm_row(name + " gt=우리규약", ss_o)
+            arms.append((name + "/ours", ss_o))
         # 이물 제외 표 — 태그된 장을 뺀 같은 자. 게이트 수치가 이물 때문에
         # 실제보다 나쁘게 왜곡되는지를 이 표에서 가른다(카드 AC#2).
         ssx = per_seed(paths, keep, drop=set(foreign)) if foreign else []
