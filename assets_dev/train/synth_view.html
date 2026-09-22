@@ -154,6 +154,16 @@ function tile(it) {
   fig.append(cv, cap);
   const img = new Image();
   img.onload = () => paint(cv, it, img, 1);
+  img.onerror = () => {
+    // 2026-09-20 폐기로 이미지를 지운 코퍼스(부분 생존 split 등)의 타일.
+    // 캔버스를 그대로 두면 아무것도 그려지지 않은 검은 네모만 보인다.
+    const msg = document.createElement("div");
+    msg.className = "muted";
+    msg.style.cssText = "padding:28px 8px;text-align:center;font-size:12px";
+    msg.textContent = "이미지 없음 — 09-20 폐기로 지움";
+    cv.replaceWith(msg);
+    cv.onclick = null;
+  };
   img.src = `/synthimg?dir=${encodeURIComponent(st.dir)}&id=${encodeURIComponent(it.id)}`;
   cv.onclick = () => {
     const bc = $("bigc"); paint(bc, it, img, 1);

@@ -903,23 +903,61 @@ def _oriented_size(p: Path):
 # 라벨링 경로(/api/labels, /api/rect)와 완전히 분리해 둔다: 합성에 사람이
 # 손대는 순간 정답의 출처가 둘이 되고, 그러면 무엇으로 배웠는지 알 수 없게 된다.
 
+def _corpus_has_images(d):
+    """이미지 파일이 하나라도 남았나 — 2026-09-20 폐기로 이미지를 지운
+    코퍼스(manifest·README 만 남음)를 열람 목록에서 숨긴다. 폴더별로 따로
+    보는 이유: S_scale 은 train2017 만 지우고 val2017 400장이 살아 있는
+    부분 생존이라 코퍼스째 숨기면 안 된다(죽은 split 은 타일 onerror 안내).
+    """
+    for sub in ("images", "train2017", "val2017"):
+        p = d / sub
+        if not p.is_dir():
+            continue
+        for f in p.iterdir():
+            if f.suffix.lower() in (".png", ".jpg", ".jpeg"):
+                return True
+    return False
+
+
+def _keep_rows_with_images(name, rows):
+    """이미지가 실제로 남아 있는 행만 — 2026-09-20 폐기로 split 통째로
+    지운 코퍼스(S_scale 의 train 38,400장)의 manifest 행은 죽은 타일이 된다.
+    폴더별 파일명 집합을 한 번 만들어 조회한다. 폴더·확장자는 /synthimg 의
+    탐색 순서와 같은 규약 — 여기서 빼는 행이 곧 거기서 404 인 행이다.
+    """
+    d = HERE / name
+    have = set()
+    for sub in ("images", "train2017", "val2017"):
+        p = d / sub
+        if not p.is_dir():
+            continue
+        for f in p.iterdir():
+            if f.suffix.lower() in (".png", ".jpg", ".jpeg"):
+                have.add(f.stem)
+    if not have:
+        return []
+    return [r for r in rows if Path(r["id"]).stem in have]
+
+
 def _synth_dirs():
     """합성 코퍼스 폴더 — 한 단계 아래까지 본다.
 
     구판은 `synth_*` 바로 아래만 봤다. 그런데 세트로 나눠 굽는 코퍼스는
     `synth_coco/A` 처럼 한 겹 더 들어간다(2026-09-17 마일스톤). 그러면
     사람이 웹툴에서 그 세트를 아예 못 본다 — 판정을 요구하면서 볼 화면을
-    안 준 셈이 된다.
+    안 준 셈이 된다. 이미지가 통째로 지워진 폐기 코퍼스는 등록하지 않는다
+    — 남으면 첫 페이지가 404 폭탄이 되고 기본 코퍼스(cs[0])조차 깨진다.
     """
     out = []
     for pat in ("synth_*", "gmscreen*"):
         for d in sorted(HERE.glob(pat)):
             if not d.is_dir():
                 continue
-            if _corpus_kind(d):
+            if _corpus_kind(d) and _corpus_has_images(d):
                 out.append(d.name)
             for sub in sorted(d.iterdir()):
-                if sub.is_dir() and _corpus_kind(sub):
+                if sub.is_dir() and _corpus_kind(sub) \
+                        and _corpus_has_images(sub):
                     out.append(f"{d.name}/{sub.name}")
     return out
 
@@ -996,7 +1034,7 @@ def _synth_rows(name):
         hit = _SYNTH_CACHE.get(name)
         if hit and hit[0] == st:
             return hit[1]
-        rows = _coco_rows(d)
+        rows = _keep_rows_with_images(name, _coco_rows(d))
         _SYNTH_CACHE[name] = (st, rows)
         return rows
     m = d / "manifest.jsonl"
@@ -1011,6 +1049,7 @@ def _synth_rows(name):
         return hit[1]
     rows = [json.loads(l) for l in
             m.read_text(encoding="utf-8").splitlines() if l.strip()]
+    rows = _keep_rows_with_images(name, rows)
     if pred:
         # 검출기 예측을 같은 행에 얹는다. 없는 장은 pred 가 None 으로 남아
         # 화면에서 "상자 없음"으로 보인다 — 그게 판정에 필요한 정보다.
