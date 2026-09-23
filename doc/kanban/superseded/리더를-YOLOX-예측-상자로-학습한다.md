@@ -1,10 +1,11 @@
 ---
 title: 리더를 YOLOX 예측 상자로 학습한다
-status: todo
+status: superseded
 ordinal: 56000
 created: 2026-09-16
 depends_on: ["세트 B 에 추론해 상자와 오차 분포를 낸다","CRNN CTC 리더를 새로 만든다"]
 milestone: 합성만으로 사진에서 값까지 한 번 통과시킨다
+superseded_by: ["리더를 현행 검출기 예측 상자로 학습한다"]
 ---
 
 ## Goal
