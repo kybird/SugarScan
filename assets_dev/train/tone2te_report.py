@@ -98,41 +98,44 @@ def paired_bootstrap(ids, a_prob, t_prob, b=4000, seed=20260922):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dir", default=str(HERE / "_diag" / "tone2te"))
+    ap.add_argument("--arms", default="atone:ve_atone_s*,tone2te:ve_tone2te_s*",
+                    help="'이름:파일패턴' 쉼표 목록. 첫 팔이 대조군이다. "
+                         "3팔 비교: atone:ve_atone_s*,tone2te:ve_tone2te_s*,"
+                         "tmix:ve_tmix_s*")
     args = ap.parse_args()
-    atone = sorted(glob.glob(f"{args.dir}/ve_atone_s*.jsonl"))
-    te = sorted(glob.glob(f"{args.dir}/ve_tone2te_s*.jsonl"))
-    if not atone or not te:
-        raise SystemExit(f"비교 파일이 없다: atone {len(atone)} · te {len(te)}")
-    # frac 은 두 팔 어느 파일에서나 같아야 한다(GT 속성). 어긋나면 짝이 깨진 것.
-    fracs = {fn: r["frac"] for fn, r in load(atone[0]).items()}
-    for f in atone[1:] + te:
-        other = load(f)
-        assert {k: v["frac"] for k, v in other.items()} == fracs, \
-            f"frac 불일치 — {f} 는 같은 VE 짝이 아니다"
+    specs = [s.split(":", 1) for s in args.arms.split(",")]
+    files = {n: sorted(glob.glob(f"{args.dir}/{pat}.jsonl")) for n, pat in specs}
+    empty = [n for n, fs in files.items() if not fs]
+    if empty:
+        raise SystemExit(f"결과 파일이 없다: {', '.join(empty)}")
+    # frac 은 모든 팔 파일에서 같아야 한다(GT 속성). 어긋나면 짝이 깨진 것.
+    fracs = {fn: r["frac"] for fn, r in load(files[specs[0][0]][0]).items()}
+    for n, fs in files.items():
+        for f in fs:
+            other = load(f)
+            assert {k: v["frac"] for k, v in other.items()} == fracs, \
+                f"frac 불일치 — {f} 는 같은 VE 짝이 아니다"
 
-    a = seed_table("atone(TC 학습)", atone)
-    t = seed_table("tone2te(TE 재학습)", te)
-    ta = tercile_stats("atone", a, fracs)
-    tt = tercile_stats("tone2te", t, fracs)
+    fams = {}
+    for n, pat in specs:
+        fams[n] = seed_table(n, files[n])
+    tercs = {n: tercile_stats(n, fams[n], fracs) for n, _ in specs}
 
-    print("\n[짝비교] atone → tone2te (이미지 짝 붓스트랩 4000회, 95% CI)")
-    for terc in ("작음", "중간", "큼", "전체"):
-        ids = ta[terc][0]
-        diff, lo, hi = paired_bootstrap(ids, pass_prob(a), pass_prob(t))
-        print(f"  {terc:2s} Δ합격 {100*diff:+6.2f}pt  "
-              f"CI [{100*lo:+.2f}, {100*hi:+.2f}]")
+    ctl = specs[0][0]
+    cp = pass_prob(fams[ctl])
+    for n, _ in specs[1:]:
+        tp = pass_prob(fams[n])
+        print(f"\n[짝비교] {ctl} → {n} (이미지 짝 붓스트랩 4000회, 95% CI)")
+        for terc in ("작음", "중간", "큼", "전체"):
+            ids = tercs[ctl][terc][0]
+            diff, lo, hi = paired_bootstrap(ids, cp, tp)
+            print(f"  {terc:2s} Δ합격 {100*diff:+6.2f}pt  "
+                  f"CI [{100*lo:+.2f}, {100*hi:+.2f}]")
 
-    ids = ta["작음"][0]
-    diff, lo, hi = paired_bootstrap(ids, pass_prob(a), pass_prob(t))
-    print("\n[사전등록 판정 — 작음 3분위]")
-    if lo > 0:
-        print(f"  분포 뒤짐: CI 하단 {100*lo:+.2f}pt > 0 — 재학습이 처방이다")
-    elif lo <= 0 and hi >= 0 and 100 * diff < 2.0:
-        print(f"  화소 한계: CI 가 0 을 포함하고 상승 {100*diff:+.2f}pt < 2pt — "
-              "§24(해상도·접근 순서) 문제다")
-    else:
-        print(f"  판정보류: Δ {100*diff:+.2f}pt, CI [{100*lo:+.2f}, {100*hi:+.2f}] — "
-              "구간만 기록한다")
+    # 절대치 요약 — 카드별 사전등록 기준(예: 혼합 팔 작음 ≥97%)은 여기 값에 적는다.
+    print("\n[절대치 — 작음 3분위 합격률(시드 평균)]")
+    for n, _ in specs:
+        print(f"  {n:<10} {100*tercs[n]['작음'][1]:6.2f}%")
     return 0
 
 

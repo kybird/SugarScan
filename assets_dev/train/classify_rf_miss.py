@@ -89,6 +89,37 @@ def miss_union_dev():
     return sorted(miss & dev), per_arm
 
 
+# '딴 데' 3분할(2026-09-22 카드 '혼합 팔의 로보플로우 실패를…') — 분류는
+# report_fail_mix.classify 를 재사용(재구현 금지). 팔은 토니/TE/혼합
+# 로보플로우 채점 jsonl(시드 0~3).
+ARMS3 = {
+    f"{arm}_s{s}": HERE / "_diag" / "tone2te" / f"roboflow_{arm}_s{s}.jsonl"
+    for arm in ("atone", "tone2te", "tmix") for s in range(4)
+}
+
+
+def elsewhere_union_dev(target):
+    """target 이 'elsewhere' 면 '딴 데' 합집합 ∩ dev — classify 재사용."""
+    from report_fail_mix import classify
+    dev = set(json.loads(SPLIT.read_text(encoding="utf-8"))["dev"])
+    hit = set()
+    per_arm = {}
+    for name, p in ARMS3.items():
+        if not p.exists():
+            continue
+        ids = set()
+        for l in p.read_text(encoding="utf-8").splitlines():
+            if not l.strip():
+                continue
+            r = json.loads(l)
+            cls = classify(r)
+            if (cls == "딴 데") if target == "elsewhere" else (not r.get("det")):
+                ids.add(r["id"])
+        per_arm[name] = sorted(ids & dev)
+        hit |= ids
+    return sorted(hit & dev), per_arm
+
+
 def signals(path, box):
     """한 장의 세 축 신호. box 는 원본 화소 좌표 [x0,y0,x1,y1]."""
     img = cv2.imread(str(path))
@@ -131,11 +162,20 @@ def pct_rank(dist, v):
 
 
 def main():
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--target", choices=["miss", "elsewhere"], default="miss",
+                    help="miss: 미검출 합집합(구판·aug 스냅샷). elsewhere: "
+                         "'딴 데' 합집합(2026-09-22 3팔 atone/tone2te/tmix)")
+    a = ap.parse_args()
+    if a.target == "miss":
+        targets, per_arm = miss_union_dev()
+    else:
+        targets, per_arm = elsewhere_union_dev("elsewhere")
     pop = population()
-    targets, per_arm = miss_union_dev()
-    print(f"미검출 합집합 ∩ dev = {len(targets)}장 "
-          f"(팔별 dev 미검출: "
-          + ", ".join(f"{k.split('_')[-1]} {len(v)}" for k, v in per_arm.items())
+    print(f"대상({a.target}) 합집합 ∩ dev = {len(targets)}장 "
+          f"(팔별 dev: "
+          + ", ".join(f"{k} {len(v)}" for k, v in per_arm.items())
           + ")")
 
     # dev 전체 신호 → 분포(백분위 기준). 재는 자는 대상 장과 동일해야 한다.
@@ -189,7 +229,7 @@ def main():
     # 분할 표
     from collections import Counter
     n = len(rows)
-    print("\n== 완전 미검출 3분할 (dev 합집합 기준) ==")
+    print(f"\n== {a.target} 3분할 (dev 합집합 기준) ==")
     for a, c in Counter(x["assign"] for x in rows).most_common():
         print(f"  {a:24s} {c:3d}장  {100 * c / n:5.1f}%")
     print(f"  {'합계':24s} {n:3d}장")
