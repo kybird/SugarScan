@@ -58,14 +58,22 @@ def main():
                     metavar="이름=경로",
                     help="추가 상자원 jsonl(이름=경로). tone2te 상자 평가에 쓴다"
                          "(2026-09-22 TE 재학습 카드) — 출력은 <세트>_<팔>_<이름>")
+    ap.add_argument("--extra-arms", action="append", default=[],
+                    metavar="이름=경로",
+                    help="추가 리더 팔 ckpt(이름=경로). 지터 증강 팔 평가 등"
+                         "(2026-09-22) — 기본 A/B 는 그대로")
     a = ap.parse_args()
     boxes = dict(BOXES)
     for spec in a.extra_boxes:
         name, path = spec.split("=", 1)
         boxes[name] = path
+    arms = dict(ARMS)
+    for spec in a.extra_arms:
+        name, path = spec.split("=", 1)
+        arms[name] = path
     set_dir = Path(a.set)
     out_dir = HERE / "_diag" / "reader_dump"
-    for arm, ckpt in ARMS.items():
+    for arm, ckpt in arms.items():
         for src, bx in boxes.items():
             run(ckpt, set_dir, a.split, bx,
                 out_dir / f"{set_dir.name}_{arm}_{src}.jsonl")
