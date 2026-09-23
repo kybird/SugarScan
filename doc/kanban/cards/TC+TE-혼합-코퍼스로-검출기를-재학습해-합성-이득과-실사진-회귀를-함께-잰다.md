@@ -5,7 +5,7 @@ ordinal: 60000
 created: 2026-09-22
 milestone: 검출기와 인식기를 독립 축으로 끌어올린다
 claimed_by: zcode-0922
-claimed_at: 2026-09-22T23:47-07:00
+claimed_at: 2026-09-23T00:01-07:00
 ---
 
 ## Goal
