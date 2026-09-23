@@ -56,6 +56,7 @@
   <label><input type="checkbox" id="showRects"> 배치 사각형</label>
   <label><input type="checkbox" id="showPred" checked> 검출기 예측(빨강)</label>
   <label><input type="checkbox" id="onlyMiss"> 상자 없는 장만</label>
+  <label><input type="checkbox" id="rMiss"> 리더 오독만(배포조건)</label>
   <label>한 쪽 <select id="pagesize">
     <option>24</option><option selected>60</option><option>120</option><option>240</option>
   </select></label>
@@ -150,7 +151,22 @@ function tile(it) {
                (it.pred_iou != null ? ` IoU ${it.pred_iou}` : "") + `</span>`
              : (st.hasPred
                 ? ` · <span style="color:#ff453a"><b>상자 없음</b></span>`
-                : "")) + `</span>`;
+                : "")) + `</span>` +
+    // 리더 2팔 × 평가상자 2원(2026-09-22 §27). 배포 조건(B_pred — 예측 상자
+    // 학습·예측 상자 평가)이 오독이면 빨강, 나머지 조합은 회색으로 나란히.
+    (it.readers ? (() => {
+        const cell = (k) => {
+          const v = it.readers[k];
+          if (v == null) return "";
+          const bad = v !== it.label;
+          const hot = bad && k === "B_pred";
+          return `<span style="color:${hot ? "#ff453a" : bad ? "#ff9f0a" : "#7ee787"}">` +
+                 `${k === "B_pred" ? "배포" : k} ${bad ? v + "✗" : v}</span>`;
+        };
+        return `<span>리더 ` +
+          ["A_gt", "A_pred", "B_gt", "B_pred"].map(cell).filter(Boolean)
+          .join(" · ") + `</span>`;
+      })() : ""));
   fig.append(cv, cap);
   const img = new Image();
   img.onload = () => paint(cv, it, img, 1);
@@ -207,7 +223,8 @@ function showReal() {
 async function load() {
   const q = new URLSearchParams({ dir: st.dir, profile: st.profile,
                                   offset: st.offset, limit: PAGE,
-                                  miss: $("onlyMiss").checked ? "1" : "" });
+                                  miss: $("onlyMiss").checked ? "1" : "",
+                                  rmiss: $("rMiss").checked ? "1" : "" });
   const r = await api("/api/synth/list?" + q);
   st.total = r.total; st.items = r.items; st.hasPred = !!r.has_pred;
   $("pos").textContent = `${r.offset + 1}–${r.offset + r.items.length} / ${r.total}`;
@@ -251,7 +268,7 @@ async function boot() {
     if (!isNaN(v)) { st.offset = Math.max(0, Math.min(st.total - 1, v - 1)); await load(); } };
   $("pagesize").onchange = async e => { PAGE = parseInt(e.target.value, 10);
                                         st.offset = 0; await load(); };
-  for (const id of ["showGlass", "showRects", "showPred", "onlyMiss"]) $(id).onchange = load;
+  for (const id of ["showGlass", "showRects", "showPred", "onlyMiss", "rMiss"]) $(id).onchange = load;
   $("big").onclick = () => { $("big").style.display = "none"; };
   document.onkeydown = e => {
     if (e.key === "Escape") $("big").style.display = "none";

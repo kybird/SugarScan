@@ -1072,12 +1072,17 @@ def _synth_rows(name):
 def _synth_pred_file(name):
     """세트에 붙은 검출기 예측 파일 — 있으면 쓰고 없으면 그만.
 
-    규약: _diag/synthband_v0/<세트이름>.jsonl (infer_synthband.py 의 산출).
-    예: synth_coco/B -> _diag/synthband_v0/B.jsonl
+    규약: _diag/synthband_v0/<세트이름>.jsonl (infer_synthband.py 의 산출 —
+    2026-09-17 폐기 계보, 옛 세트 열람용으로만 남음). 현행 검출기(atone)의
+    산출은 _diag/reader_boxes/<세트>_atone_s0.jsonl (eval_band.py --out,
+    2026-09-22 리더 2팔 실험) — 같은 행 형식이라 같은 오버레이를 쓴다.
     """
     leaf = name.split("/")[-1]
-    p = HERE / "_diag" / "synthband_v0" / f"{leaf}.jsonl"
-    return p if p.exists() else None
+    for p in (HERE / "_diag" / "synthband_v0" / f"{leaf}.jsonl",
+              HERE / "_diag" / "reader_boxes" / f"{leaf}_atone_s0.jsonl"):
+        if p.exists():
+            return p
+    return None
 
 
 @route("/api/synth/corpora")
@@ -1103,18 +1108,38 @@ def api_synth_list(qs):
         # 검출기가 상자를 못 낸 장만. 1000장에서 한 장을 찾는 일이라
         # 페이지를 넘겨 가며 눈으로 뒤지게 두면 안 된다.
         rows = [r for r in rows if not r.get("pred")]
-    sl = rows[off:off + lim]
     # 예측 파일이 있는 코퍼스에서만 "상자 없음"을 말할 수 있다. 없는 코퍼스
     # (Roboflow 같은 실촬 COCO)에서 그 문구를 띄우면 **정답 상자가 없다**는
     # 뜻으로 읽힌다 — 실제로는 검출기를 안 돌린 것뿐이다.
     has_pred = _synth_pred_file(name) is not None
+    # 리더 per-image 예측(2026-09-22 2팔 덤프) — 있으면 타일에 함께 보여준다.
+    readers = {}
+    ddir = HERE / "_diag" / "reader_dump"
+    if ddir.is_dir():
+        for arm in ("A", "B"):
+            for src in ("gt", "pred"):
+                p = ddir / f"{name.split('/')[-1]}_{arm}_{src}.jsonl"
+                if not p.exists():
+                    continue
+                for l in p.read_text(encoding="utf-8").splitlines():
+                    if l.strip():
+                        j = json.loads(l)
+                        readers.setdefault(
+                            j["file_name"], {})[f"{arm}_{src}"] = j["pred"]
+    if qs.get("rmiss", [""])[0] == "1":
+        # 배포 조건(B 팔·atone 예측 상자) 오독만 — 프레이밍 병목 열람용.
+        rows = [r for r in rows
+                if (readers.get(r["id"] + ".png", {}).get("B_pred")
+                    != r.get("label"))]
+    sl = rows[off:off + lim]
     return {"total": len(rows), "offset": off, "has_pred": has_pred, "items": [
         {"id": r["id"], "profile": r.get("profile"), "label": r.get("label"),
          "w": r["w"], "h": r["h"], "box": r.get("box"), "quad": r.get("quad"),
          "glass_quad": r.get("glass_quad"), "inverted": r.get("inverted"),
          "dropped": r.get("dropped"), "rects": r.get("rects"),
          "pred": r.get("pred"), "pred_score": r.get("pred_score"),
-         "pred_iou": r.get("pred_iou")}
+         "pred_iou": r.get("pred_iou"),
+         "readers": readers.get(r["id"] + ".png")}
         for r in sl]}
 
 

@@ -32,7 +32,7 @@
 | `/` | webtool.html | **작업대** — 라벨러·모니터·훈련 3탭 SPA | 탭마다 다름(아래) | 09-02 |
 | `/devices` | devices.html | 기종 라벨링 — 사진 단위 전량 검토 | 사람 입력 → `device_labels.jsonl` | 09-10 |
 | `/atlas` | (서버가 생성) | 실패 아틀라스 검토 — 어느 단계에서 틀렸는가 | 배치 산출물 + 사람 판정 → `agent_review.json` | 09-21 |
-| `/synth` | synth_view.html | 합성 코퍼스 열람 — 모델이 정답으로 배우는 것(읽기 전용) | `synth_coco/` + manifest | 09-14 |
+| `/synth` | synth_view.html | 합성 코퍼스 열람 — 모델이 정답으로 배우는 것(읽기 전용). 리더 2팔 예측 오버레이·프레이밍 오독 열람(2026-09-22 §27) | `synth_coco/` + manifest + `_diag/reader_{boxes,dump}/` | 09-14 |
 | `/profedit` | prof_edit.html | 프로파일 에디터 — 합성을 실물에 맞춘다 | 사람 입력 → `synth_overrides.json` | 09-15 |
 | `/bandreal` | band_real_view.html | 밴드 검출망 실촬 검수 — ckpt·시드별 장별 결과 | `_diag/*.jsonl` **배치** | 09-18 |
 | `/aug` | aug_view.html | 학습 증강 열람 — 모델이 실제로 보는 것 | `/api/aug`(증강 즉석 재현) | 09-20 |
