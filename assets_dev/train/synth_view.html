@@ -95,8 +95,8 @@ let PAGE = 60;
 let st = { dir:"", profile:"", arm:"", offset:0, total:0, items:[] };
 // 검출 팔 상태(2026-09-22 다중 팔). ARMS 는 서버가 발견한 팔 목록, ARMID 는
 // 선택 팔. 팔이 둘 이상일 때만 캡션에 팔 이름을 붙여 소음을 막는다.
-// 리더 2팔 덤프는 atone 상자로 뽑은 것이라 팔이 atone 이 아니면 한정자를 붙인다.
-let ARMS = [], ARMID = "", ARM = "", READER_AT = "";
+// 리더 캡션의 상자원(rSrc)도 선택 팔을 따른다 — '배포'가 곧 그 팔의 배포 조건.
+let ARMS = [], ARMID = "", ARM = "", RSRC = "pred";
 // 실촬 칼럼 상태. ids 는 사람 밴드 라벨이 있는 장이 앞에 온다(서버가 정렬).
 let RE = { device:null, ids:[], labeled:[], i:0 };
 
@@ -157,19 +157,21 @@ function tile(it) {
              : (st.hasPred
                 ? ` · <span style="color:#ff453a"><b>상자 없음</b></span>`
                 : "")) + `</span>` +
-    // 리더 2팔 × 평가상자 2원(2026-09-22 §27). 배포 조건(B_pred — 예측 상자
-    // 학습·예측 상자 평가)이 오독이면 빨강, 나머지 조합은 회색으로 나란히.
+    // 리더 2팔 × 평가상자 2원(2026-09-22 §27·§28). 상자원은 선택 팔을
+    // 따른다(atone→pred, tone2te→tepred) — '배포'가 곧 그 팔의 배포 조건.
+    // 배포 조건 오독이면 빨강, 나머지 조합은 회색으로 나란히.
     (it.readers ? (() => {
+        const sfx = "_" + RSRC, dep = "B" + sfx;
         const cell = (k) => {
           const v = it.readers[k];
           if (v == null) return "";
           const bad = v !== it.label;
-          const hot = bad && k === "B_pred";
+          const hot = bad && k === dep;
           return `<span style="color:${hot ? "#ff453a" : bad ? "#ff9f0a" : "#7ee787"}">` +
-                 `${k === "B_pred" ? "배포" : k} ${bad ? v + "✗" : v}</span>`;
+                 `${k === dep ? "배포" : k} ${bad ? v + "✗" : v}</span>`;
         };
-        return `<span>리더${READER_AT} ` +
-          ["A_gt", "A_pred", "B_gt", "B_pred"].map(cell).filter(Boolean)
+        return `<span>리더 ` +
+          ["A_gt", "A" + sfx, "B_gt", dep].map(cell).filter(Boolean)
           .join(" · ") + `</span>`;
       })() : "");
   fig.append(cv, cap);
@@ -235,7 +237,7 @@ async function load() {
   st.total = r.total; st.items = r.items; st.hasPred = !!r.has_pred;
   ARMID = r.arm || ""; ARMS = r.arms || [];
   ARM = ARMS.length > 1 ? ARMID + " " : "";
-  READER_AT = (ARMS.length > 1 && !ARMID.startsWith("atone")) ? "(atone 상자)" : "";
+  RSRC = r.reader_src || "pred";
   fillArms();
   $("pos").textContent = `${r.offset + 1}–${r.offset + r.items.length} / ${r.total}`;
   const g = $("grid"); g.innerHTML = "";

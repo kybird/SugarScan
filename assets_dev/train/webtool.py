@@ -1144,11 +1144,18 @@ def api_synth_list(qs):
     # 뜻으로 읽힌다 — 실제로는 검출기를 안 돌린 것뿐이다.
     has_pred = arm != ""
     # 리더 per-image 예측(2026-09-22 2팔 덤프) — 있으면 타일에 함께 보여준다.
+    # 예측 상자원은 선택 팔을 따른다: atone→pred, tone2te→tepred(reader_dump
+    # --extra-boxes 산출). 캡션의 '배포'가 곧 그 팔의 배포 조건이 된다.
+    psrc = "tepred" if arm.startswith("tone2te") else "pred"
+    # 리더 덤프는 s0 상자 기준이다(reader_dump.py 의 ARMS/BOXES 가 s0 고정).
+    # 다른 시드 팔에서 리더 값을 얹으면 상자는 그 시드의 것인데 리더 판정은
+    # s0 것 — 시드가 어긋난 나란히 보기가 된다. s0 팔에서만 얹는다.
+    show_readers = arm.endswith("_s0") or arm in ("", "v0")
     readers = {}
     ddir = HERE / "_diag" / "reader_dump"
-    if ddir.is_dir():
+    if ddir.is_dir() and show_readers:
         for rarm in ("A", "B"):
-            for src in ("gt", "pred"):
+            for src in ("gt", psrc):
                 p = ddir / f"{name.split('/')[-1]}_{rarm}_{src}.jsonl"
                 if not p.exists():
                     continue
@@ -1157,10 +1164,12 @@ def api_synth_list(qs):
                         j = json.loads(l)
                         readers.setdefault(
                             j["file_name"], {})[f"{rarm}_{src}"] = j["pred"]
-    if qs.get("rmiss", [""])[0] == "1":
-        # 배포 조건(B 팔·atone 예측 상자) 오독만 — 프레이밍 병목 열람용.
+    if qs.get("rmiss", [""])[0] == "1" and readers:
+        # 배포 조건(B 팔·선택 팔 예측 상자) 오독만 — 프레이밍 병목 열람용.
+        # 리더 값이 없는 팔(다른 시드)에서는 걸지 않는다 — 걸면 전량이
+        # '오독'으로 분류돼 빈 화면이 된다.
         rows = [r for r in rows
-                if (readers.get(r["id"] + ".png", {}).get("B_pred")
+                if (readers.get(r["id"] + ".png", {}).get(f"B_{psrc}")
                     != r.get("label"))]
     sl = rows[off:off + lim]
 
@@ -1176,7 +1185,7 @@ def api_synth_list(qs):
                 "pred_iou": j.get("iou") if j else None,
                 "readers": readers.get(fn)}
     return {"total": len(rows), "offset": off, "has_pred": has_pred,
-            "arm": arm,
+            "arm": arm, "reader_src": psrc,
             "arms": [{"id": a, "label": f"{a} · {_ARM_DESC.get(a.rsplit('_s', 1)[0], '검출기')}"}
                      for a in arms],
             "items": [_item(r) for r in sl]}
