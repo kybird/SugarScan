@@ -52,6 +52,7 @@
   <h1>합성 코퍼스</h1>
   <label>코퍼스 <select id="corpus"></select></label>
   <label>프로파일 <select id="profile"><option value="">전체</option></select></label>
+  <label>검출 팔 <select id="arm"></select></label>
   <label><input type="checkbox" id="showGlass" checked> 유리(화면) 경계</label>
   <label><input type="checkbox" id="showRects"> 배치 사각형</label>
   <label><input type="checkbox" id="showPred" checked> 검출기 예측(빨강)</label>
@@ -91,7 +92,11 @@
 
 <script>
 let PAGE = 60;
-let st = { dir:"", profile:"", offset:0, total:0, items:[] };
+let st = { dir:"", profile:"", arm:"", offset:0, total:0, items:[] };
+// 검출 팔 상태(2026-09-22 다중 팔). ARMS 는 서버가 발견한 팔 목록, ARMID 는
+// 선택 팔. 팔이 둘 이상일 때만 캡션에 팔 이름을 붙여 소음을 막는다.
+// 리더 2팔 덤프는 atone 상자로 뽑은 것이라 팔이 atone 이 아니면 한정자를 붙인다.
+let ARMS = [], ARMID = "", ARM = "", READER_AT = "";
 // 실촬 칼럼 상태. ids 는 사람 밴드 라벨이 있는 장이 앞에 온다(서버가 정렬).
 let RE = { device:null, ids:[], labeled:[], i:0 };
 
@@ -147,7 +152,7 @@ function tile(it) {
     (it.inverted ? ' · <span style="color:#ff9f0a">반전</span>' : "") + `</span>` +
     `<span class="muted">밴드 ${Math.round(bw)}×${Math.round(bh)}` +
     (it.dropped && it.dropped.length ? ` · 탈락 ${it.dropped.length}` : "") +
-    (it.pred ? ` · <span style="color:#ff453a">점수 ${it.pred_score}` +
+    (it.pred ? ` · <span style="color:#ff453a">${ARM}점수 ${it.pred_score}` +
                (it.pred_iou != null ? ` IoU ${it.pred_iou}` : "") + `</span>`
              : (st.hasPred
                 ? ` · <span style="color:#ff453a"><b>상자 없음</b></span>`
@@ -163,7 +168,7 @@ function tile(it) {
           return `<span style="color:${hot ? "#ff453a" : bad ? "#ff9f0a" : "#7ee787"}">` +
                  `${k === "B_pred" ? "배포" : k} ${bad ? v + "✗" : v}</span>`;
         };
-        return `<span>리더 ` +
+        return `<span>리더${READER_AT} ` +
           ["A_gt", "A_pred", "B_gt", "B_pred"].map(cell).filter(Boolean)
           .join(" · ") + `</span>`;
       })() : "");
@@ -183,7 +188,8 @@ function tile(it) {
   img.src = `/synthimg?dir=${encodeURIComponent(st.dir)}&id=${encodeURIComponent(it.id)}`;
   cv.onclick = () => {
     const bc = $("bigc"); paint(bc, it, img, 1);
-    $("bigcap").textContent = `${it.id} · 값 ${it.label} · ${it.profile} · ${it.w}×${it.h}`;
+    $("bigcap").textContent = `${it.id} · 값 ${it.label} · ${it.profile} · ${it.w}×${it.h}` +
+      (ARM ? ` · 팔 ${ARMID}` : "");
     $("big").style.display = "flex";
   };
   return fig;
@@ -221,15 +227,33 @@ function showReal() {
 }
 
 async function load() {
-  const q = new URLSearchParams({ dir: st.dir, profile: st.profile,
+  const q = new URLSearchParams({ dir: st.dir, profile: st.profile, arm: st.arm,
                                   offset: st.offset, limit: PAGE,
                                   miss: $("onlyMiss").checked ? "1" : "",
                                   rmiss: $("rMiss").checked ? "1" : "" });
   const r = await api("/api/synth/list?" + q);
   st.total = r.total; st.items = r.items; st.hasPred = !!r.has_pred;
+  ARMID = r.arm || ""; ARMS = r.arms || [];
+  ARM = ARMS.length > 1 ? ARMID + " " : "";
+  READER_AT = (ARMS.length > 1 && !ARMID.startsWith("atone")) ? "(atone 상자)" : "";
+  fillArms();
   $("pos").textContent = `${r.offset + 1}–${r.offset + r.items.length} / ${r.total}`;
   const g = $("grid"); g.innerHTML = "";
   r.items.forEach(it => g.append(tile(it)));
+}
+
+function fillArms() {
+  const s = $("arm");
+  if (ARMS.length &&
+      s.options.length === ARMS.length &&
+      [...s.options].every((o, i) => o.value === ARMS[i].id)) {
+    s.value = ARMID;
+    return;
+  }
+  s.innerHTML = "";
+  if (!ARMS.length) s.append(new Option("예측 없음", ""));
+  ARMS.forEach(a => s.append(new Option(a.label, a.id)));
+  s.value = ARMID;
 }
 
 async function boot() {
@@ -247,12 +271,14 @@ async function boot() {
     (c.profiles || []).forEach(x => p.append(new Option(x, x)));
   };
   fill(); await load(); await loadReal();
-  sel.onchange = async () => { st.dir = sel.value; st.offset = 0;
+  sel.onchange = async () => { st.dir = sel.value; st.offset = 0; st.arm = "";
                                st.profile = ""; fill();
                                await load(); await loadReal(); };
   $("profile").onchange = async e => { st.profile = e.target.value;
                                        st.offset = 0;
                                        await load(); await loadReal(); };
+  $("arm").onchange = async e => { st.arm = e.target.value; st.offset = 0;
+                                   await load(); };
   $("rprev").onclick = () => {
     if (RE.ids.length) { RE.i = (RE.i - 1 + RE.ids.length) % RE.ids.length; showReal(); } };
   $("rnext").onclick = () => {

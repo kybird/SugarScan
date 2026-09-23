@@ -1041,48 +1041,68 @@ def _synth_rows(name):
     m = d / "manifest.jsonl"
     if not m.exists():
         return []
-    pred = _synth_pred_file(name)
+    # 검출기 예측은 여기에 얹지 않는다 — 팔(atone/tone2te/…)이 여럿이라
+    # 요청 시점에 선택 팔로 병합한다(_synth_pred_rows). 행은 manifest 만 담는다.
     st = m.stat()
-    key = (st.st_mtime_ns, st.st_size,
-           (pred.stat().st_mtime_ns, pred.stat().st_size) if pred else None)
+    key = (st.st_mtime_ns, st.st_size)
     hit = _SYNTH_CACHE.get(name)
     if hit and hit[0] == key:
         return hit[1]
     rows = [json.loads(l) for l in
             m.read_text(encoding="utf-8").splitlines() if l.strip()]
     rows = _keep_rows_with_images(name, rows)
-    if pred:
-        # 검출기 예측을 같은 행에 얹는다. 없는 장은 pred 가 None 으로 남아
-        # 화면에서 "상자 없음"으로 보인다 — 그게 판정에 필요한 정보다.
-        by = {}
-        for l in pred.read_text(encoding="utf-8").splitlines():
-            if l.strip():
-                j = json.loads(l)
-                by[j["file_name"]] = j
-        for r in rows:
-            j = by.get(f"{r['id']}.png")
-            if j:
-                r["pred"] = j.get("pred")
-                r["pred_score"] = j.get("score")
-                r["pred_iou"] = j.get("iou")
     _SYNTH_CACHE[name] = (key, rows)
     return rows
 
 
-def _synth_pred_file(name):
-    """세트에 붙은 검출기 예측 파일 — 있으면 쓰고 없으면 그만.
+_ARM_DESC = {
+    # 팔 id 접두사 → 드롭다운 설명. 학습 코퍼스가 곧 구도 분포다.
+    "atone": "TC(구도선언 전) 학습",
+    "tone2te": "TE(구도선언 후) 재학습",
+    "v0": "폐기계보 옛 세트 열람용",
+}
 
-    규약: _diag/synthband_v0/<세트이름>.jsonl (infer_synthband.py 의 산출 —
-    2026-09-17 폐기 계보, 옛 세트 열람용으로만 남음). 현행 검출기(atone)의
-    산출은 _diag/reader_boxes/<세트>_atone_s0.jsonl (eval_band.py --out,
-    2026-09-22 리더 2팔 실험) — 같은 행 형식이라 같은 오버레이를 쓴다.
+
+def _synth_arms(name):
+    """세트에 붙은 검출기 팔별 예측 파일 — 있는 순서대로.
+
+    atone(TC 학습, 2026-09-20 채택) → tone2te(TE 재학습, 2026-09-22 실험) →
+    v0(_diag/synthband_v0, 2026-09-17 폐기 계보 — 옛 세트 열람용으로만 남음).
+    같은 팔의 시드가 여럿이면 시드순. 화면의 '검출 팔' 드롭다운이 이 목록을
+    그대로 받는다. 같은 행 형식(eval_band.py --out)이라 한 오버레이로 그린다.
     """
     leaf = name.split("/")[-1]
-    for p in (HERE / "_diag" / "synthband_v0" / f"{leaf}.jsonl",
-              HERE / "_diag" / "reader_boxes" / f"{leaf}_atone_s0.jsonl"):
-        if p.exists():
-            return p
-    return None
+    out = []
+    for sub, tag in (("reader_boxes", "atone"), ("tone2te", "tone2te")):
+        d = HERE / "_diag" / sub
+        if not d.is_dir():
+            continue
+        for p in sorted(d.glob(f"{leaf}_{tag}_s*.jsonl")):
+            out.append((f"{tag}_s{p.stem.rsplit('_s', 1)[-1]}", p))
+    v0 = HERE / "_diag" / "synthband_v0" / f"{leaf}.jsonl"
+    if v0.exists():
+        out.append(("v0", v0))
+    # Windows 는 대소문자를 못 가려 소문자 파일명도 같이 걸린다 — id 첫 것만.
+    seen = set()
+    return [(a, p) for a, p in out if not (a in seen or seen.add(a))]
+
+
+_SYNTH_PRED_CACHE = {}
+
+
+def _synth_pred_rows(path):
+    """예측 jsonl 을 file_name → 행 사전으로. 파일이 바뀌면 버린다."""
+    st = path.stat()
+    hit = _SYNTH_PRED_CACHE.get(str(path))
+    if hit and hit[0] == (st.st_mtime_ns, st.st_size):
+        return hit[1]
+    by = {}
+    for l in path.read_text(encoding="utf-8").splitlines():
+        if l.strip():
+            j = json.loads(l)
+            by[j["file_name"]] = j
+    _SYNTH_PRED_CACHE[str(path)] = ((st.st_mtime_ns, st.st_size), by)
+    return by
 
 
 @route("/api/synth/corpora")
@@ -1099,48 +1119,67 @@ def api_synth_corpora(qs):
 def api_synth_list(qs):
     name = qs.get("dir", [""])[0]
     prof = qs.get("profile", [""])[0]
+    arm = qs.get("arm", [""])[0]
     off = int(qs.get("offset", ["0"])[0])
     lim = min(400, int(qs.get("limit", ["60"])[0]))
     rows = _synth_rows(name)
+    arms = dict(_synth_arms(name))
+    if arm not in arms:
+        arm = next(iter(arms), "")
+    # 검출 팔 하나를 골라 예측을 얹는다(2026-09-22 다중 팔). eval_band 의
+    # jsonl 은 det=false 행에도 문턱 아래 상자 좌표를 담는다 — 그대로 얹으면
+    # "상자 없음"이 영영 안 뜬다. det 인 행만 예측으로 센다.
+    preds = _synth_pred_rows(arms[arm]) if arm else {}
+    def _pred(fn):
+        j = preds.get(fn)
+        return j if j and j.get("det") else None
     if prof:
         rows = [r for r in rows if r.get("profile") == prof]
     if qs.get("miss", [""])[0] == "1":
         # 검출기가 상자를 못 낸 장만. 1000장에서 한 장을 찾는 일이라
         # 페이지를 넘겨 가며 눈으로 뒤지게 두면 안 된다.
-        rows = [r for r in rows if not r.get("pred")]
+        rows = [r for r in rows if _pred(f"{r['id']}.png") is None]
     # 예측 파일이 있는 코퍼스에서만 "상자 없음"을 말할 수 있다. 없는 코퍼스
     # (Roboflow 같은 실촬 COCO)에서 그 문구를 띄우면 **정답 상자가 없다**는
     # 뜻으로 읽힌다 — 실제로는 검출기를 안 돌린 것뿐이다.
-    has_pred = _synth_pred_file(name) is not None
+    has_pred = arm != ""
     # 리더 per-image 예측(2026-09-22 2팔 덤프) — 있으면 타일에 함께 보여준다.
     readers = {}
     ddir = HERE / "_diag" / "reader_dump"
     if ddir.is_dir():
-        for arm in ("A", "B"):
+        for rarm in ("A", "B"):
             for src in ("gt", "pred"):
-                p = ddir / f"{name.split('/')[-1]}_{arm}_{src}.jsonl"
+                p = ddir / f"{name.split('/')[-1]}_{rarm}_{src}.jsonl"
                 if not p.exists():
                     continue
                 for l in p.read_text(encoding="utf-8").splitlines():
                     if l.strip():
                         j = json.loads(l)
                         readers.setdefault(
-                            j["file_name"], {})[f"{arm}_{src}"] = j["pred"]
+                            j["file_name"], {})[f"{rarm}_{src}"] = j["pred"]
     if qs.get("rmiss", [""])[0] == "1":
         # 배포 조건(B 팔·atone 예측 상자) 오독만 — 프레이밍 병목 열람용.
         rows = [r for r in rows
                 if (readers.get(r["id"] + ".png", {}).get("B_pred")
                     != r.get("label"))]
     sl = rows[off:off + lim]
-    return {"total": len(rows), "offset": off, "has_pred": has_pred, "items": [
-        {"id": r["id"], "profile": r.get("profile"), "label": r.get("label"),
-         "w": r["w"], "h": r["h"], "box": r.get("box"), "quad": r.get("quad"),
-         "glass_quad": r.get("glass_quad"), "inverted": r.get("inverted"),
-         "dropped": r.get("dropped"), "rects": r.get("rects"),
-         "pred": r.get("pred"), "pred_score": r.get("pred_score"),
-         "pred_iou": r.get("pred_iou"),
-         "readers": readers.get(r["id"] + ".png")}
-        for r in sl]}
+
+    def _item(r):
+        fn = f"{r['id']}.png"
+        j = _pred(fn)
+        return {"id": r["id"], "profile": r.get("profile"), "label": r.get("label"),
+                "w": r["w"], "h": r["h"], "box": r.get("box"), "quad": r.get("quad"),
+                "glass_quad": r.get("glass_quad"), "inverted": r.get("inverted"),
+                "dropped": r.get("dropped"), "rects": r.get("rects"),
+                "pred": j.get("pred") if j else None,
+                "pred_score": round(j["score"], 3) if j else None,
+                "pred_iou": j.get("iou") if j else None,
+                "readers": readers.get(fn)}
+    return {"total": len(rows), "offset": off, "has_pred": has_pred,
+            "arm": arm,
+            "arms": [{"id": a, "label": f"{a} · {_ARM_DESC.get(a.rsplit('_s', 1)[0], '검출기')}"}
+                     for a in arms],
+            "items": [_item(r) for r in sl]}
 
 
 # ── 프로파일 에디터 ────────────────────────────────────────────────────
