@@ -166,7 +166,7 @@ function tile(it) {
         return `<span>리더 ` +
           ["A_gt", "A_pred", "B_gt", "B_pred"].map(cell).filter(Boolean)
           .join(" · ") + `</span>`;
-      })() : ""));
+      })() : "");
   fig.append(cv, cap);
   const img = new Image();
   img.onload = () => paint(cv, it, img, 1);
