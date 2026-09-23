@@ -1,9 +1,11 @@
 ---
 title: TC+TE 혼합 코퍼스로 검출기를 재학습해 합성 이득과 실사진 회귀를 함께 잰다
-status: todo
+status: doing
 ordinal: 60000
 created: 2026-09-22
 milestone: 검출기와 인식기를 독립 축으로 끌어올린다
+claimed_by: zcode-0922
+claimed_at: 2026-09-22T23:47-07:00
 ---
 
 ## Goal
