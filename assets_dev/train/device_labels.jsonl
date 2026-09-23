@@ -49,6 +49,7 @@
 {"id": "glucose_batch1/1041", "brand": "HANDOK", "model": "BAROZEN II", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T18:05:19"}
 {"id": "glucose_batch1/1042", "brand": "ACURA VIEW", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T18:57:27"}
 {"id": "glucose_batch1/1043", "brand": "HANDOK", "model": "BAROZEN II", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T18:05:19"}
+{"id": "glucose_batch1/1044", "brand": "이름모를 가로형모델", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-23T11:46:29"}
 {"id": "glucose_batch1/1046", "brand": "이름모를 가로형모델", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-11T01:05:40"}
 {"id": "glucose_batch1/1047", "brand": "gDoctor", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T18:58:21"}
 {"id": "glucose_batch1/1048", "brand": "HANDOK", "model": "BAROZEN II", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T18:05:19"}
@@ -281,6 +282,7 @@
 {"id": "glucose_batch1/1257", "brand": "오토-첵", "model": "", "variant": "", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00", "print": "ko"}
 {"id": "glucose_batch1/1258", "brand": "오토-첵", "model": "", "variant": "", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00", "print": "ko"}
 {"id": "glucose_batch1/1259", "brand": "오토-첵", "model": "", "variant": "", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00", "print": "ko"}
+{"id": "glucose_batch1/126", "brand": "Gluco Navii NFC", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-23T11:46:42"}
 {"id": "glucose_batch1/1260", "brand": "오토-첵", "model": "", "variant": "", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00", "print": "ko"}
 {"id": "glucose_batch1/1261", "brand": "오토-첵", "model": "", "variant": "", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00", "print": "ko"}
 {"id": "glucose_batch1/1262", "brand": "오토-첵", "model": "", "variant": "", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00", "print": "ko"}
@@ -366,6 +368,7 @@
 {"id": "glucose_batch1/1336", "brand": "CareSens", "model": "N", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T19:25:33"}
 {"id": "glucose_batch1/1337", "brand": "CareSens", "model": "N", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T19:25:33"}
 {"id": "glucose_batch1/1338", "brand": "CareSens", "model": "N", "variant": "", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
+{"id": "glucose_batch1/134", "brand": "이름모를 가로형모델", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-23T11:46:51"}
 {"id": "glucose_batch1/1340", "brand": "CareSens", "model": "N", "variant": "", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
 {"id": "glucose_batch1/1341", "brand": "CareSens", "model": "N", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T19:25:33"}
 {"id": "glucose_batch1/1342", "brand": "CareSens", "model": "N", "variant": "", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
@@ -1391,7 +1394,9 @@
 {"id": "glucose_batch1/2314", "brand": "On Call Extra", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-11T01:10:09"}
 {"id": "glucose_batch1/2315", "brand": "On Call Extra", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-11T01:10:09"}
 {"id": "glucose_batch1/2316", "brand": "On Call Extra", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-11T01:10:09"}
+{"id": "glucose_batch1/2317", "brand": "", "model": "", "variant": "", "status": "unknown", "by": "human", "ts": "2026-09-23T11:57:42"}
 {"id": "glucose_batch1/2318", "brand": "On Call Extra", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-11T01:10:09"}
+{"id": "glucose_batch1/2319", "brand": "오토-첵", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-23T11:47:06"}
 {"id": "glucose_batch1/232", "brand": "SD CodeFree", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T20:26:28"}
 {"id": "glucose_batch1/2320", "brand": "오토-첵", "model": "", "variant": "", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00", "print": "ko"}
 {"id": "glucose_batch1/2321", "brand": "SD CHECK GOLD2", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T18:32:18"}
@@ -1403,6 +1408,7 @@
 {"id": "glucose_batch1/2327", "brand": "Auto-chek plus", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T20:20:26"}
 {"id": "glucose_batch1/2328", "brand": "Auto-chek plus", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T20:20:26"}
 {"id": "glucose_batch1/2329", "brand": "Auto-chek plus", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T20:20:26"}
+{"id": "glucose_batch1/233", "brand": "SD CodeFree", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-23T11:47:36"}
 {"id": "glucose_batch1/2330", "brand": "Auto-chek plus", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T20:20:26"}
 {"id": "glucose_batch1/2331", "brand": "Auto-chek plus", "model": "", "variant": "", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
 {"id": "glucose_batch1/2332", "brand": "Auto-chek plus", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T20:20:26"}
@@ -1424,6 +1430,7 @@
 {"id": "glucose_batch1/2347", "brand": "Auto-chek plus", "model": "", "variant": "", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
 {"id": "glucose_batch1/2348", "brand": "Auto-chek plus", "model": "", "variant": "", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
 {"id": "glucose_batch1/2349", "brand": "Auto-chek plus", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T20:20:26"}
+{"id": "glucose_batch1/235", "brand": "SD CodeFree", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-23T11:47:36"}
 {"id": "glucose_batch1/2350", "brand": "Auto-chek plus", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T20:20:26"}
 {"id": "glucose_batch1/2351", "brand": "ACURA PLUS", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T18:37:13"}
 {"id": "glucose_batch1/2352", "brand": "Auto-chek plus", "model": "", "variant": "", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
@@ -1942,6 +1949,7 @@
 {"id": "glucose_batch1/604", "brand": "HANDOK", "model": "BAROZEN II", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:12:29"}
 {"id": "glucose_batch1/605", "brand": "ACCU-CHEK", "model": "Performa", "variant": "빨강 둥근버튼", "status": "identified", "by": "human", "ts": "2026-09-10T22:12:36"}
 {"id": "glucose_batch1/606", "brand": "이름모를 가로형모델", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-11T01:05:40"}
+{"id": "glucose_batch1/607", "brand": "이름모를 가로형모델", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-23T11:46:51"}
 {"id": "glucose_batch1/609", "brand": "오토-첵", "model": "", "variant": "", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00", "print": "ko"}
 {"id": "glucose_batch1/61", "brand": "미레 3.3G + II", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T18:51:02"}
 {"id": "glucose_batch1/610", "brand": "오토-첵", "model": "", "variant": "", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00", "print": "ko"}
@@ -2041,8 +2049,10 @@
 {"id": "glucose_batch1/699", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:13:28"}
 {"id": "glucose_batch1/7", "brand": "CareSens II Plus", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T18:52:40"}
 {"id": "glucose_batch1/70", "brand": "미레 3.3G + II", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T18:51:02"}
+{"id": "glucose_batch1/700", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-23T11:47:51"}
 {"id": "glucose_batch1/701", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:13:28"}
 {"id": "glucose_batch1/702", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:13:28"}
+{"id": "glucose_batch1/703", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-23T11:47:51"}
 {"id": "glucose_batch1/704", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:13:28"}
 {"id": "glucose_batch1/705", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:13:28"}
 {"id": "glucose_batch1/706", "brand": "Gluco Dr.TOP", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T18:59:37"}
@@ -2053,17 +2063,21 @@
 {"id": "glucose_batch1/710", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:13:28"}
 {"id": "glucose_batch1/711", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:13:28"}
 {"id": "glucose_batch1/712", "brand": "Gluco Dr.TOP", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T18:59:37"}
+{"id": "glucose_batch1/713", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-23T11:47:51"}
 {"id": "glucose_batch1/714", "brand": "Gluco Dr.TOP", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T18:59:37"}
 {"id": "glucose_batch1/715", "brand": "Gluco Dr.TOP", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T18:59:37"}
+{"id": "glucose_batch1/716", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-23T11:47:51"}
 {"id": "glucose_batch1/717", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:13:28"}
 {"id": "glucose_batch1/718", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:13:28"}
 {"id": "glucose_batch1/719", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:13:28"}
 {"id": "glucose_batch1/72", "brand": "미레 3.3G + II", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T18:51:02"}
 {"id": "glucose_batch1/720", "brand": "Gluco Dr.TOP", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T18:59:37"}
 {"id": "glucose_batch1/721", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:13:28"}
+{"id": "glucose_batch1/722", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-23T11:47:51"}
 {"id": "glucose_batch1/723", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:13:28"}
 {"id": "glucose_batch1/724", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:13:28"}
 {"id": "glucose_batch1/725", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T19:24:27"}
+{"id": "glucose_batch1/726", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-23T11:47:51"}
 {"id": "glucose_batch1/727", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T19:24:27"}
 {"id": "glucose_batch1/728", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:13:28"}
 {"id": "glucose_batch1/729", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:13:28"}
@@ -2154,6 +2168,7 @@
 {"id": "glucose_batch1/805", "brand": "GC 녹십자 MS ONE", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:29:30"}
 {"id": "glucose_batch1/806", "brand": "GC 녹십자 MS ONE", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:29:30"}
 {"id": "glucose_batch1/807", "brand": "gDoctor", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:31:19"}
+{"id": "glucose_batch1/808", "brand": "이름모를 가로형모델", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-23T11:46:51"}
 {"id": "glucose_batch1/81", "brand": "미레 3.3G + II", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T18:51:02"}
 {"id": "glucose_batch1/810", "brand": "CareSens N Premier", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:30:39"}
 {"id": "glucose_batch1/812", "brand": "CareSens N Premier", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:30:39"}
@@ -2274,6 +2289,7 @@
 {"id": "glucose_batch1/916", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:33:32"}
 {"id": "glucose_batch1/918", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:33:32"}
 {"id": "glucose_batch1/919", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
+{"id": "glucose_batch1/92", "brand": "Boryung", "model": "CareTouch", "variant": "일반LCD", "status": "identified", "by": "human", "ts": "2026-09-23T11:48:01"}
 {"id": "glucose_batch1/920", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
 {"id": "glucose_batch1/921", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
 {"id": "glucose_batch1/923", "brand": "Gmate", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:33:32"}
@@ -2313,6 +2329,7 @@
 {"id": "glucose_batch1/957", "brand": "STANDARD", "model": "CHECK GOLD PLUS", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T18:55:45"}
 {"id": "glucose_batch1/958", "brand": "STANDARD", "model": "CHECK GOLD PLUS", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T18:55:45"}
 {"id": "glucose_batch1/959", "brand": "STANDARD", "model": "CHECK GOLD PLUS", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:37:06"}
+{"id": "glucose_batch1/96", "brand": "Boryung", "model": "CareTouch", "variant": "일반LCD", "status": "identified", "by": "human", "ts": "2026-09-23T11:48:01"}
 {"id": "glucose_batch1/960", "brand": "STANDARD", "model": "CHECK GOLD PLUS", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:37:06"}
 {"id": "glucose_batch1/961", "brand": "STANDARD", "model": "CHECK GOLD PLUS", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:37:06"}
 {"id": "glucose_batch1/962", "brand": "STANDARD", "model": "CHECK GOLD PLUS", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:37:06"}
@@ -2323,6 +2340,7 @@
 {"id": "glucose_batch1/967", "brand": "STANDARD", "model": "CHECK GOLD PLUS", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:42:54"}
 {"id": "glucose_batch1/968", "brand": "Link 0.3", "model": "", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:48:12"}
 {"id": "glucose_batch1/969", "brand": "STANDARD", "model": "CHECK GOLD PLUS", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:42:54"}
+{"id": "glucose_batch1/97", "brand": "Boryung", "model": "CareTouch", "variant": "일반LCD", "status": "identified", "by": "human", "ts": "2026-09-23T11:48:01"}
 {"id": "glucose_batch1/970", "brand": "CareSens", "model": "N", "variant": "", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
 {"id": "glucose_batch1/971", "brand": "STANDARD", "model": "CHECK GOLD PLUS", "variant": "", "status": "identified", "by": "human", "ts": "2026-09-10T22:42:54"}
 {"id": "glucose_batch1/972", "brand": "CareSens", "model": "N", "variant": "", "status": "identified", "by": "claude-recovery", "ts": "2026-09-11T00:00:00"}
