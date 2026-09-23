@@ -377,6 +377,51 @@ def palette_vocab(rows, labels):
     return vocab
 
 
+def _outside_unlabeled(members, labels):
+    """디스크엔 있으나 성분도 라벨도 없는 Datumo 사진.
+
+    기종 탭의 모집단은 성분(_diag/scene_components.json)이라 성분 밖 사진은
+    UI 가 닿지 않았다 — 카드 '새로 검출된 8장에 기기 라벨을 붙인다'가 그
+    8장(ft3 승격 예정) 때문에 REVIEW 에 막혀 있었다(2026-09-16 카드 Note).
+    유사 성분으로 노출해 사람이 라벨링하게 한다. 라벨이 붙으면 이 목록에서
+    스스로 빠진다 — 디스크-성분∪라벨 차집합이라 별도 상태가 없다.
+    """
+    if not IMAGES.is_dir():
+        return []
+    in_pool = set(labels)
+    for ids in members.values():
+        in_pool.update(ids)
+    out = []
+    for d in sorted(p for p in IMAGES.iterdir() if p.is_dir()):
+        for f in sorted(d.glob("*.jpg")):
+            cid = f"{d.name}/{f.stem}"
+            if cid not in in_pool:
+                out.append(cid)
+    return out
+
+
+_OUTSIDE_COMP = "_outside"
+
+
+def _append_outside_row(rows, members, labels):
+    """성분 밖 미라벨 사진을 유사 성분 행으로 붙인다(응답 시점 주입).
+
+    device_tags.jsonl 정본에는 안 쓴다 — resummarize_components·save 경로는
+    실제 성분만 다루므로 주입 행이 파일로 새어 나갈 길이 없다.
+    """
+    outside = _outside_unlabeled(members, labels)
+    if not outside:
+        return rows
+    members[_OUTSIDE_COMP] = outside
+    rows.append({"component": _OUTSIDE_COMP, "rep": outside[0],
+                 "size": len(outside), "labeled": 0, "brand": "", "model": "",
+                 "variant": "", "status": "", "by": "system",
+                 "checked": False, "confidence": "",
+                 "note": "성분 밖 미라벨 사진 — ft3 승격 8장 포함. "
+                         "라벨을 붙이면 이 목록에서 사라진다(2026-09-23)."})
+    return rows
+
+
 @route("/api/devicetags")
 def api_devicetags(qs):
     rows = load_device_tags()
@@ -400,6 +445,7 @@ def api_devicetags(qs):
     for k in near:
         near[k].sort(key=lambda x: x[1])
     labels = load_device_labels()
+    rows = _append_outside_row(rows, members, labels)
     vocab = palette_vocab(rows, labels)
     return {"rows": rows,
             "members": members,
@@ -2850,6 +2896,9 @@ class Handler(BaseHTTPRequestHandler):
                     labels[i] = row
             save_device_labels(labels)
             rows = resummarize_components(labels)
+            # 응답에도 성분 밖 유사 성분을 붙인다 — 저장 뒤 남은 미라벨 사진이
+            # 클라이언트 ROWS 에서 사라져 다음 장에 닿지 못하는 일을 막는다.
+            rows = _append_outside_row(rows, scene_members(), labels)
             self._json({"ok": True, "n": len(ids),
                         "labels": {i: labels[i] for i in ids if i in labels},
                         "removed": [i for i in ids if i not in labels],
