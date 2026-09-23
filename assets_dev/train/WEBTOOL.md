@@ -25,13 +25,12 @@
   표에 적는다 — 배치 산물은 **낡을 수 있고 낡은 걸 화면이 숨긴다**(2026-09-21
   오버레이가 두 팔 뒤진 `bg_s1` 인 걸 아무도 몰랐다).
 
-## 화면 (8개 — 2026-09-21 bandreal·arms 흡수 후)
+## 화면 (8개 — 2026-09-23 아틀라스 폐기 후)
 
 | 경로 | 파일 | 용도 | 데이터 원천 | 추가 |
 |---|---|---|---|---|
 | `/` | webtool.html | **작업대** — 라벨러·모니터·훈련 3탭 SPA | 탭마다 다름(아래) | 09-02 |
 | `/devices` | devices.html | 기종 라벨링 — 사진 단위 전량 검토 | 사람 입력 → `device_labels.jsonl` | 09-10 |
-| `/atlas` | (서버가 생성) | 실패 아틀라스 검토 — 어느 단계에서 틀렸는가 | 배치 산출물 + 사람 판정 → `agent_review.json` | 09-21 |
 | `/synth` | synth_view.html | 합성 코퍼스 열람 — 모델이 정답으로 배우는 것(읽기 전용). 리더 2팔 예측 오버레이·프레이밍 오독 열람(2026-09-22 §27) | `synth_coco/` + manifest + `_diag/reader_{boxes,dump}/` | 09-14 |
 | `/profedit` | prof_edit.html | 프로파일 에디터 — 합성을 실물에 맞춘다 | 사람 입력 → `synth_overrides.json` | 09-15 |
 | `/bandreal` | band_real_view.html | 밴드 검출망 실촬 검수 — ckpt·시드별 장별 결과 | `_diag/*.jsonl` **배치** | 09-18 |
@@ -39,6 +38,12 @@
 | `/inkclip` | ink_clip_view.html | 잉크 잘림 눈검사 — 자를 검사한다 | `_diag/ink_clip.jsonl` **배치** | 09-20 |
 | `/rfband` | rf_band_label.html | Roboflow 밴드 라벨 — 우리 규약으로 | 사람 입력 → `rf_band_boxes.jsonl` | 09-20 |
 | `/livecmp` | live_view.html | **실촬 검수** — 단장(라이브) · 실패 목록(전량 라이브 스캔) · 집약(팔 4시드 배치) | 라이브 추론 + `_diag` **배치**(집약만) | 09-21 |
+
+`/atlas`(판독 실패 아틀라스)는 **2026-09-23 전수조사에서 폐기**했다 — 옛 CTC
+리더 스택(reader_model·reader_preds.json·data_cache_v2.npz)에 매여
+2026-09-22 부터 준비 실패로 서 있던 폐기 계열 화면이다(사람 지시: "폐기대상이
+남아있으면 안되자나"). 새 리더의 실패 아틀라스가 필요해지면 새 짝으로 다시
+만든다. `/imgs/`·`/api/cases`·`/api/review` 라우트도 함께 사라졌다.
 
 `/bandreal`·`/arms` 는 2026-09-21 사람 지시로 `/livecmp` 에 흡수됐다("하나로
 합쳐라"·"정리해") — 경로는 302 로 보내고 `band_real_view.html` ·
@@ -54,16 +59,20 @@
 
 ## 작업대(`/`)의 세 탭
 
-기종·아틀라스 탭(iframe)은 2026-09-21 사람 결정으로 **독립 화면으로
-통합**했다 — 같은 화면의 이중 진입(작업대 탭 vs 독립 화면)이 혼란을
-줬다. 진입은 상단 메뉴 '화면' 줄의 기종·아틀라스.
+기종 탭(iframe)은 2026-09-21 사람 결정으로 **독립 화면으로 통합**했다 — 같은
+화면의 이중 진입(작업대 탭 vs 독립 화면)이 혼란을 줬다. 진입은 상단 메뉴
+'화면' 줄의 기종.
 
 - **라벨러** — 밴드·LCD 라벨 캔버스. 쓰는 것: `band_boxes.jsonl` ·
   `screen_boxes.jsonl`(사람 라벨 정본), `band_quads_pred.jsonl`(예측 오버레이,
-  **배치 힌트** — 2026-09-21 현재 `asize512_s0`).
-- **모니터** — 학습 로그. `band_out/` 의 가장 최근 로그를 따라간다.
-- **훈련** — 검출기 학습 시작·중지·게이트. 옛 계열(`band_det_*`) 버튼이
-  남아 있다 — 아래 "정리 후보".
+  **배치 힌트** — 2026-09-23 현재 `atone_s0`). 2026-09-23 전수조사로 옛 CTC
+  리더의 '판독 실패' 큐 필터(reader/risky/safe/blank/rejected)를 지웠다.
+- **모니터** — 학습 로그. `band_out/` 의 가장 최근 로그를 따라간다(스텝 형식).
+- **훈련** — 로그 따라가기 + `band_out/` 체크포인트 목록 + '기종 탭에 걸기'
+  (오버레이 예측 재덤프). 2026-09-23 전수조사로 옛 학습 시작·중지 버튼(폐기
+  계열 `train_band_detector.py` 를 띄웠다)과 게이트 버튼·표(옛
+  `eval_band_detector.py`)를 지웠다 — 학습은 터미널에서 `train_band.py` ·
+  `run_*.sh` 로 돌린다.
 
 ## 화면을 떠받치는 비(非)화면 라우트
 
@@ -71,11 +80,11 @@
   쓰는 이진 응답. **둘이 갈라진 이유가 있다**(G34: JSON 을 img 태그에
   물리면 깨진다). 리사이즈 규약은 공유 — 갈라지면 안 된다.
 - `/synthimg` — 합성 PNG 원본(좌표가 manifest 화소 기준이라 리사이즈 금지).
-- `/atlas`·`/imgs/`·`/api/cases`·`/api/review` — 아틀라스 in-process
-  (make_failure_atlas 의 초기화·요청 처리를 함수로 불러 쓴다. 8790 standalone
-  `--serve` 도 살아 있지만 웹툴을 쓸 때는 띄울 필요가 없다).
 - `/api/livecmp` · `/api/arms` · `/api/inkclip` · `/api/aug` ·
-  `/api/bandreal` · `/api/rfqueue` — 각 화면의 데이터.
+  `/api/rfqueue` — 각 화면의 데이터.
+- `/api/det/overlay`(POST) — 오버레이 예측 재덤프. ckpt 는 `band_out/` 상대
+  경로. 2026-09-23 전수조사로 `/api/det/start`·`/api/det/stop`·
+  `/api/det/corpora`·`/api/det/gate`(GET·POST)·`/api/preds_holdout` 을 지웠다.
 
 ## 겹침과 정리 후보 (2026-09-21 평가 — 사람 판정 대기)
 
@@ -85,9 +94,9 @@
 2. **`/rfband`** — 임무 소멸. 규약 차이가 잉크 자로 확정돼 79장 라벨링이
    불필요해졌다(BAND_EXP_PLAN §23.5). 라벨 파일·큐는 보존, 화면은 폐기
    후보.
-3. **훈련 탭·기종 탭의 `band_det_*` 갈아끼우기** — 전부 폐기된 옛 계열
-   이름만 목록에 뜬다. 새 체크포인트 검사는 `/livecmp`로 한다. 버튼·
-   드롭다운 정리 후보.
+3. ~~**훈련 탭·기종 탭의 `band_det_*` 갈아끼우기**~~ → **2026-09-23 전수조사
+   정리 완료.** 폐기 계열 버튼·라우트를 지우고 체크포인트 목록은 `band_out/`
+   상대경로로 바꿨다. 새 체크포인트 검사는 `/livecmp`로 한다.
 4. ~~**`/bandreal`** — `/livecmp`와 부분 겹침, 장기 흡수 후보~~ →
    **2026-09-21 흡수 완료**(위 표 각주).
 5. **`webtool.py` 머리말의 API 목록** — ctc 폐기 파이프라인(`ctc_train_gpu.log`

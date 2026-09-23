@@ -168,7 +168,6 @@ tr.miss td.mono { color: var(--bad); }
   <nav class="pages">
     <a href="/livecmp">실촬 검수</a>
     <a href="/devices">기종</a>
-    <a href="/atlas">아틀라스</a>
     <a href="/synth">합성 코퍼스</a>
     <a href="/profedit">프로파일</a>
     <a href="/aug">증강</a>
@@ -191,14 +190,9 @@ tr.miss td.mono { color: var(--bad); }
         <option value="lcd">LCD 화면 (screen_boxes.jsonl)</option>
         <option value="band">밴드 = 숫자줄 (band_boxes.jsonl)</option>
       </select>
-      <select id="queue" title="실패 모아보기 — GM 미검출 / CTC 판독 오답만 큐로">
+      <select id="queue" title="실패 모아보기 — GM 미검출 등 큐로">
         <option value="all">전체 큐</option>
         <option value="gm">GM 미검출만</option>
-        <option value="reader">판독 오답 전체</option>
-        <option value="risky">판독 오답 · 위험(자릿수 보존)</option>
-        <option value="safe">판독 오답 · 안전(자릿수 변동)</option>
-        <option value="blank">판독 무출력</option>
-        <option value="rejected">거절 대상(득표율 낮음)</option>
         <option value="bandseed">밴드 씨앗 · 기기별 번갈아 (권장)</option>
         <option value="pilot">밴드 라벨 큐 (1단계 346 + 재라벨 86 + 기타 47)</option>
         <option value="lcdfix">LCD 재라벨 (GM 실패·가로)</option>
@@ -226,7 +220,7 @@ tr.miss td.mono { color: var(--bad); }
     <button id="btn-restore" title="박스를 열었을 때의 값(저장 라벨→모델 예측)으로 되돌림">↺ 박스 복원 (R)</button>
     <button id="btn-rect" title="라벨 박스 안에서 유리 사각형을 찾아 원근를 편 결과를 현재 방식(박스 스트레치)과 나란히 비교">⤢ 펼치기 검수 (E)</button>
     <button id="btn-selftest" title="캔버스 좌표계·저장 좌표계·서버 라벨 파일을 한 번에 대조">✓ 좌표 자가검증 (T)</button>
-    <span id="gtwrap">GT <b id="gt">-</b><span id="gtfixed"></span><a id="gt-revert" href="#" style="display:none;color:var(--bad);font-size:12px;margin-left:6px">원복</a><span id="gtpred"></span><span id="gtread" style="font-size:12px;margin-left:6px"></span></span>
+    <span id="gtwrap">GT <b id="gt">-</b><span id="gtfixed"></span><a id="gt-revert" href="#" style="display:none;color:var(--bad);font-size:12px;margin-left:6px">원복</a><span id="gtpred"></span></span>
     <span id="keys">Space 저장·다음 | <b>N 저장 없이 다음</b> | <b>P 저장 없이 이전</b>(=Backspace) | <b>J id 로 점프</b> | D 스킵 — <b>파일에 기록됨</b> | R 박스복원 | G GT수정 | E 펼치기 검수 <span style="color:#8b93a3">(1~4 방향 선택·<b>저장</b> / Esc 닫기)</span> | T 자가검증 <span style="color:#8b93a3">(리포트는 아무 키나 눌러 닫음)</span> | 드래그 이동·신규 / 모서리 리사이즈 | 방향키 이동(+Shift 크기) | 휠 줌 | 우클릭 드래그 pan</span>
   </div>
   <div id="cvbox">
@@ -247,68 +241,51 @@ tr.miss td.mono { color: var(--bad); }
   </div>
 </section>
 
-<!-- ================= 모니터 — 밴드 쿼드 검출기 ================= -->
+<!-- ================= 모니터 — 밴드 검출망(BandNet) ================= -->
 <!-- 2026-09-15: CTC 리더(폐기)에서 밴드 검출기로 옮겼다. 옛 화면은 8월 31일에
      죽은 프로세스를 "파인튜닝 · 에폭 30" 으로 계속 보여 줬고, hold-out 표의
-     성적은 새 파이프라인 수치와 나란히 놓으면 안 되는 값이었다. -->
+     성적은 새 파이프라인 수치와 나란히 놓으면 안 되는 값이었다.
+     2026-09-23 전수조사: 옛 eval_band_detector 게이트 표를 지웠다(폐기 계열
+     수치 표시). 현행 게이트는 eval_band.py — 결과는 _diag/<팔>/ 에 쌓인다. -->
 <section id="tab-monitor" class="tabpage">
   <div class="statusline" id="mon-status">상태 로딩…</div>
   <div class="scroll">
     <h2>검출기 학습 loss 궤적</h2>
     <div id="loss-chart"></div>
     <div class="note" id="loss-note"></div>
-
-    <h3>실사진 게이트 — 사람 밴드 라벨과 견준 IoU</h3>
-    <div class="note">
-      합성 sanity-val 은 <b>품질 계기가 아니다</b> — 쓰레기를 일관되게 그려도
-      0 에 수렴한다. 실물에 대고 재는 자는 이 표 하나뿐이고,
-      <code>eval_band_detector.py gate</code> 가 낸 것을 그대로 읽는다.
-      <br><b>합격은 포함률 하나로 정한다</b> — 사람 라벨을 한 획도 안 자르고
-      담았는가(≥0.999). 넉넉하든 타이트하든 잘리지만 않으면 된다.
-      넓이비는 2순위다: 화면 전체를 찍으면 포함은 만점이지만 쓸모가 없다
-      (GM 폴백이 포함률 1.000 · 넓이비 2.5배다).
-      <b>IoU 는 합격을 정하지 않는다</b> — 기울어진 예측을 축정렬 라벨과
-      견주는 자라 천장이 있고(8° 에서 0.762), 합성 기울기를 넓히면 검출이
-      좋아져도 내려간다.
-    </div>
-    <div id="gate-runs"></div>
   </div>
 </section>
 
 <!-- ================= 훈련 ================= -->
 <section id="tab-train" class="tabpage">
   <div class="scroll">
-    <h2>밴드 쿼드 검출기 학습</h2>
-    <div class="trainctl">
-      <label>코퍼스 <select id="det-data" style="min-width:210px"></select></label>
-      <label>에폭 <input id="det-epochs" type="number" value="50" min="1" max="400" style="width:74px"></label>
-      <label>출력 <input id="det-out" type="text" placeholder="band_det_….pt" style="width:200px"></label>
-      <button id="btn-det-start">▶ 학습 시작</button>
-      <button id="btn-det-stop">■ 중지</button>
-      <span class="stat" id="det-status">-</span>
-    </div>
+    <h2>밴드 검출망(BandNet) 학습 로그·체크포인트</h2>
+    <div class="statusline" id="det-status">-</div>
     <div class="note">
-      코퍼스는 <code>synth_panel.py</code> 가 구운 폴더다 — 옆 숫자는
-      <code>manifest.jsonl</code> 줄 수(장 수). <b>이어서 학습은 없다</b>:
-      검출기 학습 스크립트에 재개 지점이 없고, 합성은 언제든 다시 구우면 되므로
-      두 코퍼스에 걸쳐 학습한 모델이 생기는 쪽이 더 나쁘다.
-      로그는 실행할 때마다 <b>덮어쓴다</b>.
+      학습은 터미널에서 한다 — <code>train_band.py</code> 또는
+      <code>run_tone_scene.sh</code>·<code>run_te_arms.sh</code>·
+      <code>run_mix_arms.sh</code>. 로그는 <code>band_out/</code> 아래에
+      쌓이고 이 화면은 <b>가장 최근에 쓰인 로그</b>를 따라간다.
+      2026-09-23 전수조사로 옛 학습 시작 버튼(폐기 계열
+      <code>train_band_detector.py</code> 를 띄웠다)은 지웠다.
     </div>
     <div id="logtail"></div>
 
-    <h3>체크포인트</h3>
+    <h3>체크포인트 — band_out/</h3>
     <div class="note">
-      게이트를 돌리면 <code>_diag/&lt;이름&gt;/</code> 에 장별 결과와 눈검증 시트가
-      쌓이고, 모니터 탭 표에 나타난다. 게이트는 몇 분 걸린다.
+      학습이 남긴 최종 .pt 다(<code>_step*</code> 중간 저장은 제외).
+      <b>기종 탭에 걸기</b>를 누르면 그 체크포인트로 오버레이 예측을 다시
+      뽑는다 — 사진 2,512장이라 5분쯤 걸리고, 끝나면 기종 탭에서 새로고침하면
+      보인다.
     </div>
     <table id="ckpt-table"></table>
     <div class="note" id="ovl-status">오버레이 상태 로딩…</div>
-    <pre id="gate-out" class="note" style="white-space:pre-wrap;max-height:240px;overflow:auto"></pre>
   </div>
 </section>
 
-<!-- 기종·아틀라스 탭(iframe) 은 2026-09-21 카드로 제거 — 독립 화면 /devices·
-     /atlas 로 통합됐다. 진입은 상단 메뉴 '화면' 줄. -->
+<!-- 기종 탭(iframe) 은 2026-09-21 카드로 제거 — 독립 화면 /devices 로
+     통합됐다. 진입은 상단 메뉴 '화면' 줄. /atlas 는 2026-09-23 전수조사로
+     폐기 계열 화면을 지웠다(새 리더 실패 아틀라스가 필요하면 새로 만든다). -->
 
 </main>
 <script>
@@ -341,7 +318,7 @@ document.querySelectorAll("nav .tab").forEach(btn => {
     document.querySelectorAll(".tabpage").forEach(p =>
       p.classList.toggle("active", p.id === "tab-" + activeTab));
     if (activeTab === "monitor") pollMonitor();
-    if (activeTab === "train") { pollTrain(); loadCorpora(); loadCkpts(); pollOverlay(); }
+    if (activeTab === "train") { pollTrain(); loadCkpts(); pollOverlay(); }
     // 기종·아틀라스는 2026-09-21 카드로 독립 화면(/devices·/atlas)으로 통합 —
     // 작업대 탭과 iframe 이중 진입을 없앴다. 진입은 상단 메뉴 '화면' 줄.
     // 숨어 있는 동안은 rect 가 0 이라 그리기를 건너뛴다 — 돌아오면 다시 맞춘다.
@@ -395,11 +372,8 @@ const lb = {
           bandseed: new Set(),
           slotfix: new Set(),
           bandreview: new Set(),
-          bandwide: new Set(),
-          risky: new Set(), safe: new Set(), blank: new Set(),
-          rejected: new Set() },
-  readerNote: {},
-  holdout: new Set(), pilotNote: {}, preds: null,
+          bandwide: new Set() },
+  holdout: new Set(), pilotNote: {},
 };
 const cv = $("cv"), ctx = cv.getContext("2d");
 window.__lb = lb;  // 콘솔/검증용 — 라벨러 상태 접근
@@ -419,17 +393,12 @@ async function boot() {
   const saved = localStorage.getItem("lbmode");
   if (saved && MODES[saved]) lb.mode = saved;
   $("mode").value = lb.mode;
-  // 실패 목록·판독 결과는 부수 정보 — 실패해도 라벨링은 된다.
+  // 실패 목록은 부수 정보 — 실패해도 라벨링은 된다.
+  // 2026-09-23 전수조사: 옛 CTC 리더 판독 오답(reader_*) 필터를 지웠다.
   try {
     const f = await api("/api/failures");
     lb.fail.gm = new Set(f.gm_miss);
-    lb.fail.reader = new Set(f.reader_miss);
     lb.fail.pilot = new Set(f.band_pilot || []);
-    lb.fail.risky = new Set(f.reader_risky || []);
-    lb.fail.safe = new Set(f.reader_safe || []);
-    lb.fail.blank = new Set(f.reader_blank || []);
-    lb.fail.rejected = new Set(f.reader_rejected || []);
-    lb.readerNote = f.reader_note || {};
     lb.fail.lcdfix = new Set(f.lcd_fix || []);
     lb.fail.wideband = new Set(f.wide_band || []);
     lb.fail.labelaudit = new Set(f.label_audit || []);
@@ -445,10 +414,6 @@ async function boot() {
                                  f.band_review_note || {},
                                  f.band_wide_note || {});
   } catch (e) { /* /api/failures 없는 구형 서버 */ }
-  try {
-    const p = await api("/api/preds_holdout");
-    if (p && p.preds) lb.preds = p.preds;
-  } catch (e) { /* 평가 전일 수 있음 */ }
   await loadMode(lb.mode);
   lb.idx = lb.meta.items.findIndex(it => !isLabeled(it));
   if (lb.idx < 0) lb.idx = 0;
@@ -476,7 +441,7 @@ async function loadMode(mode) {
   applyQueueFilter();
   updateCounts();
 }
-// 큐 필터(전체/GM 미검출/판독 오답) — 모드 정렬이 끝난 원본 목록에서 파생한다.
+// 큐 필터(전체/GM 미검출 등) — 모드 정렬이 끝난 원본 목록에서 파생한다.
 function applyQueueFilter() {
   if (!lb.meta) return;
   if (!lb.allItems) lb.allItems = [...lb.meta.items];
@@ -484,14 +449,6 @@ function applyQueueFilter() {
   const q = $("queue") ? $("queue").value : "all";
   if (q === "gm" && lb.fail.gm.size) {
     lb.meta.items = lb.meta.items.filter(it => lb.fail.gm.has(it.id));
-  } else if (q === "reader" && lb.fail.reader.size) {
-    lb.meta.items = lb.meta.items.filter(it => lb.fail.reader.has(it.id));
-  } else if (["risky", "safe", "blank", "rejected"].includes(q)) {
-    // 판독 실패를 성격별로. 위험(자릿수 보존)이 이 앱에서 유일하게 위험한 부류다 —
-    // 값이 그럴듯해 범위 검증기도 프레임 합의도 통과한다.
-    const set = lb.fail[q];
-    lb.meta.items = set && set.size
-      ? lb.meta.items.filter(it => set.has(it.id)) : [];
   } else if (q === "unlabeled") {
     // 현재 모드에서 아직 라벨이 없는 장. 스킵 표시한 장은 '처리했다'는 판단이
     // 들어간 것이라 남기지 않는다 — 남기면 스킵할 때마다 목록에 다시 뜬다.
@@ -629,13 +586,6 @@ async function show(idx) {
   $("gt").textContent = it.gt;
   $("gtfixed").textContent = it.fixed ? "(수정됨)" : "";
   $("gt-revert").style.display = it.fixed ? "inline" : "none";
-  // CTC 판독 칩 — 판독 결과가 있는 장만. 일치=초록, 불일치=빨강.
-  const rd = $("gtread"), pr = lb.preds ? lb.preds[it.id] : null;
-  if (pr) {
-    const hit = String(pr[0]) === String(it.gt);
-    rd.textContent = `· 판독 ${pr[0]}`;
-    rd.style.color = hit ? "#7dd87d" : "#e06c6c";
-  } else { rd.textContent = ""; }
   // 시범 큐에서는 이 장이 왜 목록에 있는지 보여준다 — 층을 모르면 무엇을
   // 라벨링하는 중인지 알 수 없고, 대조군을 건너뛰게 된다.
   const pn = $("pilot-note");
@@ -647,18 +597,12 @@ async function show(idx) {
       pn.style.color = "#e06c6c";
     } else {
       const q = $("queue") ? $("queue").value : "all";
-      const rnote = lb.readerNote ? lb.readerNote[it.id] : null;
       const note = lb.pilotNote ? lb.pilotNote[it.id] : null;
-      if (["reader", "risky", "safe", "blank", "rejected"].includes(q) && rnote) {
-        pn.textContent = `· ${rnote}`;
-        pn.style.color = q === "risky" ? "#e06c6c" : "#d8a657";
-      } else {
-        pn.textContent = ((q === "bandseed" || q === "pilot" || q === "lcdfix" || q === "wideband"
-                         || q === "labelaudit" || q === "slotfix"
-                         || q === "bandreview" || q === "bandwide")
-                         && note) ? `· ${note}` : "";
-        pn.style.color = "#8ab4f8";
-      }
+      pn.textContent = ((q === "bandseed" || q === "pilot" || q === "lcdfix" || q === "wideband"
+                       || q === "labelaudit" || q === "slotfix"
+                       || q === "bandreview" || q === "bandwide")
+                       && note) ? `· ${note}` : "";
+      pn.style.color = "#8ab4f8";
     }
   }
   updateCounts();
@@ -1321,37 +1265,32 @@ async function checkBuild() {
   }
 }
 
-/* ================= 모니터 — 밴드 쿼드 검출기 ================= */
+/* ================= 모니터 — 밴드 검출망(BandNet) ================= */
 async function pollMonitor() {
   let st;
   try { st = await api("/api/det/status"); } catch (e) { return; }
-  const run = st.alive || st.log_fresh;
   const last = st.rows && st.rows.length ? st.rows[st.rows.length - 1] : null;
   const r = st.run || {};
-  const total = r.epochs || 0;
   $("mon-status").innerHTML =
-    `<span class="pill ${run ? "run" : "stop"}">` +
-      (st.alive ? "실행 중 (pid " + st.pid + ")"
-                : (st.log_fresh ? "로그 갱신 중" : "대기")) + `</span>` +
-    (r.data ? `<span>코퍼스 <b>${r.data}</b></span>` : "") +
-    // 이 화면 밖에서 도는 학습이면 어느 로그를 보고 있는지 밝힌다 —
-    // 안 밝히면 "시작한 적 없는데 왜 도나"로 읽힌다.
-    (r.external ? `<span style="color:var(--dim)">외부 실행 · ${r.external}</span>` : "") +
-    `<span>에폭 <b>${st.epoch}</b>${total ? " / " + total : ""}</span>` +
-    (last ? `<span>train <b>${last.train.toExponential(2)}</b></span>` +
-            `<span>sanity-val <b>${last.val.toExponential(2)}</b></span>` : "") +
-    (run ? "" : `<span style="color:var(--dim)">학습 시작은 훈련 탭에서</span>`);
+    `<span class="pill ${st.log_fresh ? "run" : "stop"}">` +
+      (st.log_fresh ? "로그 갱신 중" : "대기") + `</span>` +
+    // 어느 로그를 보고 있는지 밝힌다 — 안 밝히면 무엇을 보는지 알 수 없다.
+    (r.external ? `<span style="color:var(--dim)">로그 ${r.external}</span>` : "") +
+    (last ? `<span>step <b>${last.epoch}</b></span>` +
+            `<span>loss <b>${last.train.toExponential(2)}</b></span>` +
+            `<span>학습 IoU <b>${last.val.toFixed(3)}</b></span>` : "") +
+    `<span style="color:var(--dim)">학습은 터미널에서 — train_band.py · run_*.sh</span>`;
   drawLoss(st.rows || []);
   $("loss-note").textContent = st.head || "";
-  loadGate();
 }
 
-/* 두 줄(train·sanity-val)을 같은 축에 그린다. loss 가 수십 배 범위를 오가므로
-   **로그 축**이다 — 선형이면 첫 에폭 하나가 전부를 눌러 나머지가 바닥에 붙는다. */
+/* 두 줄(loss·학습 IoU)을 그린다. loss 는 로그 축이다 — 선형이면 첫 스텝
+   하나가 전부를 눌러 나머지가 바닥에 붙는다. x축 칸은 train_band.py 의
+   스텝이다(스텝 기반 학습이라 에폭이 없다). */
 function drawLoss(rows) {
   if (!rows.length) {
     $("loss-chart").innerHTML =
-      "<p class='note'>loss 데이터 없음 — 훈련 탭에서 학습을 시작하면 표시된다</p>";
+      "<p class='note'>loss 데이터 없음 — band_out/ 에 학습 로그가 없다</p>";
     return;
   }
   const W = 920, H = 240, L = 62, R = 14, T = 16, B = 28;
@@ -1368,88 +1307,29 @@ function drawLoss(rows) {
     `<line x1="${L}" y1="${T}" x2="${L}" y2="${H - B}" stroke="#343a46"/>` +
     `<text x="${L - 7}" y="${T + 10}" text-anchor="end">${Math.pow(10, hi).toExponential(1)}</text>` +
     `<text x="${L - 7}" y="${H - B}" text-anchor="end">${Math.pow(10, lo).toExponential(1)}</text>` +
-    `<text x="${W - R}" y="${H - 8}" text-anchor="end">에폭 ${rows[rows.length - 1].epoch}</text>` +
-    `<text x="${L + 8}" y="${T + 11}" style="fill:#4da3ff">train</text>` +
-    `<text x="${L + 54}" y="${T + 11}" style="fill:#e0a33a">sanity-val</text>` +
+    `<text x="${W - R}" y="${H - 8}" text-anchor="end">step ${rows[rows.length - 1].epoch}</text>` +
+    `<text x="${L + 8}" y="${T + 11}" style="fill:#4da3ff">loss</text>` +
+    `<text x="${L + 44}" y="${T + 11}" style="fill:#e0a33a">학습 IoU</text>` +
     `<path d="${path("train")}" fill="none" stroke="#4da3ff" stroke-width="2"/>` +
     `<path d="${path("val")}" fill="none" stroke="#e0a33a" stroke-width="1.6"/></svg>`;
 }
 
-async function loadGate() {
-  let g;
-  try { g = await api("/api/det/gate"); } catch (e) { return; }
-  const box = $("gate-runs");
-  if (!g.runs || !g.runs.length) {
-    box.innerHTML = "<p class='note'>게이트 결과 없음 — 훈련 탭에서 체크포인트에 게이트를 돌리면 표시된다</p>";
-    return;
-  }
-  let html = "<tr><th>체크포인트</th><th>n</th><th>전부 담음</th><th>포함률 중앙</th>" +
-             "<th>p10</th><th>최저</th><th>넓이비</th><th>IoU(참고)</th><th>최악 기기</th></tr>";
-  for (const r of g.runs) {
-    if (r.error) {
-      html += `<tr class="miss"><td class="mono">${r.tag}</td><td colspan="8">${r.error}</td></tr>`;
-      continue;
-    }
-    const w = (r.devices || []).slice(0, 2)
-      .map(d => `${d.device} ${d.median.toFixed(3)}`).join(" · ");
-    if (r.legacy) {
-      // 포함 기준 이전에 돌린 판 — 옛 열이 없다. 비어 있다고 0 을 그리면
-      // "전부 담음 0장"으로 읽혀 새 판보다 나쁜 것처럼 보인다.
-      html += `<tr style="opacity:.55"><td class="mono">${r.tag}</td><td>${r.n}</td>` +
-        `<td colspan="5" style="font-size:12px">포함 기준 이전 판 — 다시 돌려야 한다</td>` +
-        `<td class="mono">${r.iou_p50.toFixed(3)}</td>` +
-        `<td style="font-size:12px">${w}</td></tr>`;
-      continue;
-    }
-    html += `<tr><td class="mono">${r.tag}</td><td>${r.n}</td>` +
-      `<td class="mono"><b>${r.pass} (${r.pass_pct}%)</b></td>` +
-      `<td class="mono">${r.con_p50.toFixed(4)}</td>` +
-      `<td class="mono">${r.con_p10.toFixed(4)}</td>` +
-      `<td class="mono">${r.con_min.toFixed(4)}</td>` +
-      `<td class="mono">${r.area_p50.toFixed(2)}</td>` +
-      `<td class="mono" style="color:var(--dim)">${r.iou_p50.toFixed(3)}</td>` +
-      `<td style="font-size:12px">${w}</td></tr>`;
-    if (r.edges) {
-      const e = ["top", "bottom", "left", "right"]
-        .map(k => `${k} ${r.edges[k].cut}장(최대 ${r.edges[k].max.toFixed(2)})`).join(" · ");
-      html += `<tr><td></td><td colspan="8" style="font-size:12px;color:var(--dim)">` +
-              `잘린 변: ${e}</td></tr>`;
-    }
-  }
-  box.innerHTML = `<table>${html}</table>`;
-}
-
-/* ================= 훈련 탭 ================= */
-async function loadCorpora() {
-  let c;
-  try { c = await api("/api/det/corpora"); } catch (e) { return; }
-  const sel = $("det-data"), keep = sel.value;
-  sel.innerHTML = "";
-  (c.corpora || []).forEach(r =>
-    sel.append(new Option(`${r.name}  (${r.n.toLocaleString()}장)`, r.name)));
-  if (keep) sel.value = keep;
-  if (!$("det-out").value && sel.value) {
-    $("det-out").value = "band_det_" + sel.value.replace(/^synth_?/, "") + ".pt";
-  }
-}
-$("det-data").addEventListener("change", () => {
-  $("det-out").value = "band_det_" + $("det-data").value.replace(/^synth_?/, "") + ".pt";
-});
-
+/* ================= 훈련 탭 — 로그 따라가기·체크포인트·오버레이 갈아끼우기 === */
+/* 2026-09-23 전수조사: 옛 학습 시작 폼(폐기 계열 train_band_detector.py 를
+   띄웠다)과 게이트 버튼(옛 eval_band_detector.py)을 지웠다. 학습은 터미널에서
+   train_band.py · run_*.sh 로 돌린다. */
 async function loadCkpts() {
   let c;
   try { c = await api("/api/det/ckpts"); } catch (e) { return; }
-  let html = "<tr><th>파일</th><th>크기</th><th>만든 때</th><th>게이트</th>" +
+  let html = "<tr><th>파일</th><th>크기</th><th>만든 때</th>" +
              "<th>오버레이</th><th></th></tr>";
   for (const k of (c.ckpts || []).slice(0, 40)) {
     const when = new Date(k.mtime * 1000).toLocaleString();
     html += `<tr${k.overlay ? ' class="hit"' : ''}><td class="mono">${k.name}</td>` +
       `<td>${k.mb} MB</td>` +
       `<td style="font-size:12px;color:var(--dim)">${when}</td>` +
-      `<td>${k.gated ? "있음" : "-"}</td>` +
       `<td>${k.overlay ? "현재" : "-"}</td>` +
-      `<td><button class="gate-btn" data-ck="${k.name}">게이트</button> ` +
-      `<button class="ovl-btn" data-ck="${k.name}">기종 탭에 걸기</button></td></tr>`;
+      `<td><button class="ovl-btn" data-ck="${k.name}">기종 탭에 걸기</button></td></tr>`;
   }
   $("ckpt-table").innerHTML = html;
   document.querySelectorAll(".ovl-btn").forEach(b => {
@@ -1457,23 +1337,11 @@ async function loadCkpts() {
       const ck = b.dataset.ck;
       if (!confirm(`기종 탭 오버레이를 ${ck} 로 갈아끼웁니다.
 ` +
-                   `사진 2,511장을 다시 예측하므로 5분쯤 걸립니다.`)) return;
+                   `사진 2,512장을 다시 예측하므로 5분쯤 걸립니다.`)) return;
       const r = await post("/api/det/overlay", { ckpt: ck });
       toast(r.ok ? "오버레이 생성 시작 (pid " + r.pid + ")"
                  : "실패: " + (r.error || "?"));
       pollOverlay();
-    };
-  });
-  document.querySelectorAll(".gate-btn").forEach(b => {
-    b.onclick = async () => {
-      const ck = b.dataset.ck;
-      if (!confirm(`${ck} 에 실사진 게이트를 돌립니다. 몇 분 걸립니다.`)) return;
-      b.disabled = true; b.textContent = "…";
-      $("gate-out").textContent = `${ck} 게이트 실행 중…`;
-      const r = await post("/api/det/gate", { ckpt: ck });
-      $("gate-out").textContent = r.text || r.error || "(출력 없음)";
-      b.disabled = false; b.textContent = "게이트";
-      loadCkpts(); loadGate();
     };
   });
 }
@@ -1492,13 +1360,14 @@ async function pollOverlay() {
 async function pollTrain() {
   let st;
   try { st = await api("/api/det/status"); } catch (e) { return; }
-  const run = st.alive || st.log_fresh;
+  const last = st.rows && st.rows.length ? st.rows[st.rows.length - 1] : null;
   const r = st.run || {};
-  $("det-status").textContent = run
-    ? `실행 중 · ${r.data || "?"} · 에폭 ${st.epoch}${r.epochs ? "/" + r.epochs : ""}`
-    : "중지 상태";
-  $("btn-det-start").disabled = run;
-  $("btn-det-stop").disabled = !run;
+  $("det-status").innerHTML =
+    `<span class="pill ${st.log_fresh ? "run" : "stop"}">` +
+      (st.log_fresh ? "로그 갱신 중" : "대기") + `</span>` +
+    (r.external ? `<span style="color:var(--dim)">${r.external}</span>` : "") +
+    (last ? `<span>step <b>${last.epoch}</b> · loss <b>${last.train.toExponential(2)}</b>` +
+            ` · 학습 IoU <b>${last.val.toFixed(3)}</b></span>` : "");
   let lt;
   try { lt = await api("/api/det/logtail?lines=60"); } catch (e) { return; }
   const el = $("logtail");
@@ -1507,23 +1376,6 @@ async function pollTrain() {
     el.scrollTop = el.scrollHeight;
   }
 }
-
-$("btn-det-start").addEventListener("click", async () => {
-  const data = $("det-data").value, out = $("det-out").value.trim();
-  if (!data) { toast("코퍼스를 고르세요"); return; }
-  if (!confirm(`${data} 로 ${$("det-epochs").value} 에폭 학습합니다.\n` +
-               `로그(band_det_train.log)는 덮어씁니다.`)) return;
-  const r = await post("/api/det/start", {
-    data, out, epochs: Number($("det-epochs").value), ckpt_every: 10 });
-  toast(r.ok ? "학습 시작 (pid " + r.pid + ")" : "시작 실패: " + (r.error || "?"));
-  pollTrain();
-});
-$("btn-det-stop").addEventListener("click", async () => {
-  if (!confirm("학습 프로세스를 종료할까요?")) return;
-  const r = await post("/api/det/stop");
-  toast(r.ok ? "중지 요청" : "실패");
-  pollTrain();
-});
 
 /* ================= 폴링 ================= */
 setInterval(() => {

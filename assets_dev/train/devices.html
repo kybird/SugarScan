@@ -309,6 +309,7 @@
 'use strict';
 const $ = s => document.querySelector(s);
 let ROWS = [], BY_ID = {}, MEMBERS = {}, LABELS = {}, VOCAB = [], NEAR = {}, PRIO = {};
+let DISK_TOTAL = 0;
 // 화면에 무엇을 깔지는 '범위(scope)' 하나로 정한다. 필터·검색·기기 보기·보류
 // 모아보기가 따로 놀다가 서로를 덮어써서 버그가 났다(검색이 필터를 무시, 전체
 // 모드가 그룹 목록에 묶임 등). 전부 이 하나로 들어온다.
@@ -447,6 +448,7 @@ async function boot() {
   const j = await (await fetch('/api/devicetags')).json();
   ROWS = j.rows; MEMBERS = j.members || {}; VOCAB = j.vocab || [];
   LABELS = j.labels || {}; NEAR = j.near || {}; PRIO = j.review_priority || {};
+  DISK_TOTAL = j.disk_total || 0;
   ROWS.forEach(r => BY_ID[r.component] = r);
   COMP_OF = {};
   for (const r of ROWS) for (const i of memberOf(r)) COMP_OF[i] = r.component;
@@ -574,7 +576,9 @@ function move(d) {
 
 function render() {
   const l = list(), r = cur();
-  const totImg = ROWS.reduce((s, x) => s + x.size, 0);
+  // 분모는 디스크 전체(서버 disk_total)다. 성분 크기 합계를 쓰면 라벨이
+  // 성분 밖 사진까지 덮는 순간(2026-09-23, 2,512장) 100% 를 넘어버린다.
+  const totImg = DISK_TOTAL || ROWS.reduce((s, x) => s + x.size, 0);
   const doneImg = Object.keys(LABELS).length;
   const compDone = ROWS.filter(x => !unlabeled(x).length).length;
   const heldImg = Object.values(LABELS).filter(j => j.status === 'unknown').length;

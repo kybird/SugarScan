@@ -70,20 +70,20 @@ INK_CLIP = HERE / "_diag" / "ink_clip.jsonl"
 BAND_LEGACY = HERE / "labeled.jsonl"   # 보존만. 읽지도 쓰지도 않는다.
 LCD_FILE = HERE / "screen_boxes.jsonl"
 GT_FIX = HERE / "gt_corrections.jsonl"
-# 밴드 예측 오버레이. 재구축 뒤 새 검출기 산물을 먼저 쓰고, 없으면 옛 v2 파일로
-# 떨어진다(그 파일은 재구축 때 사라졌다 — 그래서 오버레이가 빈 채로 돌고 있었다).
-# predict_band_quads.py 가 만든다. **예측**이지 라벨이 아니다 — 행마다 source·ckpt.
+# 밴드 예측 오버레이. predict_band_quads.py 가 만든다(2026-09-23 현재 atone_s0).
+# **예측**이지 라벨이 아니다 — 행마다 source·ckpt. 옛 datumo_quads_v2.jsonl
+# 폴백은 폐기 계열 산물이라 2026-09-23 전수조사에서 지웠다(파일도 이미 없다).
 _BAND_PRED = HERE / "band_quads_pred.jsonl"
-BAND_QUADS = _BAND_PRED if _BAND_PRED.exists() else HERE / "datumo_quads_v2.jsonl"
+BAND_QUADS = _BAND_PRED
 # 라벨러 힌트 전용(점선 제안). 표시(EXIF 적용) 좌표계 — convert_quads_oriented.py
 # 의 정정문 참조. **캐시 정본인 gmscreen_quads.jsonl 과 별개다** — 이 파일을
 # 바꿔도 data_cache_v2.npz 는 영향받지 않는다(build_cache_v2.py:146 은 정본을 읽는다).
 # 2026-09-12: ft3 가 정본으로 승격돼 별도 힌트 파일이 필요 없어졌다.
 # gmscreen_quads.jsonl(정본) -> convert_quads_oriented.py -> 이 파일. 한 갈래다.
 GM_QUADS = HERE / "gmscreen_quads_oriented.jsonl"
-# 폐기된 CTC 리더의 흔적 — 더 이상 어느 화면도 읽지 않는다(2026-09-15).
-# reader_preds.json 만 남긴다: 라벨러 큐가 '판독 실패' 필터에 쓴다.
-HOLDOUT = HERE / "reader_preds.json"
+# 2026-09-23 전수조사: 옛 CTC 리더 예측(reader_preds.json) 을 읽던
+# /api/preds_holdout · '판독 실패' 큐를 지웠다 — 폐기 계열 예측을 살아 있는
+# 것처럼 보여 줬다. 파일은 디스크에 남아 있으나 아무 화면도 읽지 않는다.
 HTML = HERE / "webtool.html"
 DEVICES_HTML = HERE / "devices.html"
 DEVICE_TAGS = HERE / "device_tags.jsonl"
@@ -93,44 +93,28 @@ DEVICE_TAGS = HERE / "device_tags.jsonl"
 DEVICE_LABELS = HERE / "device_labels.jsonl"
 DETACHED = 0x00000008 | 0x00000200  # DETACHED_PROCESS | NEW_PROCESS_GROUP
 
-# ── 밴드 쿼드 검출기 — 지금 실제로 돌리는 학습 (2026-09-15) ────────────────
-# 모니터·훈련 탭은 CTC 리더(ctc_train_gpu.log · reader_preds.json)를 가리키고
-# 있었다. 그 파이프라인은 2026-09-11 에 폐기됐는데 화면은 8월 31일에 죽은
-# 프로세스의 마지막 줄을 "파인튜닝 · 에폭 30" 으로 계속 보여 줬다 — 살아
-# 있는 것처럼 읽히고, 표의 성적은 **새 수치와 나란히 놓으면 안 되는 옛 값**
-# 이다(CLAUDE.md). 그래서 두 탭이 읽는 곳을 검출기로 옮긴다.
-DET_LOG = HERE / "band_det_train.log"       # 훈련 탭 버튼이 쓰는 로그
-DET_PID = HERE / "band_det_pid.json"
-# 학습은 이 화면 밖에서도 돈다 — band_det_sweep.py 로 터미널에서 띄우면
-# 출력이 스윕 로그로 간다. 구판은 DET_LOG 하나만 봐서 "loss 데이터 없음" 을
-# 띄웠다(2026-09-16). 화면이 거짓말한 게 아니라 엉뚱한 파일을 본 것이다.
-# **가장 최근에 쓰인 로그**를 따라간다.
-DET_LOGS = (HERE / "band_det_train.log", HERE / "band_det_sweep.log")
-# 2026-09-18 — 새 밴드 검출망(BandNet, docs/SPEC.md §5.3)은 band_out/ 에 로그를
-# 남긴다. 위 둘은 **폐기된 계열**이다(CLAUDE.md "이전 모델 실험은 전부 폐기했다").
-# 화면이 죽은 파이프라인의 마지막 줄을 계속 보여 주는 사고가 이미 한 번 있었으므로
-# (이 파일 71행 주석) 새 로그를 함께 보고 **가장 최근에 쓰인 것**을 따라간다.
+# ── 밴드 검출망(BandNet, docs/SPEC.md §5.3) 학습 로그 ──────────────────────
+# 현행 학습은 터미널에서 train_band.py · run_*.sh 로 돌고 band_out/ 아래
+# (하위 폴더 포함)에 로그를 남긴다. 화면은 그중 **가장 최근에 쓰인 로그**를
+# 따라간다 — 옛 로그(band_det_*.log)를 함께 보면 죽은 파이프라인의 마지막
+# 줄을 살아 있는 것처럼 보여 준다(2026-09-15 사고).
+# 2026-09-23 전수조사: 훈련 탭의 학습 시작·중지 버튼(폐기 계열
+# train_band_detector.py 를 띄웠다)과 DET_LOG·DET_PID 를 지웠다.
 BAND_OUT = HERE / "band_out"
 # 오버레이 — 기종 탭이 그리는 예측. predict_band_quads.py 가 채운다.
 OVL_LOG = HERE / "band_quads_overlay.log"
 OVL_PID = HERE / "band_quads_overlay.pid"
-DIAG = HERE / "_diag"
 
 
 def _det_log():
-    live = [p for p in DET_LOGS if p.exists()]
-    live += sorted(BAND_OUT.glob("*.log")) if BAND_OUT.exists() else []
-    return max(live, key=lambda p: p.stat().st_mtime) if live else DET_LOG
+    live = sorted(BAND_OUT.rglob("*.log")) if BAND_OUT.exists() else []
+    return (max(live, key=lambda p: p.stat().st_mtime)
+            if live else BAND_OUT / "(로그 없음)")
 
 # 표시(EXIF 적용) 이미지 좌표계가 이 도구의 유일한 좌표 정본이다.
 # 라벨 저장은 "클라이언트가 그린 프레임 크기(ow/oh)"를 함께 받아 서버가
 # 실측 크기와 대조한 뒤에만 기록한다 — 낡은 JS 가 살아 있는 탭에서 온
 # 어긋난 좌표가 파일에 닿지 못하게 막는 마지막 방어선.
-# TTA 득표율이 이 아래면 '거절 대상'으로 표시한다. **잠정값이다** —
-# 실제 임계값은 사람이 정한다(0.778 에서 오독 0.27%·미인식 5.3%,
-# 0.889 에서 0.09%·7.7%. 게이트는 오독 ≤0.2%·미인식 ≤5%).
-REJECT_AT = 0.778
-
 FRAME_TOL = 1        # 표시 크기 허용 오차(px) — 반올림 외에는 허용하지 않는다
 BOUNDS_TOL = 2.0     # 경계 초과 허용치(px)
 
@@ -377,6 +361,18 @@ def palette_vocab(rows, labels):
     return vocab
 
 
+def _disk_photo_count():
+    """기종 탭 모집단의 참 분모 — 디스크의 Datumo 사진 전체 수.
+
+    라벨이 성분 밖 사진까지 덮기 시작하면(2026-09-23, 2,512장) 성분 크기
+    합계(2,494)를 분모로 쓰는 화면이 100% 를 넘는다. 분모는 디스크다.
+    """
+    if not IMAGES.is_dir():
+        return 0
+    return sum(1 for d in IMAGES.iterdir() if d.is_dir()
+               for _ in d.glob("*.jpg"))
+
+
 def _outside_unlabeled(members, labels):
     """디스크엔 있으나 성분도 라벨도 없는 Datumo 사진.
 
@@ -452,6 +448,7 @@ def api_devicetags(qs):
             "labels": labels,
             "vocab": vocab,
             "near": near,
+            "disk_total": _disk_photo_count(),
             "review_priority": summary.get("review_priority", {})}
 
 
@@ -531,15 +528,6 @@ def api_quads(qs):
     return {"quads": out}
 
 
-def _det_pid():
-    if not DET_PID.exists():
-        return None
-    try:
-        return json.loads(DET_PID.read_text(encoding="utf-8")).get("pid")
-    except Exception:
-        return None
-
-
 def pid_alive(pid):
     if not pid:
         return False
@@ -549,88 +537,48 @@ def pid_alive(pid):
 
 
 def parse_det_log(path=None):
-    """검출기 학습 로그 -> (에폭별 loss, 머리말, 저장한 체크포인트).
+    """검출기 학습 로그 -> (스텝별 loss, 머리말, 저장 목록).
 
-    로그 한 줄의 모양은 train_band_detector.py 가 정한다:
-      `epoch  12  train 0.00042  sanity-val 0.00051`
+    로그 한 줄의 모양은 train_band.py 가 정한다:
+      `  step 250/8000 loss 1.1684 (obj 0.1081 box 0.5301) iou 0.477 lr 2.00e-03 31s`
+      `-> D:\\...\\band_out\\tone\\atone_s0.pt  (723s)`
+    화면의 x축은 그대로 쓰고(에폭 칸에 스텝을 넣는다) val 자리에는 학습 IoU 를
+    넣는다 — 이 학습에는 val 루프가 없고, 성적은 eval_band.py 가 따로 낸다.
     **이 정규식이 그 형식에 매여 있다** — 학습 스크립트의 print 를 바꾸면
-    여기가 조용히 빈 그래프를 그린다.
+    여기가 조용히 빈 그래프를 그린다. 옛 train_band_detector.py 의
+    epoch/sanity-val 형식 파싱은 2026-09-23 전수조사에서 지웠다(폐기 계열).
     """
     rows, head, saved = [], "", []
     path = path or _det_log()
     if not path.exists():
         return rows, head, saved
     raw = path.read_text(encoding="utf-8", errors="ignore")
-    # 스윕 로그에는 학습이 여러 번 들어 있다. **마지막 한 번만** 본다 —
-    # 전부 모으면 에폭이 누적돼 그래프가 부풀고, 어느 줄이 지금 도는
-    # 학습인지 화면에서 가를 수 없다.
-    _cut = raw.rfind("train_band_detector.py")
-    if _cut > 0:
-        raw = raw[_cut:]
     raw = re.sub("\x1b" + r"\[[0-9;]*m", "", raw)
     for m in re.finditer(
-            r"epoch\s+(\d+)\s+train\s+([0-9.eE+-]+)\s+sanity-val\s+([0-9.eE+-]+)",
+            r"step\s+(\d+)/\d+\s+loss\s+([0-9.eE+-]+).*?iou\s+([0-9.eE+-]+)",
             raw):
         rows.append({"epoch": int(m.group(1)),
                      "train": float(m.group(2)),
                      "val": float(m.group(3))})
-    # BandNet(train_band.py)은 **스텝 기반**이라 에폭 줄이 없다. 형식:
-    #   step 250/8000 loss 0.3010 (obj 0.0143 box 0.1546) iou 0.848 lr 2.00e-03 17s
-    # 화면의 x축은 그대로 쓰고(에폭 칸에 스텝을 넣는다) val 자리에는 학습 IoU 를
-    # 넣는다 — 이 학습에는 val 루프가 없고, 성적은 eval_band.py 가 따로 낸다.
-    if not rows:
-        for m in re.finditer(
-                r"step\s+(\d+)/\d+\s+loss\s+([0-9.eE+-]+).*?iou\s+([0-9.eE+-]+)",
-                raw):
-            rows.append({"epoch": int(m.group(1)),
-                         "train": float(m.group(2)),
-                         "val": float(m.group(3))})
-        for ln in raw.splitlines():
-            if ln.startswith("장수 ") or ln.startswith("-> "):
-                head = (head + " · " if head else "") + ln.strip()
-    for m in re.finditer(r"saved (\S+)", raw):
-        saved.append(m.group(1))
     for ln in raw.splitlines():
-        if ln.startswith("train ") and "sanity-val" in ln or ln.startswith("arch="):
+        if ln.startswith("장수 ") or ln.startswith("-> "):
             head = (head + " · " if head else "") + ln.strip()
+            if ln.startswith("-> "):
+                saved.append(ln.strip())
     return rows, head, saved
-
-
-def _det_run_meta():
-    """지금(또는 마지막) 실행이 무엇이었는지 — 코퍼스·에폭·출력 이름."""
-    if not DET_PID.exists():
-        return {}
-    try:
-        d = json.loads(DET_PID.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
-    return {k: d.get(k) for k in ("data", "epochs", "out", "arch", "started")}
 
 
 @route("/api/det/status")
 def api_det_status(qs):
     log = _det_log()
-    pid = _det_pid()
-    alive = pid_alive(pid)
     fresh = log.exists() and (time.time() - log.stat().st_mtime) < 180
     rows, head, saved = parse_det_log(log)
-    run = _det_run_meta()
-    if not run and rows:
-        # 이 화면 밖에서 돈 학습 — 명령줄이 로그에 찍혀 있으므로 거기서 읽는다.
-        raw = log.read_text(encoding="utf-8", errors="ignore")
-        cut = raw.rfind("train_band_detector.py")
-        if cut > 0:
-            line = raw[cut:].splitlines()[0]
-            tok = line.split()
-            for k, key in (("--data", "data"), ("--epochs", "epochs"),
-                           ("--out", "out"), ("--limit", "limit")):
-                if k in tok:
-                    run[key] = tok[tok.index(k) + 1]
-            run["epochs"] = int(run.get("epochs") or 0) or None
-            run["external"] = log.name
-    return {"pid": pid, "alive": alive, "log_fresh": fresh,
+    # 학습은 터미널(run_*.sh · train_band.py)에서 돌므로 pid 를 모른다 —
+    # 로그가 최근에 쓰였는지로 '돌고 있는가'를 판정한다.
+    return {"log_fresh": fresh,
             "rows": rows[-400:], "epoch": rows[-1]["epoch"] if rows else 0,
-            "head": head, "saved": saved[-6:], "run": run,
+            "head": head, "saved": saved[-6:],
+            "run": ({"external": log.name} if rows else {}),
             "log": log.name,
             "log_mtime": (log.stat().st_mtime if log.exists() else 0)}
 
@@ -643,21 +591,6 @@ def api_det_logtail(qs):
         return {"text": "(로그 없음 — 아직 검출기를 돌린 적이 없다)"}
     lines = log.read_text(encoding="utf-8", errors="ignore").splitlines()
     return {"text": chr(10).join(lines[-n:])}
-
-
-@route("/api/det/corpora")
-def api_det_corpora(qs):
-    """학습에 쓸 수 있는 합성 코퍼스 — manifest 줄 수가 곧 장 수다."""
-    out = []
-    for d in sorted(HERE.glob("synth*")):
-        mf = d / "manifest.jsonl"
-        if not (d.is_dir() and mf.exists()):
-            continue
-        n = sum(1 for _ in mf.open(encoding="utf-8", errors="ignore"))
-        out.append({"name": d.name, "n": n,
-                    "mtime": mf.stat().st_mtime})
-    out.sort(key=lambda r: -r["mtime"])
-    return {"corpora": out}
 
 
 def _overlay_ckpt():
@@ -702,163 +635,35 @@ def api_det_overlay(qs):
 
 @route("/api/det/ckpts")
 def api_det_ckpts(qs):
-    """체크포인트 — 게이트를 돌린 적이 있으면 그 결과도 함께."""
+    """체크포인트(band_out/ 하위 전부) — 학습이 남긴 최종 .pt 만.
+
+    _step* 중간 저장은 잡지 않는다(목록이 예측 데이터가 되어 노이즈다).
+    옛 루트의 band_det*.pt 글롭은 폐기 계열이라 2026-09-23 전수조사에서
+    지웠다. name 은 HERE 기준 상대 posix 경로(band_out/tone/atone_s0.pt).
+    """
     out = []
-    for f in sorted(HERE.glob("band_det*.pt")):
-        g = DIAG / f.stem / "gate_results.jsonl"
-        out.append({"name": f.name, "stem": f.stem,
-                    "overlay": (f.name == _overlay_ckpt()),
-                    "mtime": f.stat().st_mtime,
-                    "mb": round(f.stat().st_size / 1e6, 1),
-                    "gated": g.exists()})
+    if BAND_OUT.exists():
+        for f in sorted(BAND_OUT.rglob("*.pt")):
+            if re.search(r"_step\d+\.pt$", f.name):
+                continue
+            out.append({"name": f.relative_to(HERE).as_posix(),
+                        "overlay": (f.name == _overlay_ckpt()),
+                        "mtime": f.stat().st_mtime,
+                        "mb": round(f.stat().st_size / 1e6, 1)})
     out.sort(key=lambda r: -r["mtime"])
     return {"ckpts": out}
-
-
-def _gate_summary(path):
-    """게이트 결과 한 판 요약. **여기서 새 수치를 만들지 않는다** — 파일에
-    적힌 장별 값을 그대로 모아 분위수만 낸다. 자는 eval_band_detector.py 다.
-
-    1순위는 포함률(사람 라벨을 다 담았는가), 2순위는 넓이비. IoU 는 옛 판과
-    잇대어 보라고 남긴 참고값이라 **합격을 정하지 않는다** — 기울어진 예측을
-    축정렬 라벨과 견주는 자라 천장이 있고, 합성 기울기를 넓히면 검출이 좋아져도
-    내려간다. [[proxy-metric-moves-against-the-goal]]
-    """
-    CONTAIN_PASS = 0.999
-    rows = []
-    with path.open(encoding="utf-8") as f:
-        for ln in f:
-            ln = ln.strip()
-            if ln:
-                rows.append(json.loads(ln))
-    if not rows:
-        return None
-    det = np.array([r.get("iou_det", 0.0) for r in rows], float)
-    has_con = any("contain" in r for r in rows)
-    out = {
-        "n": len(rows),
-        "iou_p50": round(float(np.median(det)), 3),
-        "iou_p10": round(float(np.percentile(det, 10)), 3),
-        "legacy": not has_con,
-    }
-    if has_con:
-        con = np.array([r.get("contain", 0.0) for r in rows], float)
-        ar = np.array([r.get("area", 0.0) for r in rows], float)
-        ok = con >= CONTAIN_PASS
-        out.update({
-            "pass": int(ok.sum()),
-            "pass_pct": round(100.0 * ok.mean(), 1),
-            "con_p50": round(float(np.median(con)), 4),
-            "con_p10": round(float(np.percentile(con, 10)), 4),
-            "con_min": round(float(con.min()), 4),
-            "area_p50": round(float(np.median(ar)), 2),
-            "area_p90": round(float(np.percentile(ar, 90)), 2),
-        })
-        edges = {}
-        for side in ("top", "bottom", "left", "right"):
-            v = np.array([(r.get("edges") or {}).get(side, 0.0) for r in rows],
-                         float)
-            edges[side] = {"cut": int((v > 0).sum()),
-                           "max": round(float(v.max()), 3)}
-        out["edges"] = edges
-        key = "contain"
-    else:
-        key = "iou_det"
-    per = {}
-    for r in rows:
-        per.setdefault(r.get("device") or "(미식별)", []).append(r.get(key, 0.0))
-    devs = [{"device": k, "n": len(v), "median": round(float(np.median(v)), 3)}
-            for k, v in per.items() if len(v) >= 3]
-    devs.sort(key=lambda d: d["median"])
-    out["devices"] = devs[:8]
-    out["worst"] = [r["id"] for r in sorted(rows, key=lambda r: r.get(key, 0.0))[:8]]
-    return out
-
-
-@route("/api/det/gate")
-def api_det_gate(qs):
-    """게이트 결과들. tag 를 주면 그 한 판만, 없으면 있는 것 전부 요약."""
-    tag = qs.get("tag", [""])[0]
-    runs = []
-    # 폴더 이름으로 고르지 않는다 — `--tag` 를 주면 이름이 뭐든 될 수 있다
-    # (contain_r2_40k 가 band_det* 글롭에 안 걸려 표가 비었다, 2026-09-15).
-    # **게이트 결과 파일이 있는 폴더**가 곧 한 판이다.
-    for d in sorted(p for p in DIAG.iterdir() if p.is_dir()):
-        g = d / "gate_results.jsonl"
-        if not g.exists():
-            continue
-        if tag and d.name != tag:
-            continue
-        try:
-            sm = _gate_summary(g)
-        except Exception as e:                       # noqa: BLE001
-            sm = {"error": f"{type(e).__name__}: {e}"}
-        if sm:
-            sm["tag"] = d.name
-            sm["mtime"] = g.stat().st_mtime
-            sm["sheet"] = (d / "gate_worst.png").exists()
-            runs.append(sm)
-    runs.sort(key=lambda r: -r.get("mtime", 0))
-    return {"runs": runs}
-
-
-@route("/api/preds_holdout")
-def api_preds_holdout(qs):
-    if not HOLDOUT.exists():
-        return {"preds": None}
-    return {"preds": json.loads(HOLDOUT.read_text(encoding="utf-8"))}
 
 
 @route("/api/failures")
 def api_failures(qs):
     # 실패 모아보기(라벨러 큐 필터용):
-    #   gm_miss    — GM 검출기가 쿼드를 못 낸 장(gmscreen_quads 기준)
-    #   reader_miss — CTC 판독이 GT 와 다른 장(reader_preds 기준, eval 대상만)
+    #   gm_miss — GM 쿼드가 없는 장(gmscreen_quads 기준 — 라벨 힌트용 데이터)
+    # 2026-09-23 전수조사: reader_* (옛 CTC 리더 판독 오답) 필터를 지웠다 —
+    # 폐기 계열 예측을 살아 있는 큐처럼 보여 줬다.
     readings = load_readings()
-    corrections = load_corrections()
     gm_ids = set(read_jsonl(GM_QUADS))
     all_ids = set(readings)
     gm_miss = sorted(all_ids - gm_ids)
-    # 판독 실패를 **성격별로 가른다.** 한 덩어리로 두면 쓸모가 적다 —
-    # 이 앱에서 위험한 것은 "값을 냈는데 틀린 것"이지 "못 읽은 것"이 아니다.
-    #   risky   자릿수가 GT 와 같은데 틀림 → 값이 그럴듯해 범위 검증기·프레임
-    #           합의를 통과한다. **실제로 위험한 유일한 부류다.**
-    #   safe    자릿수가 달라짐(늘거나 줄거나) → 범위 밖으로 걸러진다
-    #   blank   아무것도 못 냄
-    reader_miss, reader_risky, reader_safe, reader_blank = [], [], [], []
-    reader_rejected = []
-    reader_note = {}
-    if HOLDOUT.exists():
-        preds = json.loads(HOLDOUT.read_text(encoding="utf-8"))
-        for cid, v in preds.items():
-            gt = str(corrections.get(cid, readings.get(cid, v[1] if len(v) > 1 else v[0])))
-            pred = str(v[0])
-            if pred == gt:
-                continue
-            reader_miss.append(cid)
-            if not pred:
-                kind, bucket = "무출력", reader_blank
-            elif len(pred) == len(gt):
-                kind, bucket = "위험(자릿수 보존)", reader_risky
-            else:
-                kind, bucket = "안전(자릿수 변동)", reader_safe
-            bucket.append(cid)
-            # 득표율(TTA 다수결의 지지도)이 있으면 함께 보여준다 — 이 값이 낮으면
-            # 거절 대상이라 실제 앱에서는 사용자에게 값이 가지 않는다.
-            ag = v[2] if len(v) > 2 else None
-            tail = f" · 득표 {ag:.2f}{' → 거절대상' if ag < REJECT_AT else ''}"                 if ag is not None else ""
-            reader_note[cid] = f"{kind} · {gt} -> {pred or '(없음)'}{tail}"
-        # 득표율이 낮아 거절될 장 — 정답·오답 무관. 실제 앱에서 값이 안 나가는 쪽이다.
-        if any(len(v) > 2 for v in preds.values()):
-            for cid, v in preds.items():
-                if len(v) > 2 and v[2] < REJECT_AT:
-                    reader_rejected.append(cid)
-                    if cid not in reader_note:
-                        reader_note[cid] = (f"거절대상(득표 {v[2]:.2f}) · "
-                                            f"판독 {v[0]} · GT {v[1]}")
-        for b in (reader_miss, reader_risky, reader_safe, reader_blank,
-                  reader_rejected):
-            b.sort()
     # band_pilot — make_band_pilot.py 가 만든 시범 라벨링 작업 목록.
     # 사람이 "어느 장을 라벨링할지" 고르지 않아도 되게 미리 층화해 둔 것이다
     # (가로 화면 / 위험군 오독 / 대조군). 없으면 빈 목록.
@@ -900,10 +705,7 @@ def api_failures(qs):
     # 테스트 holdout — 라벨링하면 개선을 잴 데가 없어진다. 큐에서 빼는 것으로는
     # 부족하고(전체 큐로 들어올 수 있다) 화면에 경고를 띄운다.
     hold, _ = _queue("lcd_fix_holdout.json")
-    return {"gm_miss": gm_miss, "reader_miss": reader_miss,
-            "reader_risky": reader_risky, "reader_safe": reader_safe,
-            "reader_blank": reader_blank, "reader_rejected": reader_rejected,
-            "reader_note": reader_note,
+    return {"gm_miss": gm_miss,
             "band_pilot": pilot, "band_pilot_note": pilot_note,
             "lcd_fix": lcdfix, "lcd_fix_note": lcdfix_note,
             "wide_band": wideband, "wide_band_note": wideband_note,
@@ -2370,102 +2172,21 @@ def api_selftest(qs):
     return report
 
 
-# ---- 아틀라스 in-process ------------------------------------------------
-# 2026-09-21 카드: 8790 standalone 서버를 없애고 웹툴(8777) 하나가 /atlas 를
-# in-process 로 서빙한다. make_failure_atlas 는 module level 에서 tensorflow 를
-# import 하므로 **웹툴 기동 시점 import 금지** — 첫 /atlas 요청에서 백그라운드
-# 초기화한다(합성 모듈의 늦은 import 와 같은 규칙). 초기화 중 요청은 진행 안내
-# 페이지, 실패는 빌드 안내로 응답한다 — 초기화가 늦다고 요청이 타임아웃으로
-# 죽으면 안 된다. 아틀라스 페이지가 쓰는 경로(/imgs/* · /api/cases ·
-# /api/review)는 이 서버에 없다 — 충돌하지 않는다(2026-09-11 확인).
-ATLAS_PATHS = ("/imgs/", "/api/cases", "/api/review")
-_ATLAS_STATE = None   # 초기화가 끝나면 make_failure_atlas 의 serve 상태
-_ATLAS_ERR = None     # 초기화가 실패하면 원인(빌드 안내 문구 재료)
-_ATLAS_STARTED = False
-_ATLAS_LOCK = threading.Lock()
-
-
-class _AtlasArgs:
-    """make_failure_atlas standalone --serve 의 기본 인자와 같은 값.
-    한쪽만 다른 값을 쓰면 저장 경로·프레이밍 짝이 어긋난다."""
-
-    serve = True
-    review = None            # 지정 없음 → _diag/atlas/agent_review.json
-    model = "reader_model"
-    preds = "reader_preds.json"
-    cache = "data_cache_v2.npz"
-    compare_preds = None
-
-
-def _atlas_ensure():
-    """아틀라스 serve 상태가 없으면 백그라운드 초기화를 한 번만 시작한다."""
-    global _ATLAS_STARTED
-    with _ATLAS_LOCK:
-        if _ATLAS_STARTED:
-            return
-        _ATLAS_STARTED = True
-
-    def run():
-        global _ATLAS_STATE, _ATLAS_ERR
-        try:
-            import make_failure_atlas as mfa
-            _ATLAS_STATE = mfa.init_serve_state(HERE, _AtlasArgs())
-        except BaseException as e:  # SystemExit 포함 — build_cases 는 등가성
-            # 검사에서 SystemExit 를 던진다. Exception 만 잡으면 초기화 스레드가
-            # 조용히 죽고 /atlas 는 영원히 '준비 중'이 된다(2026-09-21 실제로 겪음).
-            import traceback
-            traceback.print_exc()
-            _ATLAS_ERR = f"{type(e).__name__}: {e}"
-
-    threading.Thread(target=run, daemon=True, name="atlas-init").start()
-
-
-_ATLAS_WAIT_HTML = (
-    "<!DOCTYPE html><html lang=ko><head><meta charset=utf-8>"
-    "<meta http-equiv=refresh content=5>"
-    "<title>판독 실패 아틀라스 — 준비 중</title></head>"
-    "<body style=\"background:#141719;color:#d8dde2;"
-    "font:14px/1.6 'Segoe UI',sans-serif;padding:24px\">"
-    "<h1>아틀라스를 준비하고 있다</h1>"
-    "<p>모델 적재·케이스 렌더·추론에 몇 분 걸린다. "
-    "이 페이지는 5초마다 다시 확인한다.</p></body></html>")
-
-
-def _atlas_fail_html(err):
-    from html import escape
-    return (
-        "<!DOCTYPE html><html lang=ko><head><meta charset=utf-8>"
-        "<title>판독 실패 아틀라스 — 준비 실패</title></head>"
-        "<body style=\"background:#141719;color:#d8dde2;"
-        "font:14px/1.6 'Segoe UI',sans-serif;padding:24px\">"
-        "<h1>아틀라스를 준비하지 못했다</h1>"
-        f"<p>원인: <code>{escape(err)}</code></p>"
-        "<p>2026-09-22 진단 확정: gmscreen_quads.jsonl 이 2026-09-11 스크래치 재구축 때 "
-        "재생성되어, 캐시·예측(2026-09-05~09)이 구워진 쿼드와 값이 갈라졌다. "
-        "기하(frame_crop)와 BOX_MARGIN 은 동일함을 9/5 코드 복원 비교로 확인 — "
-        "어긋난 것은 쿼드 값뿐이다. 옛 쿼드는 버전 관리 밖이라 재결합 불가고, 이 모델·"
-        "예측 스택은 2026-09-17 폐기 계보다. 아틀라스는 새 리더(reader_crnn)가 새 "
-        "예측을 내는 시점에 새 짝으로 뜬다.</p>"
-        "<p>아틀라스 데이터가 아직 없을 수 있다(미빌드). 전제 산출물을 만들고 "
-        "이 페이지를 다시 열 것 — 준비는 자동으로 시작한다."
-        "<br>· reader_preds.json — eval_reader.py 로 리더 예측을 낸다"
-        "<br>· reader_model · data_cache_v2.npz · gmscreen_quads.jsonl"
-        "<br>확인: cd assets_dev/train && conda run -n sugartrain "
-        "python make_failure_atlas.py (정적 빌드 — 같은 초기화 경로다)"
-        "</p></body></html>")
-
-
 # ── 공유 상단 메뉴 — 모든 페이지가 같은 것을 쓴다 (2026-09-21) ─────────────
 # 사람 지시: "상위메뉴는 모든 페이지가 공유하게 하자.. 존나헤깔린다. 상단메뉴는
 # 모든 페이지가 공유하게하라 패널간 전환할수있도록".
 # 여기 한 곳에 정의하고 페이지를 내줄 때 <body> 바로 뒤에 주입한다 — 8개
 # 화면에 각자 복사하면 다시 흩어진다. 작업대(/)는 자체 탭+버튼 머리글이
 # 같은 역할을 하므로 주입하지 않고, 대신 /#탭 해시로 탭이 열리게 했다.
-# 기종·아틀라스는 2026-09-21 카드로 작업대 탭(iframe 이중 진입)을 없애고
-# 독립 화면 하나로 통합했다 — '작업대' 줄이 아니라 '화면' 줄에만 있다.
+# 기종은 2026-09-21 카드로 작업대 탭(iframe 이중 진입)을 없애고 독립 화면
+# 하나로 통합했다 — '작업대' 줄이 아니라 '화면' 줄에만 있다.
+# 2026-09-23 전수조사: /atlas(판독 실패 아틀라스)를 지웠다 — 옛 CTC 리더
+# 스택(reader_model·reader_preds·data_cache_v2)에 매여 2026-09-22 부터
+# 준비 실패로 서 있던 폐기 계열 화면이다. 새 리더의 실패 아틀라스가 필요해
+# 지면 새 짝으로 다시 만든다.
 _NAV_TABS = (("labeler", "라벨러"), ("monitor", "모니터"), ("train", "훈련"))
 _NAV_PAGES = (("/livecmp", "실촬 검수"), ("/devices", "기종"),
-              ("/atlas", "아틀라스"), ("/synth", "합성 코퍼스"),
+              ("/synth", "합성 코퍼스"),
               ("/profedit", "프로파일"), ("/aug", "증강"),
               ("/inkclip", "잉크 검사"), ("/rfband", "Roboflow 라벨"))
 _NAV_CSS = (
@@ -2539,34 +2260,9 @@ class Handler(BaseHTTPRequestHandler):
             html = html[:at] + bar + html[at:]
         self._send(200, html.encode("utf-8"), "text/html; charset=utf-8")
 
-    def _atlas_get(self, path):
-        """/atlas 계열 GET 을 in-process 로 위임한다(초기화 보장 포함)."""
-        _atlas_ensure()
-        st = _ATLAS_STATE
-        if st is None:
-            if _ATLAS_ERR:
-                self._send(503, _atlas_fail_html(_ATLAS_ERR).encode("utf-8"),
-                           "text/html; charset=utf-8")
-            else:
-                self._send(200, _ATLAS_WAIT_HTML.encode("utf-8"),
-                           "text/html; charset=utf-8")
-            return
-        import make_failure_atlas as mfa
-        resp = mfa.atlas_get(st, path)
-        if resp is None:
-            self._send(404, b"not found", "text/plain")
-        else:
-            self._send(*resp)
-
     def do_GET(self):
         u = urlparse(self.path)
         qs = parse_qs(u.query)
-        if u.path == "/atlas":
-            self._atlas_get("/")
-            return
-        if u.path.startswith(ATLAS_PATHS):
-            self._atlas_get(u.path)
-            return
         if u.path == "/" or u.path == "/index.html":
             if HTML.exists():
                 self._send(200, HTML.read_bytes(), "text/html; charset=utf-8")
@@ -2701,21 +2397,6 @@ class Handler(BaseHTTPRequestHandler):
         u = urlparse(self.path)
         ln = int(self.headers.get("Content-Length", 0))
         raw = self.rfile.read(ln) or b"{}"
-        if u.path.startswith(ATLAS_PATHS):
-            _atlas_ensure()
-            st = _ATLAS_STATE
-            if st is None:
-                self._json({"error": "아틀라스가 아직 준비되지 않았다"
-                           + (" — 초기화 실패, /atlas 를 열어 안내를 볼 것"
-                              if _ATLAS_ERR else "")}, 503)
-                return
-            if u.path != "/api/review":
-                self._json({"error": "unknown api"}, 404)
-                return
-            import make_failure_atlas as mfa
-            code, obj = mfa.atlas_post_review(st, raw)
-            self._json(obj, code)
-            return
         body = json.loads(raw)
         if u.path == "/api/prof/preview":
             # 덮어쓰기를 얹어 몇 장 그려 돌려준다. 저장하지 않는다 —
@@ -2949,66 +2630,24 @@ class Handler(BaseHTTPRequestHandler):
                     return
             self._json({"error": "no such component"}, 404)
             return
-        if u.path == "/api/det/start":
-            # 밴드 쿼드 검출기 학습. **오래 걸린다** — 40k 코퍼스 50에폭이
-            # 1시간 반쯤이라 창을 닫아도 살아 있게 떼어 놓는다(DETACHED).
-            if self._pid_alive(_det_pid()):
-                self._json({"ok": False, "error": "이미 실행 중"})
-                return
-            if DET_LOG.exists() and (time.time() - DET_LOG.stat().st_mtime) < 120:
-                self._json({"ok": False,
-                            "error": "다른 학습이 방금까지 로그를 기록 중 — 잠시 후"})
-                return
-            data = str(body.get("data") or "").strip()
-            if not data or not (HERE / data / "manifest.jsonl").exists():
-                self._json({"ok": False,
-                            "error": f"코퍼스가 없다: {data or '(빈 값)'}"})
-                return
-            try:
-                epochs = max(1, min(400, int(body.get("epochs", 50))))
-            except (TypeError, ValueError):
-                self._json({"ok": False, "error": "에폭이 숫자가 아니다"})
-                return
-            out = str(body.get("out") or "").strip() or f"band_det_{data}.pt"
-            if not out.endswith(".pt") or "/" in out or "\\" in out:
-                self._json({"ok": False,
-                            "error": "출력 이름은 .pt 파일명 하나여야 한다"})
-                return
-            arch = str(body.get("arch") or "fc")
-            every = int(body.get("ckpt_every", 10) or 0)
-            cmd = [sys.executable, str(HERE / "train_band_detector.py"),
-                   "--data", data, "--epochs", str(epochs),
-                   "--out", out, "--arch", arch]
-            if every:
-                cmd += ["--ckpt-every", str(every)]
-            # 로그는 **덮어쓴다**. 이어붙이면 재개할 때마다 옛 에폭이 누적돼
-            # 그래프가 부풀고, 어느 줄이 이번 실행인지 화면에서 가를 수 없다
-            # (구판 CTC 로그가 그랬다 — 8월 31일 줄이 9월까지 살아 있었다).
-            logf = open(DET_LOG, "wb")
-            logf.write(("== " + " ".join(cmd[1:]) + " ==" + chr(10)).encode("utf-8"))
-            logf.flush()
-            env = dict(os.environ, PYTHONUNBUFFERED="1")
-            proc = subprocess.Popen(cmd, stdout=logf,
-                                    stderr=subprocess.STDOUT,
-                                    creationflags=DETACHED, env=env,
-                                    cwd=str(HERE))
-            DET_PID.write_text(json.dumps(
-                {"pid": proc.pid, "data": data, "epochs": epochs, "out": out,
-                 "arch": arch, "started": time.time()}), encoding="utf-8")
-            self._json({"ok": True, "pid": proc.pid, "cmd": cmd[1:]})
-            return
-        if u.path == "/api/det/stop":
-            pid = _det_pid()
-            if pid and self._pid_alive(pid):
-                subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"],
-                               capture_output=True)
-            self._json({"ok": True})
-            return
         if u.path == "/api/det/overlay":
-            # 기종 탭 오버레이를 이 체크포인트로 갈아끼운다. 2,511장이라
+            # 기종 탭 오버레이를 이 체크포인트로 갈아끼운다. 2,512장이라
             # 5분쯤 걸리므로 **떼어 놓고** 돌린다 — 브라우저가 기다리지 않게.
-            ck = str(body.get("ckpt") or "").strip()
-            if not ck.endswith(".pt") or "/" in ck or "\\" in ck                     or not (HERE / ck).exists():
+            # 2026-09-23 전수조사: ckpt 를 HERE 안의 상대 경로(band_out/…)로
+            # 받게 고쳤다 — 옛 검사는 슬래시를 금지해 band_out/ 밑의 현행
+            # 체크포인트를 아예 못 골랐다. 같은 이유로 학습 시작·중지 버튼은
+            # 지웠다(폐기 계열 train_band_detector.py 를 띄웠다).
+            ck = str(body.get("ckpt") or "").strip().replace("\\", "/")
+            if not ck.endswith(".pt"):
+                self._json({"ok": False, "error": f".pt 가 아니다: {ck}"})
+                return
+            p = (HERE / ck).resolve()
+            try:
+                p.relative_to(HERE.resolve())
+            except ValueError:
+                self._json({"ok": False, "error": "프로젝트 밖 경로다"})
+                return
+            if not p.exists():
                 self._json({"ok": False, "error": f"체크포인트가 없다: {ck}"})
                 return
             if self._pid_alive(int(OVL_PID.read_text(encoding="utf-8").strip())
@@ -3026,26 +2665,6 @@ class Handler(BaseHTTPRequestHandler):
                 env=dict(os.environ, PYTHONUNBUFFERED="1"), cwd=str(HERE))
             OVL_PID.write_text(str(proc.pid), encoding="utf-8")
             self._json({"ok": True, "pid": proc.pid, "ckpt": ck})
-            return
-        if u.path == "/api/det/gate":
-            # 실사진 게이트. 사람 밴드 라벨과 견주는 **유일한** 자이고,
-            # 합성 val 점수는 품질 계기가 아니다(카드 지시).
-            ck = str(body.get("ckpt") or "").strip()
-            if not ck.endswith(".pt") or "/" in ck or "\\" in ck                     or not (HERE / ck).exists():
-                self._json({"ok": False, "error": f"체크포인트가 없다: {ck}"})
-                return
-            try:
-                r = subprocess.run(
-                    [sys.executable, str(HERE / "eval_band_detector.py"),
-                     "gate", "--ckpt", ck],
-                    capture_output=True, text=True, cwd=str(HERE),
-                    env=dict(os.environ, PYTHONUNBUFFERED="1"), timeout=1800)
-            except subprocess.TimeoutExpired:
-                self._json({"ok": False, "error": "게이트가 30분을 넘겼다"})
-                return
-            self._json({"ok": r.returncode == 0,
-                        "tag": Path(ck).stem,
-                        "text": (r.stdout or "") + (r.stderr or "")})
             return
         self._json({"error": "unknown api"}, 404)
 
