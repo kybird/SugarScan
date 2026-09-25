@@ -139,11 +139,13 @@ _AB = [(b, n) for b, n in ASPECT_BINS
 _BINS = [b for b, _ in _AB]
 _WEIGHTS = np.asarray([n for _, n in _AB], np.float64)
 
-# 밴드 기하 — 정본 real_baseline.json 의 p10~p90(n=264 재측정: 세로 217·가로 47,
-# make_real_baseline.py). 값은 정본에서 읽는다 — 여기 베끼면 기준선이 다시 갈라진다.
-# 가로형 h p10 0.430(구판 0.690)·cx p10 0.082(구판 0.15): 84장 편향 표본엔
-# 정보칼럼이 왼쪽 붙은 가로형이 없었다.
-_RB_BAND = REAL_BASELINE["band"]
+# 밴드 기하 — 정본 real_baseline.json 의 p10~p90(기기 균등 band_du — 사람
+# 결정 (가) 2026-09-24: 프로파일 12종 균등을 기기 충실로 유지하므로 비교
+# 기준도 사진 가중이 아니라 기기 균등. 사진 가중과의 차이는 가로형에서
+# 크다 — h p10 0.460→0.418 · cx p10 0.304→0.456: 사진 많은 가로 기기 하나가
+# 만든 '밴드가 왼쪽으로 치우친 가로형'이 사진 가중 기준선에는 과장돼
+# 있었다(세로형 54기기·가로형 9기기 기준). 값은 정본에서 읽는다.
+_RB_BAND = REAL_BASELINE.get("band_du") or REAL_BASELINE["band"]
 BAND_GEOM = {
     key: dict(h=(v["h_p10"], v["h_p90"]), cx=(v["cx_p10"], v["cx_p90"]),
               cy=(v["cy_p10"], v["cy_p90"]))

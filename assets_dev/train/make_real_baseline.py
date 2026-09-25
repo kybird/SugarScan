@@ -73,6 +73,7 @@ def build():
     # raw 튜플(w,h,cx,cy) — 가로형 empirical 재표본용(위 _band_axis 설명).
     # 로더·좌표 변환은 collect_band 와 같은 함수를 쓴다.
     raw_portrait, raw_wide = [], []
+    raw_ids = {"portrait": [], "wide": []}
     quads = {r["id"]: r for r in M._load_jsonl(M.QUADS_ORIENTED)}
     for b in M._load_jsonl(M.BAND_BOXES):
         g = quads.get(b["id"])
@@ -89,6 +90,40 @@ def build():
         (raw_portrait if key == "portrait" else raw_wide).append(
             ((fx[1] - fx[0]), ((bx[3] - bx[1]) / gh),
              (fx[0] + fx[1]) / 2, t))
+        raw_ids[key].append(b["id"])
+    # 기기 균등 밴드 기하(사람 결정 (가) 2026-09-24: 프로파일 12종 균등을
+    # 기기 충실로 유지 — 비교 기준도 사진 가중이 아닌 기기 균등이어야 한다).
+    # 기기별 중앙값을 낸 뒤 기기 분포의 p10/p90 — 대규모 단말의 사진 수
+    # 가중이 사라진다. 극성은 이미 기기 단위(by_device)다.
+    dev = {}
+    for l in (HERE / "device_labels.jsonl").read_text(
+            encoding="utf-8").splitlines():
+        if l.strip():
+            j = json.loads(l)
+            dev[j["id"]] = (j["brand"] + " " + j["model"] + " "
+                            + j.get("variant", "")).strip()
+    band_du = {}
+    for key, raw in (("portrait", raw_portrait), ("wide", raw_wide)):
+        ids = raw_ids[key]
+        by_dev = {}
+        for cid, t in zip(ids, raw):
+            by_dev.setdefault(dev.get(cid, "?"), []).append(t)
+        arr = np.asarray([np.median(np.asarray(v, float), axis=0)
+                          for v in by_dev.values()])
+        band_du[key] = {
+            "n_devices": len(by_dev),
+            "w_median": float(np.median(arr[:, 0])),
+            "h_p10": float(np.percentile(arr[:, 1], 10)),
+            "h_p90": float(np.percentile(arr[:, 1], 90)),
+            "h_median": float(np.median(arr[:, 1])),
+            "cx_p10": float(np.percentile(arr[:, 2], 10)),
+            "cx_p90": float(np.percentile(arr[:, 2], 90)),
+            "cx_median": float(np.median(arr[:, 2])),
+            "cy_p10": float(np.percentile(arr[:, 3], 10)),
+            "cy_p90": float(np.percentile(arr[:, 3], 90)),
+            "cy_median": float(np.median(arr[:, 3])),
+        }
+
     dens = np.asarray(M.collect_density(frame_exc=0.0))
     ring = np.asarray([r for r in (D.stat_ring(g, b)
                                    for g, b in D.iter_real()) if r is not None])
@@ -132,6 +167,7 @@ def build():
                       for e, h in zip(edges[:-1], hist) if h},
         ),
         band=_band_axis(stats, pos, raw_portrait, raw_wide),
+        band_du=band_du,
         density=dict(
             n=len(dens), frame_exc=0.0,
             median=float(np.median(dens)), p10=_pct(dens, 10), p90=_pct(dens, 90),
