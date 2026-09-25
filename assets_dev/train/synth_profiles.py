@@ -110,7 +110,13 @@ def _dseg_raster(ch, variant, h):
 # (asym .30, 안쪽은 그대로) · 가운데 가로획 완전 대칭 · 테이퍼 길이=두께의
 # 절반(전 획 45도 — 대면 사선 평행, 사람 판정 'z=.50'). ModernLight(가는획+
 # 둥근끝 소수 기기)은 형상이 달라 DSEG 래스터를 그대로 쓴다.
-GLYPH_TRIM = 0.35
+# 변형별 trim(사람 지적 2026-09-25: '세그먼트 간 거리가 심하게 벌어짐' —
+# 0.35 통일은 갭 8px 까지 벌였다). 최소 안전값 실측(h=200, 전 숫자 구조
+# 보존 + 코너 갭이 DSEG 원본과 1px 이내): Light .05→2.7px(원본 2.7) ·
+# Regular .20→4.1(3.7) · Bold .25→3.7(4.1) · Italic .20→4.1 ·
+# LightItalic .10→3.7 · BoldItalic .30→5.1(3.7 — 전단이 갭을 좁혀 +.05).
+GLYPH_TRIM = {"Light": 0.05, "Regular": 0.20, "Bold": 0.25,
+              "Italic": 0.20, "LightItalic": 0.10, "BoldItalic": 0.30}
 GLYPH_ASYM = 0.30
 GLYPH_ZONE_T = 0.50
 _PARAM_VARIANTS = ("Light", "Regular", "Bold", "Italic",
@@ -165,10 +171,18 @@ def _italic_shear(variant):
     return _italic_shear_cache[variant]
 
 
+_ITALIC_BASE = {"Italic": "Regular", "LightItalic": "Light",
+                "BoldItalic": "Bold"}
+
+
 def _param_glyph_mask(ch, variant, h):
     """확정 스펙 숫자 마스크. 배치는 DSEG 래스터(h*2)의 연결요소에서,
-    형상은 프리미티브로. 이탤릭 변형은 축 정렬 조립 후 전단으로 기울임."""
-    base = _dseg_raster(ch, variant, h * 2)
+    형상은 프리미티브로. 이탤릭 변형은 기울지 않은 동일 굵기 기저
+    변형(_ITALIC_BASE)에서 축 정렬로 조립한 뒤 실측 전단으로 기울인다
+    (사람 지적 2026-09-25: 기울어진 세로획의 bbox 두께가 1.2배 부풀고
+    아래 90도 절단이 생긴다 — 이탤릭에 직교 컷 코드는 없어야 한다)."""
+    build_variant = _ITALIC_BASE.get(variant, variant)
+    base = _dseg_raster(ch, build_variant, h * 2)
     if base is None:
         return None
     m0 = base.astype(np.uint8)
@@ -184,7 +198,8 @@ def _param_glyph_mask(ch, variant, h):
         x0, x1, y0, y1 = xs.min(), xs.max(), ys.min(), ys.max()
         w, hgt = x1 - x0 + 1, y1 - y0 + 1
         t = float(min(w, hgt))
-        L = max(1.0, float(max(w, hgt)) - 2 * GLYPH_TRIM * t)
+        trim = GLYPH_TRIM[variant] if variant in GLYPH_TRIM else 0.20
+        L = max(1.0, float(max(w, hgt)) - 2 * trim * t)
         cx, cy = (x0 + x1) / 2.0 + pd, (y0 + y1) / 2.0 + pd
         horiz = w > hgt
         is_mid = False
@@ -212,7 +227,7 @@ def _param_glyph_mask(ch, variant, h):
     if not len(ys):
         return None
     acc = acc[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
-    if "Italic" in variant:
+    if variant in _ITALIC_BASE:
         sh = _italic_shear(variant)
         if sh:
             # 위가 오른쪽으로 기울도록: x' = x + sh*(cy - y)
