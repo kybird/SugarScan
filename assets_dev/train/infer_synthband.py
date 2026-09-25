@@ -47,6 +47,8 @@ def main():
     ap.add_argument("--sheet", default=None)
     ap.add_argument("--sheet-n", type=int, default=10)
     ap.add_argument("--conf", type=float, default=0.25)
+    ap.add_argument("--device", default="cuda",
+                    help="다른 학습이 GPU 를 쓰는 동안 cpu 로 돌린다")
     ap.add_argument("--nms", type=float, default=0.45)
     args = ap.parse_args()
 
@@ -57,7 +59,8 @@ def main():
     gt = {a["image_id"]: a["bbox"] for a in coco["annotations"]}
 
     exp = get_exp(args.exp, None)
-    model = exp.get_model().cuda().eval()
+    dev = torch.device(args.device)
+    model = exp.get_model().to(dev).eval()
     ckpt = torch.load(args.ckpt, map_location="cpu")
     model.load_state_dict(ckpt["model"])
     preproc = ValTransform(legacy=False)
@@ -71,7 +74,8 @@ def main():
         ratio = min(tsize[0] / img.shape[0], tsize[1] / img.shape[1])
         t, _ = preproc(img, None, tsize)
         with torch.no_grad():
-            out = postprocess(model(torch.from_numpy(t).unsqueeze(0).float().cuda()),
+            out = postprocess(
+                model(torch.from_numpy(t).unsqueeze(0).float().to(dev)),
                               exp.num_classes, args.conf, args.nms, class_agnostic=True)[0]
         g = gt[im["id"]]
         gxy = [g[0], g[1], g[0] + g[2], g[1] + g[3]]
