@@ -126,6 +126,10 @@ GLYPH_TRIM = {"Light": 0.40, "Regular": 0.40, "Bold": 0.55,
 # 기울기만큼 기울인다(사람 지시: "기울어진 각도만큼 기울여서 깎는다").
 # 절단 방향(어느 귀가 나가는가)은 바깥쪽 귀를 물러나게 둔다 — 눈검 대상.
 GLYPH_CUT = {"v_bottom": 15.1, "v_top": 11.8, "h_left": 3.2, "h_right": 5.7}
+# 이탤릭 세로획 옆면각(도, 수직 기준) — DSEG 실측: Italic/LightItalic/
+# BoldItalic 모두 −4.95°(왼쪽 아래로). 사람 지적 2026-09-25: 옆면은
+# 일반 폰트 기준 90 도로 자르면 이탤릭에서 다른 변들과 각이 어긋난다.
+GLYPH_SIDE_SLANT = float(np.tan(np.radians(-4.95)))   # ≈ -0.0866 (기울기 탄젠트)
 GLYPH_ASYM = 0.30
 GLYPH_ZONE_T = 0.50
 _PARAM_VARIANTS = ("Light", "Regular", "Bold", "Italic",
@@ -155,40 +159,56 @@ def _italic_shear(variant):
     return _italic_shear_cache[variant]
 
 
-def _cut_bar(L, t, a1, a2, a1_outer_neg, a2_outer_neg, vertical):
-    """직선 절단면 프리미티브(사람 선언 2026-09-25 — 실측각 절단).
-    vertical=False: 가로 막대. a1=왼끝 각(수직 기준, 도), a2=오른끝 각.
-    vertical=True: 세로 막대. a1=아래끝 각(수평 기준), a2=위끝 각.
-    *_outer_neg: 해당 끝에서 바깥쪽 귀가 음의 축 방향(-y 가로/-x 세로)
-    이면 True — 바깥 귀를 후퇴시킨다(덜 샤프). d=t·tanθ 는 절단면 폭."""
-    k = t / 2.0
+def _hexleaf_bar(L, t, asym, a1=0.0, a2=0.0, slant=0.0, vertical=False):
+    """확정 프리미티브(v14 테이퍼 복원 + 실측 절단각). 평행 옆면 + 끝
+    테이퍼(사람 확정 형상)이며, a1/a2 = 끝 절단각(도, 사람 선언 2026-09-25
+    "실측한 값으로 자르자" — 세로 아래 15.1/위 11.8, 가로 좌 3.2/우 5.7,
+    0 이면 v14 그대로). 절단면은 획의 중심선에서 반대쪽 귀까지 — 두 귀가
+    각도로 만나는 V 가 아니라 한 직선 절단이다. slant — 이탤릭 세로
+    옆면 기울기(탄젠트)."""
+    a, k = L / 2.0, t / 2.0
+    ddL, ddR = t * float(np.tan(np.radians(a1))), t * float(np.tan(np.radians(a2)))
 
-    def d(a):
-        # 측정각→실제 절단각 환산: 측정 자(measure_endcut_angle)의 극점 창이
-        # 폭의 4분할(0.25) 씩이라 각을 0.75배로 낮게 읽는다 — 실측값(15.1도
-        # 등)을 그대로 재현하려면 tan 을 4/3 배한다(같은 자로 재면 같은 값).
-        return t * float(np.tan(np.radians(a))) / 0.75
+    u = np.linspace(0.0, 1.0, 400)
+    x = (u - 0.5) * 2 * a                       # 중앙 0, 끝 ±a
+    m = np.abs(u - 0.5)
 
-    if not vertical:
-        # 다각형: (xL_out, -k) (xR_out, -k) (xR_in, +k) (xL_in, +k)
-        xL_out = -L / 2 + (d(a1) if a1_outer_neg else 0)
-        xL_in = -L / 2 + (0 if a1_outer_neg else d(a1))
-        xR_out = L / 2 - (0 if a2_outer_neg else d(a2))
-        xR_in = L / 2 - (d(a2) if a2_outer_neg else 0)
-        pts = np.array([[xL_out, -k], [xR_out, -k], [xR_in, k], [xL_in, k]],
-                       np.float32)
-        W, H = int(L) + int(max(d(a1), d(a2))) + 9, 2 * int(k) + 7
+    def taper(zone_scale):                       # v14 테이퍼(길이 비)
+        zone = max(1e-6, GLYPH_ZONE_T * t * max(0.0, zone_scale)) / max(1e-6, 2 * a)
+        flat = max(1e-6, 0.5 - zone)
+        sg = np.clip((m - flat) / zone, 0.0, 1.0)
+        return np.where(m <= flat, 1.0, 1.0 - sg) * k
+
+    top = taper(1.0 - asym)                      # 위/바깥 — asym 만 축소
+    bot = taper(1.0)                             # 아래/안쪽 — 대칭 그대로
+    prof_half = bot                              # 오른쪽 절단은 아래 프로파일에
+    # 직선 절단: 왼끝(a1)·오른끝(a2) — 절단면이 x 축과 이루는 기울기로 두 귀를
+    # 한 직선으로 자른다. 절단 돌출 dd 만큼 안쪽에서 0 이 된다.
+    cutL = np.where(x < -a + ddL,
+                    np.maximum(0.0, (x + a) * t / max(1e-6, ddL)), 1e9)
+    cutR = np.where(x > a - ddR,
+                    np.maximum(0.0, (a - x) * t / max(1e-6, ddR)), 1e9)
+    top = np.minimum(top, cutL)
+    bot = np.minimum(bot, cutR)
+
+    pts = np.vstack([np.stack([x, -top], 1),
+                     np.stack([x[::-1], bot[::-1]], 1)]).astype(np.float32)
+    # 세로 막대(v): 절단은 아래(a1)/위(a2)의 y 방향 돌출, slant 로 옆면 기울임.
+    # rot90 을 쓰면 기울어진 옆면이 수직으로 돌아와 소실된다(2026-09-25 수리).
+    if vertical:
+        ddV1, ddV2 = t * float(np.tan(np.radians(a1))), t * float(np.tan(np.radians(a2)))
+        pts = np.stack([pts[:, 1], pts[:, 0]], 1).astype(np.float32)
+        pts[:, 1] *= -1                          # 아래 끝이 +y
+        pts[:, 0] += slant * pts[:, 1]
+        H = int(L) + int(max(ddV1, ddV2)) + 9
+        W = 2 * int(k) + int(max(ddV1, ddV2)) + int(abs(slant) * L) + 11
     else:
-        # 세로 막대: (−k, yB_out) (k, yB_in) (k, yT_in) (−k, yT_out)
-        yB_out = -L / 2 + (d(a1) if a1_outer_neg else 0)
-        yB_in = -L / 2 + (0 if a1_outer_neg else d(a1))
-        yT_out = L / 2 - (0 if a2_outer_neg else d(a2))
-        yT_in = L / 2 - (d(a2) if a2_outer_neg else 0)
-        pts = np.array([[-k, yB_out], [k, yB_in], [k, yT_in], [-k, yT_out]],
-                       np.float32)
-        W, H = 2 * int(k) + 7, int(L) + int(max(d(a1), d(a2))) + 9
+        H = 2 * int(k) + 9
+        W = int(L) + int(max(ddL, ddR)) + 11
     canvas = np.zeros((H, W), np.uint8)
-    cv2.fillPoly(canvas, [np.round(pts + [W / 2.0, H / 2.0]).astype(np.int32)], 1)
+    pts[:, 0] += W / 2.0 - float(pts[:, 0].mean())
+    pts[:, 1] += H / 2.0 - float(pts[:, 1].mean())
+    cv2.fillPoly(canvas, [np.round(pts).astype(np.int32)], 1)
     return canvas.astype(np.float32)
 
 
@@ -223,6 +243,7 @@ def _param_glyph_mask(ch, variant, h):
         L = max(1.0, float(max(w, hgt)) - 2 * trim * t)
         cx, cy = (x0 + x1) / 2.0 + pd, (y0 + y1) / 2.0 + pd
         horiz = w > hgt
+        is_top = (not horiz) and (y0 + y1) / 2 < (H0 - 1) / 2.0
         is_mid = False
         if horiz:
             cy0 = (H0 - 1) / 2.0
@@ -233,29 +254,37 @@ def _param_glyph_mask(ch, variant, h):
         # 절단 방향: **안쪽 귀 후퇴, 바깥 귀 유지** — 숫자 코너에서 마주 보는
         # 것은 안쪽 귀들이라 여기가 물러나야 갭이 공짜로 확보된다(바깥 귀를
         # 물러나게 한 초안은 trim 0.6+ 를 요구해 획이 통째로 짧아졌다).
-        bar = _cut_bar(
-            L, t, GLYPH_CUT["h_left"], GLYPH_CUT["h_right"],
-            out_down, (not out_down), vertical=False) if horiz else _cut_bar(
-            L, t, GLYPH_CUT["v_bottom"], GLYPH_CUT["v_top"],
-            out_right, (not out_right), vertical=True)
+        # 옆면각은 DSEG 실측(2026-09-25): Italic 계열 전부 ≈ −4.95°(수직
+        # 기준) — 전단 탄젠트(−7.9°)가 아니라 글리프가 실제로 그린 값.
+        sl = (GLYPH_SIDE_SLANT
+              if (not horiz and variant in _ITALIC_BASE) else 0.0)
+        asym = 0.0 if is_mid else GLYPH_ASYM   # 가운데 가로획 — 완전 대칭(v14)
+        if horiz:
+            bar = _hexleaf_bar(L, t, asym,
+                               a1=GLYPH_CUT["h_left"], a2=GLYPH_CUT["h_right"])
+            if out_down:
+                bar = bar[::-1, :]             # 아래 가로획 — 절단면 뒤집기
+        else:
+            bar = _hexleaf_bar(L, t, asym,
+                               a1=GLYPH_CUT["v_bottom"], a2=GLYPH_CUT["v_top"],
+                               slant=sl, vertical=True)
         bh, bw = bar.shape
         yy0 = int(round(cy - bh / 2.0))
         xx0 = int(round(cx - bw / 2.0))
+        if sl := (GLYPH_SIDE_SLANT if variant in _ITALIC_BASE else 0.0):
+            xx0 += int(round(sl * (cy - (H0 / 2.0 + pd))))
+        # 이탤릭 전단 배치 — DSEG 실측(2026-09-25): **모든 세그먼트**가
+        # x = slant·(y−중심) 만큼 이동해 있다(위 가로획 +16.5 · 아래
+        # 가로획 −15.5 · 세로획 쌍 ±15 — 전체 글리프가 전단된 형태).
+        # 세로획은 slant 로 옆면을 기울여 그리고, 배치도 같은 식으로 민다.
         acc[yy0:yy0 + bh, xx0:xx0 + bw] = np.maximum(
             acc[yy0:yy0 + bh, xx0:xx0 + bw], bar)
     ys, xs = np.nonzero(acc > 0.5)
     if not len(ys):
         return None
     acc = acc[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
-    if variant in _ITALIC_BASE:
-        sh = _italic_shear(variant)
-        if sh:
-            # 위가 오른쪽으로 기울도록: x' = x + sh*(cy - y)
-            H2, W2 = acc.shape
-            M = np.float32([[1, -sh, sh * H2 / 2.0], [0, 1, 0]])
-            acc = cv2.warpAffine(acc, M, (W2 + int(abs(sh) * H2) + 4, H2),
-                                 flags=cv2.INTER_LINEAR,
-                                 borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+    # 이탤릭 기울기는 세로획 slant 로 조립 단계에서 반영한다 — 전체 warp 는
+    # 절단면·코너 좌표를 어긋나게 해 폐지(2026-09-25).
     w2 = max(2, int(round(acc.shape[1] * h / acc.shape[0])))
     out = cv2.resize(acc, (w2, h), interpolation=cv2.INTER_AREA)
     return out > 0.5
