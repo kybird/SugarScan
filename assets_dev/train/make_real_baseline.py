@@ -37,6 +37,19 @@ def _md5(p):
     return h.hexdigest()
 
 
+def _du(vals, ids, dev):
+    """기기 균등 통계 — 기기별 중앙값의 분포(사람 결정 (가) 2026-09-24).
+    사진 가중 실측의 대규모 단말 편향을 없앤 보고 기준."""
+    by = {}
+    for cid, v in zip(ids, vals):
+        by.setdefault(dev.get(cid, "?"), []).append(float(v))
+    arr = np.asarray([np.median(v) for v in by.values()])
+    return {"n_devices": len(by),
+            "p10": float(np.percentile(arr, 10)),
+            "median": float(np.median(arr)),
+            "p90": float(np.percentile(arr, 90))}
+
+
 def _pct(a, q):
     return float(np.percentile(a, q))
 
@@ -124,9 +137,11 @@ def build():
             "cy_median": float(np.median(arr[:, 3])),
         }
 
-    dens = np.asarray(M.collect_density(frame_exc=0.0))
-    ring = np.asarray([r for r in (D.stat_ring(g, b)
-                                   for g, b in D.iter_real()) if r is not None])
+    dens_v, dens_ids = M.collect_density(frame_exc=0.0, with_ids=True)
+    dens = np.asarray(dens_v)
+    ring_rows = [(cid, r) for cid, g, b in D.iter_real(with_ids=True)
+                 if (r := D.stat_ring(g, b)) is not None]
+    ring = np.asarray([r for _, r in ring_rows])
     den = np.asarray([r for r in (D.stat_denoise(g, b)
                                   for g, b in D.iter_real()) if r is not None])
     pol = P.collect_polarity()
@@ -168,6 +183,9 @@ def build():
         ),
         band=_band_axis(stats, pos, raw_portrait, raw_wide),
         band_du=band_du,
+        density_du=_du(dens, dens_ids, dev),
+        ring_du={"outer": _du(ring[:, 0], [c for c, _ in ring_rows], dev),
+                 "inner": _du(ring[:, 1], [c for c, _ in ring_rows], dev)},
         density=dict(
             n=len(dens), frame_exc=0.0,
             median=float(np.median(dens)), p10=_pct(dens, 10), p90=_pct(dens, 90),

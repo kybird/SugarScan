@@ -307,12 +307,13 @@ def edge_density_outside(gray, band_rect_frac, exclude_frame=0.0):
     return float((e > 0)[m].mean())
 
 
-def collect_density(limit=0, frame_exc=0.0):
+def collect_density(limit=0, frame_exc=0.0, with_ids=False):
     """실사진 GM 크롭 밴드 밖 엣지 밀도값 목록 — cmd_density 와 정본 기준선
-    생성기가 같은 코드를 쓴다. synth_panel.REAL_DENSITY 가 이 값을 재표본한다."""
+    생성기가 같은 코드를 쓴다. with_ids 면 (vals, ids) — 기기 균등 통계용
+    (사람 결정 (가) 2026-09-24). 밀도는 사후 보고 전용이다(설계 미사용)."""
     quads = {r["id"]: r for r in quad_rows()}
     bands = _load_jsonl(BAND_BOXES)
-    vals = []
+    vals, ids = [], []
     roots = [UPSTREAM / "extracted" / "TILDE"]
     for b in bands[:limit] if limit else bands:
         g = quads.get(b["id"])
@@ -345,7 +346,8 @@ def collect_density(limit=0, frame_exc=0.0):
         d = edge_density_outside(crop, frac, exclude_frame=frame_exc)
         if d is not None:
             vals.append(d)
-    return vals
+            ids.append(b["id"])
+    return (vals, ids) if with_ids else vals
 
 
 def cmd_density(limit, frame_exc):

@@ -159,8 +159,9 @@ BAND_GEOM = {
 PITCH_RATIO = (0.50, 0.60)
 GLYPH_IN_CELL = (0.78, 0.84)  # 글리프 폭 / 피치 — 같은 육안 근거
 
-# 밀도 목표 — 정본 density.values(n=264, frame_exc 0). 렌더마다 여기서
-# 재표본한다. 자는 measure_panel_stats.edge_density_outside 와 동일하다(AC#4).
+# 밀도 — 사후 보고 전용이다(렌더 뒤 manifest.density 로 재서 보고만).
+# 비교 기준은 기기 균등 density_du(사람 결정 (가) 2026-09-24): 중앙 0.0154
+# vs 사진 가중 0.0178 — 사진 많은 기기가 더 거친 쪽으로 기준을 밀고 있었다.
 REAL_DENSITY = REAL_BASELINE["density"]["values"]
 
 # 글리프 평면 자가검사의 잉크 문턱 — 밴드 대비(p95-p5)에 비례한다(카드

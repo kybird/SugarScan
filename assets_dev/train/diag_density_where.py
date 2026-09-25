@@ -77,7 +77,9 @@ def stat_ring(gray, band_frac, r=0.15):
     return float(e[a].mean()), float(e[b].mean())
 
 
-def iter_real():
+def iter_real(with_ids=False):
+    """with_ids 면 (id, crop, band_frac) 를 낸다 — 기기 균등 통계용
+    (사람 결정 (가) 2026-09-24). 기본 형태는 기존 소비처 불변."""
     quads = {r["id"]: r for r in M._load_jsonl(M.QUADS_ORIENTED)}
     root = M.UPSTREAM / "extracted" / "TILDE"
     for b in M._load_jsonl(M.BAND_BOXES):
@@ -95,8 +97,9 @@ def iter_real():
         if crop is None:
             continue
         gw, gh = gx[2] - gx[0], gx[3] - gx[1]
-        yield crop, ((bx[0] - gx[0]) / gw, (bx[1] - gx[1]) / gh,
-                     (bx[2] - gx[0]) / gw, (bx[3] - gx[1]) / gh)
+        item = (crop, ((bx[0] - gx[0]) / gw, (bx[1] - gx[1]) / gh,
+                       (bx[2] - gx[0]) / gw, (bx[3] - gx[1]) / gh))
+        yield (b["id"], *item) if with_ids else item
 
 
 def iter_synth(images_dir, manifest):
