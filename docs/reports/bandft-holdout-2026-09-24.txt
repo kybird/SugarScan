@@ -1,0 +1,54 @@
+기기별 IoU 중앙(n=119장, 28기기) — post (pre)
+  Contour TS                           n= 2  0.761  (0.485)
+  VERI-Q                               n= 1  0.834  (0.460)
+  오토-첵                                 n= 4  0.837  (0.807)
+  CareSens N Premier                   n= 4  0.851  (0.895)
+  Gmate                                n= 4  0.851  (0.776)
+  MaeilzeN                             n= 4  0.852  (0.745)
+  SD CodeFree                          n= 4  0.859  (0.785)
+  ACCU-CHEK Instant                    n= 4  0.863  (0.904)
+  CareSens PRO                         n= 4  0.863  (0.839)
+  HANDOK BAROZEN                       n= 4  0.865  (0.856)
+  gDoctor                              n= 4  0.867  (0.335)
+  CareSens N                           n=19  0.868  (0.817)
+  OneTouch Ultra                       n= 4  0.869  (0.819)
+  KOOKMIN Check                        n= 4  0.878  (0.790)
+  GC 녹십자 MS Green Doctor               n= 4  0.879  (0.366)
+  도루코S Premium                         n= 3  0.882  (0.898)
+  Dr.Diary+                            n= 4  0.887  (0.791)
+  ACCU-CHEK Active 원형베젤                n= 3  0.887  (0.867)
+  ACURA VIEW                           n= 4  0.900  (0.837)
+  ACURA PLUS                           n= 4  0.900  (0.819)
+  GC 녹십자 MS Green Check                n= 4  0.902  (0.789)
+  GC 녹십자 MS ONE                        n= 4  0.904  (0.869)
+  Auto-chek plus                       n= 4  0.905  (0.822)
+  FORA                                 n= 4  0.907  (0.884)
+  CareSens Dual                        n= 4  0.915  (0.858)
+  ACCU-CHEK Performa 은색 각진버튼           n= 4  0.922  (0.880)
+  ACCU-CHEK Performa Nano 파랑 케이스       n= 4  0.925  (0.842)
+  Boryung CareTouch 일반LCD              n= 3  0.946  (0.823)
+
+# 실사진 밴드 파인튜닝 홀드아웃 게이트(2026-09-24, 무인 세션)
+# 카드 「실사진 밴드 라벨로 검출기 파인튜닝 — 기기 단절 분할」 AC#4·#5.
+
+3값 비교(AC#5 — 가운데 값은 같은 모델로 재측정한 것, 사람 결정 (가)로 교체):
+  ① 합성 IoU 중앙 0.956 — 기록치(eval_synthband_real.py 머리말, 합성 세트
+     B·C 1,300장·다른 시드). 합성 이미지는 정리돼 재측정 불가 — 새 글리프
+     렌더러(58c12cc) 이후 세대와 섞이지 않기 위해 재생성하지 않았다.
+  ② 파인튜닝 전 실사진 홀드아웃 0.8229 · p10 0.7010 · 실패 5/119
+     — synthband_v2_a2, eval_synthband_real --side holdout(재측정)
+  ③ 파인튜닝 후 미학습 기기 홀드아웃 0.8835 · p10 0.8144 · 실패 0/119
+도메인 격차: 0.133 → 0.073 (45% 축소). 짝비교: 승 100 · 패 14 · 무 5
+(짝차이 중앙 +0.063) — 판정: 14장의 소폭 패(최대 하락 기기 중앙 -0.044)
+대비 구제가 압도(gDoctor 0.335→0.867 · GC Green Doctor 0.366→0.879 ·
+VERI-Q 0.460→0.834 · Contour TS 0.485→0.761).
+
+레시피(AC#3): 기저 synthband_v2_a2(사전 평가로 선정 — v3_wide 는 홀드아웃
+0.7709·실패 29로 실촬 퇴보) · 실사진 train 107장(+val 16) · 에폭 30 ·
+lr×0.1 · mosaic/mixup 끔 · 배치 8(fp16). 자: build_band_ft_coco.py ·
+yolox_bandft_exp.py · eval_synthband_real.py · device_iou_breakdown.py.
+데이터: _diag/band_device_split(시드 20260911, train_ids 정본·AC#7).
+
+한계(구조적, 변함없음): 홀드아웃에 가로형 0장 — 이 게이트는 세로형 성적만
+잰다. 남은 열린 질문(사람 판정 대기): 가로형 홀드아웃 확보 방식
+(그대로 / 가로형 기기 1종 예외 이동 / 라벨 추가).
