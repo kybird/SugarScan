@@ -88,9 +88,9 @@ def _font(variant, px):
     return _fonts[key]
 
 
-def _glyph_mask(ch, variant, h):
-    """DSEG 글리프를 h 높이에 맞춘 이진 마스크로. NEAREST 리사이즈로 획을
-    뭉개지 않게 한다(획 굵기는 폰트 변형이 담당 — 파일 수정 금지, RFN)."""
+def _dseg_raster(ch, variant, h):
+    """DSEG 글리프 래스터 — 숫자 파라메트릭 렌더의 배치(자리·두께·비율)
+    원천이자 ModernLight·비숫자 폴백. 폰트 파일은 무수정(RFN)."""
     font = _font(variant, int(h * 1.35))
     pil = Image.new("L", (int(h * 1.4), int(h * 1.5)), 0)
     ImageDraw.Draw(pil).text((2, 2), ch, font=font, fill=255)
@@ -101,8 +101,141 @@ def _glyph_mask(ch, variant, h):
     m = a[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
     m = cv2.resize(m, (max(2, int(m.shape[1] * h / m.shape[0])), h),
                    interpolation=cv2.INTER_NEAREST) > 96
-    # 획 부풀림은 되돌렸다(사람 지시 2026-09-13) — 상/중/하 3분할로 숫자가
-    # 커지면 굵기도 같이 해결될 것이라는 판단이다. GLYPH_DILATE 를 0 보다
+    return m
+
+
+# ── 파라메트릭 숫자 글리프(사람 확정 스펙 2026-09-24, 카드
+# 「7-세그먼트 글리프 정밀화」 스파이크 v16) ── DSEG 배치는 그대로 읽고
+# 세그먼트 형상만 교체한다. trim 0.35t 코너 간극 · 바깥쪽만 무딘 테이퍼
+# (asym .30, 안쪽은 그대로) · 가운데 가로획 완전 대칭 · 테이퍼 길이=두께의
+# 절반(전 획 45도 — 대면 사선 평행, 사람 판정 'z=.50'). ModernLight(가는획+
+# 둥근끝 소수 기기)은 형상이 달라 DSEG 래스터를 그대로 쓴다.
+GLYPH_TRIM = 0.35
+GLYPH_ASYM = 0.30
+GLYPH_ZONE_T = 0.50
+_PARAM_VARIANTS = ("Light", "Regular", "Bold", "Italic",
+                   "LightItalic", "BoldItalic")
+_italic_shear_cache = {}
+
+
+def _hexleaf_bar(L, t, asym):
+    """확정 프리미티브 — 평행 옆면 + 끝 테이퍼. '바깥=위'로 구운다."""
+    a, k = L / 2.0, t / 2.0
+
+    def side(zone_scale):
+        zone_px = GLYPH_ZONE_T * t * max(0.0, zone_scale)
+        zone = max(1e-6, zone_px) / max(1e-6, 2 * a)   # 길이 비로 환산
+        u = np.linspace(0.0, 1.0, 200)
+        m = np.abs(u - 0.5)
+        flat = max(1e-6, 0.5 - zone)
+        s = np.clip((m - flat) / zone, 0.0, 1.0)
+        return np.where(m <= flat, 1.0, 1.0 - s) * k, u
+
+    top, u = side(1.0 - asym)               # 바깥(위) — asym 으로만 축소
+    bot, _ = side(1.0)                      # 안쪽(아래) — 대칭 그대로
+    pts = np.vstack([np.stack([u, -top], 1),
+                     np.stack([u[::-1], bot[::-1]], 1)]).astype(np.float32)
+    pts[:, 0] = pts[:, 0] * (2 * a) - a
+    H, W = 2 * int(k) + 7, 2 * int(a) + 7
+    canvas = np.zeros((H, W), np.uint8)
+    cv2.fillPoly(canvas,
+                 [np.round(pts + [W / 2.0, H / 2.0]).astype(np.int32)], 1)
+    return canvas.astype(np.float32)
+
+
+def _italic_shear(variant):
+    """DSEG 이탤릭의 기울기(x 이동/y) 측정 — '1' 세로획 상·하단 무게중심."""
+    if variant not in _italic_shear_cache:
+        r = _dseg_raster("1", variant, 200)
+        sh = 0.0
+        if r is not None:
+            b = r.astype(np.uint8)
+            n, lab = cv2.connectedComponents(b)
+            best = None
+            for i in range(1, n):
+                ys, xs = np.nonzero(lab == i)
+                if best is None or len(xs) > best[0]:
+                    best = (len(xs), xs, ys)
+            if best:
+                _, xs, ys = best
+                top = xs[ys < ys.min() + ys.ptp() * 0.2].mean()
+                bot = xs[ys > ys.max() - ys.ptp() * 0.2].mean()
+                sh = (top - bot) / max(1.0, float(ys.ptp()) * 0.6)
+        _italic_shear_cache[variant] = sh
+    return _italic_shear_cache[variant]
+
+
+def _param_glyph_mask(ch, variant, h):
+    """확정 스펙 숫자 마스크. 배치는 DSEG 래스터(h*2)의 연결요소에서,
+    형상은 프리미티브로. 이탤릭 변형은 축 정렬 조립 후 전단으로 기울임."""
+    base = _dseg_raster(ch, variant, h * 2)
+    if base is None:
+        return None
+    m0 = base.astype(np.uint8)
+    n0, lab0 = cv2.connectedComponents(m0)
+    H0, W0 = m0.shape
+    pd = max(4, int(round(2.5 * 0.12 * H0)))
+    H, W = H0 + 2 * pd, W0 + 2 * pd
+    acc = np.zeros((H, W), np.float32)
+    for i in range(1, n0):
+        ys, xs = np.nonzero(lab0 == i)
+        if len(xs) < 8:
+            continue
+        x0, x1, y0, y1 = xs.min(), xs.max(), ys.min(), ys.max()
+        w, hgt = x1 - x0 + 1, y1 - y0 + 1
+        t = float(min(w, hgt))
+        L = max(1.0, float(max(w, hgt)) - 2 * GLYPH_TRIM * t)
+        cx, cy = (x0 + x1) / 2.0 + pd, (y0 + y1) / 2.0 + pd
+        horiz = w > hgt
+        is_mid = False
+        if horiz:
+            cy0 = (H0 - 1) / 2.0
+            is_mid = abs((y0 + y1) / 2 - cy0) < 0.08 * H0
+            out_down = (y0 + y1) / 2 >= cy0 and not is_mid
+        else:
+            out_right = (x0 + x1) / 2 >= (W0 - 1) / 2
+        asym = GLYPH_ASYM
+        if is_mid:
+            asym = 0.0                        # 가운데 가로획 — 완전 대칭
+        bar = _hexleaf_bar(L, t, asym)
+        if horiz:
+            if asym and out_down:
+                bar = bar[::-1, :]
+        else:
+            bar = np.rot90(bar) if not out_right else np.rot90(bar, 3)
+        bh, bw = bar.shape
+        yy0 = int(round(cy - bh / 2.0))
+        xx0 = int(round(cx - bw / 2.0))
+        acc[yy0:yy0 + bh, xx0:xx0 + bw] = np.maximum(
+            acc[yy0:yy0 + bh, xx0:xx0 + bw], bar)
+    ys, xs = np.nonzero(acc > 0.5)
+    if not len(ys):
+        return None
+    acc = acc[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+    if "Italic" in variant:
+        sh = _italic_shear(variant)
+        if sh:
+            # 위가 오른쪽으로 기울도록: x' = x + sh*(cy - y)
+            H2, W2 = acc.shape
+            M = np.float32([[1, -sh, sh * H2 / 2.0], [0, 1, 0]])
+            acc = cv2.warpAffine(acc, M, (W2 + int(abs(sh) * H2) + 4, H2),
+                                 flags=cv2.INTER_LINEAR,
+                                 borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+    w2 = max(2, int(round(acc.shape[1] * h / acc.shape[0])))
+    out = cv2.resize(acc, (w2, h), interpolation=cv2.INTER_AREA)
+    return out > 0.5
+
+
+def _glyph_mask(ch, variant, h):
+    """숫자 글리프 마스크. Classic 계열 숫자는 확정 파라메트릭 형상,
+    나머지(ModernLight·비숫자)는 DSEG 래스터 그대로."""
+    if ch in "0123456789" and variant in _PARAM_VARIANTS:
+        m = _param_glyph_mask(ch, variant, h)
+    else:
+        m = _dseg_raster(ch, variant, h)
+    if m is None:
+        return None
+    # 획 부풀림은 되돌렸다(사람 지시 2026-09-13). GLYPH_DILATE 를 0 보다
     # 크게 두면 다시 켜진다.
     k = max(1, int(round(h * GLYPH_DILATE)))
     if GLYPH_DILATE > 0 and k > 1:
