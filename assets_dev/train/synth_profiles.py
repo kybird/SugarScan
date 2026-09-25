@@ -115,38 +115,22 @@ def _dseg_raster(ch, variant, h):
 # 보존 + 코너 갭이 DSEG 원본과 1px 이내): Light .05→2.7px(원본 2.7) ·
 # Regular .20→4.1(3.7) · Bold .25→3.7(4.1) · Italic .20→4.1 ·
 # LightItalic .10→3.7 · BoldItalic .30→5.1(3.7 — 전단이 갭을 좁혀 +.05).
-GLYPH_TRIM = {"Light": 0.05, "Regular": 0.20, "Bold": 0.25,
-              "Italic": 0.20, "LightItalic": 0.10, "BoldItalic": 0.30}
+# 절단 프리미티브용 trim(실측각 직선 절단 — 45도 테이퍼 시절 값과 호환
+# 없음). 안쪽 귀 후퇴 방향과 함께 잰 최소 안전값: 갭 1.9~3.3px(DSEG
+# 2.7~4.1 에 근접). 굵을수록 절단 돌출이 커 trim 도 컬라진다.
+GLYPH_TRIM = {"Light": 0.40, "Regular": 0.40, "Bold": 0.55,
+              "Italic": 0.40, "LightItalic": 0.40, "BoldItalic": 0.55}
+# 끝단 절단각(도) — 사람 선언 2026-09-25 "실측한 값으로 자르자".
+# 자: measure_endcut_angle.py(현 각도법, 실사진 중앙): 세로획 아래 15.1
+# · 위 11.8 · 가로획 좌 3.2 · 우 5.7. 이탤릭은 조립 후 전단이 절단면을
+# 기울기만큼 기울인다(사람 지시: "기울어진 각도만큼 기울여서 깎는다").
+# 절단 방향(어느 귀가 나가는가)은 바깥쪽 귀를 물러나게 둔다 — 눈검 대상.
+GLYPH_CUT = {"v_bottom": 15.1, "v_top": 11.8, "h_left": 3.2, "h_right": 5.7}
 GLYPH_ASYM = 0.30
 GLYPH_ZONE_T = 0.50
 _PARAM_VARIANTS = ("Light", "Regular", "Bold", "Italic",
                    "LightItalic", "BoldItalic")
 _italic_shear_cache = {}
-
-
-def _hexleaf_bar(L, t, asym):
-    """확정 프리미티브 — 평행 옆면 + 끝 테이퍼. '바깥=위'로 구운다."""
-    a, k = L / 2.0, t / 2.0
-
-    def side(zone_scale):
-        zone_px = GLYPH_ZONE_T * t * max(0.0, zone_scale)
-        zone = max(1e-6, zone_px) / max(1e-6, 2 * a)   # 길이 비로 환산
-        u = np.linspace(0.0, 1.0, 200)
-        m = np.abs(u - 0.5)
-        flat = max(1e-6, 0.5 - zone)
-        s = np.clip((m - flat) / zone, 0.0, 1.0)
-        return np.where(m <= flat, 1.0, 1.0 - s) * k, u
-
-    top, u = side(1.0 - asym)               # 바깥(위) — asym 으로만 축소
-    bot, _ = side(1.0)                      # 안쪽(아래) — 대칭 그대로
-    pts = np.vstack([np.stack([u, -top], 1),
-                     np.stack([u[::-1], bot[::-1]], 1)]).astype(np.float32)
-    pts[:, 0] = pts[:, 0] * (2 * a) - a
-    H, W = 2 * int(k) + 7, 2 * int(a) + 7
-    canvas = np.zeros((H, W), np.uint8)
-    cv2.fillPoly(canvas,
-                 [np.round(pts + [W / 2.0, H / 2.0]).astype(np.int32)], 1)
-    return canvas.astype(np.float32)
 
 
 def _italic_shear(variant):
@@ -169,6 +153,43 @@ def _italic_shear(variant):
                 sh = (top - bot) / max(1.0, float(ys.ptp()) * 0.6)
         _italic_shear_cache[variant] = sh
     return _italic_shear_cache[variant]
+
+
+def _cut_bar(L, t, a1, a2, a1_outer_neg, a2_outer_neg, vertical):
+    """직선 절단면 프리미티브(사람 선언 2026-09-25 — 실측각 절단).
+    vertical=False: 가로 막대. a1=왼끝 각(수직 기준, 도), a2=오른끝 각.
+    vertical=True: 세로 막대. a1=아래끝 각(수평 기준), a2=위끝 각.
+    *_outer_neg: 해당 끝에서 바깥쪽 귀가 음의 축 방향(-y 가로/-x 세로)
+    이면 True — 바깥 귀를 후퇴시킨다(덜 샤프). d=t·tanθ 는 절단면 폭."""
+    k = t / 2.0
+
+    def d(a):
+        # 측정각→실제 절단각 환산: 측정 자(measure_endcut_angle)의 극점 창이
+        # 폭의 4분할(0.25) 씩이라 각을 0.75배로 낮게 읽는다 — 실측값(15.1도
+        # 등)을 그대로 재현하려면 tan 을 4/3 배한다(같은 자로 재면 같은 값).
+        return t * float(np.tan(np.radians(a))) / 0.75
+
+    if not vertical:
+        # 다각형: (xL_out, -k) (xR_out, -k) (xR_in, +k) (xL_in, +k)
+        xL_out = -L / 2 + (d(a1) if a1_outer_neg else 0)
+        xL_in = -L / 2 + (0 if a1_outer_neg else d(a1))
+        xR_out = L / 2 - (0 if a2_outer_neg else d(a2))
+        xR_in = L / 2 - (d(a2) if a2_outer_neg else 0)
+        pts = np.array([[xL_out, -k], [xR_out, -k], [xR_in, k], [xL_in, k]],
+                       np.float32)
+        W, H = int(L) + int(max(d(a1), d(a2))) + 9, 2 * int(k) + 7
+    else:
+        # 세로 막대: (−k, yB_out) (k, yB_in) (k, yT_in) (−k, yT_out)
+        yB_out = -L / 2 + (d(a1) if a1_outer_neg else 0)
+        yB_in = -L / 2 + (0 if a1_outer_neg else d(a1))
+        yT_out = L / 2 - (0 if a2_outer_neg else d(a2))
+        yT_in = L / 2 - (d(a2) if a2_outer_neg else 0)
+        pts = np.array([[-k, yB_out], [k, yB_in], [k, yT_in], [-k, yT_out]],
+                       np.float32)
+        W, H = 2 * int(k) + 7, int(L) + int(max(d(a1), d(a2))) + 9
+    canvas = np.zeros((H, W), np.uint8)
+    cv2.fillPoly(canvas, [np.round(pts + [W / 2.0, H / 2.0]).astype(np.int32)], 1)
+    return canvas.astype(np.float32)
 
 
 _ITALIC_BASE = {"Italic": "Regular", "LightItalic": "Light",
@@ -209,15 +230,14 @@ def _param_glyph_mask(ch, variant, h):
             out_down = (y0 + y1) / 2 >= cy0 and not is_mid
         else:
             out_right = (x0 + x1) / 2 >= (W0 - 1) / 2
-        asym = GLYPH_ASYM
-        if is_mid:
-            asym = 0.0                        # 가운데 가로획 — 완전 대칭
-        bar = _hexleaf_bar(L, t, asym)
-        if horiz:
-            if asym and out_down:
-                bar = bar[::-1, :]
-        else:
-            bar = np.rot90(bar) if not out_right else np.rot90(bar, 3)
+        # 절단 방향: **안쪽 귀 후퇴, 바깥 귀 유지** — 숫자 코너에서 마주 보는
+        # 것은 안쪽 귀들이라 여기가 물러나야 갭이 공짜로 확보된다(바깥 귀를
+        # 물러나게 한 초안은 trim 0.6+ 를 요구해 획이 통째로 짧아졌다).
+        bar = _cut_bar(
+            L, t, GLYPH_CUT["h_left"], GLYPH_CUT["h_right"],
+            out_down, (not out_down), vertical=False) if horiz else _cut_bar(
+            L, t, GLYPH_CUT["v_bottom"], GLYPH_CUT["v_top"],
+            out_right, (not out_right), vertical=True)
         bh, bw = bar.shape
         yy0 = int(round(cy - bh / 2.0))
         xx0 = int(round(cx - bw / 2.0))
