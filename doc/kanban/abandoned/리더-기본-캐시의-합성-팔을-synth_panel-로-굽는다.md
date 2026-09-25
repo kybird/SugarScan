@@ -1,9 +1,10 @@
 ---
 title: 리더 기본 캐시의 합성 팔을 synth_panel 로 굽는다
-status: review
+status: abandoned
 ordinal: 47000
 created: 2026-09-13
 depends_on: ["합성 생성이 같은 시드에서 같은 코퍼스를 내게 한다"]
+discard_reason: 사람 승인 2026-09-24(권고 채택): 새 리더(reader_crnn)는 npz 캐시를 쓰지 않고 COCO 세트에서 직접 크롭해 학습 — 이 카드가 고치려는 기본 캐시의 소비자가 없다(아무도 안 쓰면 굽는 보람 없음). 디스크 1.3GB×7 벌 유지. 글리프 교체(58c12cc) 뒤 코퍼스 재생성은 새 경로(COCO/synth_panel gen)로 한다.
 ---
 
 ## Goal
