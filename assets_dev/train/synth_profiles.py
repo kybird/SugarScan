@@ -704,7 +704,11 @@ def device_identity(pid):
         groove=r.random() < 0.45,    # 움푹한 베젤 홈 유무
         groove_u=r.random(),         # 홈 깊이(있을 때)
         glyph_in_cell=r.uniform(*GLYPH_IN_CELL_RANGE),       # 글리프 폭 / 칸 피치
-        ghost=r.uniform(0.04, 0.11) if r.random() < 0.15 else 0.0,
+        # ghost 폐지(사람 선언 2026-09-24: 기기 고유 형질이 아니다 — 같은
+        # 기기도 조명·촬영 컨디션에 따라 보이거나 안 보인다. 장면별 뽑기는
+        # synth_panel). 이 키는 뒤따르는 형질의 난수 흐름을 보존하는 자리
+        # 지킴이 — 옛 ghost 와 같은 분기·같은 위치에서 소비만 한다.
+        _ghost_retired=(r.random() < 0.15 and r.randrange(4)) or None,
         bezel_i=r.randrange(8),      # 베젤 인쇄 문자열 선택(소비처가 나머지 연산)
         bezel_h=r.uniform(0.055, 0.085),   # 몸체 인쇄 글자 높이 / 유리 폭
         mg_l=r.uniform(0.01, 0.07), mg_r=r.uniform(0.01, 0.07),

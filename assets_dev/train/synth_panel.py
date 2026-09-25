@@ -1581,13 +1581,13 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel"):
             variant = "Italic" if variant == "Regular" else variant + "Italic"
     else:
         variant = _pick_variant(rng, bool(profile.get("italic")))
-    # 잔상 하향(2026-09-12): 2자리 값 실사진 3종(GC 녹십자 MS ONE 55 ·
-    # SD CodeFree 84 · Gmate 98)에서 빈 앞칸에 아무 흔적이 없었다. 확률 0.3 ·
-    # 농도 0.16 은 켜진 획과 구분이 어려울 만큼 자주·진하다.
-    # 잔상은 액정 구동의 성질이라 기기 형질이다 — 같은 기기가 어떤 장만
-    # 잔상이 있으면 다른 기기로 보인다.
-    ghost = (ident["ghost"] if ident is not None
-             else (rng.uniform(0.04, 0.11) if rng.random() < 0.15 else 0.0))
+    # 잔상(사람 선언 2026-09-24): 기기 고유 형질이 아니다 — 같은 기기도
+    # 조명·촬영 컨디션에 따라 보이거나 안 보인다. 장면별 rng 로 뽑는다:
+    # 대부분 0(안 보임), 보이면 배경색 근처의 옅음으로 0.03 이 흔하고
+    # 0.06 도 있다(이산 3종 — 연속 난수 아님).
+    # (역사: 2026-09-12 실사진 3종에서 빈 앞칸에 흔적 없어 하향. 옛
+    # 확률 0.3·농도 0.16, 다음 0.15·0.04~0.11 은 모두 근거 없는 임의값.)
+    ghost = (0.03, 0.03, 0.03, 0.06)[rng.randrange(4)] if rng.random() < 0.15 else 0.0
     glyph_cache = {}
     _band_clip = [0]        # 밴드 쿼드가 숫자 필드를 잘랐는가(자가검사)
     glyph_plane = np.zeros((H, W), np.uint8)
