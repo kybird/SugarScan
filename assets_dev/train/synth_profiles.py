@@ -314,10 +314,20 @@ def _param_glyph_mask(ch, variant, h):
     return out > 0.5
 
 
+# 파라메트릭 렌더 최소 높이 — 확정 형상은 큰 값 숫자(h 150~200) 기준이고
+# trim·절단 돌출은 두께 비례라 작은 높이에서는 세그먼트가 통째로 무너진다
+# (사람 보고 2026-09-26: 시간 표시 전부 깨짐 — h=24 에서 '0' 연결요소 1개).
+# 보조 글자(시간·날짜)는 "작은 글자는 세그먼트가 아니다"(2026-09-13) 철학대로
+# DSEG 래스터로 떨어뜨린다.
+PARAM_MIN_H = 150   # 확정 형상이 검증된 유일 크기 — 그 아래는 갭이 픽셀
+                    # 아래로 사라져 세그먼트가 통째로 병합된다(실측).
+
+
 def _glyph_mask(ch, variant, h):
     """숫자 글리프 마스크. Classic 계열 숫자는 확정 파라메트릭 형상,
-    나머지(ModernLight·비숫자)는 DSEG 래스터 그대로."""
-    if ch in "0123456789" and variant in _PARAM_VARIANTS:
+    나머지(ModernLight·비숫자)와 작은 높이(보조 글자)는 DSEG 래스터."""
+    if (ch in "0123456789" and variant in _PARAM_VARIANTS
+            and h >= PARAM_MIN_H):
         m = _param_glyph_mask(ch, variant, h)
     else:
         m = _dseg_raster(ch, variant, h)
