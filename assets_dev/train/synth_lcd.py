@@ -241,9 +241,11 @@ def _seg_draw_upright(canvas, x, y, text, h, thick, slant=0.0,
             # 사각 점 두 개 — 크기는 획 굵기, 자리는 획이 놓이는 높이다.
             r = max(2, int(round(h * 0.12)))
             gx = cx + max(1, int(round(h * 0.13)))
-            for fy in (0.28, 0.62):
-                cv2.rectangle(canvas, (gx, y + int(h * fy)),
-                              (gx + r, y + int(h * fy) + r), 255, -1)
+            # 점 중심이 0.33h/0.67h 대칭이 되도록(사람 지적 2026-09-26:
+            # "콜론 크기 위와 아래가 다르다") — 좌상단 = 중심−r/2.
+            for fy in (0.33, 0.67):
+                yy = y + int(round(h * fy - r / 2.0))
+                cv2.rectangle(canvas, (gx, yy), (gx + r, yy + r), 255, -1)
             cx += seg_char_advance(ch, h, slant, digit_w)
             continue
         if ch in "-.":
