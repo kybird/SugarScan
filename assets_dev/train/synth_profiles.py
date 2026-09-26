@@ -332,12 +332,26 @@ PARAM_MIN_H = 150   # 확정 형상이 검증된 유일 크기 — 그 아래는
                     # 아래로 사라져 세그먼트가 통째로 병합된다(실측).
 
 
+def _value_glyph_mask(ch, variant, h):
+    """값(혈당 숫자) 글리프 — 전 크기 파라메트릭. h<150 은 150 분해 좌표를
+    축소 배치하고 중앙 간격을 최종 픽셀 보장(≥1.8px)으로 연다. 값 숫자의
+    dh 분포는 16~427px(46% 가 150 미만)이라 문턱을 두면 값끼리 체계가
+    섞인다(사람 질문 2026-09-26: "h=51 이 혈당 표기 크기냐" — p10 이
+    정확히 51)."""
+    if h >= PARAM_MIN_H:
+        return _param_glyph_mask(ch, variant, h)
+    gap_abs = max(1.8, h * 0.055)
+    return _param_glyph_mask(ch, variant, h, base_h=PARAM_MIN_H,
+                             mid_extra_px=0.03 * h + gap_abs)
+
+
 def _glyph_mask(ch, variant, h):
-    """숫자 글리프 마스크. Classic 계열 숫자는 확정 파라메트릭 형상,
-    나머지(ModernLight·비숫자)와 작은 높이(보조 글자)는 DSEG 래스터."""
-    if (ch in "0123456789" and variant in _PARAM_VARIANTS
-            and h >= PARAM_MIN_H):
-        m = _param_glyph_mask(ch, variant, h)
+    """글리프 마스크 디스패처. 값 숫자(dh)는 _value_glyph_mask 를 쓰고,
+    보조 글자(시간·날짜 — synth_panel 의 _dmask 경로)는 수정하지 않기로
+    한 사람 확정(2026-09-26)대로 DSEG 래스터를 유지한다. 두 경로의
+    구분은 synth_panel 호출부에서 이룬다."""
+    if ch in "0123456789" and variant in _PARAM_VARIANTS:
+        m = _value_glyph_mask(ch, variant, h)
     else:
         m = _dseg_raster(ch, variant, h)
     if m is None:
