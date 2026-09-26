@@ -99,8 +99,11 @@ def _dseg_raster(ch, variant, h):
     if len(xs) == 0:
         return None
     m = a[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+    # NEAREST 는 축소 시 에일리어싱으로 베벨 노치를 가짜 획으로 복제한다
+    # (사람 지적 2026-09-26: h=24 왼쪽에 획 하나가 더 붙었다) — AREA 로
+    # 바꾸면 과표본의 평균이라 깨끗하다.
     m = cv2.resize(m, (max(2, int(m.shape[1] * h / m.shape[0])), h),
-                   interpolation=cv2.INTER_NEAREST) > 96
+                   interpolation=cv2.INTER_AREA) > 96
     return m
 
 
