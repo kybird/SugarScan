@@ -130,7 +130,7 @@ def _dseg_raster(ch, variant, h):
 # 기울기만큼 기울인다(사람 지시: "기울어진 각도만큼 기울여서 깎는다").
 # 절단 방향(어느 귀가 나가는가)은 바깥쪽 귀를 물러나게 둔다 — 눈검 대상.
 GLYPH_TRIM = {"Light": 0.11, "Regular": 0.20, "Bold": 0.32,
-              "Italic": 0.23, "LightItalic": 0.11, "BoldItalic": 0.32}
+              "Italic": 0.26, "LightItalic": 0.14, "BoldItalic": 0.32}
 GLYPH_CUT = {"v_bottom": 15.1, "v_top": 11.8, "h_left": 3.2, "h_right": 5.7}
 # 이탤릭 세로획 옆면각(도, 수직 기준) — DSEG 실측: Italic/LightItalic/
 # BoldItalic 모두 −4.95°(왼쪽 아래로). 사람 지적 2026-09-25: 옆면은
@@ -246,10 +246,25 @@ def _param_glyph_mask(ch, variant, h):
         w, hgt = x1 - x0 + 1, y1 - y0 + 1
         t = float(min(w, hgt))
         trim = GLYPH_TRIM[variant] if variant in GLYPH_TRIM else 0.20
-        L = max(1.0, float(max(w, hgt)) - 2 * trim * t)
         cx, cy = (x0 + x1) / 2.0 + pd, (y0 + y1) / 2.0 + pd
         horiz = w > hgt
         is_top = (not horiz) and (y0 + y1) / 2 < (H0 - 1) / 2.0
+        is_mid = False
+        # 세로획의 **중앙 쪽 끝은 DSEG 원본 위치를 유지**한다(사람 지적
+        # 2026-09-25: '0' 의 위/아래 획 사이 중앙 간격이 벌어졌다 — OLD
+        # 5px → NEW 13~22px). 길이는 코너 쪽만 trim 으로 줄이고, 중앙 쪽은
+        # 늘려 원본 끝 위치를 지킨다. 가로획은 양끝이 코너라 대칭 유지.
+        if not horiz:
+            is_bottom = not is_top
+            if is_top:
+                # 아래(중앙 쪽) 끝 유지: L 을 trim 만큼 늘리고 위로 고정
+                L = max(1.0, float(hgt) - trim * t)   # 아래쪽만 축소
+                cy = (y0 + y1) / 2.0 + pd + (trim * t) / 2.0
+            else:
+                L = max(1.0, float(hgt) - trim * t)
+                cy = (y0 + y1) / 2.0 + pd - (trim * t) / 2.0
+        else:
+            L = max(1.0, float(max(w, hgt)) - 2 * trim * t)
         is_mid = False
         if horiz:
             cy0 = (H0 - 1) / 2.0
