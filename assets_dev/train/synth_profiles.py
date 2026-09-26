@@ -223,14 +223,17 @@ _ITALIC_BASE = {"Italic": "Regular", "LightItalic": "Light",
 
 
 def _param_glyph_mask(ch, variant, h, trim_scale=1.0, mid_extra_ratio=None,
-                      thin=1.0):
+                      thin=1.0, base_h=None, mid_extra_px=None):
     """확정 스펙 숫자 마스크. 배치는 DSEG 래스터(h*2)의 연결요소에서,
     형상은 프리미티브로. 이탤릭 변형은 기울지 않은 동일 굵기 기저
     변형(_ITALIC_BASE)에서 축 정렬로 조립한 뒤 실측 전단으로 기울인다
     (사람 지적 2026-09-25: 기울어진 세로획의 bbox 두께가 1.2배 부풀고
     아래 90도 절단이 생긴다 — 이탤릭에 직교 컷 코드는 없어야 한다)."""
     build_variant = _ITALIC_BASE.get(variant, variant)
-    base = _dseg_raster(ch, build_variant, h * 2)
+    # 분해는 검증된 크기(150)에서 — 작은 래스터는 DSEG 자체가 병합돼
+    # 세그먼트 분해가 실패한다(사람 보고 2026-09-26 시간 표시 붕괴).
+    base_h = base_h or max(PARAM_MIN_H, h * 2)
+    base = _dseg_raster(ch, build_variant, base_h)
     if base is None:
         return None
     m0 = base.astype(np.uint8)
@@ -259,14 +262,18 @@ def _param_glyph_mask(ch, variant, h, trim_scale=1.0, mid_extra_ratio=None,
             # 두꺼운 변형은 중앙 간격이 상대적으로 더 좁아 보이므로(사람
             # 지적 2026-09-25: "bold·bolditalic 만 좀 더 조여야 한다") 중앙
             # 쪽 끝에 추가 후퇴를 둔다 — 굵기 비례.
-            mid_extra = ((mid_extra_ratio if mid_extra_ratio is not None
-                          else (0.06 if 'Bold' in variant else 0.0)) * t)
+            if mid_extra_px is not None:
+                # 최종(h) 픽셀 후퇴 → base 픽셀로 환산
+                mid_extra = mid_extra_px * (base_h / h)
+            else:
+                mid_extra = ((mid_extra_ratio if mid_extra_ratio is not None
+                              else (0.06 if 'Bold' in variant else 0.0)) * t)
             if is_top:
                 # 아래(중앙 쪽) 끝: 원본 위치에서 mid_extra 후퇴
-                L = max(1.0, float(hgt) - trim * t + mid_extra)
+                L = max(1.0, float(hgt) - trim * t - mid_extra)
                 cy = (y0 + y1) / 2.0 + pd + (trim * t - mid_extra) / 2.0
             else:
-                L = max(1.0, float(hgt) - trim * t + mid_extra)
+                L = max(1.0, float(hgt) - trim * t - mid_extra)
                 cy = (y0 + y1) / 2.0 + pd - (trim * t - mid_extra) / 2.0
         else:
             L = max(1.0, float(max(w, hgt)) - 2 * trim * t)
@@ -331,16 +338,6 @@ def _glyph_mask(ch, variant, h):
     if (ch in "0123456789" and variant in _PARAM_VARIANTS
             and h >= PARAM_MIN_H):
         m = _param_glyph_mask(ch, variant, h)
-    elif ch in "0123456789" and variant in _PARAM_VARIANTS:
-        # 소형(보조 글자) — 물리 비율 그대론 갭(2.3~3.7px@150)은 축소하면
-        # 픽셀 아래로 사라져 세그먼트가 붙는다(사람 지적 2026-09-26). 그래서
-        # 검증된 150 크기로 렌더하되 간격을 부스트(trim·mid_extra 확대)한
-        # 뒤 축소한다 — 실물 소형 LCD 사진도 간격이 비례보다 넓게 보인다.
-        m = _param_glyph_mask(ch, variant, PARAM_MIN_H,
-                              mid_extra_ratio=0.16, thin=0.72)
-        m = cv2.resize(m.astype(np.uint8) * 255,
-                       (max(2, int(round(m.shape[1] * h / m.shape[0]))), h),
-                       interpolation=cv2.INTER_AREA) > 127
     else:
         m = _dseg_raster(ch, variant, h)
     if m is None:
