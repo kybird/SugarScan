@@ -340,9 +340,14 @@ def _value_glyph_mask(ch, variant, h):
     정확히 51)."""
     if h >= PARAM_MIN_H:
         return _param_glyph_mask(ch, variant, h)
-    gap_abs = max(1.8, h * 0.055)
+    gap_abs = 1.8                               # 절대 보장 갭(고정)
+    # G 정점 겹침 해소(−0.03h)는 G 있는 숫자만 — G 없는 숫자('0'·'7'·'1')
+    # 는 자연 갭(0.025h) 대비 부족분의 절반만 후퇴(양 끝이니 ×2).
+    has_g = ch not in "017"
+    mid_px = ((0.03 * h + gap_abs) if has_g
+              else max(0.0, (gap_abs - 0.025 * h) / 2.0))
     return _param_glyph_mask(ch, variant, h, base_h=PARAM_MIN_H,
-                             mid_extra_px=0.03 * h + gap_abs)
+                             mid_extra_px=mid_px)
 
 
 def _glyph_mask(ch, variant, h):
