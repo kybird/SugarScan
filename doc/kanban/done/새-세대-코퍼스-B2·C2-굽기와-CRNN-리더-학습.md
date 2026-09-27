@@ -1,10 +1,8 @@
 ---
 title: 새 세대 코퍼스 B2·C2 굽기와 CRNN 리더 학습
-status: doing
+status: done
 ordinal: 26000
 created: 2026-09-24
-claimed_by: zcode-overnight
-claimed_at: 2026-09-24T23:13-07:00
 ---
 
 ## Goal
@@ -31,3 +29,4 @@ claimed_at: 2026-09-24T23:13-07:00
 ## Handoff
 
 ## Result
+- 2026-09-26T22:29-07:00 — 새 세대 코퍼스(파라메트릭 글리프·절단각·이탤릭 전단·변형별 trim·AREA·콜론 대칭 반영) B2 1,000·C2 300장 굽기 → 검출기 v2(합성+실사진 1,107 혼합 학습) → 리더 v2(CRNN, 검출 예측 박스 학습·jitter 0.12·90에폭) → C2 평가 **완전일치 92.00%**(n=300·건너뜀 0). 1차 28.04%에서 92%로 개선. 오독 8%의 원인: CTC 자릿수 누락 70%·시각 혼동 30%(박스 잘림 아님 — 폭비 중앙 1.003으로 정담 장과 동급). 자: build_synth_coco(B2·C2)·frame_panels_for_det·det_boxes_to_panel·yolox_bandft2_exp·reader_crnn. 체크포인트: yolox_out/bandft_v2·reader_crnn_v2.

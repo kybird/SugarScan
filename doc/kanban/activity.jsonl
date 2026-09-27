@@ -309,3 +309,15 @@
 {"ts":"2026-09-25T05:52:59.515Z","action":"done","title":"GM 검출이 근접 동점일 때 top-1 을 그냥 받는다"}
 {"ts":"2026-09-25T06:13:08.233Z","action":"created","title":"새 세대 코퍼스 B2·C2 굽기와 CRNN 리더 학습"}
 {"ts":"2026-09-25T06:13:29.469Z","action":"claimed","title":"새 세대 코퍼스 B2·C2 굽기와 CRNN 리더 학습","actor":"zcode-overnight"}
+{"ts":"2026-09-27T05:29:30.956Z","action":"done","title":"새 세대 코퍼스 B2·C2 굽기와 CRNN 리더 학습"}
+{"ts":"2026-09-27T05:29:51.044Z","action":"created","title":"리더 v2.1 — 빔 서치·에폭 확장으로 92→94%+"}
+{"ts":"2026-09-27T05:29:51.360Z","action":"created","title":"검출기 v2 홀드아웃 기록·ONNX 내보내기"}
+{"ts":"2026-09-27T05:30:09.594Z","action":"claimed","title":"검출기 v2 홀드아웃 기록·ONNX 내보내기","actor":"zcode-overnight"}
+{"ts":"2026-09-27T05:31:46.247Z","action":"done","title":"검출기 v2 홀드아웃 기록·ONNX 내보내기"}
+{"ts":"2026-09-27T05:32:00.841Z","action":"claimed","title":"리더 v2.1 — 빔 서치·에폭 확장으로 92→94%+","actor":"zcode-overnight"}
+{"ts":"2026-09-27T05:48:40.710Z","action":"done","title":"리더 v2.1 — 빔 서치·에폭 확장으로 92→94%+"}
+{"ts":"2026-09-27T05:51:19.030Z","action":"created","title":"단말 판독 파이프라인 완성"}
+{"ts":"2026-09-27T05:51:19.328Z","action":"created","title":"ONNX v2.1 재내보내기"}
+{"ts":"2026-09-27T05:51:19.645Z","action":"created","title":"실사진 끝단 파이프라인 측정"}
+{"ts":"2026-09-27T05:51:19.957Z","action":"created","title":"ONNX 런타임 선택·벤치"}
+{"ts":"2026-09-27T05:51:20.255Z","action":"created","title":"앱 판독 경로 통합"}
