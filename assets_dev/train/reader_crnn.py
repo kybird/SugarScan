@@ -68,6 +68,39 @@ def decode_greedy(logits):
     return out
 
 
+def decode_beam(logits, beam_width=5):
+    """CTC beam search — greedy 대비 자릿수 누락을 줄인다(카드 v2.1).
+    각 시간 스텝에서 상위 k 후보를 유지하며 prefix beam search."""
+    T, C = logits.shape[-2], logits.shape[-1]
+    log_probs = torch.log_softmax(logits, dim=-1)
+    out = []
+    for b in range(log_probs.shape[0]):
+        lp = log_probs[b].cpu().numpy()
+        beams = [([], 0.0)]              # (prefix, log_prob)
+        for t in range(T):
+            next_beams = {}
+            for prefix, score in beams:
+                for c in range(C):
+                    ns = score + lp[t, c]
+                    # blank: prefix 확정
+                    if c == BLANK:
+                        key = tuple(prefix)
+                        next_beams[key] = max(next_beams.get(key, -1e18), ns)
+                        continue
+                    ch = CHARSET[c]
+                    # 연속 중복은 접는다
+                    if prefix and prefix[-1] == ch:
+                        key = tuple(prefix)
+                        next_beams[key] = max(next_beams.get(key, -1e18), ns)
+                    else:
+                        key = tuple(prefix + [ch])
+                        next_beams[key] = max(next_beams.get(key, -1e18), ns)
+            beams = sorted(next_beams.items(), key=lambda x: -x[1])[:beam_width]
+            beams = [(list(k), v) for k, v in beams]
+        out.append("".join(beams[0][0]))
+    return out
+
+
 # ─── 데이터 ───────────────────────────────────────────────────────────────
 class BandCrops(torch.utils.data.Dataset):
     """COCO 세트의 상자로 크롭해 (1,IN_H,IN_W) 회색조와 라벨을 낸다.
@@ -194,12 +227,13 @@ def run_epoch(model, loader, crit, opt, dev):
 
 
 @torch.no_grad()
-def evaluate(model, loader, dev, dump=None):
+def evaluate(model, loader, dev, dump=None, beam=0):
     model.eval()
     ok = n = 0
     wrong = []
     for xs, _, _, labels in loader:
-        pred = decode_greedy(model(xs.to(dev)).cpu())
+        logits = model(xs.to(dev)).cpu()
+        pred = decode_beam(logits, beam) if beam > 0 else decode_greedy(logits)
         for p, g in zip(pred, labels):
             ok += int(p == g); n += 1
             if p != g and len(wrong) < 20:
@@ -226,6 +260,8 @@ def main():
     ap.add_argument("--jitter", type=float, default=0.0)
     ap.add_argument("--out", default=str(HERE / "reader_crnn"))
     ap.add_argument("--ckpt", default=None)
+    ap.add_argument("--beam", type=int, default=0,
+                    help=">0 이면 beam search(k=값)로 디코딩")
     args = ap.parse_args()
 
     if args.cmd == "measure":
@@ -270,7 +306,7 @@ def main():
     if args.cmd == "eval":
         model.load_state_dict(torch.load(args.ckpt, map_location=dev)["model"])
         ds = BandCrops(args.set, args.split, args.boxes)
-        acc, n = evaluate(model, loaders(ds, 64, False), dev, dump=True)
+        acc, n = evaluate(model, loaders(ds, 64, False), dev, dump=True, beam=args.beam)
         print(f"완전일치 {acc*100:.2f}% (n={n}, 모집단 {args.set}/{args.split}, "
               f"상자 {args.boxes or '정답'}, 건너뜀 {ds.skipped})")
         return 0
