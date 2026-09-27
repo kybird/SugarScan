@@ -57,6 +57,16 @@ def main():
         rs = [r for r in rs if r["id"] not in ex]
         print(f"사람 선언 제외 {n0 - len(rs)}장: " +
               ", ".join(f"{k}({v})" for k, v in ex.items()))
+    # 가로형(90° 회전 사진 포함)은 밴드 비율 자체가 다르다 — 세로형 w/h 기준을
+    # 그대로 적용하면 1565(회전 가로형, w/h 0.57)처럼 빈자리 누락으로 오탐한다.
+    # 사람 지적 2026-09-27: "1565 는 가로형 모델을 90도 돌린 사진이다, 틀린
+    # 것이 없다." wide_ids(wide_all 자)로 제외한다.
+    wp = HERE / "_diag" / "wide_all" / "wide_ids.json"
+    if wp.exists():
+        wide = set(json.loads(wp.read_text(encoding="utf-8")))
+        n0 = len(rs)
+        rs = [r for r in rs if r["id"] not in wide]
+        print(f"가로형 제외 {n0 - len(rs)}장(wide_ids)")
     med = {nd: float(np.median([r["wh"] for r in rs if r["nd"] == nd]))
            for nd in {r["nd"] for r in rs}}
     cut = med[3] * THRESH
