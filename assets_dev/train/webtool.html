@@ -202,6 +202,7 @@ tr.miss td.mono { color: var(--bad); }
         <option value="bandreview">밴드 라벨 전수 검토 (의심 순)</option>
         <option value="bandwide">밴드 · 가로형 전수 검토 (기기 안 편차 순)</option>
         <option value="unitclip">밴드 · 단위 걸침 감사 (숫자줄만 규약, 의심 순)</option>
+        <option value="fixfirst">밴드 · 틀림 우선 수선 (11장 — 확정 5 + 1차 판정 6)</option>
         <option value="unlabeled">라벨 없음만</option>
       </select>
     </label>
@@ -375,7 +376,8 @@ const lb = {
           slotfix: new Set(),
           bandreview: new Set(),
           bandwide: new Set(),
-          unitclip: new Set() },
+          unitclip: new Set(),
+          fixfirst: new Set() },
   holdout: new Set(), pilotNote: {},
 };
 const cv = $("cv"), ctx = cv.getContext("2d");
@@ -410,6 +412,7 @@ async function boot() {
     lb.fail.bandreview = new Set(f.band_review || []);
     lb.fail.bandwide = new Set(f.band_wide || []);
     lb.fail.unitclip = new Set(f.unit_clip || []);
+    lb.fail.fixfirst = new Set(f.fix_first || []);
     lb.holdout = new Set(f.lcd_holdout || []);
     lb.pilotNote = Object.assign({}, f.band_pilot_note || {}, f.lcd_fix_note || {},
                                  f.wide_band_note || {}, f.label_audit_note || {},
@@ -417,7 +420,8 @@ async function boot() {
                                  f.band_slot_fix_note || {},
                                  f.band_review_note || {},
                                  f.band_wide_note || {},
-                                 f.unit_clip_note || {});
+                                 f.unit_clip_note || {},
+                                 f.fix_first_note || {});
   } catch (e) { /* /api/failures 없는 구형 서버 */ }
   await loadMode(lb.mode);
   lb.idx = lb.meta.items.findIndex(it => !isLabeled(it));
@@ -491,6 +495,14 @@ function applyQueueFilter() {
     // 올려 저장, 깨끗한 장은 I로 확인 마크 — 사람 선언(2026-09-27) 규약은
     // '숫자줄만' 하나다.
     const order = [...lb.fail.unitclip];
+    const rank = new Map(order.map((id, i) => [id, i]));
+    lb.meta.items = lb.meta.items
+      .filter(it => rank.has(it.id))
+      .sort((a, b) => rank.get(a.id) - rank.get(b.id));
+  } else if (q === "fixfirst" && lb.fail.fixfirst && lb.fail.fixfirst.size) {
+    // 틀림 우선 수선 — 확정(빈 앞자리) 먼저, 그다음 1차 판정(걸침·절단).
+    // 노트에 치료 액션이 적혀 있다.
+    const order = [...lb.fail.fixfirst];
     const rank = new Map(order.map((id, i) => [id, i]));
     lb.meta.items = lb.meta.items
       .filter(it => rank.has(it.id))
@@ -619,7 +631,8 @@ async function show(idx) {
       const note = lb.pilotNote ? lb.pilotNote[it.id] : null;
       pn.textContent = ((q === "bandseed" || q === "pilot" || q === "lcdfix" || q === "wideband"
                        || q === "labelaudit" || q === "slotfix"
-                       || q === "bandreview" || q === "bandwide" || q === "unitclip")
+                       || q === "bandreview" || q === "bandwide" || q === "unitclip"
+                       || q === "fixfirst")
                        && note) ? `· ${note}` : "";
       pn.style.color = "#8ab4f8";
     }
