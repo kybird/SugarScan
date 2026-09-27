@@ -67,32 +67,58 @@ def main():
         n0 = len(rs)
         rs = [r for r in rs if r["id"] not in wide]
         print(f"가로형 제외 {n0 - len(rs)}장(wide_ids)")
-    med = {nd: float(np.median([r["wh"] for r in rs if r["nd"] == nd]))
-           for nd in {r["nd"] for r in rs}}
-    cut = med[3] * THRESH
 
-    fix = [r for r in rs if r["nd"] == 2 and r["wh"] < cut]
+    # 기기 라벨 — w/h 는 기기마다 밴드 폭이 달라 전체 중앙으로 재면 좁은
+    # 기기(CareSens N 중앙 1.33)가 통째로 걸린다. 사람 지적 2026-09-27:
+    # "1000 은 빈 앞자리까지 충분하게 제대로 라벨링되어 있다." 기기 내
+    # 3자리 중앙(n>=5)이 있으면 그 기기 기준으로 재고, 없으면 전체 기준
+    # 폴백 — note 에 어느 기준인지 적는다(band_wide_queue 와 같은 처방).
+    dev = {}
+    dl = HERE / "device_labels.jsonl"
+    if dl.exists():
+        for line in dl.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                j = json.loads(line)
+                dev[j["id"]] = f"{j['brand']} {j['model']}".strip()
+    med_all = {nd: float(np.median([r["wh"] for r in rs if r["nd"] == nd]))
+               for nd in {r["nd"] for r in rs}}
+    med_dev = {}
+    for d in {dev.get(r["id"]) for r in rs}:
+        w3 = [r["wh"] for r in rs
+              if dev.get(r["id"]) == d and r["nd"] == 3]
+        if d and len(w3) >= 5:
+            med_dev[d] = float(np.median(w3))
+
+    def basis(r):
+        d = dev.get(r["id"])
+        if d in med_dev:
+            return med_dev[d], f"기기[{d}] 3자리 중앙 {med_dev[d]:.2f}"
+        return med_all[3], f"전체 3자리 중앙 {med_all[3]:.2f}(기기 표본 부족)"
+
+    fix = [r for r in rs if r["nd"] == 2 and r["wh"] < basis(r)[0] * THRESH]
     fix.sort(key=lambda r: r["wh"])
     (HERE / "band_slot_fix_queue.json").write_text(json.dumps(
         [dict(id=r["id"], stratum="빈자리 누락",
-              note=f"값 {r['val']}({r['nd']}자리) · 상자 w/h {r['wh']:.2f} "
-                   f"(3자리 중앙 {med[3]:.2f}) · 빈 앞자리까지 감싼다")
+              note=f"값 {r['val']}({r['nd']}자리) · 상자 w/h {r['wh']:.2f} · "
+                   f"{basis(r)[1]} · 빈 앞자리까지 감싼다")
          for r in fix], ensure_ascii=False, indent=1), encoding="utf-8")
 
     # 전수 — 자릿수별 중앙에서 벗어난 정도가 큰 순
     for r in rs:
-        r["dev"] = abs(r["wh"] - med[r["nd"]]) / med[r["nd"]]
+        r["dev"] = abs(r["wh"] - med_all[r["nd"]]) / med_all[r["nd"]]
     rs.sort(key=lambda r: -r["dev"])
     (HERE / "band_review_queue.json").write_text(json.dumps(
         [dict(id=r["id"], stratum=f"{r['nd']}자리",
               note=f"값 {r['val']} · 상자 w/h {r['wh']:.2f} "
-                   f"(같은 자릿수 중앙 {med[r['nd']]:.2f}, 편차 {r['dev'] * 100:+.0f}%)")
+                   f"(같은 자릿수 중앙 {med_all[r['nd']]:.2f}, 편차 {r['dev'] * 100:+.0f}%)")
          for r in rs], ensure_ascii=False, indent=1), encoding="utf-8")
 
     print(f"band_slot_fix_queue.json   {len(fix)}장  (고칠 것)")
     print(f"band_review_queue.json     {len(rs)}장  (전수 검토, 의심 순)")
     print(f"자릿수별 중앙 w/h: " +
-          "  ".join(f"{k}자리 {v:.3f}" for k, v in sorted(med.items())))
+          "  ".join(f"{k}자리 {v:.3f}" for k, v in sorted(med_all.items())))
+    print(f"기기 내 기준 적용 {len(med_dev)}개 기기: " +
+          ", ".join(f"{d} {m:.2f}" for d, m in sorted(med_dev.items())))
     print("\n전수 큐 앞 10장 — 여기부터 보면 된다")
     for r in rs[:10]:
         print(f"   {r['id']:<22} 값 {r['val']:>4}  w/h {r['wh']:.2f}  "

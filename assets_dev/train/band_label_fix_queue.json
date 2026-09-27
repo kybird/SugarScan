@@ -1,10 +1,6 @@
 [
-  {"id": "glucose_batch1/1",    "stratum": "fix-wide",  "note": "확정 · 빈 앞자리 누락 — 폭을 빈칸까지 확장"},
-  {"id": "glucose_batch1/1004", "stratum": "fix-wide",  "note": "확정 · 빈 앞자리 누락 — 폭을 빈칸까지 확장"},
-  {"id": "glucose_batch1/1002", "stratum": "fix-wide",  "note": "확정 · 빈 앞자리 누락 — 폭을 빈칸까지 확장"},
-  {"id": "glucose_batch1/1017", "stratum": "fix-wide",  "note": "확정 · 빈 앞자리 누락 — 폭을 빈칸까지 확장"},
-  {"id": "glucose_batch1/1000", "stratum": "review-wide", "note": "커트 근접(w/h 1.31) — 화면에서 빈칸 확인"},
-  {"id": "glucose_batch1/1388", "stratum": "review-wide", "note": "커트 근접(w/h 1.30) — 화면에서 빈칸 확인"},
+  {"id": "glucose_batch1/1100", "stratum": "fix-wide",  "note": "확정 · 빈 앞자리 누락 — 폭을 빈칸까지 확장 (Gluco Dr.TOP 기기 중앙 1.78 vs 이 장 1.41)"},
+  {"id": "glucose_batch1/1",    "stratum": "review-wide", "note": "커트 근접(w/h 1.18, 기기 표본 부족) — 화면에서 빈칸 확인"},
   {"id": "glucose_batch1/1945", "stratum": "fix-clip",  "note": "1차판정 · 단위 절반 이상 걸침 — 하단 조임"},
   {"id": "glucose_batch1/969",  "stratum": "fix-clip",  "note": "1차판정 · 단위 절반 이상 걸침 — 하단 조임"},
   {"id": "glucose_batch1/2500", "stratum": "fix-clip",  "note": "1차판정 · 단위 절반 이상 걸침 — 하단 조임"},
