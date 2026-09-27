@@ -197,7 +197,8 @@ def api_labels(qs):
     rows = read_jsonl(p)
     out = {}
     for cid, j in rows.items():
-        out[cid] = {"quad": j.get("quad"), "source": j.get("source")}
+        out[cid] = {"quad": j.get("quad"), "source": j.get("source"),
+                    "convention": j.get("convention")}
     return {"labels": out}
 
 
@@ -2473,6 +2474,13 @@ class Handler(BaseHTTPRequestHandler):
                 prev = rows.get(cid) or {}
                 if prev.get("upright") is not None and "upright" not in row:
                     row["upright"] = prev["upright"]
+                # 규약 마크(U/I 키) — 명시 안 보내면 이전 마크를 유지한다.
+                # 일반 저장(Space)이 규약 판정을 조용히 지우면 안 된다.
+                cv = body.get("convention")
+                if cv in ("digits", "with-unit"):
+                    row["convention"] = cv
+                elif prev.get("convention"):
+                    row["convention"] = prev["convention"]
                 rows[cid] = row
             write_jsonl(p, rows)
             self._json({"ok": True})
