@@ -700,9 +700,13 @@ def api_failures(qs):
     review, review_note = _queue("band_review_queue.json")
     # 가로형 밴드 전수 검토 — make_wide_review_queue.py. 그 기기 자신의 중앙값
     # 에서 벗어난 순이다(기기마다 밴드 폭이 다르므로 전체 분포로 재면 정상
-    # 기기가 통째로 걸린다). 2026-09-15 밤샘: 세로형은 0.780->0.859 로 올랐는데
+    # 기기가 통체로 걸린다). 2026-09-15 밤샘: 세로형은 0.780->0.859 로 올랐는데
     # 가로형만 0.69 에서 안 움직였다 — 라벨을 의심할 차례다.
     wide2, wide2_note = _queue("band_wide_queue.json")
+    # 단위 걸침 감사 — make_unit_clip_queue.py. 사람 선언(2026-09-27): 밴드
+    # 라벨 규약은 '숫자줄만' 하나다. 단위가 라벨에 보이는 건 여백이 넉넉해
+    # 가장자리에 걸친 것 — 이 큐는 그 걸침을 조여 없애는 순회다.
+    unitclip, unitclip_note = _queue("band_unit_clip_queue.json")
     # 테스트 holdout — 라벨링하면 개선을 잴 데가 없어진다. 큐에서 빼는 것으로는
     # 부족하고(전체 큐로 들어올 수 있다) 화면에 경고를 띄운다.
     hold, _ = _queue("lcd_fix_holdout.json")
@@ -715,6 +719,7 @@ def api_failures(qs):
             "band_slot_fix": slotfix, "band_slot_fix_note": slotfix_note,
             "band_review": review, "band_review_note": review_note,
             "band_wide": wide2, "band_wide_note": wide2_note,
+            "unit_clip": unitclip, "unit_clip_note": unitclip_note,
             "lcd_holdout": hold}
 
 
@@ -2474,10 +2479,11 @@ class Handler(BaseHTTPRequestHandler):
                 prev = rows.get(cid) or {}
                 if prev.get("upright") is not None and "upright" not in row:
                     row["upright"] = prev["upright"]
-                # 규약 마크(U/I 키) — 명시 안 보내면 이전 마크를 유지한다.
-                # 일반 저장(Space)이 규약 판정을 조용히 지우면 안 된다.
+                # 규약 확인 마크(I키) — 사람 선언(2026-09-27): 밴드 라벨 규약은
+                # '숫자줄만' 하나다. 확인 마크만 저장하고 일반 저장(Space)은
+                # 기존 마크를 유지한다.
                 cv = body.get("convention")
-                if cv in ("digits", "with-unit"):
+                if cv == "digits":
                     row["convention"] = cv
                 elif prev.get("convention"):
                     row["convention"] = prev["convention"]
