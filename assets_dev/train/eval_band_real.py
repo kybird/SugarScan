@@ -330,9 +330,18 @@ def predict_dir(ckpt, photo_dir, prefix, conf=0.25, limit=0, tag=None,
             "iou_med": None}
 
 
+def coco_ids(path):
+    """COCO 주석 json → 모집단 id 목록. file_name 규약은 build_band_ft_coco
+    (cid.replace('/', '__') + '.png') 의 역변환이다."""
+    ann = json.loads(Path(path).read_text(encoding="utf-8"))
+    return [Path(im["file_name"]).stem.replace("__", "/")
+            for im in ann["images"]]
+
+
 @torch.no_grad()
 def evaluate(ckpt, conf=0.25, limit=0, overlay=True, tag=None,
-             input_size=None, out_dir=None):
+             input_size=None, out_dir=None, exclude_coco=None,
+             exclude_accepted=False):
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     c = torch.load(ckpt, map_location="cpu", weights_only=False)
     model = BandNet(width=c["width"], stride=c.get("stride", 16)).to(dev).eval()
@@ -343,6 +352,30 @@ def evaluate(ckpt, conf=0.25, limit=0, overlay=True, tag=None,
         name += f"_size{size}"
 
     ids, band, lab, n_ex = population()
+    n_ft = 0
+    if exclude_coco:
+        # 파인튜닝 학습장을 뺀다 — 모집단에 학습 사진이 남으면 IoU 는
+        # 암기 점수가 된다. 사람 제외 선언(band_exclusions)과는 별개 축이다.
+        ft = set()
+        for p in exclude_coco:
+            ft |= set(coco_ids(p))
+        before = len(ids)
+        ids = [i for i in ids if i not in ft]
+        n_ft = before - len(ids)
+        if not ids:
+            raise SystemExit("제외 뒤 평가할 장이 없다")
+    n_acc = 0
+    if exclude_accepted:
+        # A키(웹툴 acceptPred)가 저장한 라벨을 뺀다 — 파란 예측을 무수정
+        # 수락한 장이라 그대로 두면 예측 모델이 자기 예측을 채점한다.
+        # 판정(좌표차 0.0)의 정본은 band_label_provenance 다.
+        from band_label_provenance import accepted_ids
+        acc = accepted_ids()
+        before = len(ids)
+        ids = [i for i in ids if i not in acc]
+        n_acc = before - len(ids)
+        if not ids:
+            raise SystemExit("제외 뒤 평가할 장이 없다")
     if limit:
         ids = ids[:limit]
     wide = set(json.loads(WIDE_IDS.read_text(encoding="utf-8"))) \
@@ -411,18 +444,20 @@ def evaluate(ckpt, conf=0.25, limit=0, overlay=True, tag=None,
     if overlay and ovl:
         OVERLAY.write_text("\n".join(json.dumps(o, ensure_ascii=False)
                                      for o in ovl) + "\n", encoding="utf-8")
-    return summarize(name, rows, c, n_ex, res_p)
+    return summarize(name, rows, c, n_ex, res_p, n_ft=n_ft, n_acc=n_acc)
 
 
-def summarize(name, rows, meta, n_ex, res_p):
+def summarize(name, rows, meta, n_ex, res_p, n_ft=0, n_acc=0):
     n = len(rows)
     hit = [r for r in rows if r["det"]]
     tall = [r for r in rows if not r["wide"]]
     wide = [r for r in rows if r["wide"]]
     print(f"체크포인트 {name} · 학습장수 {meta['n_images']} · "
           f"{meta['param']/1e6:.3f}M · 스텝 {meta['steps']}")
-    print(f"  모집단 실촬 전체사진 n={n} (사람 제외 선언 {n_ex}장 뺌) · "
-          f"입력은 자르지 않은 원본")
+    print(f"  모집단 실촬 전체사진 n={n} (사람 제외 선언 {n_ex}장 뺌"
+          + (f" · 파인튜닝 학습 {n_ft}장 뺌" if n_ft else "")
+          + (f" · A키 수락 {n_acc}장 뺌" if n_acc else "")
+          + ") · 입력은 자르지 않은 원본")
     print(f"  검출 실패 {n - len(hit)}")
     for lbl, sel in (("전체", rows), ("세로형", tall), ("가로형", wide)):
         if not sel:
@@ -449,7 +484,7 @@ def summarize(name, rows, meta, n_ex, res_p):
         print("    **보수적인 밴드 기준이다 — 합성 합격률과 한 표에 놓지 않는다.**")
     print(f"  -> {res_p}")
     cv = np.array([r["contain"] for r in hit]) if hit else np.array([0.0])
-    return {"name": name, "n": n, "miss": n - len(hit),
+    return {"name": name, "n": n, "miss": n - len(hit), "n_ft_ex": n_ft,
             "contain1": float((cv >= .999).mean()),
             "iou_med": float(np.median([r["iou"] for r in hit])) if hit else 0.0}
 
@@ -462,6 +497,12 @@ def main():
     ap.add_argument("--no-overlay", action="store_true")
     ap.add_argument("--input-size", type=int, help="밴드 라벨 평가의 진단용 입력 해상도")
     ap.add_argument("--out-dir", help="밴드 라벨 평가 결과의 별도 디렉터리")
+    ap.add_argument("--exclude-coco", nargs="+", default=None,
+                    help="COCO 주석 json. 그 이미지를 모집단에서 뺀다 — "
+                         "파인튜닝 학습장 누수 없는 홀드아웃 재기")
+    ap.add_argument("--exclude-accepted", action="store_true",
+                    help="A키로 예측을 무수정 수락한 라벨(좌표차 0.0)을 뺀다 — "
+                         "예측 모델의 자기 채점 방지")
     ap.add_argument("--photodir", default=None,
                     help="정답 없는 사진 폴더에 예측만 낸다")
     ap.add_argument("--prefix", default="datacluster",
@@ -493,7 +534,9 @@ def main():
     out = []
     for c in a.ckpt:
         out.append(evaluate(c, a.conf, a.limit, not a.no_overlay,
-                            input_size=a.input_size, out_dir=a.out_dir))
+                            input_size=a.input_size, out_dir=a.out_dir,
+                            exclude_coco=a.exclude_coco,
+                            exclude_accepted=a.exclude_accepted))
         print()
     print(f"{'체크포인트':<18}{'n':>5}{'실패':>6}{'포함률1.0':>11}{'IoU중앙':>9}")
     for s in out:

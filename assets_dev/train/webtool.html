@@ -1010,6 +1010,8 @@ window.addEventListener("keydown", (e) => {
     const i = lb.meta.items.findIndex(x => x.id === k || x.id.endsWith("/" + k));
     if (i < 0) { toast("id 없음: " + k); return; }
     show(i);
+  } else if ((e.key === "a" || e.key === "A") && lb.mode === "band" && !rectOpen) {
+    acceptPred();
   } else if (e.key === "PageDown" || e.key === "n" || e.key === "N") {
     // 검수용: 저장 없이 다음 장. (저장·스킵도 같은 규칙으로 한 칸씩 순차 진행한다.)
     e.preventDefault();
@@ -1076,6 +1078,28 @@ async function saveBox() {
   if (rectOpen) refreshRect();
   // 저장 후 이동 — 예전엔 '다음 미라벨'로 점프했으나(라벨링 sprint 용) 전수조사에서는
   // 매번 멀리 텔레포트돼 위치를 잃었다. 저장·스킵 공통: 항상 한 칸 순차 진행.
+  if (lb.idx + 1 < lb.meta.items.length) show(lb.idx + 1);
+  else { toast("마지막 장"); updateCounts(); }
+}
+
+// A키: 파란 예측 박스를 그대로 수락하고 저장+다음장(2026-09-26).
+// 사용자 전사진 밴드 라벨 확대용 — atone_s0 예측(IoU 중액 0.851)을
+// 한 키로 검증한다. 틀린 것만 마우스로 조정하면 된다.
+// source 는 "pred-accepted" 다 — "human" 으로 찍으면 이 장이 예측 모델
+// 평가의 정답으로 들어가 자기 채점이 된다(2026-09-27, 89장 오염 실측).
+async function acceptPred() {
+  const it = curItem();
+  if (!it) return;
+  const pred = lb.quads[it.id];
+  if (!pred) { toast("예측 박스 없음 — 수동으로 그려주세요"); return; }
+  const body = { mode: lb.mode, id: it.id, quad: pred,
+                 source: "pred-accepted", ow: lb.ow, oh: lb.oh };
+  const r = await post("/api/label", body);
+  if (r.error) { toast("저장 실패: " + r.error); return; }
+  lb.labels[it.id] = { quad: pred, source: "pred-accepted" };
+  it[MODES[lb.mode].flag] = true;
+  toast("수락: " + it.id);
+  if (rectOpen) refreshRect();
   if (lb.idx + 1 < lb.meta.items.length) show(lb.idx + 1);
   else { toast("마지막 장"); updateCounts(); }
 }

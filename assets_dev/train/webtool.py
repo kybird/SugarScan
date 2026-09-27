@@ -2446,6 +2446,8 @@ class Handler(BaseHTTPRequestHandler):
             rows = read_jsonl(p)
             cid = body.get("id", "")
             src = body.get("source", "human")
+            if src not in ("human", "skipped", "pred-accepted"):
+                src = "human"  # 모르는 출처 값은 화이트리스트로 못박는다
             if not cid or ".." in cid or cid.startswith("/"):
                 self._json({"error": "bad id"}, 400)
                 return
@@ -2460,7 +2462,10 @@ class Handler(BaseHTTPRequestHandler):
                 if err:
                     self._json({"error": err}, 409)
                     return
-                row = {"id": cid, "quad": quad, "source": "human",
+                # A키(acceptPred)가 보내는 "pred-accepted" 를 살린다 —
+                # "human" 으로 못박으면 예측 수락장이 평가 정답으로 섞여
+                # 검출기가 자기 예측을 채점한다(2026-09-27 실측 89장).
+                row = {"id": cid, "quad": quad, "source": src,
                        "ow": ow, "oh": oh}
                 uk = body.get("upright_k")
                 if uk in (0, 90, 180, 270):

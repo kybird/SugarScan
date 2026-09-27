@@ -297,7 +297,13 @@ def run(args):
                     num_workers=args.workers, drop_last=True, pin_memory=True,
                     persistent_workers=args.workers > 0,
                     worker_init_fn=init_worker)
-    model = BandNet(width=args.width, stride=args.stride).to(dev)
+    model = BandNet(width=args.width, stride=args.stride)
+    if args.resume:
+        ckpt = torch.load(args.resume, map_location="cpu")
+        sd = ckpt.get("model", ckpt)
+        model.load_state_dict(sd)
+        print(f"resumed from {args.resume}")
+    model = model.to(dev)
     nparam = sum(p.numel() for p in model.parameters())
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=5e-4)
     scaler = torch.amp.GradScaler(dev, enabled=(dev == "cuda"))
@@ -456,6 +462,8 @@ def main():
                     help="증강 축소 하한. 기본값은 사람이 정한 값이다")
     ap.add_argument("--grow", type=float, default=0.0,
                     help="정답 상자를 상자 높이의 이 비율만큼 사방 확대")
+    ap.add_argument("--resume", default=None,
+                    help="이 체크포인트에서 이어 학습한다(파인튜닝용)")
     ap.add_argument("--under-w", type=float, default=1.0,
                     help=">1 이면 정답보다 모자란 변에 추가 벌점")
     ap.add_argument("--score-warm", type=int, default=1000,
