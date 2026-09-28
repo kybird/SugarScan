@@ -28,7 +28,11 @@ from gm_quads import load_gm_quads
 
 HERE = Path(__file__).resolve().parent
 UP = HERE.parent / "upstream" / "datumo"
-THRESH = 0.80          # 3자리 중앙 w/h 대비 — band_label_slot_audit 와 같은 값
+THRESH = 0.70          # 3자리 중앙 w/h 대비. 0.80 이었으나 오탐 3연발로 낮췄다
+                      # (사람 지적 2026-09-27): 1565 회전 가로형·1000 원래 좁은
+                      # 기기·1100 높이 여백 과대. w/h 는 폭 결함 지표인 척하지만
+                      # 높이에도 반응한다 — 숫자 2개만 감싼 극단(≈3자리의 2/3)
+                      # 만 확정 잡고 나머지는 잡지 않는다.
 
 
 def rows():
