@@ -334,3 +334,7 @@
 {"ts":"2026-09-28T06:26:36.557Z","action":"created","title":"밴드 라벨 규약 순회 — 수선 8장 + 걸침 감사 235장"}
 {"ts":"2026-09-28T06:26:53.437Z","action":"created","title":"BandNet 재학습 묶음 — 단위 네거티브 + 640 + width 1.5 + 3만장"}
 {"ts":"2026-09-28T07:24:14.762Z","action":"done","title":"밴드 라벨 규약 순회 — 수선 8장 + 걸침 감사 235장"}
+{"ts":"2026-09-28T07:44:16.240Z","action":"claimed","title":"ONNX v2.1 재내보내기","actor":"BandNet 재학습 묶음 — 단위 네거티브 + 640 + width 1.5 + 3만장"}
+{"ts":"2026-09-28T08:43:28.867Z","action":"handoff","title":"ONNX v2.1 재내보내기","detail":"잘못 집힘(2026-09-28 00:40 pick --claim 함정 — claim 자리에 카드 제목을 넣어 ordinal 최저 카드가 집혔다). 재학습 묶음 완료 전에는 수행 불가. 반납한다."}
+{"ts":"2026-09-28T08:43:29.143Z","action":"resumed","title":"ONNX v2.1 재내보내기","detail":"잘못 집음 반납 — 검출기 확정(재학습 평가) 후 수행"}
+{"ts":"2026-09-28T08:43:29.473Z","action":"claimed","title":"BandNet 재학습 묶음 — 단위 네거티브 + 640 + width 1.5 + 3만장","actor":"zcode-gpuwait"}

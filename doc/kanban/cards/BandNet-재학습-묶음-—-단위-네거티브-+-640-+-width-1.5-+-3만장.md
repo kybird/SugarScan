@@ -1,10 +1,12 @@
 ---
 title: BandNet 재학습 묶음 — 단위 네거티브 + 640 + width 1.5 + 3만장
-status: todo
+status: doing
 ordinal: 37000
 created: 2026-09-27
 depends_on: ["밴드 라벨 규약 순회 — 수선 8장 + 걸침 감사 235장"]
 milestone: 검출기 실사진 성능 개선
+claimed_by: zcode-gpuwait
+claimed_at: 2026-09-28T01:43-07:00
 ---
 
 ## Goal

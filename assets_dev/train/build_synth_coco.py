@@ -219,6 +219,8 @@ def box_sheet(set_dir, coco, out_png, n=10, cols=5):
     rows = [json.loads(l) for l in
             (set_dir / "manifest.jsonl").read_text(encoding="utf-8").splitlines()
             if l.strip()]
+    if n <= 0:            # --sheet-n 0 — 시트 없음(검수 시트를 건너뛴다)
+        return
     step = max(1, len(rows) // n)
     picks = [(rows[i], coco["annotations"][i]) for i in range(0, len(rows), step)][:n]
 
