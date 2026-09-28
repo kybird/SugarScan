@@ -707,10 +707,6 @@ def api_failures(qs):
     # 라벨 규약은 '숫자줄만' 하나다. 단위가 라벨에 보이는 건 여백이 넉넉해
     # 가장자리에 걸친 것 — 이 큐는 그 걸침을 조여 없애는 순회다.
     unitclip, unitclip_note = _queue("band_unit_clip_queue.json")
-    # 틀림 우선 수선 — band_label_fix_queue.json. 1차 판정(모델 비전,
-    # 2026-09-27 Case 4)으로 가려낸 틀림 후보: 빈 앞자리 5(기존 자 확정) +
-    # 단위 절반 걸침 3 + 숫자 절단 2 + 보류 1. 최종 판정은 사람이 화면에서.
-    fixfirst, fixfirst_note = _queue("band_label_fix_queue.json")
     # 테스트 holdout — 라벨링하면 개선을 잴 데가 없어진다. 큐에서 빼는 것으로는
     # 부족하고(전체 큐로 들어올 수 있다) 화면에 경고를 띄운다.
     hold, _ = _queue("lcd_fix_holdout.json")
@@ -724,7 +720,6 @@ def api_failures(qs):
             "band_review": review, "band_review_note": review_note,
             "band_wide": wide2, "band_wide_note": wide2_note,
             "unit_clip": unitclip, "unit_clip_note": unitclip_note,
-            "fix_first": fixfirst, "fix_first_note": fixfirst_note,
             "lcd_holdout": hold}
 
 

@@ -95,9 +95,6 @@ assets_dev/train/*
 !assets_dev/train/band_pilot.json
 !assets_dev/train/lcd_fix_queue.json
 !assets_dev/train/lcd_fix_holdout.json
-# 틀림 우선 수선(2026-09-27) — 비전 1차 판정에서 나온 목록이라 다시 만들 수 없다.
-# 전수 목록은 doc/raw/2026-09-27.md Case 4 에도 있다.
-!assets_dev/train/band_label_fix_queue.json
 assets_dev/train/__pycache__/
 *.onnx
 *.pth
