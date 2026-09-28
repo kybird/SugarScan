@@ -12,9 +12,12 @@
 # 72~99%, 그래픽 앱만 남으면 한 자릿수~십수% — 25% 임계가 둘을 가른다.
 # 메모리는 그래픽 앱이 항상 3GB+ 를 잡고 있어 판정에 못 쓴다.
 #
-# 학습: 구조 실험 1차 — 동일 synth_coco(15,996장)·동일 8,000스텝에서
-# size 640 + width 1.5 (atone_s0 대비 A/B. 네거티브·클로즈업 데이터는
-# 2차). 학습 끝나면 순수 수동 홀드아웃 평가까지 돌려 로그만 남긴다.
+# 학습: 재학습 묶음 전부(사람: "bandnet 최고 수율이 목표", 2026-09-28).
+# TF 코퍼스 30,000장(줌 0.10~1.0·procedural·mixed 장면 — 클로즈업 포함,
+# 정보줄 간격 uniform 0.015~0.10H — 네거티브) + size 640 + width 1.5 +
+# 스텝 16,000(데이터 2배에 스텝 2배). 학습 끝나면 순수 수동 홀드아웃
+# 평가까지 돌려 로그만 남긴다. TF 는 굽는 중일 수 있다 — 준비될 때까지
+# 기다린다(구조 A/B 순서가 아니라 묶음 먼저가 사람 결정).
 #
 # 사용:
 #   python gpu_wait_train.py            # 백그라운드 권장
@@ -29,15 +32,28 @@ IDLE_TH = 25          # utilization.gpu % — 이 미만이면 '쉬고 있음'
 H1, M10, M1 = 3600, 600, 60
 RUNS1 = 10            # 1분 단위 연속 idle 횟수
 LOG = HERE / "gpu_wait_train.log"
+TF = HERE / "synth_coco" / "TF"
+CKPT = HERE / "band_out" / "tone" / "atone_tf640w15"
 
-TRAIN = [str(HERE / "train_band.py"), "--data", str(HERE / "synth_coco"),
-         "--out", str(HERE / "band_out" / "tone" / "atone_640w15"),
-         "--size", "640", "--width", "1.5", "--steps", "8000"]
-EVAL = ["--ckpt", str(HERE / "band_out" / "tone" / "atone_640w15"),
+TRAIN = [str(HERE / "train_band.py"), "--data", str(TF),
+         "--out", str(CKPT),
+         "--size", "640", "--width", "1.5", "--steps", "16000"]
+EVAL = ["--ckpt", str(CKPT),
         "--exclude-coco",
         str(HERE / "bandft_coco" / "annotations" / "instances_train2017.json"),
         str(HERE / "bandft_coco" / "annotations" / "instances_val2017.json"),
         "--exclude-accepted", "--no-overlay"]
+
+
+def tf_ready():
+    """TF 코퍼스 완료 판정 — COCO 주석이 온전히 파싱돼야 한다(굽는 중엔 없다)."""
+    import json
+    ann = TF / "annotations" / "instances_train2017.json"
+    try:
+        j = json.loads(ann.read_text(encoding="utf-8"))
+        return len(j.get("images", [])) >= 30000
+    except Exception:
+        return False
 
 
 def log(msg):
@@ -98,8 +114,12 @@ def main():
         if streak < RUNS1:
             log(f"연속 실패({streak}/{RUNS1}) — 1시간 단계로 복귀")
             continue
-        log(f"IDLE {RUNS1}회 연속 확인 — 학습 시작: {' '.join(TRAIN[1:])}")
-        with (HERE / "band_out" / "tone" / "atone_640w15.log").open(
+        log(f"IDLE {RUNS1}회 연속 확인 — 학습 직전 TF 코퍼스 확인")
+        while not tf_ready():
+            log("TF 미완료(굽는 중) — 10분 후 재확인")
+            time.sleep(M10)
+        log(f"TF 준비 완료 — 학습 시작: {' '.join(TRAIN[1:])}")
+        with Path(str(CKPT) + ".log").open(
                 "w", encoding="utf-8") as lf:
             r = subprocess.run(
                 [sys.executable] + TRAIN,
@@ -107,13 +127,12 @@ def main():
         log(f"학습 종료 rc={r.returncode}")
         if r.returncode == 0:
             log("홀드아웃 평가 시작 (순수 수동 라벨)")
-            with (HERE / "band_out" / "tone" /
-                  "atone_640w15.eval.log").open("w", encoding="utf-8") as lf:
+            with Path(str(CKPT) + ".eval.log").open(
+                    "w", encoding="utf-8") as lf:
                 r2 = subprocess.run(
                     [sys.executable, str(HERE / "eval_band_real.py")] + EVAL,
                     cwd=str(HERE), stdout=lf, stderr=subprocess.STDOUT)
-            log(f"평가 종료 rc={r2.returncode} — "
-                f"band_out/tone/atone_640w15.eval.log")
+            log(f"평가 종료 rc={r2.returncode} — {CKPT.name}.eval.log")
         log("감시 종료 — 재감시가 필요하면 스크립트를 다시 띄운다")
         return
 

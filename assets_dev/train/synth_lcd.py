@@ -445,9 +445,12 @@ def render_screen(value, rng, size=(320, 160)):
         cv2.rectangle(img, (px, py), (px + r * 2, py + r * 2), ink_digit, -1)
 
     # 시간 줄 (아래, 작게) — 70% 확률
+    # 간격은 붙은 배치부터 띄어진 배치까지 뽑는다(2026-09-28) — 예전 상수
+    # 0.04H 하나로는 '밴드 바로 아래에 붙은 시간줄'이 안 나왔고, atone_s0 가
+    # 실촬에서 시간줄을 밴드로 흡수했다(1091 관찰). 네거티브는 이 간격축이 준다.
     if rng.random() < 0.7:
         th = int(dh * rng.uniform(0.30, 0.45))
-        ty = y0 + dh + int(H * 0.04)
+        ty = y0 + dh + int(H * rng.uniform(0.015, 0.10))
         tx = int(W * rng.uniform(0.06, 0.30))
         hh = f"{rng.randint(0,23):02d}:{rng.randint(0,59):02d}"
         put_7seg_text(img, tx, ty, int(W * rng.uniform(0.28, 0.45)), th, hh, ink_small)
@@ -460,7 +463,9 @@ def render_screen(value, rng, size=(320, 160)):
         if rng.random() < 0.5:
             put_small_text(img, x0 + block_w + 4, y0 + dh - uh, "mg/dL", uh, ink_small)
         else:
-            put_small_text(img, int(W * 0.62), y0 + dh + int(H * 0.05), "mg/dL", uh, ink_small)
+            put_small_text(img, int(W * 0.62),
+                           y0 + dh + int(H * rng.uniform(0.015, 0.10)),
+                           "mg/dL", uh, ink_small)
 
     # mem 표시 (가끔, 좌상단)
     if rng.random() < 0.35:

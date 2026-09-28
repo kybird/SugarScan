@@ -132,6 +132,14 @@ SETS = {
     # 0.169(classify_rf_miss.py — docs/reports/rf-miss-trichotomy-2026-09-21.md).
     "TE": (16000, 20261001, 0.50, "procedural", "mixed"),
     "VE": (1000, 20261002, 0.50, "procedural", "mixed"),
+
+    # ── 재학습 묶음 모(母) 코퍼스(2026-09-28, 사람: "bandnet 최고 수율") ──
+    # TF 는 TE 세대 스펙(줌 0.10~1.0 · procedural 배경 · mixed 장면)을
+    # 그대로 30,000장으로 두껍게 — 클로즈업 프레이밍(2317 관찰)과 전체
+    # 기기 장면은 이 세대가 이미 갖고 있다. 렌더 변경은 정보줄(시간·단위)
+    # 간격을 상수에서 uniform(0.015~0.10H)으로 확장한 것 하나 — '밴드에
+    # 붙은 정보줄' 네거티브를 준다(1091 시간줄 흡수 관찰). 시드는 신규.
+    "TF": (30000, 20261101, 0.50, "procedural", "mixed"),
 }
 
 CATEGORY = {"id": 1, "name": "glucose_band", "supercategory": "none"}
