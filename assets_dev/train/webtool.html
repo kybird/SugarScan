@@ -611,7 +611,10 @@ async function show(idx) {
   if (pn) {
     // 테스트 holdout 이면 그것부터 알린다 — 라벨링해서 학습에 들어가면
     // 개선을 잴 데가 없어진다. 큐에서 빼도 '전체 큐'로는 들어올 수 있다.
-    if (lb.holdout && lb.holdout.has(it.id)) {
+    // 이 holdout(lcd_fix_holdout)은 LCD 재라벨 작업의 테스트셋이다 — 밴드
+    // 라벨과 무관하므로(2026-09-27 확인: 49장 중 14장이 밴드 라벨 보유,
+    // LCD 평가는 GT 값만 쓴다) 밴드 모드 순회에선 띄우지 않는다.
+    if (lb.holdout && lb.mode === "lcd" && lb.holdout.has(it.id)) {
       pn.textContent = "⚠ 테스트용(holdout) — 라벨링하지 말 것";
       pn.style.color = "#e06c6c";
     } else {
