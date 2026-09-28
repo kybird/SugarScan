@@ -9,7 +9,7 @@ milestone: 검출기 실사진 성능 개선
 
 ## Goal
 <!-- kanban:goal:begin -->
-순수 합성 학습 안에서 atone_s0 실사진 홀드아웃(IoU 중앙 0.8532)을 끌어올린다. ft_bandnet_v1 실사진 파인튜닝은 폐기(사람 결정 2026-09-27). 처방 4종을 한 번에: ① 합성에 '단위 줄은 밴드 밖' 네거티브(높이 과대=단위 흡수 오인의 직접 치료, 진단 doc/raw/2026-09-27.md Case 3) ② 입력 416→640 ③ width 1.0→1.5 ④ 합성 1.6만→3만장. 채점: 순수 수동 라벨 홀드아웃(eval_band_real --exclude-coco --exclude-accepted). GPU: supertonic-studio 프로세스 종료 대기.
+순수 합성 학습 안에서 atone_s0 실사진 홀드아웃(IoU 중앙 0.8532)을 끌어올린다. ft_bandnet_v1 실사진 파인튜닝은 폐기(사람 결정 2026-09-27). 처방을 한 번에: ① 합성에 '단위 줄·시간·날짜 줄은 밴드 밖' 네거티브 — 사람 순회 관찰(2026-09-27): 1091은 예측이 시간 줄을 밴드로 흡수(라벨은 혈당 포함), 2317·1564도 다른 줄에 붙음 — 밴드 아래/위 정보줄 전부를 경계 학습시킨다 ② 입력 416→640 ③ width 1.0→1.5 ④ 합성 1.6만→3만장. 채점: 순수 수동 라벨 홀드아웃(eval_band_real --exclude-coco --exclude-accepted). GPU: supertonic-studio 프로세스 종료 대기.
 <!-- kanban:goal:end -->
 
 ## Acceptance Criteria
