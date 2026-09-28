@@ -202,6 +202,8 @@ tr.miss td.mono { color: var(--bad); }
         <option value="bandreview">밴드 라벨 전수 검토 (의심 순)</option>
         <option value="bandwide">밴드 · 가로형 전수 검토 (기기 안 편차 순)</option>
         <option value="unitclip">밴드 · 라벨 전수 감사 (346장 — 단위 걸침 의심순)</option>
+        <option value="detworse">검출 결과 · 못됨 우선 (밤학습 회귀 — 2317·2319·2414부터)</option>
+        <option value="detbetter">검출 결과 · 잘됨 상위 (밤학습 개선순)</option>
         <option value="unlabeled">라벨 없음만</option>
       </select>
     </label>
@@ -214,6 +216,7 @@ tr.miss td.mono { color: var(--bad); }
       <b style="color:#5ddb8a">━ 초록</b> 다른 모드 사람 라벨 ·
       <b style="color:#3fd6c9">┈ 청록 점선</b> 걸침 진단선 (하단=예측 하단)
     </span>
+    <span class="stat" id="train-report" style="display:block;background:#12233d;border:1px solid #2e5aa8;color:#8ab4f8;padding:8px 12px;border-radius:6px;font-size:13px;line-height:1.7"></span>
     <span class="stat" id="box-meaning"></span>
     <span class="stat" id="pilot-note"></span>
     <span class="stat">라벨 <b id="cnt-labeled">-</b> · 스킵 <b id="cnt-skipped">-</b> · 남음 <b id="cnt-remain">-</b> · 규약미정 <b id="cnt-conv">-</b></span>
@@ -375,7 +378,9 @@ const lb = {
           slotfix: new Set(),
           bandreview: new Set(),
           bandwide: new Set(),
-          unitclip: new Set() },
+          unitclip: new Set(),
+          detbetter: new Set(),
+          detworse: new Set() },
   holdout: new Set(), pilotNote: {},
 };
 const cv = $("cv"), ctx = cv.getContext("2d");
@@ -410,6 +415,8 @@ async function boot() {
     lb.fail.bandreview = new Set(f.band_review || []);
     lb.fail.bandwide = new Set(f.band_wide || []);
     lb.fail.unitclip = new Set(f.unit_clip || []);
+    lb.fail.detbetter = new Set(f.det_better || []);
+    lb.fail.detworse = new Set(f.det_worse || []);
     lb.holdout = new Set(f.lcd_holdout || []);
     lb.pilotNote = Object.assign({}, f.band_pilot_note || {}, f.lcd_fix_note || {},
                                  f.wide_band_note || {}, f.label_audit_note || {},
@@ -417,7 +424,9 @@ async function boot() {
                                  f.band_slot_fix_note || {},
                                  f.band_review_note || {},
                                  f.band_wide_note || {},
-                                 f.unit_clip_note || {});
+                                 f.unit_clip_note || {},
+                                 f.det_better_note || {},
+                                 f.det_worse_note || {});
   } catch (e) { /* /api/failures 없는 구형 서버 */ }
   await loadMode(lb.mode);
   lb.idx = lb.meta.items.findIndex(it => !isLabeled(it));
@@ -443,6 +452,12 @@ async function loadMode(mode) {
     lb.meta.items.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
   $("box-meaning").textContent = MODES[mode].meaning;
+  $("train-report").innerHTML =
+    "📊 <b>2026-09-28 밤 학습 atone_tf640w15</b> (TF 30,000장 · 네거티브·클로즈업 포함 · 640 · width 1.5 · 16,000스텝 · 무인 자동실행) — "
+    + "순수 수동 220장: <b>IoU 0.8395→0.8862(+0.047)</b> · 장별 <b>개선 167 / 동등 17 / 악화 35</b> · 과대상자 p90 1.36→1.19(단위 흡수 감소) · "
+    + "높이비 중앙 1.084 잔존 · 포함률1.0 71.4→41.8%(타이트 박스화). "
+    + "<b>회귀 집중</b>: 2319·2414 미세상자 완전오탐(보조텍스트에 score 0.9) · Performa Nano 15/38 과대방향 열화 · 2317 미검출. "
+    + "파란 예측 = 이 모델(신규). 열람 큐: '검출 결과 · 못됨 우선 / 잘됨 상위'.";
   applyQueueFilter();
   updateCounts();
 }
@@ -495,6 +510,17 @@ function applyQueueFilter() {
     lb.meta.items = lb.meta.items
       .filter(it => rank.has(it.id))
       .sort((a, b) => rank.get(a.id) - rank.get(b.id));
+  } else if ((q === "detbetter" || q === "detworse")) {
+    // 밤 학습(atone_tf640w15) 결과 열람(2026-09-28). 파란 예측이 새 모델이고
+    // 노트에 s0 대비 IoU 변화가 적혀 있다. 열람 전용 — A키/저장 쓰지 말 것.
+    const src = q === "detbetter" ? lb.fail.detbetter : lb.fail.detworse;
+    if (src && src.size) {
+      const order = [...src];
+      const rank = new Map(order.map((id, i) => [id, i]));
+      lb.meta.items = lb.meta.items
+        .filter(it => rank.has(it.id))
+        .sort((a, b) => rank.get(a.id) - rank.get(b.id));
+    }
   } else if (q === "bandreview" && lb.fail.bandreview && lb.fail.bandreview.size) {
     // 자릿수별 중앙에서 벗어난 순. 중간에 멈춰도 이상한 것은 이미 다 봤다.
     const order = [...lb.fail.bandreview];
@@ -622,7 +648,7 @@ async function show(idx) {
       const note = lb.pilotNote ? lb.pilotNote[it.id] : null;
       pn.textContent = ((q === "bandseed" || q === "pilot" || q === "lcdfix" || q === "wideband"
                        || q === "labelaudit" || q === "slotfix"
-                       || q === "bandreview" || q === "bandwide" || q === "unitclip")
+                       || q === "bandreview" || q === "bandwide" || q === "unitclip" || q === "detbetter" || q === "detworse")
                        && note) ? `· ${note}` : "";
       pn.style.color = "#8ab4f8";
     }

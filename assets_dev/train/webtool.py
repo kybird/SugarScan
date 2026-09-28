@@ -703,6 +703,11 @@ def api_failures(qs):
     # 기기가 통체로 걸린다). 2026-09-15 밤샘: 세로형은 0.780->0.859 로 올랐는데
     # 가로형만 0.69 에서 안 움직였다 — 라벨을 의심할 차례다.
     wide2, wide2_note = _queue("band_wide_queue.json")
+    # 밤 학습 결과 열람 — make_det_result_queue.py(2026-09-28). atone_s0 대비
+    # IoU 변화로 잘됨(better)/못됨(worse)을 가른다. 웹툴 파란 예측은 현재
+    # atone_tf640w15(band_quads_pred.jsonl 을 이 모델로 재생성).
+    detbetter, detbetter_note = _queue("det_better_queue.json")
+    detworse, detworse_note = _queue("det_worse_queue.json")
     # 단위 걸침 감사 — make_unit_clip_queue.py. 사람 선언(2026-09-27): 밴드
     # 라벨 규약은 '숫자줄만' 하나다. 단위가 라벨에 보이는 건 여백이 넉넉해
     # 가장자리에 걸친 것 — 이 큐는 그 걸침을 조여 없애는 순회다.
@@ -720,6 +725,8 @@ def api_failures(qs):
             "band_review": review, "band_review_note": review_note,
             "band_wide": wide2, "band_wide_note": wide2_note,
             "unit_clip": unitclip, "unit_clip_note": unitclip_note,
+            "det_better": detbetter, "det_better_note": detbetter_note,
+            "det_worse": detworse, "det_worse_note": detworse_note,
             "lcd_holdout": hold}
 
 
