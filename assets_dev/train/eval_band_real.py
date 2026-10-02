@@ -400,7 +400,13 @@ def evaluate(ckpt, conf=0.25, limit=0, overlay=True, tag=None,
             b = b[0].cpu().numpy()
             sc = float(s[0].cpu())
             p = [(b[0]-dx)/r, (b[1]-dy)/r, (b[2]-dx)/r, (b[3]-dy)/r]
-            det = sc >= conf
+            # 스케일 게이트(2026-09-28) — 예측 면적이 화면의 2% 미만이면
+            # 오탐으로 본다. 근거: 실촬 정답 220장의 최소 면적비 5.1%(p5),
+            # TF 원경 극단 라벨(673장, 최저 0.18%)이 가르친 스케일 혼동으로
+            # 2319·2414 에서 화면 0.66% 미세 상자를 score 0.9 로 냈다.
+            # 게이트 <0.02 는 정확히 그 2장만 걸러냄(부작용 0, 실측).
+            frac = ((p[2]-p[0]) * (p[3]-p[1]))                 / max(1.0, img.shape[1] * img.shape[0])
+            det = sc >= conf and frac >= 0.02
             gt = band[cid]
             # 원본 사진 크기를 함께 적는다 — 검수 화면(/bandreal)이 줄인
             # 이미지 위에 상자를 그리려면 원본→표시 비가 필요하다. 이걸 빼면

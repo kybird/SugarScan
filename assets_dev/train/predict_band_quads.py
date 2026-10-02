@@ -90,10 +90,14 @@ def main():
             b, s = decode(obj.float(), reg.float(), model.stride)
             b = b[0].cpu().numpy()
             sc = float(s[0].cpu())
-            if sc < args.conf:
+            p = [(b[0]-dx)/r, (b[1]-dy)/r, (b[2]-dx)/r, (b[3]-dy)/r]
+            # 스케일 게이트(2026-09-28) — eval_band_real 과 같은 값. 화면의
+            # 2% 미만 상자는 스케일 혼동 오탐(2319·2414 사례, 실촬 정답
+            # 최소 면적비 5.1%)이라 예측에서도 뺀다.
+            frac = ((p[2]-p[0]) * (p[3]-p[1])) / max(1.0, img.shape[1] * img.shape[0])
+            if sc < args.conf or frac < 0.02:
                 low += 1
                 continue
-            p = [(b[0]-dx)/r, (b[1]-dy)/r, (b[2]-dx)/r, (b[3]-dy)/r]
             f.write(json.dumps(dict(
                 id=pid,
                 quad=[[round(p[0], 2), round(p[1], 2)],
