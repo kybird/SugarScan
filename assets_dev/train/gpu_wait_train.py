@@ -12,8 +12,12 @@
 # 72~99%, 그래픽 앱만 남으면 한 자릿수~십수% — 25% 임계가 둘을 가른다.
 # 메모리는 그래픽 앱이 항상 3GB+ 를 잡고 있어 판정에 못 쓴다.
 #
-# 학습: 재학습 묶음 전부(사람: "bandnet 최고 수율이 목표", 2026-09-28).
-# TF 코퍼스 30,000장(줌 0.10~1.0·procedural·mixed 장면 — 클로즈업 포함,
+# 학습: 스케일 재정렬 2차(사람 승인 2026-09-28 "재굽기 재학습 진행").
+# TG 코퍼스 30,000장(줌 하한 0.25 복원 — 초원경 라벨 근원 차단,
+# mixed device 비중 0.5 — 클로즈업 보강). 스케일 게이트(면적 2%) 는
+# eval·predict 양쪽에 이미 적용돼 있다. 구조·스텝은 1차와 동일
+# (640·width1.5·16,000스텝 — 데이터 축만 재정렬해 1차 대비를 깨끗하게
+# 가른다). 1차 TF 코퍼스(줌 0.10~1.0·procedural·mixed 장면 — 클로즈업 포함,
 # 정보줄 간격 uniform 0.015~0.10H — 네거티브) + size 640 + width 1.5 +
 # 스텝 16,000(데이터 2배에 스텝 2배). 학습 끝나면 순수 수동 홀드아웃
 # 평가까지 돌려 로그만 남긴다. TF 는 굽는 중일 수 있다 — 준비될 때까지
@@ -32,8 +36,8 @@ IDLE_TH = 25          # utilization.gpu % — 이 미만이면 '쉬고 있음'
 H1, M10, M1 = 3600, 600, 60
 RUNS1 = 10            # 1분 단위 연속 idle 횟수
 LOG = HERE / "gpu_wait_train.log"
-TF = HERE / "synth_coco" / "TF"
-CKPT = HERE / "band_out" / "tone" / "atone_tf640w15"
+TF = HERE / "synth_coco" / "TG"
+CKPT = HERE / "band_out" / "tone" / "atone_tg640w15"
 
 TRAIN = [str(HERE / "train_band.py"), "--data", str(TF),
          "--out", str(CKPT),

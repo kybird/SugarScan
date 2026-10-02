@@ -531,7 +531,12 @@ CAM_POSE_P = 0.92          # 이 확률로 포즈를 준다. 나머지는 정면
 # 획을 뭉갠다(0.20 배면 179px). 여기서는 포즈 단계에서 작게 앉히므로
 # 획이 원래 해상도에서 출발한다. 배율 하한을 증강으로 내린 실험은 단조롭게
 # 나빠졌다(§20.1) — 같은 '작음'이 아니라는 뜻이다.
-CAM_ZOOM_RANGE = (0.10, 1.0)   # 2026-09-20 사람 선언 (구: 0.25, 2026-09-17)
+# 2026-09-28 0.10 복원 — 하한 0.10 이 TF 에 화면 0.2~3%짜리 초원경 밴드
+# 라벨 673장을 만들었고(실촬 정답 최소 면적비 5.1%), 모델이 이를 배워
+# 클로즈업 사진의 작은 보조텍스트(화면 0.66%)를 score 0.9 로 밴드로
+# 오탐했다(2319·2414, doc/raw/2026-09-28.md). 실촬에 없는 스케일을
+# 가르치지 않는다 — 2026-09-17 값으로 되돌린다.
+CAM_ZOOM_RANGE = (0.25, 1.0)
 # 구도 축의 목표 분포(2026-09-21 카드 B4 가 이 상수들의 근거로 명시):
 # 로보플로우 dev 586 의 READING 구도(classify_rf_miss.py — B1 완전 미검출
 # 3분할 보고서와 같은 자) area_frac p10 0.0103 / 중앙 0.0266 / p90 0.0527.
@@ -2597,7 +2602,10 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel"):
     # Independent RNG: adding a body must not change the next sample's LCD,
     # camera draws, or background draws. All geometry is shifted together here.
     _srng = random.Random(_oseed ^ 0x6A09E667)
-    if scene == "device" or (scene == "mixed" and _srng.random() < .7):
+    # 2026-09-28 device 비중 0.7 -> 0.5 — mixed 의 70% 가 전체기기 장면이라
+    # TF 에서 밴드면적 30%+(클로즈업)가 1.9% 뿐었고 2317(LCD 만 확대) 형을
+    # 못 배웠다. panel(LCD 크롭) 비중을 늘려 스케일 상위를 보강한다.
+    if scene == "device" or (scene == "mixed" and _srng.random() < .5):
         from device_scene import compose
         img, body_mask, glyph_plane, (ox, oy) = compose(
             img, body_mask, glyph_plane, _srng, body_col, bg_col)
