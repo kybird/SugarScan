@@ -1111,9 +1111,18 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
+function readonlyQueue() {
+  const q = document.getElementById("queue") ? document.getElementById("queue").value : "";
+  return q === "detbetter" || q === "detworse";
+}
+
 async function saveBox() {
   const it = curItem();
   if (!it || !lb.box) return;
+  if (readonlyQueue()) {
+    toast("열람 큐에서는 저장할 수 없다 — N/P로만 보고, 저장은 걸침 감사/전체 큐에서");
+    return;
+  }
   const bad = frameGuard(it);
   if (bad) { toast("저장 차단: " + bad); return; }
   // 밴드 모드는 GM 화면 박스를 시작점으로 프리필한다. 줄이지 않고 저장하면
@@ -1164,6 +1173,7 @@ async function saveBox() {
 async function acceptPred() {
   const it = curItem();
   if (!it) return;
+  if (readonlyQueue()) { toast("열람 큐에서는 수락 금지"); return; }
   const pred = lb.quads[it.id];
   if (!pred) { toast("예측 박스 없음 — 수동으로 그려주세요"); return; }
   const body = { mode: lb.mode, id: it.id, quad: pred,
@@ -1187,6 +1197,7 @@ async function acceptPred() {
 async function markConvention(kind) {
   const it = curItem();
   if (!it || lb.mode !== "band" || rectOpen) return;
+  if (readonlyQueue()) { toast("열람 큐에서는 마크 금지"); return; }
   let quad;
   if (lb.box) quad = aabbToQuad(lb.box);
   else { const lab = lb.labels[it.id];
@@ -1205,6 +1216,7 @@ async function markConvention(kind) {
 async function skip() {
   const it = curItem();
   if (!it) return;
+  if (readonlyQueue()) { toast("열람 큐에서는 스킵도 금지(quad 를 지운다)"); return; }
   // 스킵은 quad 를 null 로 **덮어쓴다.** 이미 사람이 찍은 라벨이 있으면
   // 그것이 지워진다 — 2026-09-09 에 감사 목적으로 큐를 넘겨 보다가 30장이
   // 이렇게 날아갔다(git 에 커밋돼 있어 복구). 확인 없이 지우지 않는다.
