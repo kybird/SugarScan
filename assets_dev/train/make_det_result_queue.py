@@ -1,4 +1,4 @@
-# 밤 학습(atone_tf640w15) 결과 열람 큐 — 잘됨/못됨 두 큐를 낸다.
+# 학습 결과 열람 큐 — 현재 비교 대상: 1차 atone_tf640w15(2026-10-03 2차부터) — 잘됨/못됨 두 큐를 낸다.
 #
 # 사람 요청(2026-09-28): 웹툴에서 결과를 잘된 것·못된 것 같이 보고 싶다.
 # 두 평가 jsonl(atone_s0 · atone_tf640w15)을 교차해 IoU 변화로 가른다.
@@ -14,7 +14,7 @@ import json
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-OLD = HERE / "_diag" / "band_real" / "atone_s0.jsonl"
+OLD = HERE / "_diag" / "band_real" / "atone_tf640w15.jsonl"
 NEW = HERE / "_diag" / "band_real" / "atone_tf640w15.jsonl"
 
 
