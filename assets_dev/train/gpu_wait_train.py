@@ -42,11 +42,10 @@ CKPT = HERE / "band_out" / "tone" / "atone_tg640w15"
 TRAIN = [str(HERE / "train_band.py"), "--data", str(TF),
          "--out", str(CKPT),
          "--size", "640", "--width", "1.5", "--steps", "16000"]
-EVAL = ["--ckpt", str(CKPT),
-        "--exclude-coco",
-        str(HERE / "bandft_coco" / "annotations" / "instances_train2017.json"),
-        str(HERE / "bandft_coco" / "annotations" / "instances_val2017.json"),
-        "--exclude-accepted", "--no-overlay"]
+# 2026-10-03 채점 기준 346장 전량 — 옛 파인튜닝(ft_bandnet_v1, 폐기) 잠금
+# 123장은 현행 모델(합성 전용 학습)에 누수가 없어 해제됐다(사람 지적으로
+# 발견). A키 source 판정도 순회 후 수락장 0장이라 no-op — 옵션은 유지.
+EVAL = ["--ckpt", str(CKPT), "--exclude-accepted", "--no-overlay"]
 
 
 def tf_ready():
