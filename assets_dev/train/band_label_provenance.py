@@ -37,14 +37,19 @@ def _quads(p):
 
 
 def accepted_ids(pred_path=PRED, label_path=LABELS):
-    """A키 무수정 수락장 id 집합."""
-    pred, lab = _quads(pred_path), _quads(label_path)
+    """A키 무수정 수락장 id 집합.
+
+    2026-10-03 기준 전환: 좌표차 0.0 판정은 band_quads_pred.jsonl(웹툴
+    오버레이 — 모델 교체 때 통째로 바뀐다)에 묶여 있어 판정이 흔들렸다.
+    오버레이를 atone_tf640w15 로 재생성하자 제외 3장이 풀려 평가 모집단이
+    220->223 으로 움직인 것으로 발견. source 필드(retag 와 웹툴 acceptPred
+    가 찍는다)가 정본이다 — 좌표차는 retag 시점의 1회성 판정이었다."""
     out = set()
-    for cid, q in lab.items():
-        p = pred.get(cid)
-        if p and max(abs(a - b) for pa, pb in zip(q, p)
-                     for a, b in zip(pa, pb)) == 0.0:
-            out.add(cid)
+    for line in Path(label_path).read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            j = json.loads(line)
+            if j.get("source") == "pred-accepted" and j.get("quad"):
+                out.add(j["id"])
     return out
 
 
