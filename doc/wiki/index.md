@@ -3,7 +3,7 @@ tags: [index]
 
 # Wiki Index
 
-이 프로젝트의 구조화된 지식 베이스입니다. `doc/raw/` 로그에서 추출한 핵심 개념과 패턴을 정리했습니다.
+이 프로젝트의 구조화된 지식 베이스입니다. `docs/raw/` 로그에서 추출한 핵심 개념과 패턴을 정리했습니다.
 
 ---
 
@@ -41,6 +41,7 @@ tags: [index]
 | [[open-upper-bound-for-live-window]] | "최근 N일" 같은 살아 있는 기간 질의는 **위쪽 경계를 열어 둔다.** 상한에 "지금"을 넣지 않는다. | 열린 상한, 기간 질의, statsReadingsProvider, watchBetween, refreshStatsProvider |
 | [[probe-the-guard-by-injecting-the-fault]] | 자가검사·게이트·불변식 검사가 "통과"를 찍는다고 해서 그것이 무엇을 막고 있다는 |  |
 | [[push-over-pull-for-prevention]] | **검색은 pull 이다 — 물어볼 줄 알아야 걸린다.** 예방이 목적이라면 검색에 기대면 안 된다. | 푸시 우선, 트리거 표, CLAUDE.md 표, AGENTS.md, 예방은 검색으로 안 된다 |
+| [[reader-crop-diversity-over-box-accuracy]] | 판독 리더(2단 모델)의 학습 크롭을 검출기 예측 상자로 만들 때, **배포 검출기와 | 크롭 다양성, 상자가 정확하면 리더가 여려진다, v2.1 우연 |
 | [[reserve-by-the-widest-value]] | 길이가 변하는 내용(날짜 `9-3` ~ `12-25`, 값 `88` ~ `511`)을 **실제 값**으로 |  |
 | [[row-level-decode-tolerance]] | 배치에서 행 하나를 해석하지 못했다고 배치 전체를 실패시키지 않는다. **관용의 단위는 행이다.** | 행 단위 관용, poison-row 방어, ReadingPage, fetchUpdatedSince, fetchedRows, malformed, ReadingDto.fromJson |
 | [[scene-component-split]] | 세션 메타데이터(촬영 시각·기기 id)가 없는 코퍼스에서는 **픽셀 유사도의 연결요소**를 | 장면 성분 분할, 그룹 분할, 연결요소 분할, scene split, session-aware split, grouped split |
@@ -124,7 +125,7 @@ tags: [index]
 ## Statistics
 
 - Total concepts: 9
-- Total patterns: 23
+- Total patterns: 24
 - Total anti-patterns: 54
 - Total answers: 0
-- Last updated: 2026-09-27
+- Last updated: 2026-10-03
