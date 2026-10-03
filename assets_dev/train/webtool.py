@@ -707,6 +707,9 @@ def api_failures(qs):
     # IoU 변화로 잘됨(better)/못됨(worse)을 가른다. 웹툴 파란 예측은 현재
     # atone_tf640w15(band_quads_pred.jsonl 을 이 모델로 재생성).
     detbetter, detbetter_note = _queue("det_better_queue.json")
+    # 끝단 오독 큐(2026-10-03) — eval_e2e_bandnet(atone_tg640w15×리더v2.1)
+    # 의 wrong+det 장. 리더 인풋 뷰(우상단 청록 패널)와 함께 본다.
+    e2emiss, e2emiss_note = _queue("e2e_miss_queue.json")
     detworse, detworse_note = _queue("det_worse_queue.json")
     # 단위 걸침 감사 — make_unit_clip_queue.py. 사람 선언(2026-09-27): 밴드
     # 라벨 규약은 '숫자줄만' 하나다. 단위가 라벨에 보이는 건 여백이 넉넉해
@@ -727,6 +730,7 @@ def api_failures(qs):
             "unit_clip": unitclip, "unit_clip_note": unitclip_note,
             "det_better": detbetter, "det_better_note": detbetter_note,
             "det_worse": detworse, "det_worse_note": detworse_note,
+            "e2e_miss": e2emiss, "e2e_miss_note": e2emiss_note,
             "lcd_holdout": hold}
 
 
@@ -1711,6 +1715,61 @@ def api_rfqueue(qs):
         it["done"] = bool(r.get("quad")) or r.get("source") == "skipped"
     return {"items": q["items"], "note": q.get("note", ""),
             "done_count": sum(1 for i in q["items"] if i["done"])}
+
+
+@route("/api/readercrop")
+def api_readercrop(qs):
+    """리더가 실제 받는 인풋(144x96 크롭)을 PNG 로 내준다(2026-10-03 사람 요청).
+
+    상자는 band_quads_pred.jsonl(현재 검출기 예측 — 지금 atone_tg640w15)
+    의 것을 그대로 쓰고, 리더 학습 규약(reader_crnn.BandCrops)대로
+    grayscale → crop → resize(144, 96) 한다. 끝단 오독 장의 '리더가 본
+    것'을 눈으로 보는 용도 — 7→1 치환의 근원(글리프인지 크롭인지)을
+    가린다."""
+    from io import BytesIO
+    cid = qs.get("id", [""])[0]
+    if not cid or ".." in cid or cid.startswith("/"):
+        return {"error": "bad id"}
+    box = _pred_band_box(cid)
+    if box is None:
+        return {"error": "no box"}
+    src = resolve_photo(cid)
+    if src is None:
+        return {"error": "not found"}
+    from PIL import ImageOps
+    cache = CACHE / f"rc_{cid.replace('/', '__')}.png"
+    CACHE.mkdir(parents=True, exist_ok=True)
+    if not cache.exists():
+        with Image.open(src) as im:
+            im = ImageOps.exif_transpose(im).convert("L")
+            x0, y0 = max(0, int(box[0])), max(0, int(box[1]))
+            x1 = min(im.width, int(round(box[2])))
+            y1 = min(im.height, int(round(box[3])))
+            if x1 - x0 < 4 or y1 - y0 < 4:
+                return {"error": "tiny box"}
+            im = im.crop((x0, y0, x1, y1)).resize((144, 96))
+            im.save(cache)
+    return {"url": f"/cache/{cache.name}"}
+
+
+_PRED_BAND_MEMO = {}
+
+
+def _pred_band_box(cid):
+    """band_quads_pred.jsonl 의 예측 상자(id -> [x0,y0,x1,y1]). 로드 1회."""
+    if not _PRED_BAND_MEMO:
+        p = HERE / "band_quads_pred.jsonl"
+        if p.exists():
+            for line in p.read_text(encoding="utf-8").splitlines():
+                if line.strip():
+                    j = json.loads(line)
+                    q = j.get("quad")
+                    if q:
+                        xs = [pt[0] for pt in q]
+                        ys = [pt[1] for pt in q]
+                        _PRED_BAND_MEMO[j["id"]] = [min(xs), min(ys),
+                                                    max(xs), max(ys)]
+    return _PRED_BAND_MEMO.get(cid)
 
 
 @route("/api/image")

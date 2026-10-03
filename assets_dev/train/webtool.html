@@ -203,6 +203,7 @@ tr.miss td.mono { color: var(--bad); }
         <option value="bandwide">밴드 · 가로형 전수 검토 (기기 안 편차 순)</option>
         <option value="unitclip">밴드 · 라벨 전수 감사 (346장 — 단위 걸침 의심순)</option>
         <option value="detworse">검출 결과 · 못됨 우선 (밤학습 회귀 — 2317·2319·2414부터)</option>
+        <option value="e2emiss">끝단 오독 (리더 인풋 뷰와 함께 — GT/pred 노트)</option>
         <option value="detbetter">검출 결과 · 잘됨 상위 (밤학습 개선순)</option>
         <option value="unlabeled">라벨 없음만</option>
       </select>
@@ -232,6 +233,13 @@ tr.miss td.mono { color: var(--bad); }
     <!-- tabindex 가 있어야 focus() 가 먹는다. 드롭다운을 고른 뒤 포커스를
          여기로 되돌려 단축키(PgDn/Space/화살표)를 살린다. outline 은 끈다. -->
     <canvas id="cv" tabindex="-1" style="outline:none"></canvas>
+    <div id="reader-view" style="position:absolute;top:10px;right:10px;z-index:30;
+         background:#0d1117;border:1px solid #3fd6c9;border-radius:6px;padding:6px;
+         display:none;text-align:center">
+      <img id="reader-img" width="288" height="192"
+           style="image-rendering:pixelated;border:1px solid #555">
+      <div id="reader-cap" style="color:#3fd6c9;font-size:12px;margin-top:4px"></div>
+    </div>
     <div id="loading"><div class="spin">◐</div><div>이미지 준비 중…<div class="sub">처음 열어보는 장은 12MP 처리로 수 초 걸립니다 — 이후 장은 빠릅니다</div></div></div>
     <div id="toast"></div>
     <div id="stview"></div>
@@ -380,7 +388,8 @@ const lb = {
           bandwide: new Set(),
           unitclip: new Set(),
           detbetter: new Set(),
-          detworse: new Set() },
+          detworse: new Set(),
+          e2emiss: new Set() },
   holdout: new Set(), pilotNote: {},
 };
 const cv = $("cv"), ctx = cv.getContext("2d");
@@ -417,6 +426,7 @@ async function boot() {
     lb.fail.unitclip = new Set(f.unit_clip || []);
     lb.fail.detbetter = new Set(f.det_better || []);
     lb.fail.detworse = new Set(f.det_worse || []);
+    lb.fail.e2emiss = new Set(f.e2e_miss || []);
     lb.holdout = new Set(f.lcd_holdout || []);
     lb.pilotNote = Object.assign({}, f.band_pilot_note || {}, f.lcd_fix_note || {},
                                  f.wide_band_note || {}, f.label_audit_note || {},
@@ -426,7 +436,8 @@ async function boot() {
                                  f.band_wide_note || {},
                                  f.unit_clip_note || {},
                                  f.det_better_note || {},
-                                 f.det_worse_note || {});
+                                 f.det_worse_note || {},
+                                 f.e2e_miss_note || {});
   } catch (e) { /* /api/failures 없는 구형 서버 */ }
   await loadMode(lb.mode);
   lb.idx = lb.meta.items.findIndex(it => !isLabeled(it));
@@ -510,10 +521,11 @@ function applyQueueFilter() {
     lb.meta.items = lb.meta.items
       .filter(it => rank.has(it.id))
       .sort((a, b) => rank.get(a.id) - rank.get(b.id));
-  } else if ((q === "detbetter" || q === "detworse")) {
+  } else if ((q === "detbetter" || q === "detworse" || q === "e2emiss")) {
     // 밤 학습(atone_tf640w15) 결과 열람(2026-09-28). 파란 예측이 새 모델이고
     // 노트에 s0 대비 IoU 변화가 적혀 있다. 열람 전용 — A키/저장 쓰지 말 것.
-    const src = q === "detbetter" ? lb.fail.detbetter : lb.fail.detworse;
+    const src = q === "detbetter" ? lb.fail.detbetter
+              : q === "e2emiss" ? lb.fail.e2emiss : lb.fail.detworse;
     if (src && src.size) {
       const order = [...src];
       const rank = new Map(order.map((id, i) => [id, i]));
@@ -620,6 +632,26 @@ async function show(idx) {
   const l = lb.labels[it.id];
   // 현재 장의 라벨 상태를 헤더에 — 프리필(파란 예측)과 저장 라벨을 헷갈리지 않게.
   const labBadge = $("cur-labeled");
+  // 리더 인풋 미리보기(2026-10-03 사람 요청) — 리더가 실제 받는 144x96
+  // 크롭(현재 검출기 예측 상자)을 확대 표시. 오독 근원(글리프 vs 크롭)을
+  // 눈으로 가린다. 예측 상자 없는 장은 숨긴다.
+  {
+    const rv = document.getElementById("reader-view");
+    const pred = lb.quads[it.id];
+    if (pred) {
+      fetch(`/api/readercrop?id=${encodeURIComponent(it.id)}`)
+        .then(r => r.json())
+        .then(d => {
+          if (d.url) {
+            document.getElementById("reader-img").src = d.url;
+            const note = lb.pilotNote ? lb.pilotNote[it.id] : "";
+            document.getElementById("reader-cap").textContent =
+              "리더 인풋 144x96" + (note ? " · " + note : "");
+            rv.style.display = "block";
+          } else { rv.style.display = "none"; }
+        }).catch(() => { rv.style.display = "none"; });
+    } else { rv.style.display = "none"; }
+  }
   const convTag = l && l.quad && l.convention === "digits"
     ? " · 확인(숫자줄만)" : "";
   labBadge.textContent = l ? (l.quad ? "· 라벨 있음" + convTag : "· 스킵됨") : "· 미라벨";
@@ -648,7 +680,7 @@ async function show(idx) {
       const note = lb.pilotNote ? lb.pilotNote[it.id] : null;
       pn.textContent = ((q === "bandseed" || q === "pilot" || q === "lcdfix" || q === "wideband"
                        || q === "labelaudit" || q === "slotfix"
-                       || q === "bandreview" || q === "bandwide" || q === "unitclip" || q === "detbetter" || q === "detworse")
+                       || q === "bandreview" || q === "bandwide" || q === "unitclip" || q === "detbetter" || q === "detworse" || q === "e2emiss")
                        && note) ? `· ${note}` : "";
       pn.style.color = "#8ab4f8";
     }
@@ -1113,7 +1145,7 @@ window.addEventListener("keydown", (e) => {
 
 function readonlyQueue() {
   const q = document.getElementById("queue") ? document.getElementById("queue").value : "";
-  return q === "detbetter" || q === "detworse";
+  return q === "detbetter" || q === "detworse" || q === "e2emiss";
 }
 
 async function saveBox() {
