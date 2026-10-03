@@ -42,6 +42,9 @@ def main():
     ap.add_argument("--tag", default=None, help="결과 파일 접두(기본: 검출 ckpt 이름)")
     ap.add_argument("--beam", type=int, default=0,
                     help="0=greedy(구동작), N>=1 은 CTC prefix 빔(2026-10-03 재작성)")
+    ap.add_argument("--boxes-file", default=None,
+                    help="검출기를 돌리지 않고 이 상자 jsonl(band_quads_pred 규약)을"
+                         " 쓴다 — 상자 후처리(예: 오른쪽 패드) 실험용")
     a = ap.parse_args()
     dev = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -61,6 +64,18 @@ def main():
             imgs[j["id"]] = j["image"]
 
     tag = a.tag or Path(a.ckpt_det).stem
+    ext_boxes = None
+    if a.boxes_file:
+        ext_boxes = {}
+        for line in Path(a.boxes_file).read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                j = json.loads(line)
+                if j.get("quad"):
+                    xs = [p[0] for p in j["quad"]]
+                    ys = [p[1] for p in j["quad"]]
+                    ext_boxes[j["id"]] = [min(xs), min(ys), max(xs), max(ys)]
+        if a.tag:
+            tag = a.tag
     if a.beam:
         tag += f"_beam{a.beam}"
     out_p = HERE / "_diag" / "e2e_bandnet" / f"{tag}.jsonl"
@@ -78,13 +93,23 @@ def main():
             if img is None:
                 stats["skip"] += 1
                 continue
-            lb, r, dx, dy = letterbox(img, cd["size"])
-            x = torch.from_numpy(lb).float().div_(255.).unsqueeze(0).unsqueeze(0)
-            obj, reg = det(x.to(dev))
-            b, s = decode(obj.float(), reg.float(), det.stride)
-            b = b[0].cpu().numpy()
-            sc = float(s[0].cpu())
-            p = [(b[0]-dx)/r, (b[1]-dy)/r, (b[2]-dx)/r, (b[3]-dy)/r]
+            if ext_boxes is not None:
+                eb = ext_boxes.get(cid)
+                if eb is None:
+                    stats["det"] += 1
+                    f.write(json.dumps({"id": cid, "verdict": "det",
+                                        "gt": gt}, ensure_ascii=False) + chr(10))
+                    continue
+                p = list(eb)
+                sc = 1.0
+            else:
+                lb, r, dx, dy = letterbox(img, cd["size"])
+                x = torch.from_numpy(lb).float().div_(255.).unsqueeze(0).unsqueeze(0)
+                obj, reg = det(x.to(dev))
+                b, s = decode(obj.float(), reg.float(), det.stride)
+                b = b[0].cpu().numpy()
+                sc = float(s[0].cpu())
+                p = [(b[0]-dx)/r, (b[1]-dy)/r, (b[2]-dx)/r, (b[3]-dy)/r]
             frac = ((p[2]-p[0]) * (p[3]-p[1])) / max(1.0, img.shape[1] * img.shape[0])
             row = {"id": cid, "gt": gt, "score": round(sc, 3)}
             if sc < a.conf or frac < a.min_frac:
