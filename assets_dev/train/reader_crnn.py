@@ -201,7 +201,9 @@ class CRNN(nn.Module):
             blk(128, 128, (2, 1)),   #  6 x 36
             blk(128, 256, (2, 1)),   #  3 x 36
         )
-        self.proj = nn.Linear(256 * 3, 256)
+        # 높이는 5단 풀링(2^5=32)으로 접힌다 — 96→3, 128→4. 2026-10-03
+        # v9 해상도 상향 때 256*3 하드코딩이 matmul shape 오류로 드러났다.
+        self.proj = nn.Linear(256 * (IN_H // 32), 256)
         self.rnn = nn.LSTM(256, 192, num_layers=2, bidirectional=True,
                            batch_first=True, dropout=0.1)
         self.head = nn.Linear(192 * 2, num_classes)
