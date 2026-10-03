@@ -42,13 +42,11 @@ MAX_LABEL = 3                    # 합성 라벨은 2자리 210 · 3자리 790 (
 # 세트 B 예측 상자 n=999:  p5 1.348 · p50 1.496 · p95 1.710
 # 높이 96 은 밴드 높이 중앙값 355px 을 0.27 배로 줄인다. 7-세그 획이 원본에서
 # 30~60px 이므로 8~16px 로 남아 획이 뭉개지지 않는다.
-# 2026-10-03 v9 — 96x144 -> 128x192(종횡비 1.5 유지). 근거: v8 오독 234장의
-# 68%(160장)가 같은 길이 숫자 치환(9>5·3>2·7>0...)이고 이 혼동은 합성
-# 평가(C2)에서도 동일 — 실사진 탓이 아니라 96px 에서 세그먼트 획이 2~3px
-# 로 내려가 숫자끼리 같은 덩어리가 되는 것. v8 조건(B2H·tg상자·jit0.12)
-# 에서 해상도만 바꾼 단일 변인. 구 모델 ckpt(96 기준)는 이 상수로 로드
-# 불가 — v9 채택 시 전 경로가 192 기준으로 갈아닫는다.
-IN_H, IN_W = 128, 192
+# 2026-10-03 v9(128x192) 기각 후 96x144 복귀 — 끝단 85.0%(-4.9pp)·치환
+# 160->210 · 누락 51->120. 96px 축소가 실촬 잡음을 지우는 저역통과
+# 역할이었다(doc/raw/2026-10-03.md Case 12). 배포 리더 v8 체크포인트도
+# 96 기준이다.
+IN_H, IN_W = 96, 144
 # 시간축은 폭을 4로 줄여 36. CTC 는 길이 3 라벨에 최소 2*3+1=7 스텝이 필요하니
 # 넉넉하다. 너무 늘리면 blank 만 배우고 너무 줄이면 붙은 자리를 못 가른다.
 TIME_STEPS = IN_W // 4
@@ -75,35 +73,53 @@ def decode_greedy(logits):
 
 
 def decode_beam(logits, beam_width=5):
-    """CTC beam search — greedy 대비 자릿수 누락을 줄인다(카드 v2.1).
-    각 시간 스텝에서 상위 k 후보를 유지하며 prefix beam search."""
-    T, C = logits.shape[-2], logits.shape[-1]
-    log_probs = torch.log_softmax(logits, dim=-1)
+    """CTC prefix beam search — 자릿수 누락 감소용.
+
+    2026-10-03 재작성(사람 승인 '진행'). 구판의 두 버그:
+    ①같은 문자의 연속을 무조건 접었다 — CTC 에서 실제 연속(예: '77')은
+    사이에 blank 가 있어야 성립하는데 상태를 안 들고 있어 그 경로를
+    잃었다. ②경로가 같은 prefix 로 수렴할 때 max 로 받았다 — 합산이
+    정석. 그래서 beam=1 조차 greedy 와 불일치(78% vs 92%)했다.
+    재판: beam=1 은 greedy 와 정확히 일치해야 한다(CTC_sanity 검증).
+    상태 = (prefix, 끝이 blank 인가) 두 확률 p_b/p_nb 를 선형 합산.
+    """
+    import math
+    probs = torch.softmax(logits.float(), dim=-1).cpu().numpy()
     out = []
-    for b in range(log_probs.shape[0]):
-        lp = log_probs[b].cpu().numpy()
-        beams = [([], 0.0)]              # (prefix, log_prob)
+    for b in range(probs.shape[0]):
+        lp = probs[b]                       # T x C
+        T = lp.shape[0]
+        # beams: prefix(tuple) -> [p_b, p_nb]  (blank로 끝남/끝나지 않음)
+        beams = {(): [1.0, 0.0]}
         for t in range(T):
-            next_beams = {}
-            for prefix, score in beams:
-                for c in range(C):
-                    ns = score + lp[t, c]
-                    # blank: prefix 확정
-                    if c == BLANK:
-                        key = tuple(prefix)
-                        next_beams[key] = max(next_beams.get(key, -1e18), ns)
-                        continue
+            nxt = {}
+            for pre, (pb, pnb) in beams.items():
+                p_tot = pb + pnb
+                last = pre[-1] if pre else None
+                # blank — 상태만 blank 로
+                k = pre
+                r = nxt.setdefault(k, [0.0, 0.0])
+                r[0] += p_tot * lp[t, BLANK]
+                for c in range(len(CHARSET)):
                     ch = CHARSET[c]
-                    # 연속 중복은 접는다
-                    if prefix and prefix[-1] == ch:
-                        key = tuple(prefix)
-                        next_beams[key] = max(next_beams.get(key, -1e18), ns)
+                    p = p_tot * lp[t, c]
+                    if ch == last:
+                        # 중복: 끝이 문자인 경로만 접힘(nb 유지),
+                        # blank 뒤 재등장 = 실제 연속(nb 경로로 확장)
+                        r = nxt.setdefault(pre, [0.0, 0.0])
+                        r[1] += pnb * lp[t, c]
+                        k2 = pre + (ch,)
+                        r2 = nxt.setdefault(k2, [0.0, 0.0])
+                        r2[1] += pb * lp[t, c]
                     else:
-                        key = tuple(prefix + [ch])
-                        next_beams[key] = max(next_beams.get(key, -1e18), ns)
-            beams = sorted(next_beams.items(), key=lambda x: -x[1])[:beam_width]
-            beams = [(list(k), v) for k, v in beams]
-        out.append("".join(beams[0][0]))
+                        k2 = pre + (ch,)
+                        r2 = nxt.setdefault(k2, [0.0, 0.0])
+                        r2[1] += p_tot * lp[t, c]
+            beams = dict(sorted(nxt.items(),
+                                key=lambda kv: -(kv[1][0] + kv[1][1]))
+                         [:beam_width])
+        best = max(beams.items(), key=lambda kv: kv[1][0] + kv[1][1])
+        out.append("".join(best[0]))
     return out
 
 

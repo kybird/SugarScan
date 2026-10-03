@@ -25,7 +25,7 @@ import numpy as np
 import torch
 
 from band_net import BandNet, decode
-from reader_crnn import CRNN, IN_H, IN_W, NUM_CLASSES, decode_greedy
+from reader_crnn import CRNN, IN_H, IN_W, NUM_CLASSES, decode_greedy, decode_beam
 from train_band import letterbox
 
 HERE = Path(__file__).resolve().parent
@@ -40,6 +40,8 @@ def main():
     ap.add_argument("--min-frac", type=float, default=0.02,
                     help="스케일 게이트 — 예측 면적/화면 하한(eval·predict 와 동일)")
     ap.add_argument("--tag", default=None, help="결과 파일 접두(기본: 검출 ckpt 이름)")
+    ap.add_argument("--beam", type=int, default=0,
+                    help="0=greedy(구동작), N>=1 은 CTC prefix 빔(2026-10-03 재작성)")
     a = ap.parse_args()
     dev = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -59,6 +61,8 @@ def main():
             imgs[j["id"]] = j["image"]
 
     tag = a.tag or Path(a.ckpt_det).stem
+    if a.beam:
+        tag += f"_beam{a.beam}"
     out_p = HERE / "_diag" / "e2e_bandnet" / f"{tag}.jsonl"
     out_p.parent.mkdir(parents=True, exist_ok=True)
 
@@ -100,7 +104,11 @@ def main():
             crop = cv2.resize(img[y0:y1, x0:x1], (IN_W, IN_H))
             t = torch.from_numpy(crop).float().div_(255.).sub_(0.5).unsqueeze(0).unsqueeze(0)
             logits = reader(t.to(dev))
-            pred = decode_greedy(logits[0].cpu().unsqueeze(0))[0]
+            if a.beam:
+                pred = decode_beam(logits[0].cpu().unsqueeze(0),
+                                   beam_width=a.beam)[0]
+            else:
+                pred = decode_greedy(logits[0].cpu().unsqueeze(0))[0]
             row["pred"] = pred
             if not pred:
                 stats["blank"] += 1
