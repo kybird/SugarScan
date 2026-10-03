@@ -710,6 +710,9 @@ def api_failures(qs):
     # 끝단 오독 큐(2026-10-03) — eval_e2e_bandnet(atone_tg640w15×리더v2.1)
     # 의 wrong+det 장. 리더 인풋 뷰(우상단 청록 패널)와 함께 본다.
     e2emiss, e2emiss_note = _queue("e2e_miss_queue.json")
+    # 끝단 자릿수 누락 큐(2026-10-03) — v8 오독 234 중 누락형 51장.
+    # 리더 인풋 뷰와 함께 보며 '숫자가 안 보이는 크롭'의 실체를 가린다.
+    e2edrop, e2edrop_note = _queue("e2e_drop_queue.json")
     detworse, detworse_note = _queue("det_worse_queue.json")
     # 단위 걸침 감사 — make_unit_clip_queue.py. 사람 선언(2026-09-27): 밴드
     # 라벨 규약은 '숫자줄만' 하나다. 단위가 라벨에 보이는 건 여백이 넉넉해
@@ -731,6 +734,7 @@ def api_failures(qs):
             "det_better": detbetter, "det_better_note": detbetter_note,
             "det_worse": detworse, "det_worse_note": detworse_note,
             "e2e_miss": e2emiss, "e2e_miss_note": e2emiss_note,
+            "e2e_drop": e2edrop, "e2e_drop_note": e2edrop_note,
             "lcd_holdout": hold}
 
 
