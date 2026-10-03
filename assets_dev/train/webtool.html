@@ -658,7 +658,9 @@ async function show(idx) {
   labBadge.style.color = l && l.quad ? "#7dd87d" : "#d8a657";
   if (l && l.quad) lb.box = quadToAABB(l.quad);
   const pred = lb.quads[it.id];
-  $("gtpred").textContent = pred ? "· 모델예측 표시" : "· 모델예측 없음";
+  // 문구 교체(2026-10-03) — 구 '모델예측 표시'는 검출 상자 유무 깃발인데
+  // 리더 판독값(pred)과 혼동됐다(사람 보고). 값은 리더 인풋 패널 캡션에.
+  $("gtpred").textContent = pred ? "· 검출상자 있음" : "· 검출상자 없음";
   if (!lb.box && pred) lb.box = quadToAABB(pred);
   $("gt").textContent = it.gt;
   $("gtfixed").textContent = it.fixed ? "(수정됨)" : "";
