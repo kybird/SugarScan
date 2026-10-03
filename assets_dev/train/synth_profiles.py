@@ -225,6 +225,14 @@ _ITALIC_BASE = {"Italic": "Regular", "LightItalic": "Light",
                 "BoldItalic": "Bold"}
 
 
+# 7 글리프 A획(위 가로) 스케일 — 실촬 축약형 7 대응(2026-10-03).
+# 대조 시트(glyph7_vs_real.png) 판정: 실촬 7엔 두 종류가 있다 — 완전형
+# (A획 전 폭·선명)과 축약형(A획 30~70% 로 짧·옅음). 합성은 완전형만
+# 그려 리더가 축약형을 1(B+C 세로만)로 읽었다(끝단 오독 260의 다수).
+# synth_lcd 가 장마다 이 값을 뽑는다(기본 1.0 = 종래 재현 동일).
+SEVEN_A_SCALE = 1.0
+
+
 def _param_glyph_mask(ch, variant, h, trim_scale=1.0, mid_extra_ratio=None,
                       thin=1.0, base_h=None, mid_extra_px=None):
     """확정 스펙 숫자 마스크. 배치는 DSEG 래스터(h*2)의 연결요소에서,
@@ -323,7 +331,29 @@ def _param_glyph_mask(ch, variant, h, trim_scale=1.0, mid_extra_ratio=None,
     # 절단면·코너 좌표를 어긋나게 해 폐지(2026-09-25).
     w2 = max(2, int(round(acc.shape[1] * h / acc.shape[0])))
     out = cv2.resize(acc, (w2, h), interpolation=cv2.INTER_AREA)
-    return out > 0.5
+    out = out > 0.5
+    # 7 A획 축약(SEVEN_A_SCALE) — 7 은 A·B 획이 연결요소 하나(역L)로
+    # 붙어 나와 획 단위 축소가 안 된다. 완성 마스크에서 A획 대역(위쪽,
+    # 행 잉크가 세로획 두께보다 훨씬 많은 구간)을 찾아 왼쪽부터 자른다
+    # — B세로획(오른쪽)과의 연결은 유지, 실촬 축약형과 같은 방향.
+    if ch == "7" and SEVEN_A_SCALE < 1.0:
+        row_ink = out.sum(axis=1)
+        bw_est = max(1.0, float(np.median(row_ink[len(row_ink) // 2:])))
+        a_rows = []
+        for i, v in enumerate(row_ink):
+            if v > bw_est * 1.8:
+                a_rows.append(i)
+            elif a_rows:
+                break
+        if a_rows:
+            y1 = max(a_rows)
+            band = out[:y1 + 1]
+            xs = np.nonzero(band.any(axis=0))[0]
+            a_span = int(xs.max() - xs.min() + 1 - bw_est)
+            cut = int(round(a_span * (1.0 - SEVEN_A_SCALE)))
+            if cut > 0:
+                band[:, xs.min():xs.min() + cut] = False
+    return out
 
 
 # 파라메트릭 렌더 최소 높이 — 확정 형상은 큰 값 숫자(h 150~200) 기준이고

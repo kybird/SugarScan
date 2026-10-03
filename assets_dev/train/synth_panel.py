@@ -60,6 +60,7 @@ from lcd_layout import (  # noqa: E402
     LAYOUT_MARGIN,
     MID as LMID, TOP as LTOP, BOTTOM as LBOTTOM, TRACK_R as LTRACK_R,
     COLUMN_R as LCOLUMN_R, place_in as lplace)
+import synth_profiles as _sp
 from synth_profiles import (  # noqa: E402
     PROFILES, DOT_FMTS, dot_text, dot_text_width, _icon, _pick_variant,
     _glyph_mask,
@@ -798,6 +799,13 @@ def render_panel(value, rng, profile=None, scene="panel"):
       rects   배치 사각형(겹침 0 검증용), dropped  뺀 요소
     밀도는 광학 뒤에 재서 목표에 못 미치면 부족분을 올려 최대 3회 재렌더한다 —
     계수 추측으로 맞추지 않는다(1판의 교훈)."""
+    # 7 A획 축약형 뽑기(2026-10-03, 사람 승인 "데이터증강하자!!!") — 실촬
+    # 에는 완전형·축약형 두 종류가 있고 합성은 완전형뿐이라 리더가 축약형을
+    # 1로 읽었다(glyph7_vs_real.png 판정). **항상 rng 2개를 소비**한다(값·
+    # 분기 무관 — 형질 난수 흐름 보존 규칙). 장(패널) 단위로 일관 적용.
+    _r7 = rng.random()
+    _u7 = rng.uniform(0.35, 0.75)
+    _sp.SEVEN_A_SCALE = _u7 if _r7 < 0.30 else 1.0
     if profile is None:
         # 가중치가 없으면 구판 경로 그대로 — rng.choices 는 randrange 와 난수
         # 소비가 달라서, 갈아끼우면 같은 시드가 다른 코퍼스를 낸다.
