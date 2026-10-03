@@ -26,12 +26,18 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--top", type=int, default=24)
     ap.add_argument("--min-depth", type=float, default=0.0)
+    ap.add_argument("--ids", default=None,
+                    help="쉼표 id 목록 — 큐 순서 대신 이 장들만 판에 굽는다")
     ap.add_argument("--out", default=str(HERE / "_diag" / "band_real" / "unit_clip_sheet.png"))
     a = ap.parse_args()
 
     queue = json.loads((HERE / "band_unit_clip_queue.json").read_text(encoding="utf-8"))
-    queue = [r for r in queue if r["note"] and float(r["note"].split()[-1]) >= a.min_depth]
-    queue = queue[:a.top]
+    if a.ids:
+        want = [x.strip() for x in a.ids.split(",") if x.strip()]
+        queue = [{"id": w, "note": "지정 · depth 미가림"} for w in want]
+    else:
+        queue = [r for r in queue if r["note"] and float(r["note"].split()[-1]) >= a.min_depth]
+        queue = queue[:a.top]
 
     lab, pred = {}, {}
     for line in (HERE / "band_boxes.jsonl").read_text(encoding="utf-8").splitlines():
