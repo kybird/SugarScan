@@ -803,9 +803,13 @@ def render_panel(value, rng, profile=None, scene="panel"):
     # 에는 완전형·축약형 두 종류가 있고 합성은 완전형뿐이라 리더가 축약형을
     # 1로 읽었다(glyph7_vs_real.png 판정). **항상 rng 2개를 소비**한다(값·
     # 분기 무관 — 형질 난수 흐름 보존 규칙). 장(패널) 단위로 일관 적용.
+    # 2026-10-03 밤 하한 확장: v4 잔존 7→1 20장의 다수가 A획 소멸형
+    # (0~30%)이라 0.35 하한으로 못 닿았다(seven_left_v4.png 판정).
+    # 0.15 까지 내리고 확률 30->40%. 0 은 안 된다 — 사람이 7 로 읽었다는
+    # 건 A획이 보였다는 뜻이고 0 이면 글자가 1 이 되어 정답 모순.
     _r7 = rng.random()
-    _u7 = rng.uniform(0.35, 0.75)
-    _sp.SEVEN_A_SCALE = _u7 if _r7 < 0.30 else 1.0
+    _u7 = rng.uniform(0.15, 0.75)
+    _sp.SEVEN_A_SCALE = _u7 if _r7 < 0.40 else 1.0
     if profile is None:
         # 가중치가 없으면 구판 경로 그대로 — rng.choices 는 randrange 와 난수
         # 소비가 달라서, 갈아끼우면 같은 시드가 다른 코퍼스를 낸다.
