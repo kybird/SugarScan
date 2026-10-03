@@ -136,7 +136,7 @@ class BandCrops(torch.utils.data.Dataset):
     """
 
     def __init__(self, set_dir, split="train2017", boxes=None, limit=None,
-                 jitter=0.0):
+                 jitter=0.0, aug=False):
         self.root = Path(set_dir)
         self.split = split
         coco = json.loads((self.root / "annotations" /
@@ -171,6 +171,18 @@ class BandCrops(torch.utils.data.Dataset):
             rng = random.Random(SEED)
             self.items = rng.sample(self.items, min(limit, len(self.items)))
         self.jitter = jitter
+        # v10 축 1 — 같은 숫자 연속 오버샘플(2026-10-03). 실사진 연속 접힘
+        # 13장(211→21·99→9): CTC 가 '11'을 blank 없이 접는 정렬을 학습한다.
+        # 깨끗한 연속 크롭 71개 중 1건만 접혀 편향은 미미하지만 조건
+        # 트리거(blur·저대비)에 대비해 연속 표본을 2배로 늘린다.
+        # sample_value 의 실측 분포(정본)는 건드리지 않는다 — 복제만.
+        if aug:
+            import re as _re
+            dups = [it for it in self.items
+                    if _re.search(r"(.)", it[2])]
+            self.items += dups
+        self.aug = aug
+        self.aug_rng = random.Random(SEED + 7)  # 재현성 — 고정 시드
 
     def __len__(self):
         return len(self.items)
@@ -188,6 +200,29 @@ class BandCrops(torch.utils.data.Dataset):
         if x1 - x0 < 4 or y1 - y0 < 4:          # 지터가 상자를 뭉갠 경우
             x0, y0, x1, y1 = [int(v) for v in box]
         crop = cv2.resize(img[y0:y1, x0:x1], (IN_W, IN_H))
+        if self.aug:
+            # v10 축 2~4 — 리더 크롭 조건 변형(2026-10-03). 실사진 오독
+            # 지도(사람 순회 관찰 8건)의 축: 저대비 58장(2406·41: 대비 28~53
+            # — 0이 7로, 1이 소실)·blur(347: 99→9 상단 흐림)·기울기(2366:
+            # 178→78). 합성 패널이 아니라 **리더가 받는 크롭**에만 준다 —
+            # 검출기 학습 데이터는 오염하지 않는다. rng 소비는 항상 4개
+            # (값·분기 무관 — 흐름 보존).
+            g = self.aug_rng.random
+            _a, _b, _c, _d = g(), g(), g(), g()
+            if _a < 0.35:                      # 대비 감소 0.3~0.8배
+                f = self.aug_rng.uniform(0.3, 0.8)
+                m = float(crop.mean())
+                crop = np.clip(m + (crop.astype(np.float32) - m) * f,
+                               0, 255).astype(np.uint8)
+            if _b < 0.35:                      # 가우시안 blur
+                k = 2 * int(round(self.aug_rng.uniform(1, 3.5))) + 1
+                crop = cv2.GaussianBlur(crop, (k, k), 0)
+            if _c < 0.35:                      # 소각도 회전 ±10도
+                ang = self.aug_rng.uniform(-10.0, 10.0)
+                M = cv2.getRotationMatrix2D((IN_W/2, IN_H/2), ang, 1.0)
+                crop = cv2.warpAffine(crop, M, (IN_W, IN_H),
+                                      flags=cv2.INTER_LINEAR,
+                                      borderValue=int(crop.mean()))
         t = torch.from_numpy(crop).float().div_(255.).sub_(0.5).unsqueeze(0)
         return t, torch.tensor(encode(label)), len(label), label
 
@@ -282,6 +317,8 @@ def main():
     ap.add_argument("--batch", type=int, default=32)
     ap.add_argument("--lr", type=float, default=1e-3)
     ap.add_argument("--jitter", type=float, default=0.0)
+    ap.add_argument("--aug", action="store_true",
+                    help="v10 크롭 변형(대비·blur·회전)+연속 오버샘플")
     ap.add_argument("--out", default=str(HERE / "reader_crnn"))
     ap.add_argument("--ckpt", default=None)
     ap.add_argument("--beam", type=int, default=0,
@@ -290,7 +327,7 @@ def main():
 
     if args.cmd == "measure":
         # IN_H/IN_W 의 종횡비 근거를 내는 자. 상수를 바꾸려면 이걸 먼저 돌린다.
-        ds = BandCrops(args.set, args.split, args.boxes)
+        ds = BandCrops(args.set, args.split, args.boxes, jitter=args.jitter, aug=args.aug)
         ar = np.array([(b[2] - b[0]) / (b[3] - b[1]) for _, b, _ in ds.items])
         lens = np.array([len(l) for _, _, l in ds.items])
         print(f"모집단 {args.set}/{args.split} · 상자 {args.boxes or '정답'} "
