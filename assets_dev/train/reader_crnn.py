@@ -208,17 +208,19 @@ class BandCrops(torch.utils.data.Dataset):
             # 검출기 학습 데이터는 오염하지 않는다. rng 소비는 항상 4개
             # (값·분기 무관 — 흐름 보존).
             g = self.aug_rng.random
+            # 2026-10-03 밤 강도 완화 — v10(35%x3)이 원본 분포를 희석해
+            # 89.9->86.3 역행. 확률 15%·대비 하한 0.5·회전 ±6도.
             _a, _b, _c, _d = g(), g(), g(), g()
-            if _a < 0.35:                      # 대비 감소 0.3~0.8배
-                f = self.aug_rng.uniform(0.3, 0.8)
+            if _a < 0.15:                      # 대비 감소 0.5~0.9배
+                f = self.aug_rng.uniform(0.5, 0.9)
                 m = float(crop.mean())
                 crop = np.clip(m + (crop.astype(np.float32) - m) * f,
                                0, 255).astype(np.uint8)
-            if _b < 0.35:                      # 가우시안 blur
-                k = 2 * int(round(self.aug_rng.uniform(1, 3.5))) + 1
+            if _b < 0.15:                      # 가우시안 blur(약하게)
+                k = 2 * int(round(self.aug_rng.uniform(1, 2.0))) + 1
                 crop = cv2.GaussianBlur(crop, (k, k), 0)
-            if _c < 0.35:                      # 소각도 회전 ±10도
-                ang = self.aug_rng.uniform(-10.0, 10.0)
+            if _c < 0.15:                      # 소각도 회전 ±6도
+                ang = self.aug_rng.uniform(-6.0, 6.0)
                 M = cv2.getRotationMatrix2D((IN_W/2, IN_H/2), ang, 1.0)
                 crop = cv2.warpAffine(crop, M, (IN_W, IN_H),
                                       flags=cv2.INTER_LINEAR,
