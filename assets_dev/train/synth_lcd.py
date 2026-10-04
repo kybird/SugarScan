@@ -14,7 +14,7 @@ import numpy as np
 
 SEG_MAP = {
     "0": "abcdef", "1": "bc", "2": "abged", "3": "abgcd", "4": "fgbc",
-    "5": "afgcd", "6": "afgedc", "7": "abc", "8": "abcdefg", "9": "abcdfg",
+    "5": "afgcd", "6": "afgedc", "7": "abc", "7f": "abcf", "8": "abcdefg", "9": "abcdfg",
 }
 
 
