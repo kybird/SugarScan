@@ -14,11 +14,20 @@ import numpy as np
 
 SEG_MAP = {
     "0": "abcdef", "1": "bc", "2": "abged", "3": "abgcd", "4": "fgbc",
-    "5": "afgcd", "6": "afgedc", "7": "abc", "7f": "abcf", "8": "abcdefg", "9": "abcdfg",
+    "5": "afgcd", "6": "afgedc", "7": "abc", "8": "abcdefg", "9": "abcdfg",
 }
 
 
 def draw_digit(img, x, y, w, h, ch, ink, thickness=None):
+    """[레거시 블록 글리프 — 보조 문자 전용] cv2.rectangle 사각형 획.
+
+    2026-10-04 경계 정리(사람: "혼란스럽지 않게 잘못 그려질 경로는 정리해라").
+    이 함수가 그리는 것은 시간줄 등 작은 보조 글자다(사람 확정 2026-09-13
+    "작은 글자는 세그먼트가 아니다"의 구형 블록 렌더).
+    **값 숫자(큰 글리프)에는 절대 쓰지 않는다** — 값 숫자의 정본은
+    synth_profiles._glyph_mask(파라메트릭·절단각·변형별 trim)다.
+    검증판을 이 경로로 그렸다가 "모서리가 사각형으로 변했다"(2026-10-04).
+    """
     t = thickness or max(3, int(w * 0.22))
     m = max(2, int(t * 0.6))
     on = SEG_MAP[ch]
@@ -403,7 +412,12 @@ def apply_keystone(img, rng):
 
 
 def render_screen(value, rng, size=(320, 160)):
-    """value: int(30~511). returns (gray uint8 image, label str)."""
+    """[폐기 경로 — 현행 파이프라인이 부르지 않는다]
+
+    구세대 독립 굽기 파이프라인(synth_lcd 단독)의 유해다. 현행 코퍼스는
+    전부 synth_panel.render_panel → build_synth_coco 로 굽는다. 값 숫자
+    확인은 synth_profiles._glyph_mask 경로로 할 것(2026-10-04 정리).
+    """
     W, H = size
     label = str(value)
     panel = int(rng.uniform(150, 215))
