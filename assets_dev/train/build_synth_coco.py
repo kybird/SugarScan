@@ -61,6 +61,18 @@ SETS = {
     # 계승). 8,000장 한 번 굽고 g_subset.py 로 1,000·2,000·4,000·8,000
     # 중첩 부분집합 — 학습은 점마다 from scratch.
     "Gmaster": (8000, 20261120, 0.50, "procedural", "mixed"),
+    # ── GEN1(2026-10-04 사람: "7 두 종류+저대비 보강해서 처음부터 30000개",
+    # 계획 우선 구조 "각축들의 랜덤값들을 json 으로 만든 후 생성") ──────────
+    # 이 세대의 설계: 7 두 종류('7'=A+B+C+F · '7s'=A+B+C, 50:50, 라벨은 '7')
+    # · 저조도 혼합(_c 5% 로 0.15~0.40) · 열화 사슬 on(--degrade 인자로 주입,
+    # 저조도 행은 noise·blur 증폭 번들). 계획 우선(plan.jsonl)·행 단위 재개.
+    # 기준선: 검출기 atone_tg640w15(IoU 0.8949) × 리더 v11e(끝단 96.1%) —
+    # 새 세대는 이 기준을 넘어야 하며 7 포함 GT 384장 서브셋도 본다.
+    "GEN1": (30000, 20261201, 0.50, "procedural", "mixed"),
+    # GEN1P — GEN1 설계의 프로브(300장). 30,000장 굽기 전에 축 분포·질감을
+    # 실측 정본과 견주는 데 쓴다(_diag/measure_synth_contrast.py ·
+    # lowc_synth_vs_real 판). 프로브 시드는 GEN1 과 다르다(버리는 물건).
+    "GEN1P": (300, 20261130, 0.50, "procedural", "mixed"),
     # TGB — TG 30,000 + B2J 5,000 병합(2026-10-03 밤, 사람: "데이터 증강했으니
     # 검출기도 개선"). 검출기 v12 학습용. 병합은 merge로 수행(아래 스크립트):
     #   python merge_coco_sets.py --sets TG,B2J --out synth_coco/TGB
@@ -178,6 +190,10 @@ SETS = {
     "TG": (30000, 20261102, 0.50, "procedural", "mixed"),
 }
 
+# 계획 우선(재개 가능) 모드로 굽는 세트 — 나머지는 레거시 순차 스트림
+# 재현("같은 시드=같은 코퍼스" 계약 유지).
+PLAN_SETS = {"GEN1", "GEN1P"}
+
 CATEGORY = {"id": 1, "name": "glucose_band", "supercategory": "none"}
 
 MIN_SIDE = 8            # 이보다 작은 상자는 학습에 쓸 수 없다 — 하드 실패시킨다
@@ -197,21 +213,93 @@ def box_to_bbox(box, w, h):
 
 
 def build_set(name, count, seed, out_root, wide_share=None, bg="flat",
-              scene="panel", degrade_spec=None):
+              scene="panel", degrade_spec=None, plan_only=False, fresh=False):
     set_dir = out_root / name
-    if set_dir.exists():
+    use_plan = name in PLAN_SETS
+    if set_dir.exists() and (not use_plan or fresh):
         shutil.rmtree(set_dir)
-    set_dir.mkdir(parents=True)
+    set_dir.mkdir(parents=True, exist_ok=True)
 
     # 가로형 비중은 추첨 가중치로 준다 — 코퍼스를 두 번 굽고 합치지 않는다.
     # 세트가 값을 안 주면 **기본은 50:50** 이다(synth_panel.DEFAULT_WIDE_SHARE,
     # docs/SPEC.md §9.6). 구판은 None 을 넘겨 프로파일 균등(가로 13.3%)이 됐다.
     synth_panel.set_wide_share(
         synth_panel.DEFAULT_WIDE_SHARE if wide_share is None else wide_share)
-    # 열화 사슬(2026-09-21 카드) — off 면 기존 코퍼스 바이트 동일 재현.
-    synth_panel.generate(count, seed, set_dir, bg=bg, scene=scene,
-                         degrade_spec=degrade_spec)
-    (set_dir / "images").rename(set_dir / "train2017")
+
+    if use_plan:
+        # ── 계획 우선(사람 설계 2026-10-04 "각축들의 랜덤값들을 json 으로
+        # 만든 후 생성"): 설계 축을 먼저 뽑아 plan.jsonl 로 굳히고 렌더는
+        # 그 행들의 순수 함수로 만든다. 같은 요청으로 다시 부르면 계획을
+        # 재사용해 완료된 행부터 이어서 굽는다(사람 요청 "생성중 멈춰도
+        # 이어서 진행할 수 있는 구조"). 요청이 달라지면 거절한다 — 조용히
+        # 다른 코퍼스를 섞는 것을 막는다.
+        meta = dict(stream="plan-v1", seed=seed, count=count,
+                    degrade=str(degrade_spec), wide=str(wide_share),
+                    scene=scene, bg=bg)
+        meta_path = set_dir / "gen_meta.json"
+        plan_path = set_dir / "plan.jsonl"
+        if meta_path.exists():
+            old = json.loads(meta_path.read_text(encoding="utf-8"))
+            if old != meta:
+                raise SystemExit(
+                    f"{name}: 이미 굽던 계획({old})이 요청({meta})과 다르다 — "
+                    "--fresh 로 새로 굽거나 인자를 맞춰라")
+        if plan_path.exists() and meta_path.exists():
+            rows = [json.loads(l) for l in
+                    plan_path.read_text(encoding="utf-8").splitlines() if l.strip()]
+            assert len(rows) == count, \
+                f"{name}: 계획 {len(rows)}행 != 요청 {count}장"
+            print(f"[{name}] 계획 재사용(재개)")
+        else:
+            rows = synth_panel.build_plan(count, seed, degrade_spec)
+            plan_path.write_text(
+                "\n".join(json.dumps(r, ensure_ascii=False) for r in rows) + "\n",
+                encoding="utf-8")
+            meta_path.write_text(json.dumps(meta), encoding="utf-8")
+        # 축 분포 감사 — 수만 장 렌더 전에 설계가 의도대로 뽑혔는지 본다.
+        n7s = sum(1 for r in rows if r["seven"] == "7s")
+        lowc = sum(1 for r in rows if r["c_deg"] < 0.40)
+        inv = sum(1 for r in rows if r["inverted"])
+        cd = sorted(r["c_deg"] for r in rows)
+        prof = {}
+        for r in rows:
+            prof[r["profile"]] = prof.get(r["profile"], 0) + 1
+        print(f"[{name}] 축 감사: '7s' {n7s}({100*n7s/count:.1f}%) · "
+              f"저조도(c<0.40) {lowc}({100*lowc/count:.1f}%) · "
+              f"반전 {inv}({100*inv/count:.1f}%)")
+        print(f"[{name}] c_deg: min {cd[0]:.2f} · p10 {cd[count//10]:.2f} · "
+              f"p50 {cd[count//2]:.2f} · p90 {cd[9*count//10]:.2f}")
+        print(f"[{name}] 프로파일 상위: "
+              f"{sorted(prof.items(), key=lambda kv: -kv[1])[:6]}")
+        if plan_only:
+            print(f"[{name}] --plan-only — 계획만 만들었다(렌더 생략)")
+            return None
+        # 렌더 완료 상태(크래시가 파생물 생성 중에 났던 경우)면 건너뛴다.
+        mf = set_dir / "manifest.jsonl"
+        done_n = 0
+        if (set_dir / "train2017").exists() and mf.exists():
+            done_n = sum(1 for l in mf.read_text(encoding="utf-8").splitlines()
+                         if l.strip())
+        if done_n == count:
+            print(f"[{name}] 렌더 완료 상태 — 파생물(coco) 재생성만 한다")
+        else:
+            # 직전 실행이 images→train2017 이름변경까지 끝낸 뒤 중단됐으면
+            # generate 가 읽는 images/ 로 되돌려 놓는다(안 그러면 완료 장을
+            # 전부 못 보고 처음부터 다시 그린다 — 재개 시험에서 실제로 냈다).
+            # 같은 볼륨 안 이름변경은 메타데이터 연산이라 수만 장도 즉시다.
+            if (set_dir / "train2017").exists():
+                (set_dir / "images").mkdir(exist_ok=True)
+                for f in (set_dir / "train2017").iterdir():
+                    f.rename(set_dir / "images" / f.name)
+                (set_dir / "train2017").rmdir()
+            synth_panel.generate(count, seed, set_dir, bg=bg, scene=scene,
+                                 plan_rows=rows)
+    else:
+        # 열화 사슬(2026-09-21 카드) — off 면 기존 코퍼스 바이트 동일 재현.
+        synth_panel.generate(count, seed, set_dir, bg=bg, scene=scene,
+                             degrade_spec=degrade_spec)
+    if (set_dir / "images").exists():
+        (set_dir / "images").rename(set_dir / "train2017")
 
     rows = [json.loads(l) for l in
             (set_dir / "manifest.jsonl").read_text(encoding="utf-8").splitlines()
@@ -347,6 +435,11 @@ def main():
     ap.add_argument("--degrade", default="off",
                     help="열화 사슬을 모든 세트에 적용 — synth_panel.py 의 "
                          "형식(blur=…,noise=…,jpeg=…). off 면 기존 재현.")
+    ap.add_argument("--plan-only", action="store_true",
+                    help="계획(PLAN_SETS)만 만들고 렌더는 건너뛴다 — 축 분포"
+                         "감사용.")
+    ap.add_argument("--fresh", action="store_true",
+                    help="계획·매니페스트를 버리고 처음부터 다시 굽는다.")
     args = ap.parse_args()
 
     out_root = Path(args.out)
@@ -368,7 +461,8 @@ def main():
         if bg == "flat":
             assert seed not in seeds.values(), f"시드 중복: {name}"
         coco = build_set(name, count, seed, out_root, share, bg, scene,
-                         synth_panel.parse_degrade(args.degrade))
+                         synth_panel.parse_degrade(args.degrade),
+                         plan_only=args.plan_only, fresh=args.fresh)
         seeds[name] = seed
         box_sheet(out_root / name, coco, out_root / f"{name}_boxcheck.png",
                   n=args.sheet_n)

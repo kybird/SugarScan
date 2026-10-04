@@ -225,12 +225,18 @@ _ITALIC_BASE = {"Italic": "Regular", "LightItalic": "Light",
                 "BoldItalic": "Bold"}
 
 
-# 7 글리프 A획(위 가로) 스케일 — 실촬 축약형 7 대응(2026-10-03).
-# 대조 시트(glyph7_vs_real.png) 판정: 실촬 7엔 두 종류가 있다 — 완전형
-# (A획 전 폭·선명)과 축약형(A획 30~70% 로 짧·옅음). 합성은 완전형만
-# 그려 리더가 축약형을 1(B+C 세로만)로 읽었다(끝단 오독 260의 다수).
-# synth_lcd 가 장마다 이 값을 뽑는다(기본 1.0 = 종래 재현 동일).
-SEVEN_A_SCALE = 1.0
+# 7 두 종류(사람 결정 2026-10-04 "A+B+C , A+B+C+F 이렇게 두개야"):
+#   '7'  = DSEG 원형 4세그먼트(A+B+C+F) — 종래 합성이 그려온 형태
+#   '7s' = 3세그먼트(A+B+C) — F 성분을 뺀 형태, 실촬에 함께 존재
+# 한 패널의 LCD 폰트는 하나의 드라이버라 장 단위로 일관 적용한다.
+# synth_panel.render_panel 이 첫머리에서 뽑는다(구 SEVEN_A_SCALE 자리,
+# rng 2개 상시 소비 규칙도 물려받는다). 매니페스트 라벨은 항상 '7' —
+# 모델이 두 형태를 모두 7 로 읽어야 하기 때문이다.
+# 구 SEVEN_A_SCALE(A획 부분 절단)은 사람 기각(2026-10-04 "첫번째획을
+# 그리지말아야하는데…F 를 껏어야지") — 부분 축약은 실존하지 않는 형태를
+# 만든다. 7→1 오독 개선(26→5, 2026-10-03)이 이 축에서 왔으므로 대체
+# 코퍼스 재학습 뒤 7 포함 서브셋 점수로 회귀 확인이 필요하다.
+SEVEN_KIND = "7"
 
 
 def _param_glyph_mask(ch, variant, h, trim_scale=1.0, mid_extra_ratio=None,
@@ -244,10 +250,31 @@ def _param_glyph_mask(ch, variant, h, trim_scale=1.0, mid_extra_ratio=None,
     # 분해는 검증된 크기(150)에서 — 작은 래스터는 DSEG 자체가 병합돼
     # 세그먼트 분해가 실패한다(사람 보고 2026-09-26 시간 표시 붕괴).
     base_h = base_h or max(PARAM_MIN_H, h * 2)
-    base = _dseg_raster(ch, build_variant, base_h)
+    # '7s' — 7 두 종류(사람 결정 2026-10-04 "A+B+C , A+B+C+F 이렇게 두개야").
+    # DSEG 의 '7' 은 F(세로좌상)까지 켜진 4세그먼트형이라 '7' 은 원형 그대로
+    # 두고, '7s' 는 같은 래스터에서 F 성분만 빈다. 완성 마스크 위에 F 를 얹는
+    # 오버레이는 틈·절단각·두께가 조립 규칙을 안 따라 사람 기각(2026-10-04
+    # "추가한 F 획이 세그먼트 규칙을 안지킨다") — 성분을 빼고 이 루프로
+    # 조립하면 나머지 획의 규칙이 그대로 적용된다.
+    base = _dseg_raster("7" if ch == "7s" else ch, build_variant, base_h)
     if base is None:
         return None
     m0 = base.astype(np.uint8)
+    if ch == "7s":
+        n_, lab_ = cv2.connectedComponents(m0)
+        keep = np.zeros(m0.shape, bool)
+        for i in range(1, n_):
+            sel = lab_ == i
+            ys, xs = np.nonzero(sel)
+            if len(xs) < 8:
+                continue
+            vert = (ys.max() - ys.min()) > (xs.max() - xs.min())
+            left = (xs.min() + xs.max()) / 2 < (m0.shape[1] - 1) / 2
+            top = (ys.min() + ys.max()) / 2 < (m0.shape[0] - 1) / 2
+            if vert and left and top:
+                continue                          # F 세그먼트(세로·좌·상) 제거
+            keep |= sel
+        m0 = keep.astype(np.uint8)
     n0, lab0 = cv2.connectedComponents(m0)
     H0, W0 = m0.shape
     pd = max(4, int(round(2.5 * 0.12 * H0)))
@@ -331,29 +358,7 @@ def _param_glyph_mask(ch, variant, h, trim_scale=1.0, mid_extra_ratio=None,
     # 절단면·코너 좌표를 어긋나게 해 폐지(2026-09-25).
     w2 = max(2, int(round(acc.shape[1] * h / acc.shape[0])))
     out = cv2.resize(acc, (w2, h), interpolation=cv2.INTER_AREA)
-    out = out > 0.5
-    # 7 A획 축약(SEVEN_A_SCALE) — 7 은 A·B 획이 연결요소 하나(역L)로
-    # 붙어 나와 획 단위 축소가 안 된다. 완성 마스크에서 A획 대역(위쪽,
-    # 행 잉크가 세로획 두께보다 훨씬 많은 구간)을 찾아 왼쪽부터 자른다
-    # — B세로획(오른쪽)과의 연결은 유지, 실촬 축약형과 같은 방향.
-    if ch == "7" and SEVEN_A_SCALE < 1.0:
-        row_ink = out.sum(axis=1)
-        bw_est = max(1.0, float(np.median(row_ink[len(row_ink) // 2:])))
-        a_rows = []
-        for i, v in enumerate(row_ink):
-            if v > bw_est * 1.8:
-                a_rows.append(i)
-            elif a_rows:
-                break
-        if a_rows:
-            y1 = max(a_rows)
-            band = out[:y1 + 1]
-            xs = np.nonzero(band.any(axis=0))[0]
-            a_span = int(xs.max() - xs.min() + 1 - bw_est)
-            cut = int(round(a_span * (1.0 - SEVEN_A_SCALE)))
-            if cut > 0:
-                band[:, xs.min():xs.min() + cut] = False
-    return out
+    return out > 0.5
 
 
 # 파라메트릭 렌더 최소 높이 — 확정 형상은 큰 값 숫자(h 150~200) 기준이고
@@ -371,12 +376,16 @@ def _value_glyph_mask(ch, variant, h):
     dh 분포는 16~427px(46% 가 150 미만)이라 문턱을 두면 값끼리 체계가
     섞인다(사람 질문 2026-09-26: "h=51 이 혈당 표기 크기냐" — p10 이
     정확히 51)."""
+    # 7 두 종류 — 값 숫자에만 적용(사람 지시 "큰숫자에"). 보조 글자(시간·
+    # 날짜)의 _dmask 경로는 이 함수를 안 거치므로 영향받지 않는다.
+    if ch == "7" and SEVEN_KIND == "7s":
+        ch = "7s"
     if h >= PARAM_MIN_H:
         return _param_glyph_mask(ch, variant, h)
     gap_abs = 1.8                               # 절대 보장 갭(고정)
-    # G 정점 겹침 해소(−0.03h)는 G 있는 숫자만 — G 없는 숫자('0'·'7'·'1')
-    # 는 자연 갭(0.025h) 대비 부족분의 절반만 후퇴(양 끝이니 ×2).
-    has_g = ch not in "017"
+    # G 정점 겹침 해소(−0.03h)는 G 있는 숫자만 — G 없는 숫자('0'·'1'·'7'·
+    # '7s')는 자연 간격(0.025h) 대비 부족분의 절반만 후퇴(양 끝이니 ×2).
+    has_g = ch not in ("0", "1", "7", "7s")
     mid_px = ((0.03 * h + gap_abs) if has_g
               else max(0.0, (gap_abs - 0.025 * h) / 2.0))
     return _param_glyph_mask(ch, variant, h, base_h=PARAM_MIN_H,
@@ -388,7 +397,7 @@ def _glyph_mask(ch, variant, h):
     보조 글자(시간·날짜 — synth_panel 의 _dmask 경로)는 수정하지 않기로
     한 사람 확정(2026-09-26)대로 DSEG 래스터를 유지한다. 두 경로의
     구분은 synth_panel 호출부에서 이룬다."""
-    if ch in "0123456789" and variant in _PARAM_VARIANTS:
+    if (ch in "0123456789" or ch == "7s") and variant in _PARAM_VARIANTS:
         m = _value_glyph_mask(ch, variant, h)
     else:
         m = _dseg_raster(ch, variant, h)

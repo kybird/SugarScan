@@ -272,6 +272,16 @@ set_wide_share(DEFAULT_WIDE_SHARE)   # 모듈 기본 — 세로형:가로형 = 5
 # 렌더마다 실측 코퍼스 반전률로 뽑는다.
 GENERIC_INVERTED_P = REAL_BASELINE["polarity"]["inverted_pct"] / 100.0
 
+# 저조도 혼합 확률(2026-10-04 사람 보강 요청 "실화면은 대비가 거의 없는 것도
+# 있다") — _c 본체(0.40~1.0)에 더해 이 확률로 0.15~0.40 을 뽑아 실측 최악
+# 대비(min 27)에 닿는다. 목표 분포는 real_baseline.polarity, 검증 자는
+# _diag/measure_synth_contrast.py.
+LOWC_P = 0.05
+# 7 두 종류(사람 결정 2026-10-04 "A+B+C , A+B+C+F 이렇게 두개야") —
+# 세그먼트 3개형('7s') 뽑기 확률. 라벨은 두 형태 모두 '7' 이다. 계획
+# 빌더(build_plan)와 render_panel 레거시 경로가 같은 값을 쓴다.
+SEVEN_3SEG_P = 0.50
+
 
 def sample_wh(rng):
     i = rng.choices(range(len(_BINS)), weights=_WEIGHTS, k=1)[0]
@@ -788,7 +798,7 @@ def _reflection_mask(W, H, kind, orng):
     return msk, alpha
 
 
-def render_panel(value, rng, profile=None, scene="panel"):
+def render_panel(value, rng, profile=None, scene="panel", trait=None):
     """물리 패널 한 장. 반환 dict:
       panel   최종 캔버스(uint8, 긴 변 896)
       quad    밴드 쿼드 4x2(float32, 캔버스 픽셀, TL-TR-BR-BL) — 이미지와 같은
@@ -797,19 +807,22 @@ def render_panel(value, rng, profile=None, scene="panel"):
       glyph_plane_check  글리프 평면 자가검사 점수(1에 가까울수록 일관 변환)
       density 최종(광학 뒤) 밴드 밖 엣지 밀도 — 같은 자로 잰 값
       rects   배치 사각형(겹침 0 검증용), dropped  뺀 요소
+    trait — 계획(build_plan)이 정한 설계 축을 주입한다(2026-10-04 사람 설계:
+    "각축들의 랜덤값들을 json 으로 만든 후 생성"). 7 종류·프로파일·극성·대비
+    계수를 렌더마다 뽑지 않고 계획 행에서 읽는다 — 굽기 전에 축 분포를 감사
+    할 수 있고, 렌더러 수정으로 재렌더해도 축 내용이 동결된다.
     밀도는 광학 뒤에 재서 목표에 못 미치면 부족분을 올려 최대 3회 재렌더한다 —
     계수 추측으로 맞추지 않는다(1판의 교훈)."""
-    # 7 A획 축약형 뽑기(2026-10-03, 사람 승인 "데이터증강하자!!!") — 실촬
-    # 에는 완전형·축약형 두 종류가 있고 합성은 완전형뿐이라 리더가 축약형을
-    # 1로 읽었다(glyph7_vs_real.png 판정). **항상 rng 2개를 소비**한다(값·
-    # 분기 무관 — 형질 난수 흐름 보존 규칙). 장(패널) 단위로 일관 적용.
-    # 2026-10-03 밤 하한 확장: v4 잔존 7→1 20장의 다수가 A획 소멸형
-    # (0~30%)이라 0.35 하한으로 못 닿았다(seven_left_v4.png 판정).
-    # 0.15 까지 내리고 확률 30->40%. 0 은 안 된다 — 사람이 7 로 읽었다는
-    # 건 A획이 보였다는 뜻이고 0 이면 글자가 1 이 되어 정답 모순.
+    # 7 두 종류 뽑기(사람 결정 2026-10-04 "A+B+C , A+B+C+F 이렇게 두개야") —
+    # 장(패널) 단위로 일관 적용(한 LCD 의 폰트 드라이버는 하나다). 라벨은
+    # 항상 '7' — 모델이 두 형태 모두 7 로 읽어야 한다. **항상 rng 2개를
+    # 소비**한다(값·분기 무관 — 형질 난수 흐름 보존 규칙; 구 SEVEN_A_SCALE
+    # 자리를 물려받아 흐름 모양을 유지한다. _u7 는 예비 더미).
     _r7 = rng.random()
     _u7 = rng.uniform(0.15, 0.75)
-    _sp.SEVEN_A_SCALE = _u7 if _r7 < 0.40 else 1.0
+    _sp.SEVEN_KIND = (trait.get("seven") if trait is not None
+                      and "seven" in trait else
+                      ("7s" if _r7 < SEVEN_3SEG_P else "7"))
     if profile is None:
         # 가중치가 없으면 구판 경로 그대로 — rng.choices 는 randrange 와 난수
         # 소비가 달라서, 갈아끼우면 같은 시드가 다른 코퍼스를 낸다.
@@ -830,7 +843,9 @@ def render_panel(value, rng, profile=None, scene="panel"):
     # mixed 상태는 없앴다(2026-09-13). '같은 이름 아래 두 기기'였던
     # performa_silver 는 performa_silver / performa_nano 로 쪼갰다 — 평균
     # 극성의 유령 기기를 만드는 대신 물건을 둘로 센다.
-    if pid == "generic_v1":
+    if trait is not None and "inverted" in trait:
+        inverted = bool(trait["inverted"])
+    elif pid == "generic_v1":
         # 기기 미상 익명 풀만 코퍼스 비율에서 뽑는다. 여기서는 특정 기기가
         # 아니라 분포가 맞으면 된다.
         inverted = rng.random() < GENERIC_INVERTED_P
@@ -846,7 +861,8 @@ def render_panel(value, rng, profile=None, scene="panel"):
     #
     # 렌더는 이제 1회다. 화면에 무엇이 있는지는 기기가 정하고, 밀도는 그
     # 결과를 재서 보고만 한다(manifest.density).
-    return _render_once(value, rng, profile, pid, inverted, scene=scene)
+    return _render_once(value, rng, profile, pid, inverted, scene=scene,
+                        trait=trait)
 
 
 def _gpc_bg_contrast(img, quad, glass_rect):
@@ -889,7 +905,7 @@ def glyph_plane_score(img, quad, glyph_warped, glass_rect, ink_thr=None):
     return float((ink & sel).sum()) / max(1, sel.sum())
 
 
-def _render_once(value, rng, profile, pid, inverted, scene="panel"):
+def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None):
     label = str(value)
     assert label.isdigit(), f"라벨 오염: {label!r}"
 
@@ -1097,12 +1113,29 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel"):
         ink_digit = int(_fix("ink_u", 20, 90))
         ink_small = int(_fix("ink_u", 60, 130))
     # 밴드 대비 열화(카드 「합성 열화 상한」): 잉크-패널 간극에 계수를 곱한다.
-    # 실사진 대비 분포(median 99 · p10 60 · p90 178 · min 21 · 40미만 1.1%,
-    # real_baseline.json polarity, n=264)의 아래쪽 폭은 씻긴 화면·역광·저조도
-    # 촬영에서 온다 — 글자와 바탕의 간극이 줄어드는 물리 현상이라 렌더 파라미터
-    # 로 낸다(렌더 후 버리지 않는다, AC#5). 숫자·보조 잉크에 같은 계수 — 화면
-    # 전체의 세척 상태는 기기·촬영 단위라 함께 움직인다.
-    _c = rng.uniform(0.40, 1.0)
+    # 실사진 대비 분포(median 100.5 · p10 59.5 · p90 182 · min 27 · 40미만
+    # 0.72%, real_baseline.json polarity, n=276)의 아래쪽 폭은 씻긴 화면·역광·
+    # 저조도 촬영에서 온다 — 글자와 바탕의 간극이 줄어드는 물리 현상이라 렌더
+    # 파라미터로 낸다(렌더 후 버리지 않는다, AC#5). 숫자·보조 잉크에 같은 계수
+    # — 화면 전체의 세척 상태는 기기·촬영 단위라 함께 움직인다.
+    # 저조도 혼합(사람 보강 요청 2026-10-04 "실화면은 대비가 거의 없는 것도
+    # 있다"): 본체 0.40~1.0 은 실측 분포 몸통에 맞춘 값 그대로 두고, LOWC_P
+    # 확률로 0.15~0.40 을 추가로 뽑는다(실측 min 27 도달). 분포 재검증 자는
+    # _diag/measure_synth_contrast.py · 실화면과의 질감 차이(대비만 낮고 노이즈
+    # 0 이라 실최악 장과 결이 다르다)는 열화 단에서 c_deg 로 묶는다(아래
+    # generate). **항상 rng 2개를 소비**한다(분기 무관 — 흐름 보존).
+    # **항상 rng 3개를 소비**한다(분기 무관 — 흐름 보존). 계획(build_plan)이
+    # c_deg 를 정해 주면 그 값을 쓴다(축 동결 — 렌더러 수정과 무관).
+    _lc_gate = rng.random()
+    _lc_u = rng.uniform(0.15, 0.40)
+    _c_u = rng.uniform(0.40, 1.0)
+    if trait is not None and "c_deg" in trait:
+        _c = float(trait["c_deg"])
+    elif _lc_gate < LOWC_P:
+        _c = _lc_u
+    else:
+        _c = _c_u
+    c_deg = _c      # 아래 코너 행렬 _c 에 덮이기 전에 캡처
     ink_digit = int(round(panel_col + (ink_digit - panel_col) * _c))
     ink_small = int(round(panel_col + (ink_small - panel_col) * _c))
 
@@ -2861,6 +2894,7 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel"):
                 # [[unnamed-coordinate-frame]]
                 rects=placer.rects, quad_panel=np.asarray(quad0, np.float32),
                 dropped=dropped, wh=W / H, W=W, H=H,
+                c_deg=c_deg,
                 profile=pid, inverted=bool(inverted), scene=scene_kind,
                 glyph_plane_check=round(gpc, 4),
                 glyph_warped=glyph_warped,
@@ -2963,25 +2997,115 @@ def degrade(img, rng, spec):
     return out, ap
 
 
+def build_plan(count, seed, degrade_spec=None, lowc_p=None, seven_p=None):
+    """설계 축(값·프로파일·극성·7종류·대비계수·열화강도)을 먼저 뽑아 계획
+    행을 만든다 — 사람 설계(2026-10-04 "각축들의 랜덤값들을 json 으로 만든
+    후 생성"). 렌더는 계획 행의 순수 함수가 되어 세 가지가 풀린다:
+      ① 굽기 전에 축 분포를 감사한다(수만 장 렌더 전에 7s/저대비 비중 확인)
+      ② 행 단위 재개 — 완료 행은 건너뛴다(레거시 순차 스트림은 불가)
+      ③ 렌더러 수정 후 재렌더해도 축 내용이 동결돼 전·후 비교가 깨지지 않는다
+    세부 지터(요소 위치·노이즈 필드 등)는 계획에 안 넣고 렌더 시
+    (seed, i) 파생 rng 가 쥔다 — 계획은 '설계 축'만 담는다.
+    저조도 번들: c_deg 가 낮은 행은 열화(noise·blur)도 함께 세게 뽑는다.
+    실화면 최악 장은 대비 부족·노이즈·블러가 한 사진 조건으로 함께 오기
+    때문이다(lowc_synth_vs_real_v1.png 판정: 대비만 낮춘 깨끗한 합성은
+    실최악 장과 결이 다르다)."""
+    lowc_p = LOWC_P if lowc_p is None else lowc_p
+    seven_p = SEVEN_3SEG_P if seven_p is None else seven_p
+    prng = random.Random(f"plan:{seed}")        # 렌더 rng 와 별개 스트림
+    rows = []
+    for i in range(count):
+        val = sample_value(prng)
+        prof_i = (prng.randrange(len(TRAIN_PROFILES))
+                  if _PROFILE_WEIGHTS is None else
+                  prng.choices(range(len(TRAIN_PROFILES)),
+                               weights=_PROFILE_WEIGHTS, k=1)[0])
+        pid = TRAIN_PROFILES[prof_i].get("id", "generic_v1")
+        if pid == "generic_v1":
+            inverted = prng.random() < GENERIC_INVERTED_P
+        else:
+            inverted = bool(PANEL_ATTRS.get(pid, {}).get("inverted", False))
+        seven = "7s" if prng.random() < seven_p else "7"
+        c_deg = (prng.uniform(0.15, 0.40) if prng.random() < lowc_p
+                 else prng.uniform(0.40, 1.0))
+        deg = {}
+        if degrade_spec:
+            for k, (lo, hi) in degrade_spec.items():
+                v = prng.uniform(lo, hi)
+                if k in ("noise", "blur"):
+                    v *= 1.0 + (1.0 - c_deg) * 1.2
+                    v = min(v, hi * 2.2)
+                deg[k] = round(v, 3)
+        rows.append(dict(i=i, id=f"panel_{seed}_{i}", value=int(val),
+                         profile_idx=prof_i, profile=pid, inverted=inverted,
+                         seven=seven, c_deg=round(c_deg, 4), degrade=deg))
+    return rows
+
+
 def generate(count, seed0, out_dir, with_reader=False, bg="flat", scene="panel",
-             degrade_spec=None):
+             degrade_spec=None, plan_rows=None):
+    """plan_rows 를 주면 계획 모드(재개 가능) — 없으면 구판 순차 스트림
+    재현(옛 세트 재현용, 재개 불가)."""
     global PROCEDURAL_BG
     PROCEDURAL_BG = (bg == "procedural")
     out = Path(out_dir)
-    (out / "images").mkdir(parents=True, exist_ok=True)
+    img_dir = out / "images"
+    img_dir.mkdir(parents=True, exist_ok=True)
     rng = random.Random(seed0)
     manifest = []
     viol_total = 0
     clip_total = 0          # 밴드 쿼드가 숫자 필드를 자른 장 수(자가검사)
+    mf_path = out / "manifest.jsonl"
+    mf = None
+    done_ids = set()
+    if plan_rows is not None:
+        # ── 재개(사람 요청 2026-10-04 "생성중 멈춰도 이어서 진행할 수 있는
+        # 구조"): 매니페스트는 행 단위 append. 재시작하면 이미지가 멀쩡한
+        # 완료 행은 건너뛴다 — 계획 모드는 행별 파생 rng 라 잔여 스트림을
+        # 소진할 필요가 없다. 이미지가 없거나 깨진 꼬리 행은 매니페스트에서
+        # 잘라 내고 다시 렌더한다.
+        keep = []
+        if mf_path.exists():
+            for ln in mf_path.read_text(encoding="utf-8").splitlines():
+                if not ln.strip():
+                    continue
+                rec = json.loads(ln)
+                if cv2.imread(str(img_dir / f"{rec['id']}.png"),
+                              cv2.IMREAD_GRAYSCALE) is not None:
+                    keep.append(ln)
+                    done_ids.add(rec["id"])
+                    viol_total += int(rec.get("overlaps", 0))
+                    clip_total += int(rec.get("band_clip", 0))
+                else:
+                    print(f"[재개] {rec['id']}: 이미지 없음/깨짐 — 다시 렌더")
+        mf_path.write_text("\n".join(keep) + ("\n" if keep else ""),
+                           encoding="utf-8")
+        mf = open(mf_path, "a", encoding="utf-8")
+        print(f"[재개] 완료 {len(done_ids)}/{count}장 — 이어서 굽는다",
+              flush=True)
     for i in range(count):
-        val = sample_value(rng)
-        s = render_panel(val, rng, scene=scene)
         name = f"panel_{seed0}_{i}"
-        # 열화 사슬 — 렌더 rng 와 별도 스트림: 시드가 같으면 열화 on/off 와
-        # 무관하게 레이아웃·정답 box 가 동일하다(위 주석 참조).
-        if degrade_spec:
-            s["panel"], s["degrade"] = degrade(
-                s["panel"], random.Random(seed0 * 1_000_003 + i), degrade_spec)
+        if name in done_ids:
+            continue
+        if plan_rows is not None:
+            row = plan_rows[i]
+            rng_i = random.Random(f"{seed0}:{i}")   # 세부 지터 전용(행별 독립)
+            s = render_panel(row["value"], rng_i,
+                             profile=TRAIN_PROFILES[row["profile_idx"]],
+                             scene=scene, trait=row)
+            if row.get("degrade"):
+                spec2 = {k: (v, v) for k, v in row["degrade"].items()}
+                s["panel"], s["degrade"] = degrade(
+                    s["panel"], random.Random(0), spec2)
+        else:
+            val = sample_value(rng)
+            s = render_panel(val, rng, scene=scene)
+            # 열화 사슬 — 렌더 rng 와 별개 스트림: 시드가 같으면 열화 on/off 와
+            # 무관하게 레이아웃·정답 box 가 동일하다(위 주석 참조).
+            if degrade_spec:
+                s["panel"], s["degrade"] = degrade(
+                    s["panel"], random.Random(seed0 * 1_000_003 + i),
+                    degrade_spec)
         if scene != "panel":
             lo, hi = s["quad"].min(0), s["quad"].max(0)
             dc = s["digit_box"]
@@ -3021,12 +3145,17 @@ def generate(count, seed0, out_dir, with_reader=False, bg="flat", scene="panel",
             rects=[[round(float(v), 1) for v in r[:4]] + [r[4]]
                    for r in s["rects"]],
             dropped=s["dropped"], overlaps=viol,
+            band_clip=int(s.get("band_clip", 0)),
             margin=s["margin"],
             margins=s["margins"],
         )
+        if plan_rows is not None:
+            row = plan_rows[i]
+            rec["seven"] = row["seven"]
+            rec["c_deg"] = row["c_deg"]
         if s["bezel"]:
             rec["bezel"] = s["bezel"]
-        if degrade_spec and s.get("degrade"):
+        if s.get("degrade"):
             rec["degrade"] = s["degrade"]
         if with_reader:
             rv, rq = reader_view(s)
@@ -3034,11 +3163,17 @@ def generate(count, seed0, out_dir, with_reader=False, bg="flat", scene="panel",
             cv2.imwrite(str(out / "reader" / f"{name}.png"), rv)
             rec["quad_reader"] = np.round(rq, 2).tolist()
         manifest.append(rec)
+        if mf is not None:                  # 계획 모드 — 행 단위 append·플러시
+            mf.write(json.dumps(rec, ensure_ascii=False) + "\n")
+            mf.flush()
         if (i+1) % 250 == 0:
             print(f"rendered {i+1}/{count} scene={scene}", flush=True)
-    with open(out / "manifest.jsonl", "w", encoding="utf-8") as f:
-        for m in manifest:
-            f.write(json.dumps(m, ensure_ascii=False) + "\n")
+    if mf is not None:
+        mf.close()
+    else:
+        with open(out / "manifest.jsonl", "w", encoding="utf-8") as f:
+            for m in manifest:
+                f.write(json.dumps(m, ensure_ascii=False) + "\n")
     print(f"generated {count} panels -> {out}")
     print(f"layout overlap violations: {viol_total}")
     print(f"band quad clipped digits: {clip_total}")
