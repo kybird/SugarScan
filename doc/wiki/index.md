@@ -14,6 +14,7 @@ tags: [index]
 | [[canonical-value]] | 한 사실을 두 군데에 적으면 언젠가 갈라진다. | 정본, single-source-of-truth, value_mgdl, valueMgdl, enteredValue, enteredUnit, valueIn, GlucoseReading |
 | [[coordinate-frame]] | 좌표 4개짜리 배열은 **그 자체로는 아무 의미가 없다.** `(559, 345)` 는 "어느 이미지의, 어느 크기·방향 공간에서" 잰 값인지가 붙어야 비로소 위치를 가리킨다. | 좌표계, frame, 표시 좌표계, cross-space-comparison, lb.ow, exif_transpose, quad, screen_boxes.jsonl, oriented |
 | [[experiment-budget-parity]] | A/B 로 **구조**(프레이밍·전처리·아키텍처)를 비교하려면 두 팔이 같은 만큼 | 학습 예산, 에폭 수, 예산 일치, budget parity, 대조군 예산, A/B 공정성, fair comparison, 수렴 부족, undertrained |
+| [[glyph-anchor-not-device-appearance]] | 밴드 검출기의 닻은 혈통·기기 외모가 아니라 **큰 숫자 글리프 자체**다. | 숫자 글리프 닻, glyph anchor |
 | [[knowledge-retrieval-shape]] | 지식 베이스의 가치는 **쓰여 있는가**가 아니라 **필요한 순간에 그 사람이 던지는 질의 모양으로 걸리는가**로 정해진다. | 검색 질의 모양, llm-wiki search, grep 폴백, retrieval |
 | [[late-learned-low-amplitude-signal]] | 출력의 어떤 축이 **다른 축보다 훨씬 작은 진폭**을 가지면, 모델은 큰 축이 | 저진폭 신호, 늦게 배우는 축, 데이터가 모자라서 못 배운 것, 기울기를 못 배운다, 능력이 없다고 결론내기, late-learned signal |
 | [[live-query]] | Drift 의 `watch()` 는 테이블이 바뀔 때마다 **처음 만든 SQL 을 그대로 다시 돌린다.** 파라미터를 다시 계산하지 않는다. | 살아 있는 질의, Drift watch, 스트림 질의, StreamProvider, watchBetween, autoDispose, Drift watch() |
@@ -29,6 +30,7 @@ tags: [index]
 |------|------|------|
 | [[build-fingerprint]] | 돌고 있는 클라이언트가 **어느 빌드인지** 화면에서 읽히게 한다. | 빌드 지문, stale-tab-detection, /api/build, _build_stamp, checkBuild, Cache-Control: no-store |
 | [[check-ruler-noise-before-building-it]] | 새 측정 경로를 만들기로 결정하기 전에, **그 자가 낼 수 있는 최선의 정밀도**를 | 자의 잡음을 먼저 계산한다, 분해능, 사람 손을 쓰기 전에, 라벨링 정밀도, ruler noise floor |
+| [[checkpoint-curve-not-final-step]] | 학습이 끝난 지점의 모델이 아니라 **구간 체크포인트의 곡선**으로 채택 지점을 | 구간 체크포인트 곡선 |
 | [[contract-boundary-equals-method-boundary]] | "이 메서드는 예외를 던지지 않는다"는 계약을 걸었으면, `try` 는 **메서드 전체**를 감싸야 한다. | 계약 경계, never-throws, GlucoseScanner.offer, _recognizeSafely, ScanUnavailable |
 | [[cursor-holdback-for-skipped-rows]] | 델타 커서를 어디까지 미느냐는 **왜 건너뛰었는지에 따라 정반대**다. | 커서 홀드백, delta cursor, SyncCursorStore, _pull, _apply, updated_at, skippedFrom |
 | [[declare-what-the-human-knows]] | 도메인 사실(기기의 성질·부품의 종류·문서의 종류)을 사람이 이미 안다면, | 사람이 아는 것은 선언한다, 재지 말고 라벨, 도메인 사실은 라벨, declare not measure |
@@ -90,6 +92,7 @@ tags: [index]
 | [[mixed-image-decode-conventions]] | `cv2.imread` 는 EXIF orientation 을 **자동 적용**하고, `PIL.Image.open` 은 **무시**한다. | EXIF 관례 불일치, cv2 vs PIL, exif_transpose, cv2.imread, getexif, orientation, build_cache_v2, golden_bench |
 | [[model-invents-what-it-cannot-see]] | 입력에 없는 것을 모델이 **높은 확신으로 만들어낸다.** 그리고 그 값이 그럴듯해서 안전망을 통과한다. | 지어낸다, 환각, hallucination, 안 보이는 자리, 사전분포, prior, 크롭 잘림, CTC, 마지막 자리, 없는 숫자 |
 | [[padding-as-content]] | CTC 라벨 배열의 blank(클래스 10)를 필터하지 않고 문자열로 조인해 `"90" + "10"` → `"9010"` 이 된 것. | blank 조인, 패딩 직렬화, greedy_decode, NUM_CLASSES, ctc_reader_v2.py, blank |
+| [[partial-file-read-as-complete-result]] | 증분 기록 파일(평가 jsonl, 로그)을 '존재'만 보고 완결로 읽어 판정하면 | 부분 파일 판정 |
 | [[partial-update-desyncs-canonical]] | ```dart | 부분 수정, 정본 미갱신, GlucoseRepository.update, valueMgdl, enteredValue, Value.absent, glucose_repository.dart |
 | [[poison-row-blocks-pipeline]] | 관용의 단위가 **행이 아니라 배치**인 것. | 독행, 배치 단위 관용, 행 하나가 전체를 막음, ReadingDto.fromJson, _pull, syncOnce, fetchUpdatedSince, reading_dto.dart |
 | [[prediction-used-as-ground-truth]] | 어떤 모델의 출력 파일이 측정의 입력이 된다. | 예측을 실측으로, 모델 출력이 정답 행세, 사람 라벨을 두고 예측을 쓴다, prediction as GT |
@@ -102,10 +105,13 @@ tags: [index]
 | [[sampled-uniformity-as-proof]] | 묶음이 균일한지 표본으로 확인하는 절차는 **반례를 못 찾았다**는 사실만 만든다. | 표본으로 균일성 확인, 사분위 표본, 거대 성분 점검, 반례 못 찾음, 4표본, spot check as proof |
 | [[shared-state-split-by-worktree]] | 작업 보드·클레임·활동 로그는 "어느 브랜치에서 보든 같아야" 하는 값이다. | 워크트리, git worktree, 보드가 갈린다, 칸반 충돌, 공유 상태 |
 | [[silent-drop-on-placement-failure]] | 배치기가 자리를 못 찾으면 그 요소를 **그리지 않고 넘어간다.** 산출물에는 |  |
+| [[single-image-orientation-judgment]] | 사진 한 장을 그대로 보고 "회전됐다/정방향이다"를 판정한다 — 어두운 노출· | 단일 이미지 방향 판정 |
+| [[single-point-trend-claim]] | 점 간 변동이 큰 측정에서 인접 한 점의 오르내림으로 "증량이 해롭다/이롭다"를 | 단일 점 추세 주장 |
 | [[stale-baseline-quoted-as-current]] | 파이프라인을 갈아엎고 나면 옛 성적은 **다른 모델이 다른 데이터로 다른 시험지를 | 옛 기준선 인용, 폐기된 수치, 기준선 혼동, stale baseline, 재구축 전 수치, 갈아엎기 전 성적, 옛 모델 수치 |
 | [[stale-client-writes]] | 브라우저에 어느 버전의 JS 가 떠 있는지 **아무도 모르는 상태**로 저장 요청을 받는 것. | 낡은 탭 쓰기, stale build, Cache-Control, no-store, webtool.html, /api/build |
 | [[string-identity-for-label-class]] | 도메인에서 같은 것(같은 annunciator, 같은 표시등)이 **표기 변형** 때문에 문자열로는 | 문자열 동일성, 표기 변형 중복, used_texts, string identity, 라벨 부류 |
 | [[synthetic-target-differs-from-label-definition]] | 합성 데이터로 학습하고 사람 라벨로 채점한다. |  |
+| [[task-handle-death-equals-process-death]] | 세션 재개·압축 후 작업 핸들이 사라져도 OS 프로세스는 살아 있을 수 있다. | 작업 핸들=프로세스 사망 착각 |
 | [[tolerance-without-preservation]] | `values.firstWhere(..., orElse: () => SomeDefault)` — 관용처럼 보이지만, 그 값을 나중에 서버로 되돌려 쓰는 순간 **다른 기기의 데이터를 파괴한다.** | 모르는 값 치환, orElse 기본값, silent-normalization, fromWireName, orElse, firstWhere, MeasurementTag, ReadingSource, measurement_tag.dart |
 | [[uncontrolled-budget-in-ab-comparison]] | 바꾼 변인(크롭·워프·증강)과 **함께 움직이지 않은 변인**(에폭 수·사전학습 체크포인트· | 예산 불일치 A/B, 에폭 예산, 학습 예산 비교, budget parity, epoch-mismatch, unfair A/B |
 | [[unnamed-coordinate-frame]] | 좌표 배열만 저장하고, **그 좌표가 어느 프레임에서 만들어졌는지**는 저장하지 않는 것. | 이름 없는 좌표계, 프레임 미기록, lb.ow, lb.frameId, applyImage, screen_boxes.jsonl, labeled.jsonl |
@@ -124,8 +130,8 @@ tags: [index]
 
 ## Statistics
 
-- Total concepts: 9
-- Total patterns: 24
-- Total anti-patterns: 54
+- Total concepts: 10
+- Total patterns: 25
+- Total anti-patterns: 58
 - Total answers: 0
-- Last updated: 2026-10-03
+- Last updated: 2026-10-05
