@@ -73,6 +73,15 @@ SETS = {
     # 실측 정본과 견주는 데 쓴다(_diag/measure_synth_contrast.py ·
     # lowc_synth_vs_real 판). 프로브 시드는 GEN1 과 다르다(버리는 물건).
     "GEN1P": (300, 20261130, 0.50, "procedural", "mixed"),
+    # ── GEN2(2026-10-04 사람: "기종추가안하고 다른것들만 하자" + 관찰
+    # "검은색 글씨인데 숫자의 90퍼센트정도 어두운 그림자가 드리어져있다") ──
+    # GEN1 설계에 두 축만 더한다: 밴드 직격 그림자(BAND_SHADOW_P 0.15 —
+    # 숫자줄 면적 55~95% 를 계수 0.25~0.55 로 덮는 깊은 캐스트 그림자)와
+    # 저조도 혼합 비중 상향(LOWC_P 0.05→0.12). 혈통 프로파일 추가는 사람이
+    # 보류했다. 기준선: GEN1 검출기 gen1_v1(실패 15·오독 254·판독률 89.3%,
+    # 2431 제외 후 2,511장 기준).
+    "GEN2": (30000, 20261202, 0.50, "procedural", "mixed"),
+    "GEN2P": (300, 20261203, 0.50, "procedural", "mixed"),
     # TGB — TG 30,000 + B2J 5,000 병합(2026-10-03 밤, 사람: "데이터 증강했으니
     # 검출기도 개선"). 검출기 v12 학습용. 병합은 merge로 수행(아래 스크립트):
     #   python merge_coco_sets.py --sets TG,B2J --out synth_coco/TGB
@@ -192,7 +201,7 @@ SETS = {
 
 # 계획 우선(재개 가능) 모드로 굽는 세트 — 나머지는 레거시 순차 스트림
 # 재현("같은 시드=같은 코퍼스" 계약 유지).
-PLAN_SETS = {"GEN1", "GEN1P"}
+PLAN_SETS = {"GEN1", "GEN1P", "GEN2", "GEN2P"}
 
 CATEGORY = {"id": 1, "name": "glucose_band", "supercategory": "none"}
 

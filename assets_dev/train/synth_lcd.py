@@ -362,6 +362,72 @@ def add_local_shadow(img, rng):
     return np.clip(img.astype(np.float32) * (1.0 - soft), 0, 255).astype(np.uint8)
 
 
+def add_band_shadow(img, rng, box):
+    """밴드 직격 그림자 — 경계가 숫자줄 상자를 가로질러 그 면적의 일부를 깊게
+    어둡게 만든다(2026-10-04 사람 관찰: "검은색 글씨인데 숫자의 90퍼센트정도
+    어두운 그림자가 드리어져 있다" — GEN1 검출기가 이 조건에서 숫자줄
+    objectness 를 0~0.2 로 죽였다).
+
+    add_local_shadow 와 다른 점은 **위치와 깊이**다: 경계를 밴드 상자 안에
+    통과시켜 상자 면적의 55~95% 가 어두운 쪽에 들게 하고, 밝기 계수는
+    0.25~0.55 로 깊게 한다(연한 글자가 배경과 구분되지 않는 실화면 조건).
+    반직선 그림자는 상자 바깥까지 이어진다 — 캐스트 그림자의 물리다.
+    """
+    x0, y0, x1, y1 = box
+    H, W = img.shape[:2]
+    k = rng.uniform(0.25, 0.55)          # 어두운 쪽 밝기 계수(깊게)
+    t = int(rng.uniform(10, 40))         # 경계 부드러움 폭(px)
+    ang = rng.uniform(0, 180)
+    frac = rng.uniform(0.55, 0.95)       # 밴드 상자 중 어두운 쪽 면적 비
+    ca, sa = np.cos(np.radians(ang)), np.sin(np.radians(ang))
+    corners = np.array([x0, y0, x1, y0, x1, y1, x0, y1], np.float64)
+    d = corners[0::2] * ca + corners[1::2] * sa
+    thr = d.min() + (1.0 - frac) * (d.max() - d.min())
+    cx, cy = (x0 + x1) / 2.0, (y0 + y1) / 2.0
+    yy, xx = np.mgrid[0:H, 0:W]
+    dd = (xx - cx) * ca + (yy - cy) * sa
+    hard = ((dd < thr) * (1.0 - k)).astype(np.float32)
+    ksz = max(3, t) | 1
+    soft = cv2.GaussianBlur(hard, (ksz, ksz), 0)
+    return np.clip(img.astype(np.float32) * (1.0 - soft), 0, 255).astype(np.uint8)
+
+
+def add_band_reflection(img, rng, box):
+    """밴드 직격 반사광 — 경계가 숫자줄을 가로질러 밝게 '씻는다'.
+
+    1709(상단 반사가 125 를 반쯤 지움)·2048·501·525 재현 — gen1_v1 잔여 실패의
+    한 갈래. add_band_shadow 의 밝은 짝이다. 물리가 다르다: 그림자는 곱셈
+    (어두운 쪽 계수), 스펙큘러는 덧셈(밝은 쪽을 255 쪽으로 끌어올림)이라
+    잉크는 그대로 두고 배경만 밝아져 명도차가 좁아진다.
+    """
+    x0, y0, x1, y1 = box
+    H, W = img.shape[:2]
+    # 강도·커버 — 2026-10-05 사람 눈검 2차(병치판): "조금만 더 감싸거나
+    # 100% 감싸면 실촬과 비슷해질 것 같다" + 시각 확인 "REAL 은 2/3~전체를
+    # 덮는데 합성은 절반±". 커버 하한을 0.70 으로 올리고 강도도 함께.
+    k = rng.uniform(0.45, 0.80)          # 씻는 강도(밝기 상한 이동 비)
+    t = int(rng.uniform(10, 40))
+    # 경계 방향 — 실촬 광택은 세로 띠(1709)·대각선(2048)·전면(501)으로
+    # 다양하다. 균일 리프트만 내면 '대각선 밝은 반쪽' 한 종류로 쏠린다(1차
+    # 병치판에서 6판 중 5판이 같은 결). 세로/가로/대각선을 이산으로 섞는다.
+    ang = (0.0, 90.0, rng.uniform(0, 180))[rng.randrange(3)]
+    # 밴드 상자 중 밝은 쪽 면적 비. 1.0 은 경계가 밴드를 완전히 벗어나
+    # 숫자줄 전체가 균일하게 씻기는 것 — 501 의 전면 광택 세척 재현.
+    frac = rng.uniform(0.70, 1.00)
+    ca, sa = np.cos(np.radians(ang)), np.sin(np.radians(ang))
+    corners = np.array([x0, y0, x1, y0, x1, y1, x0, y1], np.float64)
+    d = corners[0::2] * ca + corners[1::2] * sa
+    thr = d.min() + (1.0 - frac) * (d.max() - d.min())
+    cx, cy = (x0 + x1) / 2.0, (y0 + y1) / 2.0
+    yy, xx = np.mgrid[0:H, 0:W]
+    dd = (xx - cx) * ca + (yy - cy) * sa
+    bright = (dd > thr).astype(np.float32)
+    ksz = max(3, t) | 1
+    soft = cv2.GaussianBlur(bright, (ksz, ksz), 0)
+    f = img.astype(np.float32)
+    return np.clip(f + soft * k * (255.0 - f), 0, 255).astype(np.uint8)
+
+
 def add_reflection_stripe(img, rng):
     """선형 반사 줄무늬 — 폭 3~12px, 대각선의 0.3~0.9배 길이, 밝기 +30~90.
 

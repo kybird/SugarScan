@@ -65,7 +65,8 @@ from synth_profiles import (  # noqa: E402
     PROFILES, DOT_FMTS, dot_text, dot_text_width, _icon, _pick_variant,
     _glyph_mask,
     device_identity, STATEFUL_ELEMENTS, PROFILE_INVERTED, lay_val, REGIONS)
-from synth_lcd import (add_local_shadow,  # noqa: E402
+from synth_lcd import (add_band_reflection, add_band_shadow,  # noqa: E402
+                       add_local_shadow,
                        seg_text, seg_text_width, seg_weight_from_variant,
                        SEG_WEIGHTS, SEG_SLANT)
 from measure_panel_stats import edge_density_outside  # 같은 자(AC#4)  # noqa: E402
@@ -263,9 +264,55 @@ def set_wide_share(share):
         raise SystemExit("가로형 또는 세로형 프로파일이 없다 — 비중을 못 맞춘다")
     _PROFILE_WEIGHTS = [(share / nw) if w else ((1.0 - share) / nn)
                         for w in wide]
+    _bump_generic()   # 세로형 안에서 generic_v1 비중만 띄운다(아래 선언 참고)
 
 
-set_wide_share(DEFAULT_WIDE_SHARE)   # 모듈 기본 — 세로형:가로형 = 50:50
+# set_wide_share(DEFAULT_WIDE_SHARE) 호출은 아래 _bump_generic 정의 뒤에서
+# 한다 — set_wide_share 가 bump 를 함께 걸기 때문에 정의가 다 끝난 뒤
+# 불러야 한다.
+
+
+# GEN2 2026-10-05 — generic_v1(기기 미상 품) 비중을 세로형 안에서 띄운다.
+# 사람 원칙: "혈통에 상관없이... 커다란 숫자글씨가 기준이 되야 한다" —
+# 경쟁 인쇄·숫자급 큰 아이콘·자유 배치 같은 '어느 고정 기기에도 속하지
+# 않는' 변종은 이 품에서만 나온다(고정 기기는 레이아웃 고정 원칙 때문).
+# 가로형 비중 50%(2026-09-17 사람 결정, SPEC §9.6)과 같은 근거다 — 검출기는
+# 클래스 사전확률이 없어 드문 변종을 덜 학습시키면 그냥 덜 배운다(§2).
+# 실촬의 '이 품에 대응하는 기기' 비중과는 무관하게 학습 비중을 정한다.
+GENERIC_SHARE = 0.10
+
+
+def _bump_generic():
+    """세로형 안에서 generic_v1 비중만 GENERIC_SHARE 로 띄운다.
+
+    set_wide_share 가 가중치를 다시 만들 때마다 함께 걸린다 — build_set 이
+    굽기 직전 set_wide_share 를 다시 부르므로, 모듈 적재 시점의 일회성
+    bump로는 굽기에 반영되지 않는다(GEN2P 5차 감사에서 실제로 그랬다).
+    """
+    global _PROFILE_WEIGHTS
+    if _PROFILE_WEIGHTS is None:
+        return
+    gi = [i for i, p in enumerate(TRAIN_PROFILES) if p.get("legacy")]
+    if not gi:
+        return
+    gi = gi[0]
+    w = list(_PROFILE_WEIGHTS)
+    bump = GENERIC_SHARE - w[gi]
+    if bump <= 0:
+        return
+    others = [i for i in range(len(w))
+              if i != gi
+              and TRAIN_PROFILES[i].get("family") not in WIDE_FAMILIES]
+    pool = sum(w[i] for i in others)
+    if pool < bump:
+        return
+    w[gi] = GENERIC_SHARE
+    for i in others:
+        w[i] *= (pool - bump) / pool
+    _PROFILE_WEIGHTS = w
+
+
+set_wide_share(DEFAULT_WIDE_SHARE)   # 모듈 기본 — 세로형:가로형 = 50:50 (+generic bump)
 
 
 # generic_v1(기기 미상 잔여 품)은 기기 속성이 없어 기기 일관성 제약도 없다 —
@@ -276,11 +323,94 @@ GENERIC_INVERTED_P = REAL_BASELINE["polarity"]["inverted_pct"] / 100.0
 # 있다") — _c 본체(0.40~1.0)에 더해 이 확률로 0.15~0.40 을 뽑아 실측 최악
 # 대비(min 27)에 닿는다. 목표 분포는 real_baseline.polarity, 검증 자는
 # _diag/measure_synth_contrast.py.
-LOWC_P = 0.05
+# 2026-10-04 GEN2: 5% → 12%. GEN1(5%)이 TG 실패 15장 중 11장을 회복했지만
+# 남은 점수 미달 장(1709·818·1780 등, 숫자줄 obj 0.01~0.09)이 같은 저대비
+# family라 비중을 올린다(사람 승인 "기종추가안하고 다른것들만하자").
+LOWC_P = 0.12
 # 7 두 종류(사람 결정 2026-10-04 "A+B+C , A+B+C+F 이렇게 두개야") —
 # 세그먼트 3개형('7s') 뽑기 확률. 라벨은 두 형태 모두 '7' 이다. 계획
 # 빌더(build_plan)와 render_panel 레거시 경로가 같은 값을 쓴다.
 SEVEN_3SEG_P = 0.50
+# 밴드 직격 그림자(2026-10-04 GEN2, 사람 관찰: "검은색 글씨인데 숫자의
+# 90퍼센트정도 어두운 그림자가 드리어져있다") — 숫자줄 상자 면적의 55~95%를
+# 밝기 계수 0.25~0.55 로 덮는 깊은 캐스트 그림자를 뽑기 확률만큼 넣는다.
+# add_local_shadow(전체 35%, 계수 0.55~0.85, 위치 난수)는 이 조건을 거의
+# 만들지 않는다 — 경계가 밴드를 직접 가로지르며 그렇게 깊지 않다.
+BAND_SHADOW_P = 0.15
+# 밴드 직격 반사광(2026-10-05 GEN2) — 스펙큘러가 숫자줄을 밝게 씻는 조건.
+# gen1_v1 잔여 실패 1709(반사가 125 를 반쯤 지움)·2048·501·525 의 갈래.
+# 저조도와 묶지 않는다 — 반사는 밝은 환경에서도 생긴다.
+BAND_REFLECT_P = 0.05
+# 밴드가 프레임에 잘리는 구도(2026-10-05 GEN2) — 사람 원칙 "커다란 숫자글씨가
+# 기준"의 반례 818('05'만 보임)·2317(숫자가 프레임 가장자리에 걸림). 워프
+# 사다리가 '유리가 프레임 안에 들어갈 때까지 물러난다'는 규칙 때문에 이 구도는
+# 지금까지 0% 로 봉쇄돼 있었다. 비중은 실측 — 사람 GT 밴드 350개 중 프레임
+# 가장자리 접촉(≤2px) 5개 = 1.4%. 후보가 밴드 절단(가시 55~99.5%)에
+# 당첨되지 않으면 사다리 구도로 흘러 순발률이 절반 남짓이므로, 문턱은
+# 그만큼 위로 잡는다(GEN2P 감사로 보정).
+BAND_CLIP_P = 0.025
+# 최소 밴드 비중(2026-10-05 사람: "지금 필터링기준으로 합성도 바꿔라") —
+# 사람 GT 밴드 350개의 최소 면적비 3.67%(p1 4.21%·중앙 8.66%) 이다.
+# 2026-09-28 의 줌 하한 복원(0.25)은 '유리' 기준이라 밴드 비중은 프로파일이
+# 좁은 장에서 더 내려갔다 — GEN2P 실측: 라벨의 23%가 이 문턱 밑, 9%가 2%
+# 밑, 최소 0.66%. 실촬에 없는 스케일을 가르치면 작은 보조텍스트·아이콘을
+# 밴드로 발화한다(2026-09-28 오탐 2319·2414 score 0.9 — 당시 기록 '실촬
+# 정답 최소 면적비 5.1%', 라벨 346개 기준. 지금 350개로 재니 3.67%).
+MIN_BAND_FRAC = 0.0367
+# 경쟁 인쇄(2026-10-05 GEN2) — "큰 글씨인데 숫자 아닌 것"의 네거티브.
+# gen1_v1 잔여 실패 11장 중 5장이 상자 훔침이었다: 세리프 브랜드 인쇄에
+# 상자(1762·1781 — 숫자 97·104 는 또렷했는데)·큰 픽토그램에 상자(1840·2074).
+# 숫자급 크기의 비숫자 글리프를 밴드 이웃에 두고 라벨은 숫자줄만 유지해
+# '큰 글자 = 밴드' 지름길을 끊는다. generic_v1(기기 일관성 제약이 없는 품,
+# 반전률 추출과 같은 규칙)에서만 뽑는다 — 고정 기기에 브랜드 인쇄를
+# 렌더마다 랜덤으로 넣으면 기기가 두 물건으로 보인다(레이아웃 고정 원칙).
+# green_doctor 는 실물이 화면 상단에 세리프 인쇄를 갖는다(1762·1780·1781
+# 근거 — 기기 형질이므로 고정 렌더).
+COMP_PRINT_P = 0.45
+_COMP_PRINT_H = (0.35, 0.55, 0.8, 1.05)   # 숫자 높이 대비 글자 높이(이산)
+_COMP_PRINT_TEXTS = ("GREEN", "GLUCO", "SURE", "NOVA", "CARE", "CHECK",
+                     "TOP", "MED", "i-SCAN", "PLUS")
+
+
+def _sh_poly(poly, ax, thr, side):
+    """다각형을 반평면(ax >= thr 또는 ax <= thr)으로 자른다(Sutherland–Hodgman).
+
+    잘림 구도에서 '밴드가 프레임 안에 얼마나 보이는가'를 재는 데 쓴다.
+    """
+    out = []
+    n = len(poly)
+    for i in range(n):
+        a, b = poly[i], poly[(i + 1) % n]
+        ka = (a[ax] >= thr) if side > 0 else (a[ax] <= thr)
+        kb = (b[ax] >= thr) if side > 0 else (b[ax] <= thr)
+        if ka:
+            out.append(a)
+        if ka != kb:
+            t = (thr - a[ax]) / (b[ax] - a[ax])
+            out.append(a + t * (b - a))
+    return out
+
+
+def _area(poly):
+    s = 0.0
+    for i in range(len(poly)):
+        x1, y1 = poly[i][0], poly[i][1]
+        x2, y2 = poly[(i + 1) % len(poly)][0], poly[(i + 1) % len(poly)][1]
+        s += x1 * y2 - x2 * y1
+    return abs(s) / 2.0
+
+
+def visible_frac(q, w, h):
+    """쿼드가 캔버스 안에 남은 면적 비(0~1). 워프 뒤 프레임 절단용."""
+    p = [np.asarray(pt, np.float64) for pt in q]
+    p = _sh_poly(p, 0, 0.0, +1)
+    p = _sh_poly(p, 0, w - 1, -1)
+    p = _sh_poly(p, 1, 0.0, +1)
+    p = _sh_poly(p, 1, h - 1, -1)
+    if len(p) < 3:
+        return 0.0
+    return _area(p) / max(_area([np.asarray(pt, np.float64) for pt in q]),
+                          1e-9)
 
 
 def sample_wh(rng):
@@ -837,8 +967,12 @@ def render_panel(value, rng, profile=None, scene="panel", trait=None):
         # (2026-09-16 실측: 다른 12종은 0.99~1.04, generic_v1 만 0.816).
         # 사람 밴드 라벨 규약은 '빈 앞칸을 포함한 슬롯 필드 전체'다.
         # 선언을 덮어쓰지 말고 **읽는다**. [[declaration-not-read-by-the-consumer]]
+        # icons 도 읽는다(GEN2 2026-10-05) — 여기서 버리면 generic_v1 의
+        # 아이콘 선언이 소비처에 닿지 않는다(감사에서 실제로 그랬다:
+        # generic 판 30장 전부 icon rects 0).
         profile = dict(id="generic_v1", align="right", italic=False,
-                       slots=profile.get("slots", 3))
+                       slots=profile.get("slots", 3),
+                       icons=profile.get("icons", ()))
         pid = "generic_v1"
     # mixed 상태는 없앴다(2026-09-13). '같은 이름 아래 두 기기'였던
     # performa_silver 는 performa_silver / performa_nano 로 쪼갰다 — 평균
@@ -1136,6 +1270,11 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None):
     else:
         _c = _c_u
     c_deg = _c      # 아래 코너 행렬 _c 에 덮이기 전에 캡처
+    # 저조도 행(c_deg<0.40)은 밴드 직격 그림자와 묶는다(2026-10-04 사람:
+    # "그림자 저대비 관찰을 합성데이터 사실성에 적용해야 한다" — 실화면
+    # 최악 장은 세척과 캐스트 그림자가 동시 발생한다. 열화 noise·blur 번들과
+    # 같은 원리다). 소비하는 난수 수는 그대로 1개 — 문턱만 갈린다.
+    _lowc = _c < 0.40
     ink_digit = int(round(panel_col + (ink_digit - panel_col) * _c))
     ink_small = int(round(panel_col + (ink_small - panel_col) * _c))
 
@@ -1643,6 +1782,9 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None):
     ghost = (0.03, 0.03, 0.03, 0.06)[rng.randrange(4)] if rng.random() < 0.15 else 0.0
     glyph_cache = {}
     _band_clip = [0]        # 밴드 쿼드가 숫자 필드를 잘랐는가(자가검사)
+    _band_shadow = [0]      # 이 장에 밴드 직격 그림자가 들어갔는가(매니페스트용)
+    _band_reflect = [0]     # 이 장에 밴드 직격 반사광이 들어갔는가(매니페스트용)
+    _comp_print = [0]       # 이 장에 경쟁 인쇄가 들어갔는가(매니페스트용)
     glyph_plane = np.zeros((H, W), np.uint8)
     for j in range(n_vis):
         ch = label[j]
@@ -2176,14 +2318,21 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None):
         # 건너뛰었다(항상 그리려던 의도의 반대). _shown 이 그 자리다.
         if kind not in LCD_ICONS or not _shown(f"icon:{kind}", p):
             continue
+        # non-lay(= generic_v1, POOL 품)은 크기까지 뽑는다 — GEN2 2026-10-05
+        # 상한을 0.95 로 넓힌다: 1840·2074 은 gen1_v1 이 숫자가 아니라
+        # 숫자급 크기 픽토그램에 상자를 놨다. 고정 기기(lay)의 아이콘은
+        # 기기 형질이라 0.34 고정을 그대로 둔다.
         s = max(8, int(dh * (0.34 if lay is not None
-                             else rng.uniform(0.28, 0.4))))
+                             else rng.uniform(0.28, 0.95))))
         # lay 예약박스는 잉크 폭(s) — 2s 박스는 밴드/이웃과 허위 겹침(arrow 와
         # 같은 사유). 중심은 구판 자리 그대로. right-mid 는 숫자 필드 오른쪽
         # 남은 띠에 맞게 크기를 줄인다 — 밴드가 유리의 9할을 쓰는 기기
         # (caresens 0.918·green_doctor 0.919)의 플래그는 실물도 가장자리에
         # 작게 붙는다.
-        _ib = s if lay is not None else 2 * s
+        # 예약박스는 잉크 폭(s)으로 통일한다(GEN2 2026-10-05) — non-lay 의
+        # 2s 예약은 큰 아이콘 축(0.95dh)에서 배치를 전멸시켰다(감사: generic
+        # 판 icon rects 0). lay 와 같은 판정으로 바꾼다.
+        _ib = s
         if lay is not None and pos in ("right-mid", "right-of-digits"):
             # 오른쪽 끝에 붙인다 — 크기는 숫자 필드 오른쪽 남은 폭이 정한다.
             _avail = max(0, px1 - 4 - (x0 + field_w))
@@ -2212,6 +2361,49 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None):
             r = placer.rects[-1]
             _icon(img, kind, (r[0] + r[2]) // 2, (r[1] + r[3]) // 2, s,
                   ink_small, pos=pos)
+
+    # 경쟁 인쇄(GEN2 2026-10-05) — 사람 원칙: "커다란 숫자글씨가 기준이
+    # 되야 한다. 혈통·기기 모양과 무관하게." gen1_v1 잔여 실패 11장 중
+    # 5장은 검출기가 숫자가 아니라 큰 인쇄물에 반응한 상자 훔침이었다
+    # (1762·1781: 세리프 'GREEN' 인쇄에 상자, 숫자 97·104 는 또렷했음).
+    # 숫자급 높이의 비숫자 글리프를 밴드 위쪽에 두고 라벨은 숫자줄만
+    # 유지해 '큰 글자 = 밴드' 지름길을 끊는다. 범위는 COMP_PRINT_P 머리글
+    # 참고 — green_doctor 실물 인쇄는 고정, generic_v1 은 뽑기다.
+    _cp_text = None
+    if pid == "green_doctor":
+        _cp_text = "GREEN"                  # 실물(1762·1780·1781)
+    elif pid == "generic_v1" and rng.random() < COMP_PRINT_P:
+        _cp_text = _COMP_PRINT_TEXTS[rng.randrange(len(_COMP_PRINT_TEXTS))]
+    if _cp_text is not None:
+        _want = max(7, int(dh * (0.60 if pid == "green_doctor"
+                                 else _COMP_PRINT_H[rng.randrange(
+                                     len(_COMP_PRINT_H))])))
+        # 높이를 내림차로 시도하고 자리도 여러 후보를 돌린다 — 고정 기기의
+        # 상단 중앙은 glulabel·mem 이 이미 쓰는 일이 흔하다(GEN2P 두 번째
+        # 감사: green_doctor 0/8, 원인은 glulabel 충돌). 밴드 오른쪽 후보는
+        # 818 의 큰 mg/dL 옆 인쇄 재현. 0.28dh 미만은 경쟁 인쇄로서
+        # 의미가 없어 그리지 않는다.
+        for _frac in (1.0, 0.75, 0.5):
+            _h = max(7, int(_want * _frac))
+            if _h < 0.28 * dh:
+                break
+            _sc = _h / 22.0
+            (_tw, _th), _bl = cv2.getTextSize(_cp_text,
+                                              cv2.FONT_HERSHEY_TRIPLEX,
+                                              _sc, 1)
+            _tw = max(_tw, 4)
+            _cands = [((px0 + px1 - _tw) // 2, py0 + 2),
+                      (int(x0 + field_w) + 8, int(y0)),
+                      (px1 - 6 - _tw, py0 + 2),
+                      (px0 + 6, py0 + 2)]
+            if _place(_cands[0][0], _cands[0][1], _tw, _h, "comp_print",
+                      alts=_cands[1:]):
+                r = placer.rects[-1]
+                cv2.putText(img, _cp_text, (r[0], r[1] + _th),
+                            cv2.FONT_HERSHEY_TRIPLEX, _sc, ink_small,
+                            max(1, _h // 18), cv2.LINE_AA)
+                _comp_print[0] = 1
+                break
 
     # 도트매트릭스 줄은 실제로 도트 패널인 기기만(AC#1) — dorucos_premium
     # (dot_panel, 근거 120·694·695). 다른 프로파일의 dotrow_* 요소는 실사진이
@@ -2604,6 +2796,21 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None):
                   0, 255).astype(np.uint8)
     if _orng.random() < 0.35:
         img = add_local_shadow(img, rng)
+    # 밴드 직격 그림자(GEN2 2026-10-04) — 난수 소비는 기존 블록 뒤에 이어
+    # 붙인다. quad 는 이 시점의 패널 좌표 밴드 사각형(워프는 이후)이므로
+    # 그림자도 밴드와 함께 워프된다. 저조도 행은 묶음으로 확률이 오른다.
+    if _orng.random() < (0.35 if _lowc else BAND_SHADOW_P):
+        img = add_band_shadow(img, rng, (float(quad[0][0]), float(quad[0][1]),
+                                         float(quad[2][0]), float(quad[2][1])))
+        _band_shadow[0] = 1
+
+    # 밴드 직격 반사광(GEN2 2026-10-05) — 난수 소비는 그림자 블록 뒤에
+    # 이어 붙인다. 저조도와 묶지 않는다(반사는 밝은 곳에서도 생긴다).
+    if _orng.random() < BAND_REFLECT_P:
+        img = add_band_reflection(img, rng,
+                                  (float(quad[0][0]), float(quad[0][1]),
+                                   float(quad[2][0]), float(quad[2][1])))
+        _band_reflect[0] = 1
     # 개수도 줄인다(2026-09-12): 크기만 줄였더니 작은 얼룩이 서너 개 겹쳐
     # 실물에 없는 반점 무늬가 됐다. 대부분 0~1개, 가끔 2개.
     _glare_log = []
@@ -2704,6 +2911,10 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None):
                                       _orng.gauss(0.0, CAM_ROLL_MAX / 2.0)))
     cam_fk = _orng.uniform(1.6, 3.2)        # 초점거리 / 긴 변 (폰 렌즈 대역)
     cam_zoom = _orng.uniform(*CAM_ZOOM_RANGE)   # 이 장의 촬영 배율(1.0=꽉 참)
+    # 잘림 구도(GEN2 2026-10-05) — 두 값은 항상 뽑는다(난수 소비 개수는
+    # 코드 경로와 무관하게 일정). 쓰는가만 clip_shot 이 정한다.
+    clip_shot = _orng.random() < BAND_CLIP_P
+    clip_over = _orng.uniform(1.02, 1.30)       # 유리 프레임 접촉 배율에서의 초과
     # 화면 내 위치는 **별도 흐름**에서 뽑는다. _orng 소비를 늘리면 같은 씨앗의
     # 구판 코퍼스와 기기·자세·값이 전부 어긋나 '한 축만 바꾼 비교'가 깨진다
     # (_brng·_srng·_trng 와 같은 규약).
@@ -2816,18 +3027,76 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None):
     # 68장이 달랐다). 촬영 배율은 '무엇을 정답으로 적을까'와 무관해야 한다.
     _glass0 = np.float32([[px0, py0], [px1, py0], [px1, py1], [px0, py1]])
     Mk = Mr = None
-    # 사다리는 이제 **이 장의 배율에서 출발**한다. 원래 역할(넘치면 더 물러난다)
-    # 은 그대로고, 출발점만 1.0 고정에서 난수로 바뀌었다.
-    for _step in (1.0, 0.92, 0.84, 0.76, 0.68, 0.60):
-        zoom = cam_zoom * _step
-        Mk, Mr = _mats(1.0, zoom)
-        if _in(_warp_pts(_glass0, Mk, Mr)):
-            img = _warp_img(pre, cv2.INTER_LINEAR, Mk, Mr)
-            break
-    else:
-        # 그래도 안 들어가면 포즈를 포기한다 — 자르는 것보다는 낫다.
-        Mk, Mr = _mats(0.0)
-        img = _warp_img(pre, cv2.INTER_LINEAR, Mk, Mr)
+    _clip_used = False
+
+    def _z_touch(q):
+        """q 의 네 모서리가 프레임에 막 닿는 확대 배율(중심 기준)의 최솟값.
+
+        잘림 구도와 최소 밴드 비중 게이트가 같은 계산을 쓴다."""
+        c0, c1 = W / 2.0, H / 2.0
+        zt = []
+        for _k in range(4):
+            for _ax, _cb, _cc in ((0, 0.0, c0), (0, W - 1, c0),
+                                  (1, 0.0, c1), (1, H - 1, c1)):
+                _d = q[_k][_ax] - _cc
+                if abs(_d) < 1e-6:
+                    continue
+                _z = (_cb - _cc) / _d
+                if _z > 1.0:
+                    zt.append(_z)
+        return min(zt) if zt else None
+
+    if clip_shot:
+        # 잘림 구도(GEN2 2026-10-05) — 사다리('유리가 프레임 안에 들어갈
+        # 때까지 물러난다')를 건너뛰고 오히려 확대해 유리가 프레임을 넘게
+        # 한다. 818('05'만 보임)·2317(숫자가 프레임 가장자리에 걸림) 재현.
+        # 라벨은 '보이는 만큼' — 아래 quad clip 과 사람 GT 350개 중 가장자리
+        # 접촉 5개가 같은 규약이다. 숫자가 절반(55%)은 보여야 쓸모 있는
+        # 라벨이고, 99.5% 이상이면 잘린 게 아니라 사다리 구도와 같다.
+        Mk, Mr = _mats(1.0, cam_zoom)
+        if Mk is None:
+            clip_shot = False          # 포즈가 없는 장은 확대해도 못 자른다
+        else:
+            # **밴드**가 프레임에 '막 닿는' 배율을 찾아 그 위로만 확대한다.
+            # 유리 기준으로는 밴드가 유리 중앙에 있어 닿는 배율의 1.3 배를
+            # 곱해도 밴드가 안 잘린다 — 접촉 기준을 밴드로 잡는다(두 번째
+            # 감사: 유리 기준 clip_shot 2/300).
+            z_touch = _z_touch(_warp_pts(quad0, Mk, Mr))
+            Mz = _zoom_mat((z_touch if z_touch else 1.0) * clip_over)
+            Mk = Mz @ Mk
+            if 0.55 <= visible_frac(_warp_pts(quad0, Mk, Mr), W, H) <= 0.995:
+                _clip_used = True
+            else:
+                Mk = Mr = None         # 밴드가 안 잘리는 주사위 — 정상 사다리로
+    if not _clip_used:
+        # 사다리는 이제 **이 장의 배율에서 출발**한다. 원래 역할(넘치면 더 물러난다)
+        # 은 그대로고, 출발점만 1.0 고정에서 난수로 바뀌었다.
+        for _step in (1.0, 0.92, 0.84, 0.76, 0.68, 0.60):
+            zoom = cam_zoom * _step
+            Mk, Mr = _mats(1.0, zoom)
+            if _in(_warp_pts(_glass0, Mk, Mr)):
+                break
+        else:
+            # 그래도 안 들어가면 포즈를 포기한다 — 자르는 것보다는 낫다.
+            Mk, Mr = _mats(0.0)
+        # 최소 밴드 비중 게이트(GEN2 2026-10-05) — 라벨이 사람 GT 최소
+        # (MIN_BAND_FRAC) 밑으로 내려가면 포즈는 그대로 두고 중심 확대로
+        # 끌어올린다. 유리가 프레임을 넘을 만큼은 키우지 않는다(확대 상한
+        # = 유리 접촉 배율). 잘림 구도는 이미 밴드 접촉 배율 위라 여기서
+        # 걸리지 않는다. 문턱은 **면적비**(밴드/화면)다 — visible_frac 은
+        # 프레임 안에 들어가는 비율이라 사다리 경로에서 늘 1.0 이다(첫 판을
+        # 그 값으로 굽고야 알았다).
+        _bq = _warp_pts(quad0, Mk, Mr) if Mk is not None else quad0
+        _brel = _area([np.asarray(_p, np.float64) for _p in _bq]) / (W * H)
+        if _brel < MIN_BAND_FRAC:
+            _z = float(np.sqrt(MIN_BAND_FRAC / _brel)) * 1.03
+            _zg = _z_touch(_warp_pts(_glass0, Mk, Mr) if Mk is not None
+                           else _glass0)
+            if _zg is not None:
+                _z = min(_z, _zg * 0.999)
+            Mz = _zoom_mat(_z)
+            Mk = Mz if Mk is None else (Mz @ Mk)
+    img = _warp_img(pre, cv2.INTER_LINEAR, Mk, Mr)
     # 기기 커버리지를 **같은 행렬로** 워프한다. PROCEDURAL_BG 가 꺼져
     # 있어도 계산한다 — 자가검사가 "기기 내부 픽셀이 두 코퍼스에서 같은가"를
     # 이걸로 확인한다. 값 비교로 전경을 추정하면 안 된다.
@@ -2841,8 +3110,10 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None):
         img = np.clip(img.astype(np.float32) * a + bgim * (1.0 - a),
                       0, 255).astype(np.uint8)
     quad = _warp_pts(quad0, Mk, Mr)
-    # 라벨이 프레임을 넘으면 **여백만 잘린다**. 유리가 프레임 안이고 숫자는
-    # 유리 안이므로 잘리는 것은 여백뿐이다 — band_quad 의 clip 과 같은 규약이다.
+    # 라벨이 프레임을 넘으면 **보이는 만큼만** 남긴다. 사다리 구도에서는
+    # 유리가 프레임 안이라 잘리는 것이 여백뿐이지만, 잘림 구도(clip_shot)
+    # 에서는 숫자 필드 자체가 잘린다 — 사람 GT 밴드 350개 중 가장자리 접촉
+    # 5개(818·2317 류)와 같은 규약이다.
     quad = np.stack([np.clip(quad[:, 0], 0, W - 1),
                      np.clip(quad[:, 1], 0, H - 1)], 1).astype(np.float32)
     glyph_warped = _warp_img(gp0, cv2.INTER_NEAREST, Mk, Mr, border=0)
@@ -2885,6 +3156,10 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None):
                 # 코퍼스에서 같은가'를 이걸로 본다. 매니페스트에는 안 적는다.
                 cover=cover,
                 band_clip=int(_band_clip[0]),
+                band_shadow=int(_band_shadow[0]),
+                band_reflect=int(_band_reflect[0]),
+                comp_print=int(_comp_print[0]),
+                clip_shot=int(_clip_used),
                 glare=_glare_log, glare_cover=round(_glare_cover, 4),
                 glass_quad=np.asarray(glass_quad, np.float32),
                 # rects 는 **워프 전 패널 좌표**다(그리는 동안 기록한다).
@@ -3109,8 +3384,13 @@ def generate(count, seed0, out_dir, with_reader=False, bg="flat", scene="panel",
         if scene != "panel":
             lo, hi = s["quad"].min(0), s["quad"].max(0)
             dc = s["digit_box"]
-            assert dc is not None and np.all(lo <= np.asarray(dc[:2])+1) and \
-                np.all(hi >= np.asarray(dc[2:])-1), f"digit containment: {name}"
+            _dc_ok = (dc is not None and np.all(lo <= np.asarray(dc[:2]) + 1)
+                      and np.all(hi >= np.asarray(dc[2:]) - 1))
+            # 잘림 구도(GEN2 2026-10-05)는 라벨 쿼드가 '보이는 만큼'이라
+            # 숫자 상자 전체보다 작다 — 워프 단계에서 밴드 가시 면적 55%
+            # 이상을 이미 보장했다. 나머지 장은 종전대로 완전 포함.
+            if not _dc_ok and not s.get("clip_shot"):
+                raise AssertionError(f"digit containment: {name}")
         cv2.imwrite(str(out / "images" / f"{name}.png"), s["panel"])
         q = np.round(s["quad"], 2)
         assert q[:, 0].min() >= 0 and q[:, 0].max() <= s["W"] - 1, \
@@ -3146,6 +3426,10 @@ def generate(count, seed0, out_dir, with_reader=False, bg="flat", scene="panel",
                    for r in s["rects"]],
             dropped=s["dropped"], overlaps=viol,
             band_clip=int(s.get("band_clip", 0)),
+            band_shadow=int(s.get("band_shadow", 0)),
+            band_reflect=int(s.get("band_reflect", 0)),
+            comp_print=int(s.get("comp_print", 0)),
+            clip_shot=int(s.get("clip_shot", 0)),
             margin=s["margin"],
             margins=s["margins"],
         )

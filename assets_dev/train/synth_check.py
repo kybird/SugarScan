@@ -38,7 +38,7 @@ BAND_EL = "band"
 # 밴드 줄에 있어도 숫자가 아닌 것 — 밴드 쿼드에 들어오면 안 된다.
 NON_DIGIT = ("unit", "mem", "meal", "arrow", "meter_arrow", "glulabel",
              "time", "ampm", "timedate", "daterow", "dotrow_above",
-             "dotrow_below", "avgrow")
+             "dotrow_below", "avgrow", "comp_print")
 # 자리가 움직이는 것이 설계인 요소 — 5번 검사에서 면제한다.
 #   band         값 자릿수에 따라 폭이 달라진다
 #   meter_arrow  미터기 지시자다. 세로 위치가 곧 값이다(accuchek_instant,
