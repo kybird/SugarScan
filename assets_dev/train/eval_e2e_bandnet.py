@@ -31,6 +31,16 @@ from train_band import letterbox
 HERE = Path(__file__).resolve().parent
 DATUMO = HERE.parent / "upstream" / "datumo"
 
+# 90° 회전 사진 — 사람 선언(2026-10-04 "애당초 모델에 90도돌아간건
+# 보여주지도않았잖아")으로 평가에서 제외한다. 2026-10-05 시각 재확인
+# (_diag/rot5_check.png, 5장 전부 90°) + 같은 날 사람 지적으로 283 추가
+# (B판 감안 — 어두운 노출이라 1차 시각 검증이 정방향으로 오판했다.
+# ±90° 회전본 병치 시험 _diag/rot_ab_283_1709.png 로 확정: 정방향은
+# 시계 90° 회전본). 리뷰 몽타주에서만 빼고 e2e 에는 남아 있던 것을
+# 이날 정식화했다. 2431(두 자리만 촬영, 라벨 오염)은 코퍼스 자체에서
+# 이미 제외된 별건이다.
+ROTATED_90 = {"1213", "1226", "1564", "1565", "940", "283"}
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -86,6 +96,12 @@ def main():
     t0 = time.time()
     with out_p.open("w", encoding="utf-8") as f, torch.no_grad():
         for k, (cid, gt) in enumerate(sorted(gts.items())):
+            if cid.split("/", 1)[-1] in ROTATED_90:
+                stats["skip"] += 1
+                f.write(json.dumps({"id": cid, "verdict": "skip",
+                                    "why": "rotated_90"},
+                                   ensure_ascii=False) + "\n")
+                continue
             if not str(gt).lstrip("-").isdigit():
                 stats["skip"] += 1
                 continue
