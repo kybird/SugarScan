@@ -325,6 +325,12 @@ def main():
     ap.add_argument("--ckpt", default=None)
     ap.add_argument("--beam", type=int, default=0,
                     help=">0 이면 beam search(k=값)로 디코딩")
+    ap.add_argument("--save-epoch-every", type=int, default=5,
+                    help="N에폭마다 ep<N>.pt 저장(에폭 곡선용, 0=끔)")
+    ap.add_argument("--resume", default=None,
+                    help="이 체크포인트에서 학습을 잇는다 — --epochs 는 총 "
+                         "목표 에폭. opt·sched 상태가 있으면 완전 이어받기, "
+                         "없으면(옛 형식) 가중치 웜스타트")
     args = ap.parse_args()
 
     if args.cmd == "measure":
@@ -381,16 +387,50 @@ def main():
     opt = torch.optim.Adam(model.parameters(), lr=args.lr)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, args.epochs)
     best = -1.0
-    for ep in range(1, args.epochs + 1):
+    start_ep = 1
+    if args.resume:
+        # 학습 이어받기(2026-10-06 사람: "학습완료하면 우리학습에 이어하기
+        # 가능하도록 만들자") — --resume <ckpt> 로 이전 학습을 잇는다.
+        # 옵티마이저·스케줄러 상태가 있으면(아래 저장 형식) 완전 이어받기,
+        # 없으면(옛 체크포인트) 가중치 웜스타트로 출발. --epochs 는
+        # '총 목표 에폭'이다 — ep60 에서 재개해 --epochs 300 을 주면
+        # 61~300 을 돈다.
+        ck = torch.load(args.resume, map_location=dev, weights_only=False)
+        model.load_state_dict(ck["model"])
+        start_ep = int(ck.get("epoch", 0)) + 1
+        if "opt" in ck:
+            opt.load_state_dict(ck["opt"])
+            sched.load_state_dict(ck["sched"])
+            print(f"이어받기(완전): {args.resume} ep{ck.get('epoch')}부터 "
+                  f"-> ep{start_ep}~{args.epochs}")
+        else:
+            print(f"이어받기(웜스타트, 옵티마이저 상태 없음): {args.resume} "
+                  f"가중치만, ep{start_ep}~{args.epochs} (스케줄 신규)")
+        best = float(ck.get("acc", -1.0))
+    if start_ep > args.epochs:
+        raise SystemExit(f"재개 지점(ep{start_ep})이 목표({args.epochs})보다 "
+                         f"크다 — --epochs 를 늘려라")
+    for ep in range(start_ep, args.epochs + 1):
         loss = run_epoch(model, ld, crit, opt, dev)
         sched.step()
         acc, n = evaluate(model, loaders(ds, 64, False), dev)
         print(f"  ep{ep:3d} loss {loss:.4f}  학습셋 완전일치 {acc*100:.2f}% (n={n})")
+        # 에폭 간격 저장(2026-10-06 사람: "최대 데이터에서 에포크를 여러번 뽑는
+        # 게 좋아보인다") — best 선정('첫 100% 에폭')이 유일한 선택이던 것을
+        # 재 측정 가능한 곡선으로 바꾼다. 검출기 --save-every 와 같은 역할.
+        # 기본 켬(5): 전량점이 체인이 굽는 그대로 에폭 체크포인트를 남기게.
+        if args.save_epoch_every and ep % args.save_epoch_every == 0:
+            torch.save({"model": model.state_dict(), "epoch": ep, "acc": acc,
+                        "opt": opt.state_dict(), "sched": sched.state_dict()},
+                       out / f"ep{ep}.pt")
         if acc > best:
             best = acc
-            torch.save({"model": model.state_dict(), "epoch": ep, "acc": acc},
+            torch.save({"model": model.state_dict(), "epoch": ep, "acc": acc,
+                        "opt": opt.state_dict(), "sched": sched.state_dict()},
                        out / "best.pt")
-    torch.save({"model": model.state_dict(), "epoch": args.epochs},
+    torch.save({"model": model.state_dict(), "epoch": args.epochs,
+                "acc": acc, "opt": opt.state_dict(),
+                "sched": sched.state_dict()},
                out / "last.pt")
     print(f"최고 학습셋 완전일치 {best*100:.2f}% -> {out/'best.pt'}")
     return 0
