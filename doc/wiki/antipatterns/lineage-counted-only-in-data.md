@@ -70,5 +70,9 @@ yolox_nano.pth (COCO 사전학습)
 - `doc/raw/2026-09-17.md` Case 2 — "실촬 0장"이 가중치를 안 셌다
 - `doc/raw/2026-09-17.md` Case 3 — 사전학습 목표가 우리 목표와 달랐다(밴드는
   LCD 의 40%, 119/119 포함). 그 전이는 합성 4,100장으로 대체됐다
+- `doc/raw/2026-10-10.md` Case 5 — 전 코퍼스 감사: **가중치-코퍼스 접촉 단위**로
+  세니 실촉은 datumo 공개본뿐이고 datacluster·roboflow·Kazuhito 는 전부
+  eval/diag 스크립트에만 존재(가중치 0장). "코퍼스가 저장소에 있는가"가 아니라
+  "학습 경로가 그 코퍼스를 참조하는가"로 센다
 - `docs/LICENSES.md` §1.1 — 체크포인트별 계보와 의무
 - `assets_dev/train/yolox_synthband_exp.py` — 시작점 규칙을 박아 둔 자리

@@ -1,0 +1,96 @@
+SugarScan Flutter 앱에 실린 학습 모델(BandNet 검출기 + CRNN 리더)의 실기기 통합을
+마무리하는 작업이다. 모델 변환·앱 엔진 구현·테스트는 이미 끝났고, 남은 것은
+안드로이드 실기기에서 카메라 스캔이 도는 것을 확인하고 측정하는 것이다.
+
+## 이미 완료된 상태 — 이 작업에서 다시 하지 않는다
+
+- 모델 애셋: assets/models/band_detector.onnx (4.49MB, BandNet ftk5_g0.06, 1.12M
+  파라미터) + assets/models/reader_crnn.onnx (9.28MB, CRNN rftk5_foldall, 2.32M).
+  변환·전량 파리티 자는 assets_dev/train/export_deploy_onnx.py — 실촉 2,504장
+  전량에서 PyTorch 경로와 ONNX Runtime 경로의 판정이 완전 일치했다.
+- 앱 엔진: lib/ocr/src/engines/bandnet_crnn/ — BandNetCrnnEngine(id
+  bandnet_crnn_v1, ONNX Runtime 경유, mg/dL 전용). ocr_bootstrap.dart 에 첫
+  엔진으로 등록돼 있고(=mg/dL 기본 경로), 모델 로드 실패 시
+  OcrEngineRegistry.activateFirstReadyWhere 가 규칙 엔진(SegmentRuleEngine)으로
+  자동 폴백한다. 전처리(letterbox·bilinear)와 디코드(밴드 디코드·CTC greedy)는
+  순수 Dart — test/ocr/deploy_preprocess_test.dart 의 골든 벡터가 cv2 규약을
+  고정한다.
+- flutter analyze 무경고 + flutter test 전체(501개) 통과 상태로 커밋됨.
+- 라이선스는 종결됐다: 학습 데이터는 셀렉트스타 인공지능 데이터셋 지원사업의
+  "디지털 숫자 데이터셋"(틸더 협업), 라이선스 CC BY-SA 3.0. 재론하지 말 것.
+  출시 전 이행 항목(라이선스 화면 문구 — 복사 가능한 최종 문구 포함)만
+  docs/LICENSES.md §4 에 남아 있다. 이 작업 범위가 아니다.
+- git 상태: 실기기 작업 시작 시점의 로컬/원격 커밋 상태를 git log 로 직접
+  확인한다.
+
+시작할 때 프롬프트를 맹신하지 말고 상태를 직접 확인한다:
+  git log --oneline -8
+  flutter analyze
+  flutter test
+  ls assets/models/
+
+## 모델 입출력 규격 (디버깅용 요약)
+
+검출기: 입력 image [1,1,640,640] float32(/255, letterbox 패드값 114) →
+출력 obj [1,1,40,40] logit + reg [1,4,40,40]. 앱 디코드: 전역 argmax →
+sigmoid → 칸 중심 ltrb 거리 → 원본 좌표 (p-d)/r. 게이트: score >= 0.25,
+예측 면적/화면 >= 0.02.
+리더: 입력 crop [1,1,96,144] float32(/255 - 0.5) → 출력 logits [1,36,11].
+CTC greedy(연속 중복 접고 blank=10 제거). 값 검증(범위)과 프레임 합의는
+스캐너(GlucoseValidator·ReadingStabilizer, 연속 3프레임·평균 확신도 0.85)이
+담당 — 엔진은 숫자 문자열만 낸다.
+
+## 이 작업의 목표: 실기기 카메라 스캔 동작 확인 + 측정
+
+1. 빌드·설치: flutter run(또는 flutter build apk) 으로 실기기에 설치.
+   과거 검증 기기는 Redmi Note 11 / Android 14. 첫 빌드에서 ONNX Runtime
+   네이티브 라이브러리(flutter_onnxruntime) 내려받기 때문에 네트워크 필요.
+   빌드가 막히면 flutter clean 후 재시도, 안 되면 flutter_onnxruntime 문서와
+   android/gradle 설정(AGP 9.1.1) 확인.
+2. 스캔 동작 확인: 카메라로 혈당계를 비추면 ScanScanning(previewValue 표시) →
+   3프레임 연속 일치 → ScanConfirmed(값·확인 시트) 흐름이 나와야 한다.
+   실물 혈당계가 없으면 모니터에 실촬 사진을 띄워 찍는 것으로 1차 스모크는
+   가능하다(도메인 차이가 있으니 2차 확인은 실물로).
+   함께 확인: 수동 입력 진입, 단위 게이트(UnitGate), 확인 시트 1탭 저장.
+3. 성능 측정 — 측정 방법을 결과와 함께 기록할 것(즉석 숫자 인용 금지):
+   - 프레임당 엔진 지연: OcrResult.latency 를 debugPrint 로 찍어 수집
+   - 초당 실제 추론 프레임 수(FrameThrottler 는 동시 1개만 돈다)
+   - 5분 연속 스캔 시 발열·배터리 육안 확인
+4. 문제가 나왔을 때의 대응 순서:
+   - 지연 과다(프레임당 500ms 초과): 전처리(640 letterbox 리사이즈)가 메인
+     아일레이트에서 돈다 — compute/Isolate.run 으로 옮긴다. 엔진 인터페이스
+     (OcrEngine)는 그대로 둔다.
+   - 검출이 안 되면: 먼저 가이드 박스와 프레이밍을 의심한다(CLAUDE.md 참조).
+     단 BandNet 은 roi 무시하고 전 프레임에서 찾는 것이 설계 동작이다.
+   - 판독 오류(글자를 틀리게 읽음)는 모델 문제다. 이 작업에서 재학습하지
+     않는다. 재현 사진과 함께 기록만 남긴다.
+   - 모델 로드 실패로 폴백이 켜지는지는 로그로 확인한다(엔진 id 가
+     bandnet_crnn_v1 인지 segment_rule_v1 인지).
+5. 기록: docs/IMPLEMENTATION_PLAN.md §15 "모델 탑재" 절에 실기기 결과를
+   추가한다. 측정 수치는 그것을 내는 방법과 함께. 발견한 문제는 위키
+   case(llm-wiki)로 남긴다.
+6. 커밋 기준: flutter analyze 무경고 + flutter test 전체 통과.
+
+## 절대 규칙 (정본은 CLAUDE.md — 여기는 요약)
+
+- OCR 은 단말에서만 돈다. 네트워크 엔진은 등록이 거부된다.
+- GlucoseScanner.offer() 는 절대 예외를 던지지 않는다.
+- 저장 전 사용자 확인 1탭. 수동 입력 경로는 항상 열려 있어야 한다.
+- 표시 단위 확인(UnitGate) 전에는 앱 전체가 막혀 있다.
+- 진단성 문구 금지("정상/위험") — "목표 범위 내/밖" 같은 서술만.
+
+## 하지 말 것
+
+- 모델 재학습, 체크포인트 교체, ONNX 재변환(export_deploy_onnx.py 재실행
+  금지 — 애셋 재생성은 검증된 정본과 어긋날 수 있다)
+- 라이선스 재론의(CC BY-SA 3.0 으로 종결됐다)
+- 폴백 엔진(SegmentRuleEngine·7-seg tflite) 제거·변경
+- 엔진 등록 순서 변경(bandnet_crnn_v1 이 첫 등록=mg/dL 기본)
+- .gitignore 의 !assets/models/*.onnx 예외 제거
+
+## 참고 파일
+
+- 모델 규격·계보: assets/models/README.md
+- 통합 상세와 함정: docs/IMPLEMENTATION_PLAN.md §15 "모델 탑재" 절
+- 엔진 코드: lib/ocr/src/engines/bandnet_crnn/
+- 검증 이력: doc/raw/2026-10-10.md (Case 4·7·9)

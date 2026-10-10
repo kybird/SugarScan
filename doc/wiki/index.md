@@ -33,6 +33,7 @@ tags: [index]
 | [[checkpoint-curve-not-final-step]] | 학습이 끝난 지점의 모델이 아니라 **구간 체크포인트의 곡선**으로 채택 지점을 | 구간 체크포인트 곡선 |
 | [[contract-boundary-equals-method-boundary]] | "이 메서드는 예외를 던지지 않는다"는 계약을 걸었으면, `try` 는 **메서드 전체**를 감싸야 한다. | 계약 경계, never-throws, GlucoseScanner.offer, _recognizeSafely, ScanUnavailable |
 | [[cursor-holdback-for-skipped-rows]] | 델타 커서를 어디까지 미느냐는 **왜 건너뛰었는지에 따라 정반대**다. | 커서 홀드백, delta cursor, SyncCursorStore, _pull, _apply, updated_at, skippedFrom |
+| [[dataset-license-verification]] | 제3자 데이터셋의 이용 조건은 한 곳에 있는 게 아니다. **확보 시점 영수증 → |  |
 | [[declare-what-the-human-knows]] | 도메인 사실(기기의 성질·부품의 종류·문서의 종류)을 사람이 이미 안다면, | 사람이 아는 것은 선언한다, 재지 말고 라벨, 도메인 사실은 라벨, declare not measure |
 | [[dry-run-before-repair]] | 사람이 만든 데이터를 되돌리는 스크립트는 **기본 동작이 "계산만"** 이어야 한다. | 복구 스크립트 규약, --apply, 백업 후 수정, repair_prevframe_labels.py, repair_unrotated_band_labels.py |
 | [[enumerate-what-the-code-branches-on]] | 설정값이 자유 입력이면 오타가 **에러가 아니라 옛 동작**으로 떨어진다. |  |
@@ -97,6 +98,7 @@ tags: [index]
 | [[poison-row-blocks-pipeline]] | 관용의 단위가 **행이 아니라 배치**인 것. | 독행, 배치 단위 관용, 행 하나가 전체를 막음, ReadingDto.fromJson, _pull, syncOnce, fetchUpdatedSince, reading_dto.dart |
 | [[prediction-used-as-ground-truth]] | 어떤 모델의 출력 파일이 측정의 입력이 된다. | 예측을 실측으로, 모델 출력이 정답 행세, 사람 라벨을 두고 예측을 쓴다, prediction as GT |
 | [[presence-rate-quoted-as-accuracy]] | 파이프라인 단계가 **출력을 냈는지**를 세는 비율과, 그 출력이 **맞았는지**를 | 검출률, 존재율, 출력이 있었나, detection rate, 커버리지를 정확도로, n_ok |
+| [[provenance-without-artifacts]] | "이 데이터는 구매 납품본이다"처럼 출처나 이용 조건에 관한 주장을 **근거 |  |
 | [[proxy-metric-moves-against-the-goal]] | 최종 지표가 둔감할 때(파인튜닝이 효과를 덮을 때) 중간 단계를 재는 대리 지표를 | 대리 지표, 프록시 지표, pre-only 평가, 합성 val, 지표가 반대로 |
 | [[reset-clears-in-flight-lock]] | ```dart | reset 이 잠금을 푸는 것, _busy = false, FrameThrottler, frame_throttler.dart, _busy, reset(), isBusy |
 | [[rule-enforced-by-path-not-by-purpose]] | "실사진을 커밋하지 않는다"를 `gitignore` 한 줄로 지키면, 사진이 **다른 | gitignore 로만 막는다, 경로 규칙, 용도 규칙, 다른 형식으로 샌다 |
@@ -131,7 +133,7 @@ tags: [index]
 ## Statistics
 
 - Total concepts: 10
-- Total patterns: 25
-- Total anti-patterns: 58
+- Total patterns: 26
+- Total anti-patterns: 59
 - Total answers: 0
 - Last updated: 2026-10-10
