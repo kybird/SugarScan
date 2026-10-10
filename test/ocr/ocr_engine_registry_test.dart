@@ -115,5 +115,85 @@ void main() {
       expect(outcome, isA<ScanScanning>());
       expect(scanner.activeEngineId, 'segment_rule_v1');
     });
+
+    test('mgdl 첫 후보(bandnet_crnn)가 준비 안 되면 다음 엔진으로 넘어간다',
+        () async {
+      // 테스트 환경엔 ONNX 런타임이 없어 배포 엔진이 준비되지 못한다 —
+      // 그래서 스캐너는 activateFirstReadyWhere 로 규칙 엔진에 도달한다.
+      // 위 부트스트랩 검증과 같은 사실을 레지스트리 각도에서 고정한다.
+      final scanner = buildGlucoseScanner();
+      final outcome = await scanner.start(unit: GlucoseUnit.mgdl);
+
+      expect(outcome, isA<ScanScanning>());
+      expect(scanner.activeEngineId, isNot('bandnet_crnn_v1'));
+    });
   });
+
+  group('activateFirstReadyWhere', () {
+    test('준비되지 않은 엔진은 건너뛰고 다음 후보를 활성화한다', () async {
+      final registry = OcrEngineRegistry();
+      final notReady = _NeverReadyEngine('not_ready');
+      final ready = FakeOcrEngine(script: [('138', 0.9)]);
+      registry.register(notReady.descriptor, () => notReady);
+      registry.register(ready.descriptor, () => ready);
+
+      final active = await registry.activateFirstReadyWhere(
+        (descriptor) => descriptor.supportedUnits.contains(GlucoseUnit.mgdl),
+      );
+
+      expect(identical(active, ready), isTrue);
+      expect(registry.activeId, FakeOcrEngine.engineId);
+    });
+
+    test('후보가 전부 준비되지 않으면 null 이고 활성 엔진도 없다', () async {
+      final registry = OcrEngineRegistry();
+      final notReady = _NeverReadyEngine('only_one');
+      registry.register(notReady.descriptor, () => notReady);
+
+      final active = await registry.activateFirstReadyWhere((_) => true);
+
+      expect(active, isNull);
+      expect(registry.activeId, isNull);
+    });
+  });
+}
+
+/// initialize 는 성공하지만 모델이 없어 isReady 가 거짓인 엔진 —
+/// 애셋 없는 빌드의 배포판(ONNX)을 재현한다.
+class _NeverReadyEngine implements OcrEngine {
+  _NeverReadyEngine(this.id_);
+
+  final String id_;
+
+  @override
+  OcrEngineDescriptor get descriptor => OcrEngineDescriptor(
+        id: id_,
+        displayName: 'never ready',
+        kind: OcrEngineKind.onnx,
+        acceptedFormats: const {OcrImageFormat.grayscale8},
+      );
+
+  bool _initialized = false;
+
+  @override
+  Future<void> initialize(OcrEngineConfig config) async {
+    _initialized = true;
+  }
+
+  @override
+  bool get isReady => false; // 모델 로드 실패 — 초기화돼도 쓸 수 없다
+
+  @override
+  Future<OcrResult> recognize(OcrFrame frame) async => OcrResult.failed(
+        engineId: id_,
+        latency: Duration.zero,
+        failure: OcrFailure(
+          _initialized
+              ? OcrFailureKind.modelUnavailable
+              : OcrFailureKind.notInitialized,
+        ),
+      );
+
+  @override
+  Future<void> dispose() async {}
 }

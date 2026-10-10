@@ -69,8 +69,10 @@ class GlucoseScanner {
       if (engineId != null) {
         engine = await _registry.activate(engineId, config: config);
       } else {
-        // 사용자의 표시 단위를 읽을 수 있는 엔진만 후보로 삼는다.
-        engine = await _registry.activateFirstWhere(
+        // 사용자의 표시 단위를 읽을 수 있고, 모델이 실제로 로드된(ready)
+        // 첫 엔진을 고른다. 배포판(ONNX)이 없는 빌드에선 폴백 엔진으로
+        // 넘어간다 — 명시적 engineId 지정은 이 폴백을 하지 않는다.
+        engine = await _registry.activateFirstReadyWhere(
           (descriptor) => descriptor.supportedUnits.contains(unit),
           config: config,
         );

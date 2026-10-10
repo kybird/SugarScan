@@ -97,6 +97,8 @@ assets_dev/train/*
 !assets_dev/train/lcd_fix_holdout.json
 assets_dev/train/__pycache__/
 *.onnx
+# 배포 모델 자산은 커밋한다(assets/models/README.md 규약).
+!assets/models/*.onnx
 *.pth
 *.pt
 *.traineddata

@@ -90,6 +90,27 @@ class OcrEngineRegistry {
     return null;
   }
 
+  /// 조건을 만족하고 **초기화 뒤 실제로 쓸 수 있는(isReady)** 첫 엔진을
+  /// 활성화한다.
+  ///
+  /// 스캐너의 자동 선택이 쓰는 경로다. 모델 애셋이 없는 엔진(예: ONNX 배포판이
+  /// 들어가지 않은 빌드)은 건너뛰고 다음 후보로 넘어간다 — "모델이 없는 경우가
+  /// 정상 경로다" 원칙의 선택판 적용. 명시적 [activate] 는 이 폴백을 하지
+  /// 않는다. 개발자가 엔진을 지정했다는 건 그 엔진을 돌려보겠다는 뜻이므로,
+  /// 준비 안 된 엔진을 조용히 갈아타면 A/B 비교가 거짓이 된다.
+  Future<OcrEngine?> activateFirstReadyWhere(
+    bool Function(OcrEngineDescriptor descriptor) test, {
+    OcrEngineConfig? config,
+  }) async {
+    for (final entry in _descriptors.entries) {
+      if (!test(entry.value)) continue;
+      final engine = await activate(entry.key, config: config);
+      if (engine.isReady) return engine;
+      await deactivate();
+    }
+    return null;
+  }
+
   Future<void> deactivate() async {
     await _active?.dispose();
     _active = null;

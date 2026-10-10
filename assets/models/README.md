@@ -3,6 +3,28 @@
 이 디렉터리의 `.tflite` / `.onnx` 파일은 저장소에 커밋된다(라이선스가 허용하고
 크기가 작은 경우에 한함). 학습 중간 산출물(`.pth`, 체크포인트)은 커밋하지 않는다.
 
+## band_detector.onnx · reader_crnn.onnx (커밋됨 · 2026-10-10)
+
+| | band_detector | reader_crnn |
+|---|---|---|
+| 출처 | 자체 설계·학습 (BandNet `ftk5_g0.06`) | 자체 설계·학습 (CRNN `rftk5_foldall`) |
+| 크기 | 4,491,297 B (4.49MB) | 9,277,118 B (9.28MB) |
+| 입력 | `image [1,1,640,640]` float32 (/255, 레터박스 패드 114) | `crop [1,1,96,144]` float32 (/255−0.5) |
+| 출력 | `obj [1,1,40,40]` logit + `reg [1,4,40,40]` softplus(l,t,r,b) | `logits [1,36,11]` (0~9 + blank=10) |
+| 사용처 | `BandNetCrnnEngine` (mg/dL 전용) | 같음 |
+
+변환·전량 파리티 자(실촉 2,504장 판정 완전 일치): `assets_dev/train/export_deploy_onnx.py`.
+디코드(argmax·ltrb·CTC greedy)는 그래프 밖 `lib/ocr/src/engines/bandnet_crnn/`
+의 순수 Dart 로 돈다.
+
+**계보·배포 의무**: 외부 사전학습 가중치·외부 데이터셋 0 으로 학습됐으나
+**실촉 파인튜닝에 Datumo 납품본 2,504쌍이 들어갔다** — 파생 가중치 배포 조건은
+`docs/LICENSES.md` §1.6·§4 (구매 조건 문서 확정 전 스토어 출시 불가).
+
+두 파일이 없어도 앱은 정상적으로 동작한다. `OnnxRuntimeModel.tryLoad()` 가
+null 을 돌려주고, 스캐너는 다음 엔진(규칙 기반)으로 넘어가거나 수동 입력으로
+안내한다.
+
 ## 7seg_classifier.tflite (커밋됨 · `f10074a`)
 
 | | |

@@ -23,6 +23,7 @@
 | TensorFlow Lite | tflite_flutter 경유 | **Apache-2.0** (TensorFlow 본저장소 [LICENSE](https://github.com/tensorflow/tensorflow/blob/master/LICENSE), 2026-08-21 확인. 원문 말미에 Caffe 유래 코드의 BSD 스타일 고지가 함께 실려 있다) | 예 | 확인 완료 |
 | **YOLOX** (GM 화면 검출기의 구조·학습 코드) | [Megvii-BaseDetection/YOLOX](https://github.com/Megvii-BaseDetection/YOLOX) | **Apache-2.0** (GitHub API `spdx_id`, 2026-09-04 확인. 로컬 체크아웃 `D:\tmp\YOLOX\LICENSE` 원문도 Apache 2.0 으로 대조 완료) | 아직 아니오 — 검출기는 현재 학습·평가에서만 돈다. **앱에 넣으면 예** | 확인 완료. 반입 시 Apache-2.0 고지 필요 |
 | **검출기 가중치 일체** (`yolox_out/**/best_ckpt.pth`) | 우리가 학습. 계보는 §1.1 참조 — 뿌리는 COCO 사전학습 `yolox_nano.pth` 이고 중간에 Roboflow(CC BY 4.0)와 Datumo(조건 미확인)가 들어온다 | 아직 아니오 | **체크포인트마다 의무가 다르다.** §1.1 표를 볼 것 |
+| **배포 모델 쌍** `band_detector.onnx` · `reader_crnn.onnx` | 자체 설계·학습 (2026-10-10 프리징). 구조·학습 코드 전부 자체(외부 사전학습 가중치 0)이나 **실촉 파인튜닝에 Datumo 납품본 2,504쌍이 들어갔다** | 외부 가중치·코드 의존 없음. **Datumo 파생 — 배포 조건 확정 전 스토어 출시 불가(§4)** | **예** — `assets/models/` 번들 (2026-10-10~) | 계보는 §1.6 |
 
 ### 1.1 검출기 가중치 계보 — 체크포인트마다 의무가 다르다
 
@@ -102,6 +103,11 @@ weights/yolox_nano.pth            COCO 사전학습 (Megvii 공식 배포본으�
 ---
 
 ## 1.4 실사진은 **검증에만** 쓴다 (2026-09-19 사람 결정)
+
+> **2026-10-10 업데이트 — 이 규칙의 예외가 생겼다.** 2026-10-09 사람 지시로
+> 배포 스택(ftk5 검출기·rftk5 리더)을 **실촉 2,504쌍으로 K=5 파인튜닝**했다
+> (§1.6). 즉 이 규칙은 배포 모델 쌍에 대해서는 사람이 직접 결정한 방식으로
+> 대체됐다. 그 밖의 실사진(라벨링·검증용 등)에는 여전히 이 규칙이 적용된다.
 
 **규칙**: 이용 조건이 미확인이거나 귀속 의무가 있는 실사진은
 **학습에 넣지 않는다. 검증·측정에만 쓴다.** 이미지는 저장소에 커밋하지 않는다.
@@ -198,6 +204,31 @@ assets_dev/upstream  --(junction)-->  D:\Project\sugarScan-corpus
 **Apache-2.0 고지 의무**: 파생 모델을 앱에 번들하면 라이선스 사본과 저작자 고지,
 그리고 **변경 사항 고지**가 필요하다. §4 에 항목이 있다.
 
+### 1.6 배포 모델 쌍의 계보 (2026-10-10 앱 반입)
+
+앱에 실린 최초의 자체 모델이다. `assets/models/band_detector.onnx` (BandNet
+`ftk5_g0.06`, 1.12M 파라미터) × `assets/models/reader_crnn.onnx` (CRNN
+`rftk5_foldall/best.pt`, 2.32M 파라미터). 변환·파리티 자는
+`assets_dev/train/export_deploy_onnx.py` (실촉 2,504장 전량 e2e 판정 일치).
+
+```
+자체 합성 코퍼스(GEN1~GEN3 — 생성기·배경 전부 절차적 생성, 실사진·외부 데이터셋 0)
+  ├─ band_out/tone/ftk5_g0.06   + Datumo 2,504쌍 실촉 파인튜닝(K=5)
+  └─ reader_out/rftk5_foldall   + Datumo 2,504쌍 실촉 파인튜닝(K=5, 웜스타트)
+```
+
+- **외부 사전학습 가중치 0, 외부 데이터셋 0(베이스 학습)** — BandNet 구조는
+  자체 설계(SPEC §5.3), CRNN 도 자체 구현. 합성 코퍼스의 "COCO" 는 **파일
+  형식** 이름이지 COCO 데이터셋 사진을 쓴 게 아니다(배경은 절차적 생성,
+  synth_panel §9.7.2). 옛 YOLOX 계보(§1.1)와는 전혀 다른 계보다(2026-09-17
+  전체 폐기).
+- **실촉 파인튜닝의 데이터는 Datumo 납품본뿐** — 검출기 `build_band_ft_coco.py`
+  ·리더 `reader_ft_precrop.py`·`build_reader_ft_folds2.py`(foldall) 가
+  `upstream/datumo/labels.jsonl` 을 직접 읽는다(2026-10-10 코드 확인).
+- **따라오는 의무는 하나뿐**: Datumo 납품본 파생이라는 것. 구매 조건 문서가
+  수령·확정되지 않은 상태로 앱에 번들됐다 — §4 첫 항목이 **출시 차단 조건**이
+  됐다. 스토어 배포 전에 확정해야 한다.
+
 ---
 
 ## 2. 폰트
@@ -249,6 +280,11 @@ SIL OFL 은 상업적 사용·임베딩을 허용하지만 **폰트 자체를 �
       > 우회로가 하나 있다: 마일스톤 검출기 `synthband_v0` 는 Datumo 를 타지
       > 않는다(합성만 얹었다). 조건 확정이 늦어지면 **그쪽으로 출시하는 선택지**가
       > 존재한다는 뜻이다 — 다만 그건 성능 판단이 따로 필요하다.
+      > **2026-10-10 갱신 — 옛 계보(gmscreen_ft)는 2026-09-17 전체 폐기로 이
+      > > 우산에서 나갔다. 대신 Datumo 의존은 §1.6 의 배포 쌍(실촉 파인튜닝
+      > > 2,504쌍)로 옮겨갔고, 이 모델들이 `assets/models/` 에 번들되며 앱
+      > > 반입이 시작됐다.** 이 문서 수령·확정이 그대로 **스토어 출시 차단
+      > > 조건**이 된다(내부 빌드·테스트 배포는 계속 가능).
 - [x] ~~Downloads 에 남아 있는 Roboflow zip 원본 2개(≈4.6GB, upstream 으로 사본 확보됨)
       — 중복이므로 삭제 여부는 개발자 본인 판단~~ — **2026-08-27 MD5 대조 후 삭제 완료**
       (개발자 지시). 사본 해시와 완전 일치 확인済.

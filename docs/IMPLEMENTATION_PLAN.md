@@ -1420,6 +1420,44 @@ flutter build windows --debug
   `toStringAsFixed` 로 항상 점을 찍는다 — 단위 표기는 이 앱에서 가장 위험한 자리라
   사람이 정할 일이다(`GLM_TASKS.md` §5).
 
+### 모델 탑재 (2026-10-10) — 학습 파이프라인 배포판을 앱에 싣다
+
+**프리징 스택을 ONNX 로 변환해 `assets/models/` 에 실었다.** 검출기
+`band_detector.onnx`(BandNet ftk5_g0.06, 1.12M 파라미터, 4.49MB) × 리더
+`reader_crnn.onnx`(CRNN rftk5_foldall, 2.32M 파라미터, 9.28MB). 정직 기대
+판독률 99.4%(K=5 교차검증) · 검출 실패 0.
+
+- **경로 선택은 G28 의 확정 결정을 따랐다** — tflite 는 BiLSTM TensorListReserve
+  로 불가, ONNX Runtime(MIT, flutter_onnxruntime 1.8.3) 로 간다. 검출기도
+  같은 런타임에 통일(네이티브 의존을 두 개 늘리지 않는다).
+- **변환·파리티 자는 `assets_dev/train/export_deploy_onnx.py`** (커밋됨).
+  실촉 2,504장 전량 e2e 에서 PyTorch 경로와 ONNX Runtime 경로가 **판정
+  2,504/2,504 완전 일치**(min IoU 0.979 · 점수차 3.3e-4 · 리더 디코드 불일치
+  0/200). Dart 전처리 규약(letterbox·bilinear)은 골든 벡터로 고정
+  (`test/ocr/support/deploy_golden_vectors.json`, 허용차 1/255 — cv2 고정소수
+  보간과의 규약차).
+- **앱 구조**: `lib/ocr/src/engines/bandnet_crnn/` — 전처리·디코드는 순수
+  Dart(`deploy_preprocess`·`band_detector`·`crnn_ctc`), flutter_onnxruntime
+  import 는 `onnx_runtime_deploy_model.dart` 한 파일에 격리(엔진 테스트는
+  Flutter 런타임 없이 가짜 세션으로 돈다). 엔진 id `bandnet_crnn_v1`,
+  mg/dL 전용(charset 0~9 — 소수점 없음).
+- **등록 순서가 우선순위다**: `ocr_bootstrap.dart` 에 배포판을 첫 엔진으로
+  등록. 단 **빌드에 모델이 없으면 스캐너가 자동으로 다음 엔진(규칙 기반)으로
+  넘어간다** — `OcrEngineRegistry.activateFirstReadyWhere`(신설). "모델이 없는
+  경우가 정상 경로다" 원칙과 기존 부트스트랩 테스트 요구를 둘 다 지킨다.
+  명시적 엔진 지정(start(engineId:))은 폴백하지 않는다(A/B 비교 보호).
+- **값 검증·안정화는 기존 스캐너 계약 그대로** — 엔진은 숫자 문자열만 내고
+  범위 검증(GlucoseValidator)과 프레임 합의(ReadingStabilizer, 연속 3프레임·
+  평균 확신도 0.85)는 스캐너가 한다. CTC 확신도는 글자가 나온 프레임의
+  softmax 최대 확률, 후보 확신도는 최약 자리(sevenseg 엔진 규약).
+- **남은 것**: 실기기(안드로이드) 카메라 검증 — 지연·배터리·가이드 정렬.
+  온디바이스 수치가 나오면 SPEC §10 예산 규칙을 다시 본다. 전처리(레터박스
+  리사이즈)가 메인 아일레이트에서 도는데 지연이 문제되면 isolate 로 옮긴다.
+- **라이선스**: 배포 쌍은 실촉 파인튜닝에 Datumo 납품본 2,504쌍이 들어갔다 —
+  `docs/LICENSES.md` §1.6 계보 신설, §4 첫 항목이 **스토어 출시 차단 조건**이
+  됐다(구매 조건 문서 수령·확정 전까지 내부 빌드만). 위키 기록은
+  `doc/raw/2026-10-10.md` Case 4.
+
 ### 출시 전 필수 — 동의와 개인정보처리방침 (미착수)
 
 **지금 앱에는 동의 절차도 개인정보처리방침도 없다.** 로그인하면 곧바로 혈당
