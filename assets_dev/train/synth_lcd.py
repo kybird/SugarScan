@@ -362,7 +362,7 @@ def add_local_shadow(img, rng):
     return np.clip(img.astype(np.float32) * (1.0 - soft), 0, 255).astype(np.uint8)
 
 
-def add_band_shadow(img, rng, box):
+def add_band_shadow(img, rng, box, ink=None, gaps=None, cover=None):
     """밴드 직격 그림자 — 경계가 숫자줄 상자를 가로질러 그 면적의 일부를 깊게
     어둡게 만든다(2026-10-04 사람 관찰: "검은색 글씨인데 숫자의 90퍼센트정도
     어두운 그림자가 드리어져 있다" — GEN1 검출기가 이 조건에서 숫자줄
@@ -378,18 +378,111 @@ def add_band_shadow(img, rng, box):
     k = rng.uniform(0.25, 0.55)          # 어두운 쪽 밝기 계수(깊게)
     t = int(rng.uniform(10, 40))         # 경계 부드러움 폭(px)
     ang = rng.uniform(0, 180)
-    frac = rng.uniform(0.55, 0.95)       # 밴드 상자 중 어두운 쪽 면적 비
+    # 2026-10-09 사람 정정 2건: ① 글자가 흰색이면 그림자도 흰색(잉크 방향) —
+    # 반전 LCD 는 그늘에서 배경이 밝은 쪽으로 젖어 대비가 무너진다.
+    # ② 그림자는 숫자 전부를 덮을 수도 있다 — 상한 1.0.
+    frac = rng.uniform(0.55, 1.0)       # 밴드 상자 중 그늘 쪽 면적 비(전체 가능)
     ca, sa = np.cos(np.radians(ang)), np.sin(np.radians(ang))
+    # 2026-10-09 사람 관찰: "그림자가 한두 디짓을 통째로 가리고 하나는 명확히
+    # 노출하는 구도를 리더가 못 읽는다" — 경계가 자릿수 갭에 정확히 서는
+    # 구도(gap 모드). gaps=[자릿수 사이 x좌표] 를 주면 절반 확률로 세로 경계를
+    # 갭 하나에 맞춘다(그늘 쪽 = 갭 왼쪽 또는 오른쪽 숫자들 전체).
+    gap_side = None
+    rise = False
+    # 모드: 원래 각도 그림자 / 갭 모드(자릿수 단위 가림) / 상승 모드(2026-10-09
+    # 사람: "아래에서 위로 올라오는데 딱 가운데 획 있는 곳까지 가린다" —
+    # #4(69→65)·#21(118→116)의 아래 절반 소실 재현). SYNTH_FORCE_SHADOW 로
+    # 검수 강제 가능.
+    _mode = __import__("os").environ.get("SYNTH_FORCE_SHADOW", "")
+    _m = rng.random()
+    if _mode in ("gap", "rise", "plain", "cover"):
+        _m = {"gap": 0.0, "rise": 0.25, "cover": 0.45, "plain": 0.9}[_mode]
+    if _mode == "cover" and cover is None:
+        cover = dict(xs=int(x0), xe=int(x1), y0=int(y0), y1=int(y1))
+    _do_cover = (cover is not None and 0.35 <= _m < 0.60)
+    if _do_cover:
+        pass                              # 아래 rise 와 같은 구조로 처리
+    elif gaps and _m < 0.35:
+        ang = 0.0                      # 경계선 세로 — 법선은 x 축
+        ca, sa = 1.0, 0.0
+        gx = float(gaps[rng.randrange(len(gaps))])
+        gap_side = 1 if rng.random() < 0.5 else -1
+    elif _m < 0.70:
+        rise = True
+        ang = 90.0                     # 경계선 가로 — 법선은 y 축
+        ca, sa = 0.0, 1.0
     corners = np.array([x0, y0, x1, y0, x1, y1, x0, y1], np.float64)
     d = corners[0::2] * ca + corners[1::2] * sa
-    thr = d.min() + (1.0 - frac) * (d.max() - d.min())
     cx, cy = (x0 + x1) / 2.0, (y0 + y1) / 2.0
+    if _do_cover:
+        # cover 모드(2026-10-09 통합): 0도 사각형이 유리 전체 높이를 덮어
+        # 숫자를 가린다(앞두글자=왼쪽끝 뻗음/뒤한글자=오른쪽끝/rand=칸만).
+        # 어두운 판=그림자(곱), 밝은 판=하이라이트(덧) — 축의 극성 규칙.
+        _mk = np.zeros((H, W), np.float32)
+        cv2.rectangle(_mk, (cover["xs"], cover["y0"]),
+                      (cover["xe"], cover["y1"]), 1.0, -1)
+        _ksz = max(3, int((y1 - y0) * 0.05)) | 1
+        soft = cv2.GaussianBlur(_mk, (_ksz, _ksz), 0) * k
+        im_f = img.astype(np.float32)
+        if ink is not None and float(ink) > 127:
+            return np.clip(im_f + (255.0 - im_f) * soft, 0, 255).astype(np.uint8)
+        return np.clip(im_f * (1.0 - soft), 0, 255).astype(np.uint8)
+    if rise:
+        thr = (y0 + y1) / 2.0          # 딱 가운데 획(g세그) 높이까지
+    elif gap_side is not None:
+        thr = (gx - cx) * (1 if gap_side > 0 else -1)
+    else:
+        thr = d.min() + (1.0 - frac) * (d.max() - d.min())
     yy, xx = np.mgrid[0:H, 0:W]
     dd = (xx - cx) * ca + (yy - cy) * sa
-    hard = ((dd < thr) * (1.0 - k)).astype(np.float32)
+    if rise:
+        dark = dd > thr                # 아래쪽이 그늘
+    elif gap_side is None:
+        dark = dd < thr
+    else:
+        dark = dd * gap_side < thr
+    hard = (dark * (1.0 - k)).astype(np.float32)
     ksz = max(3, t) | 1
     soft = cv2.GaussianBlur(hard, (ksz, ksz), 0)
-    return np.clip(img.astype(np.float32) * (1.0 - soft), 0, 255).astype(np.uint8)
+    im_f = img.astype(np.float32)
+    if ink is not None and float(ink) > 127:
+        # 흰 글씨 LCD — 그늘 쪽을 흰 방향으로 끌어올린다(하얀 그림자)
+        return np.clip(im_f + (255.0 - im_f) * soft, 0, 255).astype(np.uint8)
+    return np.clip(im_f * (1.0 - soft), 0, 255).astype(np.uint8)
+
+
+def add_shadow_streak(img, rng, box, ink=None):
+    """긴 사각형 그림자 레이어(2026-10-09 사람: "레이어로 긴 사각형을 만들어
+    LCD 위에 랜덤으로 투영" — 손가락·이물의 캐스트 그림자). 중심·각도·길이·
+    폭·깊이·경계 부드러움을 전부 랜덤으로 뽑아 회전 사각형 마스크를 얹는다.
+    극성은 밴드 그림자와 같다 — 잉크 방향(흰 글씨면 흰 그림자).
+    """
+    import math
+    x0, y0, x1, y1 = box
+    H, W = img.shape[:2]
+    diag = float(np.hypot(x1 - x0, y1 - y0))
+    L = rng.uniform(0.5, 2.0) * diag                 # 길이
+    wdt = rng.uniform(0.3, 1.5) * float(y1 - y0)     # 폭
+    ang = rng.uniform(0, 180)
+    cx = rng.uniform(x0, x1)
+    cy = rng.uniform(y0 - 0.5 * (y1 - y0), y1 + 0.5 * (y1 - y0))
+    k = rng.uniform(0.30, 0.70)                      # 깊이
+    t = int(rng.uniform(8, 50))                      # 경계 부드러움
+    ca, sa = math.cos(math.radians(ang)), math.sin(math.radians(ang))
+    ux, uy = ca * L / 2, sa * L / 2                  # 길이 방향 반
+    vx, vy = -sa * wdt / 2, ca * wdt / 2             # 폭 방향 반
+    quad = np.array([[cx - ux - vy, cy - uy - vx],
+                     [cx + ux - vy, cy + uy - vx],
+                     [cx + ux + vy, cy + uy + vx],
+                     [cx - ux + vy, cy - uy + vx]], np.int32)
+    mask = np.zeros((H, W), np.float32)
+    cv2.fillConvexPoly(mask, quad, 1.0)
+    ksz = max(3, t) | 1
+    soft = cv2.GaussianBlur(mask, (ksz, ksz), 0) * k
+    im_f = img.astype(np.float32)
+    if ink is not None and float(ink) > 127:
+        return np.clip(im_f + (255.0 - im_f) * soft, 0, 255).astype(np.uint8)
+    return np.clip(im_f * (1.0 - soft), 0, 255).astype(np.uint8)
 
 
 def add_band_reflection(img, rng, box):

@@ -207,6 +207,7 @@ tr.miss td.mono { color: var(--bad); }
         <option value="e2edrop">끝단 자릿수 누락 (51장 — 숫자가 안 보이는 크롭)</option>
         <option value="detbetter">검출 결과 · 잘됨 상위 (밤학습 개선순)</option>
         <option value="unlabeled">라벨 없음만</option>
+        <option value="rftmat">리더 실촉 학습 재료 (2,504장 — 폴드·기기 순)</option>
       </select>
     </label>
     <label class="stat" title="다른 모드의 사람 라벨을 겹쳐 본다 — LCD 모드면 밴드를, 밴드 모드면 LCD 를">
@@ -516,6 +517,13 @@ function applyQueueFilter() {
     lb.meta.items = lb.meta.items
       .filter(it => rank.has(it.id))
       .sort((a, b) => rank.get(a.id) - rank.get(b.id));
+  } else if (q === "rftmat" && lb.fail.rftmat && lb.fail.rftmat.size) {
+    // 리더 실촉 학습 재료 — 폴드·기기 순서 유지. 검토 전용(읽기 관점).
+    const order = [...lb.fail.rftmat];
+    const rank = new Map(order.map((id, i) => [id, i]));
+    lb.meta.items = lb.meta.items
+      .filter(it => rank.has(it.id))
+      .sort((a, b) => rank.get(a.id) - rank.get(b.id));
   } else if (q === "unitclip" && lb.fail.unitclip && lb.fail.unitclip.size) {
     // 단위 걸침 의심순(라벨 하단 ≈ 예측 하단). 걸친 장은 드래그로 하단을
     // 올려 저장, 깨끗한 장은 I로 확인 마크 — 사람 선언(2026-09-27) 규약은
@@ -687,7 +695,7 @@ async function show(idx) {
       const note = lb.pilotNote ? lb.pilotNote[it.id] : null;
       pn.textContent = ((q === "bandseed" || q === "pilot" || q === "lcdfix" || q === "wideband"
                        || q === "labelaudit" || q === "slotfix"
-                       || q === "bandreview" || q === "bandwide" || q === "unitclip" || q === "detbetter" || q === "detworse" || q === "e2emiss" || q === "e2edrop")
+                       || q === "bandreview" || q === "bandwide" || q === "rftmat" || q === "unitclip" || q === "detbetter" || q === "detworse" || q === "e2emiss" || q === "e2edrop")
                        && note) ? `· ${note}` : "";
       pn.style.color = "#8ab4f8";
     }

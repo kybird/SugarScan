@@ -42,7 +42,11 @@ def main():
     tag = Path(a.ckpt).stem.replace("atone_", "")
 
     set_dir = HERE / "synth_coco" / a.set
-    files = sorted((set_dir / "train2017").glob("*.png"))
+    # generate() 출력의 판은 images/ 하위다(GEN2 굽기 파이프라인과 다름 —
+    # SEGAX 2026-10-09 실측: train2017 glob 이 0개를 돌려 조용히 빈 상자
+    # 파일을 썼다). 둘 다 보고 합친다.
+    files = sorted([q for q in (set_dir / "train2017").glob("*.png")] +
+                   [q for q in (set_dir / "images").glob("*.png")])
     out_p = Path(a.out) if a.out else HERE / "_diag" / "reader_boxes" / f"{a.set}_{tag}.jsonl"
     out_p.parent.mkdir(parents=True, exist_ok=True)
 

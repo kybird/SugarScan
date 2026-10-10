@@ -721,6 +721,9 @@ def api_failures(qs):
     # 테스트 holdout — 라벨링하면 개선을 잴 데가 없어진다. 큐에서 빼는 것으로는
     # 부족하고(전체 큐로 들어올 수 있다) 화면에 경고를 띄운다.
     hold, _ = _queue("lcd_fix_holdout.json")
+    # 리더 실촉 학습 재료 — 사람 검토용(2026-10-09). 리더 인풋 뷰(우측)가
+    # 학습에 실제 들어간 크롭과 같다(오버레이 예측 = ftk5_g0.06).
+    rftmat, rftmat_note = _queue("reader_ft_material.json")
     return {"gm_miss": gm_miss,
             "band_pilot": pilot, "band_pilot_note": pilot_note,
             "lcd_fix": lcdfix, "lcd_fix_note": lcdfix_note,
@@ -735,6 +738,7 @@ def api_failures(qs):
             "det_worse": detworse, "det_worse_note": detworse_note,
             "e2e_miss": e2emiss, "e2e_miss_note": e2emiss_note,
             "e2e_drop": e2edrop, "e2e_drop_note": e2edrop_note,
+            "rftmat": rftmat, "rftmat_note": rftmat_note,
             "lcd_holdout": hold}
 
 

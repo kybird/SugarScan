@@ -65,7 +65,7 @@ from synth_profiles import (  # noqa: E402
     PROFILES, DOT_FMTS, dot_text, dot_text_width, _icon, _pick_variant,
     _glyph_mask,
     device_identity, STATEFUL_ELEMENTS, PROFILE_INVERTED, lay_val, REGIONS)
-from synth_lcd import (add_band_reflection, add_band_shadow,  # noqa: E402
+from synth_lcd import (add_band_reflection, add_band_shadow, add_shadow_streak,  # noqa: E402
                        add_local_shadow,
                        seg_text, seg_text_width, seg_weight_from_variant,
                        SEG_WEIGHTS, SEG_SLANT)
@@ -337,6 +337,7 @@ SEVEN_3SEG_P = 0.50
 # add_local_shadow(전체 35%, 계수 0.55~0.85, 위치 난수)는 이 조건을 거의
 # 만들지 않는다 — 경계가 밴드를 직접 가로지르며 그렇게 깊지 않다.
 BAND_SHADOW_P = 0.15
+SHADOW_STREAK_P = 0.15          # 긴 사각형 그림자 레이어(2026-10-09)
 # 밴드 직격 반사광(2026-10-05 GEN2) — 스펙큘러가 숫자줄을 밝게 씻는 조건.
 # gen1_v1 잔여 실패 1709(반사가 125 를 반쯤 지움)·2048·501·525 의 갈래.
 # 저조도와 묶지 않는다 — 반사는 밝은 환경에서도 생긴다.
@@ -529,23 +530,35 @@ def _lcd_text(img, x, y, text, h, ink, name="", heights=None,
                     digit_mask=digit_mask, digit_w=digit_w)
 
 
-def _draw_ghost(img, x, y, dh, w_target, ink, variant, ghost, cache):
-    """빈 슬롯 잔상 — '8' 전체 획만 옅게. 진한 글리프는 그리지 않는다."""
+def _draw_ghost(img, x, y, dh, w_target, ink, variant, ghost, cache, segs=None):
+    """빈 슬롯 잔상 — '8' 전체 획만 옅게. 진한 글리프는 그리지 않는다.
+    segs 를 주면 '8' 전체가 아니라 그 세그 부분집합만 그린다(2026-10-06
+    오류 분석: 빈 슬롯 잔상이 '8' 이 아니라 2·4 로 읽힌 실오류 #8·#11 —
+    잔상은 세그 전체가 아니라 일부만 보인다)."""
     if ghost <= 0:
         return
-    gkey = (variant, dh, "ghost")
-    g8 = cache.get(gkey)
+    g8 = None
+    if segs:
+        sm = _seg7_masks(variant, dh, w_target, cache)
+        parts = [sm[s] for s in segs if s in sm]
+        if parts:
+            g8 = np.zeros_like(sm.get("8", parts[0]))
+            for p in parts:
+                g8 |= p
     if g8 is None:
-        m8 = _glyph_mask("8", variant, dh)
-        if m8 is None:
-            return
-        w8 = m8.shape[1]
-        sx = w_target / max(1, w8)
-        gw = max(2, int(round(w8 * sx)))
-        if gw != w8:
-            m8 = cv2.resize(m8.astype(np.uint8) * 255, (gw, dh),
-                            interpolation=cv2.INTER_AREA) > 96
-        cache[gkey] = g8 = m8
+        gkey = (variant, dh, "ghost")
+        g8 = cache.get(gkey)
+        if g8 is None:
+            m8 = _glyph_mask("8", variant, dh)
+            if m8 is None:
+                return
+            w8 = m8.shape[1]
+            sx = w_target / max(1, w8)
+            gw = max(2, int(round(w8 * sx)))
+            if gw != w8:
+                m8 = cv2.resize(m8.astype(np.uint8) * 255, (gw, dh),
+                                interpolation=cv2.INTER_AREA) > 96
+            cache[gkey] = g8 = m8
     gx = x + (w_target - g8.shape[1]) // 2
     region = img[max(0, y):y + dh, max(0, gx):gx + g8.shape[1]]
     blend = region.astype(np.float32) * (1 - ghost) + ink * ghost
@@ -554,12 +567,105 @@ def _draw_ghost(img, x, y, dh, w_target, ink, variant, ghost, cache):
     region[:hh, :ww][g8[:hh, :ww]] = blend[:hh, :ww][g8[:hh, :ww]]
 
 
+# 7-세그 활성 세그 집합(비트 순서 A B C D E F G 와 무관한 문자 이름).
+# '7' 읔 두 형태가 있다(2026-10-04 사람 결정 "A+B+C , A+B+C+F") — DSEG
+# 원형은 f 까지 켜진 4세그, '7s' 는 f 만 빈다. _on_segs 가 고른다.
+_SEG_ON = {"0": "abcdef", "1": "bc", "2": "abged", "3": "abgcd", "4": "fgbc",
+           "5": "afgcd", "6": "afgedc", "7": "abcf", "8": "abcdefg",
+           "9": "abcdfg"}
+
+
+def _on_segs(ch):
+    if ch == "7" and _sp.SEVEN_KIND == "7s":
+        return "abc"
+    return _SEG_ON.get(ch, "")
+
+
+def _seg7_masks(variant, dh, w_target, glyph_cache):
+    """'8' 글리프의 **연결요소 분해**로 7세그 각 획 마스크를 만든다.
+    _param_glyph_mask 이 DSEG 래스터를 분해하는 방식과 같다(세그 하나 =
+    연결요소 하나). 가로 3개(a·g·d)는 y 중심 순서로, 세로 4개(b·c·f·e)는
+    좌우·상하로 분류한다. 글리프를 같은 sx 로 압축해 칸 오른쪽에 정렬하므로
+    숫자 간 세그 위치가 맞고, 폰트 변형(굵기·이탤릭·전단)도 자동 일치.
+    세그 단위 사건축(2026-10-06 순수 리더 오류 35장 분석)의 기하 원천.
+
+    실측: 압축 리사이즈가 세그 틈을 닫는다 — 자연 종횡비 '8'(무압축)은
+    7개로 나오지만 칸 폭으로 압축하는 순간 병합이 시작된다(120px 셀=5개,
+    240px 반폭 셀=6개). 그래서 **분해는 자연 종횡비 240px 기준으로 하고**
+    세그 마스크를 최종 (dh, w_target) 으로 한 번에 줄인다. 각 세그가 독립
+    마스크라 줄여도 다시 병합되지 않고, 작은 크기에서 실제 글리프(병합
+    획)와의 경계 차는 호출부가 실제 마스크와의 교집합(kill)/차집합
+    (offghost)으로 흡수한다.
+
+    첫 구현은 글리프 대수(f=(4−1)−g 등)로 세웠는데 g=4−1 이 f∪g 라 f 가
+    항상 0 이 되는 순환 오류가 있었다 — 자체검증(세그 픽셀수 assert)이
+    잡았다. 분해가 7개로 안 나오면 빈 dict: 호출부는 구경로로 그린다."""
+    key = ("seg7", variant, dh, w_target)
+    hit = glyph_cache.get(key)
+    if hit is not None:
+        return hit
+    ref_h = max(240, dh)
+    m8 = _glyph_mask("8", variant, ref_h)
+    if m8 is None:
+        glyph_cache[key] = {}
+        return {}
+    cv8 = m8.astype(bool)
+    n_, lab_ = cv2.connectedComponents(cv8.astype(np.uint8))
+    comps = []
+    for i in range(1, n_):
+        sel = lab_ == i
+        ys, xs = np.nonzero(sel)
+        if len(xs) < 8:
+            continue
+        comps.append((xs.min(), xs.max(), ys.min(), ys.max(), sel))
+    if len(comps) != 7:
+        glyph_cache[key] = {}
+        return {}
+    H, W = cv8.shape
+    horiz = sorted([c for c in comps if (c[1] - c[0]) > (c[3] - c[2])],
+                   key=lambda c: (c[2] + c[3]) / 2)
+    vert = [c for c in comps if (c[1] - c[0]) <= (c[3] - c[2])]
+    if len(horiz) != 3 or len(vert) != 4:
+        glyph_cache[key] = {}
+        return {}
+
+    def shrink(sel):
+        if sel.shape == (dh, w_target):
+            return sel.copy()
+        return cv2.resize(sel.astype(np.uint8) * 255, (w_target, dh),
+                          interpolation=cv2.INTER_AREA) > 96
+
+    out = {name: shrink(horiz[i][4]) for i, name in enumerate("agd")}
+    left = sorted([v for v in vert if (v[0] + v[1]) / 2 < (W - 1) / 2],
+                  key=lambda v: (v[2] + v[3]) / 2)
+    right = sorted([v for v in vert if (v[0] + v[1]) / 2 >= (W - 1) / 2],
+                   key=lambda v: (v[2] + v[3]) / 2)
+    if len(left) != 2 or len(right) != 2:
+        glyph_cache[key] = {}
+        return {}
+    out["f"], out["e"] = shrink(left[0][4]), shrink(left[1][4])
+    out["b"], out["c"] = shrink(right[0][4]), shrink(right[1][4])
+    out["8"] = shrink(cv8)
+    glyph_cache[key] = out
+    return out
+
+
 def _draw_digit_uniform(img, x, y, dh, ch, w_target, ink, variant, glyph_cache,
-                        plane=None):
+                        plane=None, feat=None):
     """숫자 한 자 — DSEG 마스크를 '균일 x-압축' 하나로 세운다(결함 (1)(2) 대응).
     w_target 은 '8' 기준 목록 폭. 같은 패널의 모든 글리프가 같은 sx 를 쓰므로
     상대 폭('1' 이 좁고 '8' 이 넓음)이 보존되고, 글리프는 모두 같은 평면 위에
-    있다. plane 을 넘기면 같은 마스크를 자가검사용 평면에도 남긴다(AC#8)."""
+    있다. plane 을 넘기면 같은 마스크를 자가검사용 평면에도 남긴다(AC#8).
+
+    feat — 세그 단위 사건(2026-10-06 순수 리더 오류 35장 장별 분석 반영).
+    None 이면 구경로 그대로. kill/subtle(kind, seg, retain) 은 활성 세그
+    하나를 retain 농도로 약하게 그린다(반사줄·그림자가 세그 하나를 국소
+    적으로 죽인 실오류 17장). offghost(kind, seg, base, elev) 은 오프 세그
+    전체를 base · seg 하나만 elev 로 옅게 얹는다(꺼진 세그가 보여 1→7·
+    5→6·0→8 로 읽힌 실오류 11장 — 사람 관찰 2026-10-06: "#22·#23 은 윗가로
+    세그먼트가 조금 더 진해서 켜진 세그로 인식", 오프 세그 농도의 위아래
+    비대칭). 평면(plane)은 기하를 기록하므로 전체 활성 마스크 그대로 —
+    죽은 세그도 자리는 차지한다."""
     key = (variant, dh)
     if key not in glyph_cache:
         glyph_cache[key] = {}
@@ -578,6 +684,53 @@ def _draw_digit_uniform(img, x, y, dh, ch, w_target, ink, variant, glyph_cache,
         interp = cv2.INTER_AREA if w_ch < m.shape[1] else cv2.INTER_NEAREST
         m = cv2.resize(m.astype(np.uint8) * 255, (w_ch, dh),
                        interpolation=interp) > 96
+    if feat is not None:
+        segs = _seg7_masks(variant, dh, w_target, glyph_cache)
+        seg_m = segs.get(feat.get("seg"))
+        if segs and seg_m is not None:
+            mcv = np.zeros((dh, w_target), bool)
+            ww0 = min(m.shape[1], w_target)
+            hh0 = min(m.shape[0], dh)
+            mcv[:hh0, w_target - ww0:] = m[:hh0, :ww0]
+            off = segs["8"] & ~mcv
+            on = mcv if feat["kind"] == "offghost" else (mcv & ~seg_m)
+            region = img[y:y + dh, x:x + w_target]
+            hh = min(region.shape[0], dh)
+            ww = min(region.shape[1], w_target)
+            reg = region[:hh, :ww]
+            reg[on[:hh, :ww]] = ink
+            if feat["kind"] in ("kill", "subtle"):
+                km = (seg_m & mcv)[:hh, :ww]
+                if km.any():
+                    blend = reg.astype(np.float32) * (1 - feat["retain"]) \
+                        + ink * feat["retain"]
+                    reg[km] = blend[km]
+            else:
+                # offghost v2(2026-10-09 사람 정정): 켜진 획은 그대로 완전
+                # 잉크 — 꺼진 획들이 **각자 제각각**의 옅은 농도로 보인다.
+                # 전체 균일 base + 한 세그 elev 은 실물이 아니었다.
+                # seg_alphas = {세그: 개별 농도} — 전부 글씨 농도 못 미침.
+                sa = feat.get("seg_alphas")
+                if sa:
+                    for s_, lv in sa.items():
+                        mm = (off & segs[s_])[:hh, :ww]
+                        if mm.any():
+                            blend = reg.astype(np.float32) * (1 - lv) + ink * lv
+                            reg[mm] = blend[mm]
+                else:                        # 구형 base/elev — 하위호환
+                    for lv, ssel in ((feat.get("base", 0.03), None),
+                                     (feat.get("elev", 0.10), feat.get("seg"))):
+                        mm = (off if ssel is None
+                              else off & segs[ssel])[:hh, :ww]
+                        if mm.any():
+                            blend = reg.astype(np.float32) * (1 - lv) + ink * lv
+                            reg[mm] = blend[mm]
+            if plane is not None:
+                preg = plane[y:y + dh, x:x + w_target]
+                preg[:hh, :ww][mcv[:hh, :ww]] = 255
+            return
+        # 세그 분해 실패(폰트 이상 등) — 빈칸보다 구경로가 낫다. 아래로 흘러
+        # 간다.
     # 좁은 글리프는 칸 **오른쪽**에 붙는다(2026-09-15). 실물 7-seg 의 '1' 은
     # 세그먼트 b·c — 칸 오른쪽 두 세로획이다. 칸 가운데에 놓으면 실물에 없는
     # 자리에 획이 서고, 끝자리가 1인 값에서 밴드 오른쪽에 없는 여백이 생긴다
@@ -1776,10 +1929,78 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None):
     # 잔상(사람 선언 2026-09-24): 기기 고유 형질이 아니다 — 같은 기기도
     # 조명·촬영 컨디션에 따라 보이거나 안 보인다. 장면별 rng 로 뽑는다:
     # 대부분 0(안 보임), 보이면 배경색 근처의 옅음으로 0.03 이 흔하고
-    # 0.06 도 있다(이산 3종 — 연속 난수 아님).
+    # 0.06 도 있다(이산 — 연속 난수 아님).
+    # 2026-10-06 순수 리더 오류 35장 분석으로 사다리에 상위 0.10·0.14 를
+    # 올린다: 빈 슬롯 잔상이 2·4·8 로 읽힌 실오류 4장(#5·#8·#10·#11)은
+    # 식별 가능한 농도였다. 0.03 이 가장 흔한 하중 배치와 0.15 존재
+    # 확률은 선언 그대로. randrange(7) 도 난수 한 번 소비라 흐름 모양은
+    # 유지된다(단 같은 시드의 코퍼스 픽셀은 달라진다 — GEN3 부터의 값이다).
     # (역사: 2026-09-12 실사진 3종에서 빈 앞칸에 흔적 없어 하향. 옛
     # 확률 0.3·농도 0.16, 다음 0.15·0.04~0.11 은 모두 근거 없는 임의값.)
-    ghost = (0.03, 0.03, 0.03, 0.06)[rng.randrange(4)] if rng.random() < 0.15 else 0.0
+    ghost = ((0.03, 0.03, 0.03, 0.06, 0.06, 0.10, 0.14)[rng.randrange(7)]
+             if rng.random() < 0.15 else 0.0)
+
+    # ── 세그 단위 사건축(2026-10-06, 오류 35장 장별 분석 반영) ──────────
+    # 실오류의 83%(29/35)가 '한 숫자의 한 세그먼트' 사건이다 — 활성 세그가
+    # 반사줄·그림자·미세 약화로 국소적으로 죘(kill·subtle, 17장)거나, 꺼진
+    # 세그가 희미하게 보여(offghost, 11장) 1→7·5→6·0→8 로 읽힌다. 전역
+    # 대비가 아니라 세그 단위 국소 현상이라 전역 대비 자(평탄화 잉크 폭)로는
+    # 잡히지 않았다. 잔상과 같은 장면별 rng 분류(2026-09-24 사람 선언).
+    # 난수 4개는 분기와 무관하게 항상 뽑는다(형질 난수 흐름 보존).
+    # SYNTH_FORCE_SEG_AXIS 는 검수 샘플용 강제 노브(SYNTH_FORCE_WEIGHT 와
+    # 같은 자리) — 값 결정만 덮고 난수 소비는 그대로다.
+    _ax = (rng.random(), rng.randrange(n_vis), rng.random(), rng.random())
+    _force = __import__("os").environ.get("SYNTH_FORCE_SEG_AXIS", "")
+    _kind = _force if _force in ("kill", "subtle", "offghost", "slotghost") else (
+        "kill" if _ax[0] < 0.10 else
+        "subtle" if _ax[0] < 0.16 else
+        "offghost" if _ax[0] < 0.27 else "")
+
+    def _axpick(u, seq):
+        return seq[min(int(u * len(seq)), len(seq) - 1)]
+
+    seg_feat = None      # (자리, 사건 dict) — _draw_digit_uniform feat
+    slot_segs = None     # 빈 슬롯 잔상을 '8' 전체가 아닌 세그 일부로
+    seg_axis, seg_info = _kind, ""
+    if _kind in ("kill", "subtle", "offghost"):
+        j = _ax[1]
+        ch = label[j]
+        if _kind == "offghost" and _on_segs(ch) == "abcdefg":
+            j = 0 if j else n_vis - 1        # '8'은 오프 세그가 없다
+            ch = label[j]
+        if _kind == "offghost":
+            offs = [s for s in "abcdefg" if s not in _on_segs(ch)]
+            if offs:
+                # v2(사람 정정): 꺼진 세그마다 독립적으로 제각각 농도.
+                # 이산 사다리(연속 난수 아님)·상한 0.14 — 글씨 농도 못 미침.
+                lad = (0.02, 0.03, 0.04, 0.06, 0.08, 0.10, 0.12, 0.14, 0.16, 0.20, 0.25, 0.30)
+                sa = {s: lad[rng.randrange(len(lad))] for s in offs}
+                seg_feat = (j, dict(kind="offghost", seg_alphas=sa))
+                seg_info = (f"j{j} '{ch}' 오프세그 제각각 "
+                            + " ".join(f"{k}={v}" for k, v in sa.items()))
+        elif _on_segs(ch):
+            seg_feat = (j, dict(kind=_kind, seg=_axpick(_ax[2], _on_segs(ch)),
+                                retain=_axpick(
+                                    _ax[3], (0.15, 0.25, 0.35, 0.45, 0.55)
+                                    if _kind == "kill" else (0.70, 0.80, 0.90))))
+            seg_info = (f"j{j} '{ch}' {seg_feat[1]['seg']}"
+                        f"×{seg_feat[1]['retain']}")
+        if seg_feat is None:
+            seg_axis = ""
+    elif _kind == "slotghost":
+        # 강제(검수) — v2: 잔상 세그 각자 제각각 농도(사람 정정 2026-10-09)
+        lad = (0.02, 0.03, 0.04, 0.06, 0.08, 0.10, 0.12, 0.14, 0.16, 0.20, 0.25, 0.30)
+        segs_ = _on_segs(_axpick(_ax[2], ("2", "4", "5", "8", "8")))
+        slot_segs = {s: lad[rng.randrange(len(lad))] for s in segs_}
+        ghost = max(slot_segs.values())
+        seg_info = "잔상 제각각 " + " ".join(f"{k}={v}" for k, v in slot_segs.items())
+    elif ghost > 0 and _ax[2] < 0.4:
+        # 자연 발생분의 40% — v2: 잔상 세그 제각각 농도
+        lad = (0.02, 0.03, 0.04, 0.06, 0.08, 0.10, 0.12, 0.14, 0.16, 0.20, 0.25, 0.30)
+        segs_ = _on_segs(_axpick(_ax[3], ("2", "4", "5", "8")))
+        slot_segs = {s: lad[rng.randrange(len(lad))] for s in segs_}
+        seg_axis = "slotghost"
+        seg_info = "잔상 제각각 " + " ".join(f"{k}={v}" for k, v in slot_segs.items())
     glyph_cache = {}
     _band_clip = [0]        # 밴드 쿼드가 숫자 필드를 잘랐는가(자가검사)
     _band_shadow = [0]      # 이 장에 밴드 직격 그림자가 들어갔는가(매니페스트용)
@@ -1788,8 +2009,14 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None):
     glyph_plane = np.zeros((H, W), np.uint8)
     for j in range(n_vis):
         ch = label[j]
+        _f = None
+        if isinstance(seg_feat, list):
+            _f = seg_feat[j]
+        elif seg_feat and seg_feat[0] == j:
+            _f = seg_feat[1]
         _draw_digit_uniform(img, x0 + j * pitch, y0, dh, ch, glyph_w,
-                            ink_digit, variant, glyph_cache, plane=glyph_plane)
+                            ink_digit, variant, glyph_cache, plane=glyph_plane,
+                            feat=_f)
     for j in range(lead):               # 빈 슬롯 잔상 — 쿼드 안(필드 전체 폭)
         gx_ = x0 - (lead - j) * pitch if align != "left" \
             else x0 + field_w + j * pitch
@@ -1798,8 +2025,7 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None):
         if align == "left" and gx_ + glyph_w > px1 - 2:
             continue
         _draw_ghost(img, gx_, y0, dh, glyph_w, ink_digit, variant, ghost,
-                    glyph_cache)
-
+                    glyph_cache, segs=slot_segs)
     dropped = []
     used_texts = set()   # 같은 문자열을 한 패널에 반복하지 않는다(몽타주 규칙)
 
@@ -2800,8 +3026,48 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None):
     # 붙인다. quad 는 이 시점의 패널 좌표 밴드 사각형(워프는 이후)이므로
     # 그림자도 밴드와 함께 워프된다. 저조도 행은 묶음으로 확률이 오른다.
     if _orng.random() < (0.35 if _lowc else BAND_SHADOW_P):
+        _gaps = [float(x0 + kk * pitch) for kk in range(1, n_vis)]
+        # cover 모드 재료(2026-10-09 사람 조건 통합): 0도 사각형이 LCD 전체
+        # 높이를 덮어 1~2글자를 가린다 — 앞두글자(왼쪽 유리끝까지 뻗음)·
+        # 뒤한글자(오른쪽 끝까지)·rand(대상 칸만). 어두운 판=그림자 방향,
+        # 밝은 판=하이라이트 방향(축 내부 극성 규칙이 정한다).
+        # cover 모드(2026-10-10 사람 재설계): "사각형 레이어로 이미지를 가리
+        # 고, 중앙을 중심으로 패닝 — 숫자를 위아래·좌우로 가린다. 상하%·좌우%
+        # 로 크기를 정하고 패닝으로 위치를 정한다. 디짓 단위 분기(front/back/
+        # rand)는 없앰 — 연속 파라미터가 특수 케이스(앞두글자=넓게 왼쪽 패닝
+        # ·끝한글자=좁게 오른쪽 패닝·전체=100%)를 포함한다.
+        # SYNTH_COVER="w,h,panx,pany" (0~1 비율, 팬은 -1~1) — 검수 강제.
+        # 강제(SYNTH_COVER)는 30% 게이트를 우선한다 — 게이트 안쪽에 두면
+        # 못 넘은 시드에서 무시되고 폴백(밴드 전체)만 그려져 검수판 9장이
+        # 전부 동일해지는 사고가 났다(2026-10-10 실측).
+        _cv = __import__("os").environ.get("SYNTH_COVER", "")
+        _cov = None
+        if _cv or _orng.random() < 0.30:
+            if _cv:
+                _w, _h, _px, _py = [float(v) for v in _cv.split(",")]
+            else:
+                _w, _h = rng.uniform(0.25, 1.0), rng.uniform(0.35, 1.0)
+                _px, _py = rng.uniform(-0.55, 0.55), rng.uniform(-0.35, 0.35)
+            _bw, _gh = float(px1 - px0), float(py1 - py0)
+            _cx, _cy = (px0 + px1) / 2.0, (py0 + py1) / 2.0
+            _hx = _w * _bw / 2.0
+            _hy = _h * _gh / 2.0
+            _cov = dict(xs=int(max(px0, _cx + _px * _bw - _hx)),
+                        xe=int(min(px1, _cx + _px * _bw + _hx)),
+                        y0=int(max(py0, _cy + _py * _gh - _hy)),
+                        y1=int(min(py1, _cy + _py * _gh + _hy)))
         img = add_band_shadow(img, rng, (float(quad[0][0]), float(quad[0][1]),
-                                         float(quad[2][0]), float(quad[2][1])))
+                                         float(quad[2][0]), float(quad[2][1])),
+                              ink=(ink_digit if inverted else None),
+                              gaps=_gaps, cover=_cov)
+        _band_shadow[0] = 1
+
+    # 긴 사각형 그림자 레이어(2026-10-09 사람: "레이어로 긴 사각형을 LCD 위에
+    # 랜덤 투영") — 손가락·이물 캐스트 그림자. 강제 노브 SYNTH_FORCE_STREAK.
+    if __import__("os").environ.get("SYNTH_FORCE_STREAK") or _orng.random() < SHADOW_STREAK_P:
+        img = add_shadow_streak(img, rng, (float(quad[0][0]), float(quad[0][1]),
+                                           float(quad[2][0]), float(quad[2][1])),
+                                ink=(ink_digit if inverted else None))
         _band_shadow[0] = 1
 
     # 밴드 직격 반사광(GEN2 2026-10-05) — 난수 소비는 그림자 블록 뒤에
@@ -3159,6 +3425,9 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None):
                 band_shadow=int(_band_shadow[0]),
                 band_reflect=int(_band_reflect[0]),
                 comp_print=int(_comp_print[0]),
+                # 세그 단위 사건축(2026-10-06) — 종류와 파라미터. 매니페스트
+                # 스키마는 그대로(소비처가 없다), 검수·샘플 도구가 읽는다.
+                seg_axis=seg_axis, seg_info=seg_info,
                 clip_shot=int(_clip_used),
                 glare=_glare_log, glare_cover=round(_glare_cover, 4),
                 glass_quad=np.asarray(glass_quad, np.float32),
@@ -3429,6 +3698,11 @@ def generate(count, seed0, out_dir, with_reader=False, bg="flat", scene="panel",
             band_shadow=int(s.get("band_shadow", 0)),
             band_reflect=int(s.get("band_reflect", 0)),
             comp_print=int(s.get("comp_print", 0)),
+            # 세그 단위 사건축(2026-10-06) — 빈 값은 스키마에서 뺀다(축 없는
+            # 장이 대다수라 매니페스트를 채우는 걸 막는다). 소비처는 아직
+            # 없고, 굽기 후 축 분포 감사·리더 증강 선별이 읽는다.
+            **({"seg_axis": s["seg_axis"], "seg_info": s["seg_info"]}
+               if s.get("seg_axis") else {}),
             clip_shot=int(s.get("clip_shot", 0)),
             margin=s["margin"],
             margins=s["margins"],
