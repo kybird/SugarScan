@@ -241,6 +241,47 @@ void main() {
           ScanUnavailableReason.engineError);
     });
   });
+
+  group('성능 텔레메트리', () {
+    test('완료된 추론만 세고 마지막 지연을 노출한다', () async {
+      final registry = OcrEngineRegistry();
+      final engine = FakeOcrEngine(
+        script: [('138', 0.95)],
+        latency: const Duration(milliseconds: 5),
+      );
+      registry.register(engine.descriptor, () => engine);
+      final scanner = GlucoseScanner(registry: registry);
+
+      expect(scanner.inferenceCount, 0);
+      expect(scanner.lastLatency, isNull);
+
+      await scanner.start(unit: GlucoseUnit.mgdl);
+      await scanner.offer(frame());
+      await scanner.offer(frame());
+
+      expect(scanner.inferenceCount, 2);
+      expect(scanner.lastLatency, const Duration(milliseconds: 5));
+    });
+
+    test('추론 중 버려진 프레임은 추론 수에 넣지 않는다', () async {
+      // FPS 를 추론 수로 잴 때 분모가 드롭 프레임에 오염되면 안 된다.
+      final registry = OcrEngineRegistry();
+      final engine = FakeOcrEngine(
+        script: [('138', 0.95)],
+        latency: const Duration(milliseconds: 50),
+      );
+      registry.register(engine.descriptor, () => engine);
+      final scanner = GlucoseScanner(registry: registry);
+      await scanner.start(unit: GlucoseUnit.mgdl);
+
+      final first = scanner.offer(frame());
+      final dropped = await scanner.offer(frame());
+      await first;
+
+      expect(dropped, isA<ScanScanning>());
+      expect(scanner.inferenceCount, 1);
+    });
+  });
 }
 
 class _ThrowingEngine implements OcrEngine {

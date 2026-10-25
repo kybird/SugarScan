@@ -44,6 +44,11 @@ class GlucoseScanner {
   GlucoseUnit? _unit;
   ScanOutcome _last = const ScanIdle();
 
+  /// 완료된 엔진 추론 횟수와 마지막 지연. 드롭된 프레임(추론 중 재offer)은
+  /// 세지 않는다 — 앱의 실기기 성능 측정(debugPrint 수집)용 텔레메트리다.
+  int _inferenceCount = 0;
+  Duration _lastLatency = Duration.zero;
+
   /// 스캔 세션 번호. start()/stop() 마다 올라간다. 추론 중이던 프레임이 세션이
   /// 바뀐 뒤에 돌아오면 그 결과는 버린다 — 단위가 달라진 채 확정되면 안 된다.
   int _session = 0;
@@ -52,6 +57,13 @@ class GlucoseScanner {
 
   /// 현재 활성 엔진 id. 기록에 남길 때만 쓴다.
   String? get activeEngineId => _registry.activeId;
+
+  /// 완료된 엔진 추론 횟수. 초당 추론 수(FPS)를 세는 데 쓴다.
+  int get inferenceCount => _inferenceCount;
+
+  /// 마지막 엔진 추론의 지연. 추론이 한 번도 없었으면 null.
+  Duration? get lastLatency =>
+      _inferenceCount == 0 ? null : _lastLatency;
 
   /// 스캔을 시작한다. [unit] 은 값 검증 기준이 되므로 사용자의 표시 단위를 넘긴다.
   Future<ScanOutcome> start({
@@ -134,6 +146,10 @@ class GlucoseScanner {
     final session = _session;
     final result = await _throttler.run(() => _recognizeSafely(engine, frame));
     if (result == null) return _last;
+    // 추론은 실제로 완료됐다 — 세션이 바뀌어 결과를 버리는 경우에도 측정값은
+    // 유효하므로 텔레메트리는 항상 갱신한다.
+    _inferenceCount++;
+    _lastLatency = result.latency;
     if (session != _session) return _last;
 
     return _emit(_interpret(result, unit));

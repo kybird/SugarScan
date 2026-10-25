@@ -1,7 +1,8 @@
 import 'dart:io' show File, Platform;
 
 import 'package:camera/camera.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart'
+    show debugPrint, kDebugMode, kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
@@ -73,6 +74,9 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
 
   /// 스캔 자체가 불가능한 상태. null 이면 정상.
   String? _blockedMessage;
+
+  /// 마지막으로 로그에 찍은 추론 번호. [_logInference] 의 중복 억제 기준.
+  int _loggedInferences = 0;
 
   @override
   void initState() {
@@ -154,6 +158,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
       final outcome = await _scanner.start(unit: _unit);
       if (!mounted) return;
       _scannerStarted = true;
+      _logEngineStart();
 
       if (outcome is ScanUnavailable) {
         // 모델이 없거나 단위를 읽을 수 있는 엔진이 없다. 수동 입력으로 안내한다.
@@ -200,6 +205,27 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
     }
   }
 
+  /// 성능·진단 로그 — debug/profile 빌드에서만 찍는다(release 에서는 조용).
+  /// 측정 절차와 수집 방법은 docs/DEVICE_INTEGRATION_PROMPT.txt: 엔진 지연은
+  /// OcrResult.latency(엔진 스톱워치)를 스캐너 텔레메트리로 노출한 것,
+  /// 추론 수는 드롭되지 않은 프레임만 센다.
+  void _logEngineStart() {
+    if (kReleaseMode) return;
+    _loggedInferences = _scanner.inferenceCount;
+    debugPrint('sugarscan scan engine=${_scanner.activeEngineId}');
+  }
+
+  void _logInference() {
+    if (kReleaseMode) return;
+    final count = _scanner.inferenceCount;
+    if (count == _loggedInferences) return; // 드롭된 프레임 — 추론 없음
+    _loggedInferences = count;
+    debugPrint(
+      'sugarscan ocr #$count '
+      'latency=${_scanner.lastLatency?.inMilliseconds}ms',
+    );
+  }
+
   Future<void> _onFrame(CameraImage image) async {
     if (_paused || !mounted) return;
 
@@ -215,6 +241,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
     final outcome = await _scanner.offer(frame);
     if (!mounted || _paused) return;
 
+    _logInference();
     setState(() => _outcome = outcome);
     if (outcome is ScanConfirmed) {
       await _handleConfirmed(outcome);
@@ -321,6 +348,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
       for (var i = 0; i < 3; i++) {
         final outcome = await _scanner.offer(frame);
         if (!mounted) return;
+        _logInference();
         setState(() => _outcome = outcome);
         if (outcome is ScanConfirmed) {
           await _handleConfirmed(outcome);
@@ -373,6 +401,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
       return false;
     }
     _scannerStarted = true;
+    _logEngineStart();
     return true;
   }
 
