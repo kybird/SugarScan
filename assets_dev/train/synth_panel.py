@@ -4043,6 +4043,8 @@ def generate_scene_groups(count, seed0, out_dir, scene="device",
             box=[round(float(q[:, 0].min()), 1), round(float(q[:, 1].min()), 1),
                  round(float(q[:, 0].max()), 1), round(float(q[:, 1].max()), 1)],
             label=s["label"], inverted=s["inverted"],
+            digit_box=(None if s["digit_box"] is None
+                       else [round(float(v), 1) for v in s["digit_box"]]),
             glyph_plane_check=s["glyph_plane_check"],
             density=s["density"], glare_cover=s.get("glare_cover", 0.0),
             margin=s["margin"], bezel=s["bezel"],

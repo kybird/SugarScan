@@ -58,18 +58,40 @@ class CocoBand(Dataset):
     """
 
     def __init__(self, root, ann, size=416, repeat=1, grow=0.0, aug=False,
-                 scale_min=0.55):
+                 scale_min=0.55, include_neg=False):
         root = Path(root)
         j = json.loads((root / "annotations" / ann).read_text(encoding="utf-8"))
         by = {a["image_id"]: a["bbox"] for a in j["annotations"]}
         split = "val2017" if "val" in ann else "train2017"
+        # 명시적 음성(2026-11-15 거절 학습, 설계 §3) — 상자 없는 이미지는
+        # 매니페스트의 has_band=0 표기로만 받는다. 표기 없이 상자가 없으면
+        # 라벨 누락 데이터다: 조용히 건너뛰는 구판 동작은 음성 학습을 죽이는
+        # 원인이었다(doc/raw/2026-11-14.md Case 1). 이제 입력 검증 오류로 죽는다.
+        man = None
+        mp = root / "manifest.jsonl"
+        if mp.exists():
+            man = {json.loads(l)["id"]: json.loads(l) for l in
+                   mp.read_text(encoding="utf-8").splitlines() if l.strip()}
         self.items = []
+        self.pos_idx = []
+        self.neg_idx = []
         for im in j["images"]:
+            path = str(root / split / im["file_name"])
             b = by.get(im["id"])
             if b is None:
-                continue
-            self.items.append((str(root / split / im["file_name"]),
-                               [b[0], b[1], b[0] + b[2], b[1] + b[3]]))
+                if (man is not None
+                        and man.get(im["file_name"][:-4], {}).get("has_band") == 0):
+                    if include_neg:
+                        self.items.append((path, None))
+                        self.neg_idx.append(len(self.items) - 1)
+                    # include_neg=False(기준선 arm): 음성을 스트림에서 뺀다 —
+                    # shuffle 이 우연히 섞는 일이 없어야 양성 노출 통제가 선다.
+                    continue
+                raise SystemExit(
+                    f"라벨 누락: {im['file_name']} 에 상자가 없는데 매니페스트 "
+                    f"음성 표기(has_band=0)도 없다 — 설계 §3 입력 검증 오류")
+            self.items.append((path, [b[0], b[1], b[0] + b[2], b[1] + b[3]]))
+            self.pos_idx.append(len(self.items) - 1)
         self.size = size
         self.repeat = repeat
         # grow: 정답 상자를 **상자 높이 비율**로 사방 확대한다.
@@ -126,6 +148,23 @@ class CocoBand(Dataset):
             # than from the image index: epochs must not repeat a fixed transform.
             rng = random.Random(random.getrandbits(64))
             img = self._photo(img, rng)
+            if box is None:
+                # 음성 프레임도 같은 증강 축을 지난다(설계 §2 — 양성·음성의
+                # 열화 범위 공유). 상자가 없으니 위치 흔들기는 상자 동반 없이.
+                sc = rng.uniform(self.scale_min, 1.25)
+                h0, w0 = img.shape
+                nw, nh = max(8, int(w0 * sc)), max(8, int(h0 * sc))
+                img = cv2.resize(img, (nw, nh), interpolation=cv2.INTER_LINEAR)
+                cvs = np.full((h0, w0), PAD, np.uint8)
+                ox = rng.randint(min(0, w0 - nw), max(0, w0 - nw))
+                oy = rng.randint(min(0, h0 - nh), max(0, h0 - nh))
+                sx0, sy0 = max(0, -ox), max(0, -oy)
+                dx0, dy0 = max(0, ox), max(0, oy)
+                cw = min(nw - sx0, w0 - dx0)
+                ch = min(nh - sy0, h0 - dy0)
+                if cw > 0 and ch > 0:
+                    cvs[dy0:dy0 + ch, dx0:dx0 + cw] = img[sy0:sy0 + ch, sx0:sx0 + cw]
+                return self._tensor(cvs, None)
             photo = img
             # **배율·위치 흔들기.** 실촬에서 촬영 거리가 성적을 강하게 물었다
             # (가까움 23.1% / 멂 1.3%). 생성기의 CAM_ZOOM_RANGE 가 덮지 못한
@@ -165,21 +204,65 @@ class CocoBand(Dataset):
 
     def _tensor(self, img, box):
         img, r, dx, dy = letterbox(img, self.size)
+        if box is None:
+            # 음성 — 상자 대신 0(4점) 와 has_band=0. 워프는 하지 않는다:
+            # 학습 루프는 has 로 이 상자를 전부 무시한다.
+            x = torch.from_numpy(img).float().div_(255.).unsqueeze(0)
+            return x, torch.zeros(4), torch.zeros(1)
         if self.grow > 0:
             m = (box[3] - box[1]) * self.grow
             box = [box[0] - m, box[1] - m, box[2] + m, box[3] + m]
         b = np.array([box[0] * r + dx, box[1] * r + dy,
                       box[2] * r + dx, box[3] * r + dy], np.float32)
         x = torch.from_numpy(img).float().div_(255.).unsqueeze(0)
-        return x, torch.from_numpy(b)
+        return x, torch.from_numpy(b), torch.ones(1)
 
 
-def assign(boxes, H, W, stride, radius=1.5):
+class NegRatioBatchSampler(torch.utils.data.Sampler):
+    """양성 batch 장 + 음성 round(batch*neg_ratio) 장(2026-11-15 거절 학습).
+
+    설계 §3·§5: 음성은 **별도 배치 부분으로 추가**한다 — 양성 노출 수와
+    업데이트 수는 기준선 arm 과 정확히 같고(양성은 항상 batch 장), 계산량
+    차이만 기록하면 된다. "같은 무늬만 반복하지 않도록" 매 에포크 재섞는다.
+    """
+
+    def __init__(self, pos_idx, neg_idx, batch_size, neg_ratio, repeat):
+        self.pos = list(pos_idx) * max(1, repeat)
+        self.neg = list(neg_idx) * max(1, repeat)
+        self.bs = batch_size
+        self.k_neg = (int(round(batch_size * neg_ratio)) if neg_ratio > 0 else 0)
+        self.epoch = 0
+
+    def __len__(self):
+        return max(1, len(self.pos) // self.bs)
+
+    def __iter__(self):
+        rng = random.Random(9176 + self.epoch)
+        self.epoch += 1
+        pos, neg = self.pos[:], self.neg[:]
+        rng.shuffle(pos)
+        rng.shuffle(neg)
+        ni = 0
+        for s in range(0, len(pos) - self.bs + 1, self.bs):
+            batch = pos[s:s + self.bs]
+            if self.k_neg and ni < len(neg):
+                take = min(self.k_neg, len(neg) - ni)
+                batch = batch + neg[ni:ni + take]
+                ni += take
+            yield batch
+
+
+def assign(boxes, H, W, stride, radius=1.5, force=None):
     """GT 중심 근처 칸을 양성으로. 물체가 하나뿐이라 동적 배정이 필요 없다.
 
     radius 는 **칸 단위**다. 1.5 면 중심 칸과 그 둘레(대략 3x3)가 양성이 된다.
     양성이 하나뿐이면 학습 신호가 너무 희박하고, 너무 넓으면 변 거리 회귀가
     멀리서부터 큰 값을 배워야 해서 불안정하다.
+
+    force[B](2026-11-15 거절 학습) — 음성 프레임(False) 은 어떤 칸도 양성으로
+    두지 않는다: objectness 전체 0·회귀 손실 0(설계 §3). '가장 가까운 칸 하나
+    강제 양성' 보정은 양성에만 적용한다 — 0면적 상자(음성 표기의 옛 관행)로
+    이 보정을 만나면 배경 칸 하나를 양성으로 가르치게 된다.
     """
     B = boxes.shape[0]
     dev = boxes.device
@@ -194,8 +277,13 @@ def assign(boxes, H, W, stride, radius=1.5):
     inside = ((cx > boxes[:, 0][:, None, None]) & (cx < boxes[:, 2][:, None, None]) &
               (cy > boxes[:, 1][:, None, None]) & (cy < boxes[:, 3][:, None, None]))
     pos = near & inside
+    if force is not None:
+        f = force.to(device=dev, dtype=torch.bool)[:, None, None]
+        pos = pos & f
     # 상자가 아주 작아 한 칸도 안 들면 가장 가까운 칸 하나를 양성으로 둔다.
     empty = ~pos.view(B, -1).any(1)
+    if force is not None:
+        empty = empty & force.to(device=dev, dtype=torch.bool)
     if bool(empty.any()):
         d = (cx - gx) ** 2 + (cy - gy) ** 2
         k = d.view(B, -1).argmin(1)
@@ -292,11 +380,22 @@ def run(args):
     np.random.seed(args.seed)
     ds = CocoBand(args.data, args.train_ann, args.size, args.repeat,
                   grow=args.grow, aug=args.aug,
-                  scale_min=args.aug_scale_min)
-    dl = DataLoader(ds, batch_size=args.batch, shuffle=True,
-                    num_workers=args.workers, drop_last=True, pin_memory=True,
-                    persistent_workers=args.workers > 0,
-                    worker_init_fn=init_worker)
+                  scale_min=args.aug_scale_min,
+                  include_neg=args.neg_ratio > 0)
+    if args.neg_ratio > 0 and not ds.neg_idx:
+        raise SystemExit("--neg-ratio > 0 인데 음성(매니페스트 has_band=0)이 "
+                         "데이터에 없다 — 세트를 확인하라(설계 §3)")
+    sampler = (NegRatioBatchSampler(ds.pos_idx, ds.neg_idx, args.batch,
+                                    args.neg_ratio, args.repeat)
+               if args.neg_ratio > 0 else None)
+    dl_kw = dict(num_workers=args.workers, pin_memory=True,
+                 persistent_workers=args.workers > 0,
+                 worker_init_fn=init_worker)
+    if sampler is not None:
+        dl = DataLoader(ds, batch_sampler=sampler, **dl_kw)
+    else:
+        dl = DataLoader(ds, batch_size=args.batch, shuffle=True,
+                        drop_last=True, **dl_kw)
     model = BandNet(width=args.width, stride=args.stride)
     if args.resume:
         ckpt = torch.load(args.resume, map_location="cpu")
@@ -327,12 +426,13 @@ def run(args):
     model.train()
     while step < total:
         try:
-            x, b = next(it)
+            x, b, has = next(it)
         except StopIteration:
             it = iter(dl)
-            x, b = next(it)
+            x, b, has = next(it)
         x = x.to(dev, non_blocking=True)
         b = b.to(dev, non_blocking=True)
+        hasb = has.to(dev).squeeze(1) > 0.5
         for g in opt.param_groups:
             g["lr"] = lr_at(step)
         with torch.amp.autocast(dev, enabled=(dev == "cuda")):
@@ -340,10 +440,16 @@ def run(args):
         obj = obj.float()
         reg = reg.float()
         H, W = obj.shape[-2:]
-        pos, tgt = assign(b, H, W, model.stride, args.radius)
+        pos, tgt = assign(b, H, W, model.stride, args.radius, force=hasb)
         pr = reg.permute(0, 2, 3, 1)[pos]
         tg = tgt.permute(0, 2, 3, 1)[pos]
-        lb, iou = giou_loss(pr, tg)
+        # 음성 프레임(또는 음성뿐인 배치)의 회귀 손실은 0 이다 — 빈 선택의
+        # mean 은 NaN 이라 0 텐서로 명시한다(설계 §3 '회귀 손실 0').
+        if pr.numel():
+            lb, iou = giou_loss(pr, tg)
+        else:
+            lb = x.new_zeros(())
+            iou = x.new_zeros(())
         if args.under_w > 1.0:
             # **자르는 것과 큰 것은 대가가 다르다.** 숫자를 자르면 리더가
             # 못 읽고(치명), 크면 τ 안에서는 무해하다. GIoU 는 둘을 같게
@@ -390,7 +496,15 @@ def run(args):
         # 양성이 희박하므로 양성 쪽에 가중치를 준다. focal 대신 단순 가중치를
         # 쓰는 이유: 배경이 '어려운 음성'을 거의 안 만든다(단색 판이 많다).
         w = torch.where(pos, float(args.pos_w), 1.0)
-        lo = (lo * w).mean()
+        # ── 프레임별 정규화(2026-11-15 거절 학습, 설계 §3) — 음성 프레임은
+        # 전 셀이 음성이라 셀을 그냥 더하면 개수로 양성을 압도한다. 프레임
+        # 평균을 내 배치에서 프레임 수로 다시 평균한다. 모든 프레임의 셀 수가
+        # 같으므로 음성이 없을 때의 값은 구판 전역 평균과 **정확히 같다**.
+        lo_per = (lo * w).flatten(1).mean(1)
+        lo_pos = lo_per[hasb].mean() if bool(hasb.any()) else x.new_zeros(())
+        lo_neg = (lo_per[~hasb].mean() if bool((~hasb).any())
+                  else x.new_zeros(()))
+        lo = lo_pos + lo_neg        # 음성도 손실에 균등(프레임) 기여
         lb = lb.mean()
         loss = lo + args.box_w * lb
         opt.zero_grad(set_to_none=True)
@@ -417,9 +531,12 @@ def run(args):
             print(msg, flush=True)
             model.train()
         if step % args.log == 0 or step == total:
+            iou_m = (iou.mean().item() if iou.numel() else 0.0)
             print(f"  step {step}/{total} loss {loss.item():.4f} "
-                  f"(obj {lo.item():.4f} box {lb.item():.4f}) "
-                  f"iou {iou.mean().item():.3f} lr {lr_at(step):.2e} "
+                  f"(obj+ {lo_pos.item():.4f} obj- {lo_neg.item():.4f} "
+                  f"box {lb.item():.4f}) "
+                  f"iou {iou_m:.3f} lr {lr_at(step):.2e} "
+                  f"n={int(hasb.sum())}+{int((~hasb).sum())} "
                   f"{time.time()-t0:.0f}s", flush=True)
     out = out_path
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -431,6 +548,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", required=True)
     ap.add_argument("--train-ann", default="instances_train2017.json")
+    ap.add_argument("--neg-ratio", type=float, default=0.0,
+                    help="배치당 음성 비중(설계 §3 시작값 0.25). 양성은 항상 "
+                         "batch 장 — 기준선 arm 과 양성 노출·업데이트 수가 "
+                         "같고 음성이 별도 부분으로 추가된다.")
     ap.add_argument("--out", required=True)
     ap.add_argument("--size", type=int, default=416)
     ap.add_argument("--stride", type=int, default=16, choices=(8, 16),
