@@ -555,6 +555,10 @@ def main():
                     metavar="NAME:COUNT:SEED",
                     help="거절 학습 장면 그룹 세트(예: SGD:3000:20261115). "
                          "반복 가능. 음성은 상자 없는 COCO 이미지로 들어간다.")
+    ap.add_argument("--plain-p", type=float, default=0.10,
+                    help="장면 그룹의 단색 대조군 비율. 검증 세트는 0 을 "
+                         "권한다 — 단색 프레임은 시드와 무관하게 서로 같아"
+                         "져 교차풀 픽셀 검사를 어기기 때문이다.")
     args = ap.parse_args()
 
     out_root = Path(args.out)
@@ -569,7 +573,7 @@ def main():
     out_root.mkdir(parents=True, exist_ok=True)
 
     for n, c, s in sg_specs:
-        build_scene_group_set(n, c, s, out_root,
+        build_scene_group_set(n, c, s, out_root, plain_p=args.plain_p,
                               degrade_spec=synth_panel.parse_degrade(args.degrade))
 
     seeds = {}

@@ -3668,8 +3668,10 @@ def _distractor_mosaic(dcan, dmask, drng, W, H):
         # 붙임 위치는 프레임 전역(리뷰 중-2) — 구판 [-0.1, 0.7] 상자는 좌상단
         # 편향으로 중앙 기기 뒤에만 들어갔다. 부분 이탈(프레임 밖 잘림)도
         # 실사진 방해물의 늘 있는 모습이다.
-        _paste_patch(dcan, dmask, drng.uniform(-0.25, 1.0) * W,
-                     drng.uniform(-0.25, 1.0) * H, pimg)
+        # 패치의 최소 40% 는 프레임 안 — 완전 프레임 밖 붙임(선언한 계열이
+        # 아무것도 안 그리는 퇴화)을 막는다. 단색 충돌의 절반을 냈다.
+        _paste_patch(dcan, dmask, drng.uniform(-0.6 * pw, W - 0.4 * pw),
+                     drng.uniform(-0.6 * ph, H - 0.4 * ph), pimg)
 
 
 _PRINT_WORDS = ("SALE", "MILK", "CEREAL", "VITAMIN", "DIGITAL", "THERMO",
@@ -3728,8 +3730,9 @@ def _distractor_print(dcan, dmask, drng, W, H):
                 bx += bw_ + drng.uniform(1.5, 4.0)
         pimg = _prop_jitter(pimg, drng)
         _paste_patch(dcan, dmask,
-                     # 위치 전역화·부분 이탈 허용(리뷰 중-2)
-                     drng.uniform(-0.25, 1.0) * W, drng.uniform(-0.25, 1.0) * H,
+                     # 위치 전역화·부분 이탈 허용(리뷰 중-2)·최소 40% 겹침
+                     drng.uniform(-0.6 * pw, W - 0.4 * pw),
+                     drng.uniform(-0.6 * ph, H - 0.4 * ph),
                      pimg)
 
 
@@ -3766,8 +3769,8 @@ def _distractor_seg7(dcan, dmask, drng, W, H):
         pimg[wy0:wy1, wx0:wx1] = np.where(wr != int(win), wr, pimg[wy0:wy1, wx0:wx1])
         pimg = _prop_jitter(pimg, drng)
         _paste_patch(dcan, dmask,
-                     drng.uniform(-0.25, 1.0) * W, drng.uniform(-0.25, 1.0) * H,
-                     pimg)
+                     drng.uniform(-0.6 * pw, W - 0.4 * pw),
+                     drng.uniform(-0.6 * ph, H - 0.4 * ph), pimg)
 
 
 def draw_distractors(W, H, drng, family):
