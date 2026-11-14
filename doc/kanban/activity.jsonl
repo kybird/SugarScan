@@ -344,3 +344,37 @@
 {"ts":"2026-09-28T09:45:47.686Z","action":"abandoned","title":"기존 실사진 증강 강화 — 140장을 더 쓰기","detail":"실사진 train 140장 증강 = 실사진 학습 노선. 사람 결정(2026-09-27) ft_bandnet_v1 폐기·'개선은 순수 합성 학습 안에서'로 노선 전체가 대체됐고 atone_tf640w15(IoU 0.8862)가 그 대안을 채웠다. 옛 계열(YOLOX) 폐기 선언(2026-09-17)과도 정합."}
 {"ts":"2026-10-02T14:33:40.371Z","action":"created","title":"BandNet 스케일 재정렬 2차 — TG 재굽기 재학습"}
 {"ts":"2026-10-02T16:19:48.778Z","action":"done","title":"BandNet 스케일 재정렬 2차 — TG 재굽기 재학습"}
+{"ts":"2026-11-14T14:44:26.738Z","action":"created","title":"모자이크 오확정 거절 학습 — 합성기부터 첫 훈련까지"}
+{"ts":"2026-11-14T14:44:34.740Z","action":"created","title":"거절 학습 훈련 환경 구축"}
+{"ts":"2026-11-14T14:44:51.839Z","action":"created","title":"합성기 음성 장면 렌더"}
+{"ts":"2026-11-14T14:44:59.549Z","action":"created","title":"음성 장면 생성기 적대적 리뷰"}
+{"ts":"2026-11-14T14:45:10.800Z","action":"created","title":"장면그룹 분할 데이터셋 빌드"}
+{"ts":"2026-11-14T14:45:19.067Z","action":"created","title":"검출기 음성 학습 코드"}
+{"ts":"2026-11-14T14:45:27.889Z","action":"created","title":"거절 학습 코드 적대적 리뷰"}
+{"ts":"2026-11-14T14:45:40.979Z","action":"created","title":"검출기 짝 학습 실행"}
+{"ts":"2026-11-14T14:45:41.318Z","action":"created","title":"리더 빈 타깃 학습 코드"}
+{"ts":"2026-11-14T14:45:53.716Z","action":"created","title":"리더 짝 학습 실행"}
+{"ts":"2026-11-14T14:45:54.073Z","action":"created","title":"합성 독립 검증 단계별 채점"}
+{"ts":"2026-11-14T14:48:49.641Z","action":"claimed","title":"거절 학습 훈련 환경 구축","actor":"zcode-overnight"}
+{"ts":"2026-11-14T15:02:01.388Z","action":"done","title":"거절 학습 훈련 환경 구축"}
+{"ts":"2026-11-14T15:02:15.796Z","action":"claimed","title":"합성기 음성 장면 렌더","actor":"zcode-overnight"}
+{"ts":"2026-11-14T15:23:00.464Z","action":"created","title":"무소속","detail":"무소속 마일스톤 자동 생성(conclusion: never, 2026-10-15 규약)"}
+{"ts":"2026-11-14T15:23:00.467Z","action":"created","title":"generic_v1 기기고정 아이콘 배치 실패"}
+{"ts":"2026-11-14T15:23:59.878Z","action":"done","title":"합성기 음성 장면 렌더"}
+{"ts":"2026-11-14T15:24:13.827Z","action":"claimed","title":"음성 장면 생성기 적대적 리뷰","actor":"zcode-overnight"}
+{"ts":"2026-11-14T15:24:45.921Z","action":"claimed","title":"검출기 음성 학습 코드","actor":"zcode-overnight"}
+{"ts":"2026-11-14T15:32:14.685Z","action":"done","title":"검출기 음성 학습 코드"}
+{"ts":"2026-11-14T15:32:40.553Z","action":"claimed","title":"거절 학습 코드 적대적 리뷰","actor":"zcode-overnight"}
+{"ts":"2026-11-14T15:54:52.966Z","action":"done","title":"음성 장면 생성기 적대적 리뷰"}
+{"ts":"2026-11-14T15:55:06.732Z","action":"done","title":"거절 학습 코드 적대적 리뷰"}
+{"ts":"2026-11-14T15:55:33.334Z","action":"claimed","title":"장면그룹 분할 데이터셋 빌드","actor":"zcode-overnight"}
+{"ts":"2026-11-14T16:28:11.917Z","action":"done","title":"장면그룹 분할 데이터셋 빌드"}
+{"ts":"2026-11-14T16:28:20.221Z","action":"claimed","title":"검출기 짝 학습 실행","actor":"zcode-overnight"}
+{"ts":"2026-11-14T16:45:37.414Z","action":"done","title":"검출기 짝 학습 실행"}
+{"ts":"2026-11-14T16:47:33.353Z","action":"claimed","title":"리더 빈 타깃 학습 코드","actor":"zcode-overnight"}
+{"ts":"2026-11-14T16:50:03.036Z","action":"done","title":"리더 빈 타깃 학습 코드"}
+{"ts":"2026-11-14T16:50:03.398Z","action":"claimed","title":"리더 짝 학습 실행","actor":"zcode-overnight"}
+{"ts":"2026-11-14T17:13:16.327Z","action":"done","title":"리더 짝 학습 실행"}
+{"ts":"2026-11-14T17:13:16.691Z","action":"claimed","title":"합성 독립 검증 단계별 채점","actor":"zcode-overnight"}
+{"ts":"2026-11-14T17:13:26.515Z","action":"done","title":"합성 독립 검증 단계별 채점"}
+{"ts":"2026-11-14T17:13:26.597Z","action":"milestone-done","title":"모자이크 오확정 거절 학습 — 합성기부터 첫 훈련까지","detail":"멤버 10장 전원 종결 — 작업 완결·판정 별도(verdict)"}
