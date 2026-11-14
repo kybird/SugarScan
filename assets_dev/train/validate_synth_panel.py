@@ -116,6 +116,10 @@ def main():
                    # 정답은 축정렬 사각형이다(2026-09-17, docs/SPEC.md §9.5).
                    box=[round(float(q[:, 0].min()), 1), round(float(q[:, 1].min()), 1),
                         round(float(q[:, 0].max()), 1), round(float(q[:, 1].max()), 1)],
+                   # quad 는 라벨이 아니라 진단 메타데이터다(reader_strip·
+                   # 분포 절이 읽는다). 1a8a405 이 rec 에서 빠져 스크립트가
+                   # 죽어 있었다 — glass_quad 와 같은 취급으로 되돌린다.
+                   quad=np.round(q, 2).tolist(),
                    digit_box=None if s["digit_box"] is None
                    else [round(float(v), 1) for v in s["digit_box"]],
                    glass_quad=np.round(s["glass_quad"], 2).tolist(),
