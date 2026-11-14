@@ -142,11 +142,15 @@ class BandCrops(torch.utils.data.Dataset):
         coco = json.loads((self.root / "annotations" /
                            f"instances_{split}.json").read_text(encoding="utf-8"))
         labels = {}
+        has_band = {}
         for line in (self.root / "manifest.jsonl").read_text(
                 encoding="utf-8").splitlines():
             if line.strip():
                 m = json.loads(line)
-                labels[f"{m['id']}.png"] = m["label"]
+                # 거절 학습(2026-11-15 설계 §4): 음성 행은 label=None —
+                # 빈 문자열로 읽어 "길이 0 CTC 타깃"이 되게 한다.
+                labels[f"{m['id']}.png"] = m["label"] or ""
+                has_band[f"{m['id']}.png"] = bool(m.get("has_band", 1))
 
         if boxes:
             src = {}
@@ -161,6 +165,10 @@ class BandCrops(torch.utils.data.Dataset):
             src = {}
             gt = {a["image_id"]: a["bbox"] for a in coco["annotations"]}
             for im in coco["images"]:
+                if im["id"] not in gt:
+                    # 정답 상자 모드는 양성만 — 음성 크롭 학습은 검출기 제안
+                    # 상자 jsonl 경로로만 한다(설계 §4: 검출기가 속은 크롭).
+                    continue
                 b = gt[im["id"]]
                 src[im["file_name"]] = [b[0], b[1], b[0] + b[2], b[1] + b[3]]
             self.skipped = 0
@@ -199,6 +207,11 @@ class BandCrops(torch.utils.data.Dataset):
         x1 = min(img.shape[1], int(round(x1))); y1 = min(img.shape[0], int(round(y1)))
         if x1 - x0 < 4 or y1 - y0 < 4:          # 지터가 상자를 뭉갠 경우
             x0, y0, x1, y1 = [int(v) for v in box]
+        if not (0 <= x0 < x1 <= img.shape[1] and 0 <= y0 < y1 <= img.shape[0]):
+            # 검출기 상자가 프레임 밖으로 완전히 나온 극단(음성 크롭 포함) —
+            # 전체 프레임 크롭으로 떨어진다. 빈 배열을 resize 하는 즉사보다
+            # 낫다(2026-11-15 스모크에서 실제로 냈다).
+            x0, y0, x1, y1 = 0, 0, img.shape[1], img.shape[0]
         crop = cv2.resize(img[y0:y1, x0:x1], (IN_W, IN_H))
         if self.aug:
             # v10 축 2~4 — 리더 크롭 조건 변형(2026-10-03). 실사진 오독
@@ -271,7 +284,21 @@ class CRNN(nn.Module):
 
 
 # ─── 학습 / 평가 ──────────────────────────────────────────────────────────
+def _targets_subset(ys, lens, idx):
+    """cat 된 타깃에서 idx 표본들의 가변길이 타깃만 다시 cat 한다."""
+    if idx.numel() == 0:
+        return ys.new_zeros((0,))
+    off = torch.cat([torch.zeros(1, dtype=torch.long),
+                     lens.cumsum(0)[:-1]])
+    return torch.cat([ys[int(off[k]):int(off[k] + lens[k])]
+                      for k in idx.tolist()])
+
+
 def run_epoch(model, loader, crit, opt, dev):
+    """빈 타깃(길이 0) 음성 크롭과 양성을 한 배치에서 **따로 평균**해 더한다
+    (설계 §4 '양성·음성 loss를 별도로 평균내고 가중을 기록한다'). CTC 의
+    reduction=mean 은 타깃 길이 합으로 나누므로 섞으면 음성(길이 0) 의
+    기여가 양성 라벨 길이에 좌우된다 — 분리가 그 통제다."""
     model.train()
     tot = n = 0
     for xs, ys, lens, _ in loader:
@@ -279,7 +306,16 @@ def run_epoch(model, loader, crit, opt, dev):
         logits = model(xs)
         lp = logits.log_softmax(-1).permute(1, 0, 2)       # T,B,C
         inl = torch.full((xs.size(0),), logits.size(1), dtype=torch.long)
-        loss = crit(lp, ys, inl, lens)
+        pos_m = lens > 0
+        loss = 0.0
+        if bool(pos_m.any()):
+            i = torch.nonzero(pos_m).squeeze(1)
+            loss = loss + crit(lp[:, i], _targets_subset(ys, lens, i),
+                               inl[i], lens[i])
+        if bool((~pos_m).any()):
+            j = torch.nonzero(~pos_m).squeeze(1)
+            loss = loss + crit(lp[:, j], ys.new_zeros((0,)),
+                               inl[j], lens[j])
         opt.zero_grad(); loss.backward()
         nn.utils.clip_grad_norm_(model.parameters(), 5.0)
         opt.step()
