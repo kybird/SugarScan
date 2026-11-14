@@ -92,8 +92,8 @@ def load_reader(spec):
         x = (torch.from_numpy(cv2.resize(crop, (144, 96)).astype(np.float32))
              / 255.0 - 0.5).unsqueeze(0).unsqueeze(0)
         with torch.no_grad():
-            logits = model(x.to(dev)).cpu().numpy()
-        return decode_greedy(torch.from_numpy(logits)), conf_of(logits)
+            out = model(x.to(dev)).cpu()          # (1,T,C) — decode_greedy 규약
+        return decode_greedy(out)[0], conf_of(out[0].numpy())
     return read
 
 
