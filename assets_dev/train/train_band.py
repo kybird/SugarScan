@@ -243,13 +243,19 @@ class NegRatioBatchSampler(torch.utils.data.Sampler):
         rng.shuffle(pos)
         rng.shuffle(neg)
         ni = 0
-        for s in range(0, len(pos) - self.bs + 1, self.bs):
-            batch = pos[s:s + self.bs]
-            if self.k_neg and ni < len(neg):
-                take = min(self.k_neg, len(neg) - ni)
-                batch = batch + neg[ni:ni + take]
+        n_batches = max(1, len(pos) // self.bs)
+        for bi in range(n_batches):
+            # 풀이 배치보다 작은 스모크에서도 돌게 순환 추출한다. 실규모
+            # (수천 장) 에서는 나누어떨어지고 순환은 일어나지 않는다.
+            # idx 는 셔플된 풀을 **거쳐** 아이템 인덱스로 매핑한다 — 풀의
+            # 위치(0..bs) 를 그대로 쓰면 임의 아이템을 집는다(스모크에서
+            # 실제로 냈다: n=6+14).
+            idx = [pos[(bi * self.bs + k) % len(pos)] for k in range(self.bs)]
+            if self.k_neg and neg:
+                take = min(self.k_neg, len(neg))
+                idx += [neg[(ni + k) % len(neg)] for k in range(take)]
                 ni += take
-            yield batch
+            yield idx
 
 
 def assign(boxes, H, W, stride, radius=1.5, force=None):
