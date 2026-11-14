@@ -381,6 +381,68 @@ def box_sheet(set_dir, coco, out_png, n=10, cols=5):
     print(f"      상자 확인판 {len(picks)}장 -> {out_png}")
 
 
+def build_scene_group_set(name, count, seed, out_root, scene="device",
+                          plain_p=0.10, degrade_spec=None, fresh=False):
+    """거절 학습용 장면 그룹 세트(2026-11-15) — 설계 §1 표 5행·§2.
+
+    generate_scene_groups 로 굽고 COCO 로 내보낸다. **음성 이미지도 COCO
+    images 에 들어가고 해당 image_id 의 annotation 은 0 개다.** 양성만
+    상자·라벨을 가진다. 재개 대신 --fresh 재굽기로 간다 — 세대 전체가 시드의
+    결정적 함수라 재굽기 결과는 바이트 동일이므로 부분 재개가 필요 없다.
+    """
+    set_dir = out_root / name
+    if set_dir.exists():
+        shutil.rmtree(set_dir)
+    set_dir.mkdir(parents=True, exist_ok=True)
+    synth_panel.set_wide_share(synth_panel.DEFAULT_WIDE_SHARE)
+
+    n_imgs = synth_panel.generate_scene_groups(
+        count, seed, set_dir, scene=scene, plain_p=plain_p,
+        degrade_spec=degrade_spec)
+    (set_dir / "images").rename(set_dir / "train2017")
+
+    rows = [json.loads(l) for l in
+            (set_dir / "manifest.jsonl").read_text(encoding="utf-8").splitlines()
+            if l.strip()]
+    assert len(rows) == n_imgs, \
+        f"{name}: 매니페스트 {len(rows)} != 생성 {n_imgs}"
+    n_pos = sum(1 for r in rows if r["has_band"])
+
+    coco = {
+        "info": {"description": f"sugarScan scene-group set {name}",
+                 "generator": "synth_panel.py via build_synth_coco.py",
+                 "set": name, "seed": seed, "count": n_imgs,
+                 "scene_groups": count},
+        "licenses": [],
+        "categories": [CATEGORY],
+        "images": [],
+        "annotations": [],
+    }
+    ann_id = 0
+    for i, r in enumerate(rows):
+        fname = f"{r['id']}.png"
+        assert (set_dir / "train2017" / fname).exists(), fname
+        coco["images"].append({"id": i, "file_name": fname,
+                               "width": r["w"], "height": r["h"]})
+        if not r["has_band"]:
+            continue                    # 음성 — annotation 0개(설계 §1)
+        bbox = box_to_bbox(r["box"], r["w"], r["h"])
+        assert bbox[2] > MIN_SIDE and bbox[3] > MIN_SIDE, (r["id"], bbox)
+        coco["annotations"].append({
+            "id": ann_id, "image_id": i, "category_id": CATEGORY["id"],
+            "bbox": bbox, "area": round(bbox[2] * bbox[3], 2),
+            "iscrowd": 0, "segmentation": [],
+        })
+        ann_id += 1
+
+    (set_dir / "annotations").mkdir()
+    ann_path = set_dir / "annotations" / "instances_train2017.json"
+    ann_path.write_text(json.dumps(coco), encoding="utf-8")
+    print(f"[{name}] seed={seed}  장면그룹 {count} -> 이미지 {len(rows)}장 "
+          f"(양성 {n_pos}·음성 {len(rows)-n_pos}) / 상자 {ann_id}개 -> {ann_path}")
+    return coco
+
+
 def verify(out_root, names):
     """구운 결과를 디스크에서 다시 잰다 — 빌드와 독립한 자.
 
@@ -399,19 +461,47 @@ def verify(out_root, names):
         files = sorted(p.name for p in (d / "train2017").iterdir())
         n_img, n_ann = len(j["images"]), len(j["annotations"])
 
+        # 장면 그룹 세트(음성 포함)는 명시적 양성1·음성0 검사로 바꾼다 —
+        # "이미지 수 == 상자 수"는 음성이 없던 시대의 검사다(설계 §1 표 5행).
+        mfp = d / "manifest.jsonl"
+        manifest = None
+        if mfp.exists():
+            manifest = {json.loads(l)["id"]: json.loads(l) for l in
+                        mfp.read_text(encoding="utf-8").splitlines() if l.strip()}
+        is_group = bool(manifest) and "has_band" in next(iter(manifest.values()))
         checks = {
             "annotations/instances_train2017.json 존재": ann.exists(),
-            "어노테이션 수 = 이미지 수": n_img == n_ann,
             "train2017/ 파일 수 = 이미지 수": len(files) == n_img,
             "file_name 전부 실재": {i["file_name"] for i in j["images"]} == set(files),
-            "image_id 유일": len({a["image_id"] for a in j["annotations"]}) == n_ann,
             "클래스 하나": len(j["categories"]) == 1,
-            "상자가 이미지 안": all(
+        }
+        if is_group:
+            from collections import Counter
+            per = Counter(a["image_id"] for a in j["annotations"])
+            imgs = {i["id"]: i for i in j["images"]}
+            want = {i: (1 if manifest[imgs[i]["file_name"][:-4]]["has_band"] else 0)
+                    for i in imgs}
+            checks["이미지별 상자: 양성 1개·음성 0개"] = all(
+                per.get(i, 0) == w for i, w in want.items())
+            checks["상자가 이미지 안"] = all(
+                a["bbox"][0] >= 0 and a["bbox"][1] >= 0
+                and a["bbox"][0] + a["bbox"][2] <= imgs[a["image_id"]]["width"]
+                and a["bbox"][1] + a["bbox"][3] <= imgs[a["image_id"]]["height"]
+                for a in j["annotations"])
+            checks["짝 변형 동반"] = all(
+                any(k.endswith(f"{g}_{kind}") for k in manifest)
+                for g in {r["scene_group_id"] for r in manifest.values()
+                          if r["scene_kind"] == "positive"}
+                for kind in ("pos", "neg", "off"))
+        else:
+            checks["어노테이션 수 = 이미지 수"] = n_img == n_ann
+            checks["image_id 유일"] = len({a["image_id"]
+                                           for a in j["annotations"]}) == n_ann
+            checks["상자가 이미지 안"] = all(
                 a["bbox"][0] >= 0 and a["bbox"][1] >= 0
                 and a["bbox"][0] + a["bbox"][2] <= im["width"]
                 and a["bbox"][1] + a["bbox"][3] <= im["height"]
-                for im, a in zip(j["images"], j["annotations"])),
-        }
+                for im, a in zip(j["images"], j["annotations"]))
         print(f"[{name}] seed={j['info']['seed']} 이미지 {n_img} / 상자 {n_ann}")
         for k, v in checks.items():
             print(f"      {'OK ' if v else 'FAIL'} {k}")
@@ -449,14 +539,26 @@ def main():
                          "감사용.")
     ap.add_argument("--fresh", action="store_true",
                     help="계획·매니페스트를 버리고 처음부터 다시 굽는다.")
+    ap.add_argument("--scene-group", action="append", default=[],
+                    metavar="NAME:COUNT:SEED",
+                    help="거절 학습 장면 그룹 세트(예: SGD:3000:20261115). "
+                         "반복 가능. 음성은 상자 없는 COCO 이미지로 들어간다.")
     args = ap.parse_args()
 
     out_root = Path(args.out)
     names = [s.strip() for s in args.sets.split(",") if s.strip()]
+    sg_specs = []
+    for spec in args.scene_group:
+        n, c, s = spec.split(":")
+        sg_specs.append((n, int(c), int(s)))
     if args.verify:
-        return verify(out_root, names)
+        return verify(out_root, names + [n for n, _, _ in sg_specs])
 
     out_root.mkdir(parents=True, exist_ok=True)
+
+    for n, c, s in sg_specs:
+        build_scene_group_set(n, c, s, out_root,
+                              degrade_spec=synth_panel.parse_degrade(args.degrade))
 
     seeds = {}
     for name in names:
@@ -478,9 +580,12 @@ def main():
 
     seed_path = out_root / "seeds.json"
     seed_path.write_text(json.dumps(
-        {"sets": {n: {"count": SETS[n][0], "seed": SETS[n][1]} for n in names},
+        {"sets": {**{n: {"count": SETS[n][0], "seed": SETS[n][1]} for n in names},
+                  **{n: {"count": c, "seed": s, "scene_group": True}
+                     for n, c, s in sg_specs}},
          "note": "세트마다 다른 시드 — B 는 A 로 학습한 검출기가 처음 보는 장이어야 "
-                 "리더가 배포와 같은 품질의 상자를 본다."},
+                 "리더가 배포와 같은 품질의 상자를 본다. scene_group 세트는 "
+                 "거절 학습(2026-11-15)용 — 음성 변형이 상자 없이 들어간다."},
         ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"시드 기록 -> {seed_path}: {seeds}")
     return 0

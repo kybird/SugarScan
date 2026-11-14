@@ -872,6 +872,12 @@ CAM_OFFCENTER = 0.75           # 2026-09-20 사람 선언
 PROCEDURAL_BG = False          # generate() 가 세운다. 기본은 구판(단색).
 BG_FLAT_P = 0.15               # 이 확률로는 예전처럼 단색만 둔다
 
+# 방해물(디스트랙터) 레이어 — 거절 학습 음성 장면(2026-11-15). 기본 꺼짐:
+# generate_scene_groups() 만 켠다. 꺼진 상태의 출력은 기존 코퍼스와
+# 픽셀 일치여야 한다(카드 「합성기 음성 장면 렌더」 AC#4).
+DISTRACT_LAYER = False
+DISTRACT_FAMILY = None         # 이 장면의 계열. None = 단색 대조군(그리지 않음)
+
 
 def _bg_field(W, H, brng, base):
     """다중 옥타브 저주파 밝기 장. 작은 난수판을 키워서 만든다."""
@@ -3355,16 +3361,31 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None):
             Mk = Mz if Mk is None else (Mz @ Mk)
     img = _warp_img(pre, cv2.INTER_LINEAR, Mk, Mr)
     # 기기 커버리지를 **같은 행렬로** 워프한다. PROCEDURAL_BG 가 꺼져
-    # 있어도 계산한다 — 자가검사가 "기기 내부 픽셀이 두 코퍼스에서 같은가"를
-    # 이걸로 확인한다. 값 비교로 전경을 추정하면 안 된다.
+    # 있어도 계산한다 — 자가검사가 '기기 내부가 두 코퍼스에서 같은가'를
+    # 이걸로 본다. 값 비교로 전경을 추정하면 안 된다.
     cover = _warp_img(body_mask, cv2.INTER_LINEAR, Mk, Mr, border=0)
-    if PROCEDURAL_BG:
+    # ── 방해물 레이어(거절 학습) — 기기와 같은 행렬로 워프해 기기 **뒤**에
+    # 깔린다. 음성(기기 없음) 프레임 = base(배경+방해물) 그 자체. 양성·음성이
+    # 같은 워프·같은 배경·같은 방해물을 공유한다(설계 §1 표 3·4행).
+    neg_frame = None
+    if PROCEDURAL_BG or DISTRACT_LAYER:
         # 위 커버리지를 쓴다. 경계의 반투명(안티앨리어싱)
         # 은 그대로 살려 합성한다 — 기기만 선명하고 배경만 흐린 합성 경계
         # 지름길을 만들지 않기 위해서다(SPEC §9.7.2).
         a = (cover.astype(np.float32) / 255.0)[..., None] if img.ndim == 3             else cover.astype(np.float32) / 255.0
-        bgim = procedural_bg(W, H, _brng, bg_col)
-        img = np.clip(img.astype(np.float32) * a + bgim * (1.0 - a),
+        bgim = (procedural_bg(W, H, _brng, bg_col) if PROCEDURAL_BG
+                else np.full((H, W), float(bg_col), np.float32))
+        base = bgim
+        if DISTRACT_LAYER:
+            _drng = random.Random(_oseed ^ _DISTRACT_SEED)
+            dcan, dmask = draw_distractors(W, H, _drng, DISTRACT_FAMILY)
+            if dmask.any():
+                dwarp = _warp_img(dcan, cv2.INTER_LINEAR, Mk, Mr, border=0)
+                dm_w = _warp_img(dmask, cv2.INTER_LINEAR, Mk, Mr, border=0)
+                da = dm_w.astype(np.float32) / 255.0
+                base = np.clip(base * (1.0 - da) + dwarp * da, 0, 255)
+            neg_frame = base.astype(np.uint8)
+        img = np.clip(img.astype(np.float32) * a + base * (1.0 - a),
                       0, 255).astype(np.uint8)
     quad = _warp_pts(quad0, Mk, Mr)
     # 라벨이 프레임을 넘으면 **보이는 만큼만** 남긴다. 사다리 구도에서는
@@ -3409,6 +3430,12 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None):
                      float(_cw[:, 0].max()), float(_cw[:, 1].max())]
     return dict(panel=img, quad=np.asarray(quad, np.float32), label=label,
                 digit_box=digit_box,
+                # 거절 학습 변형 파생물(2026-11-15) — DISTRACT_LAYER 를 켠
+                # 장면 굽기에서만 not-null. neg_frame=기기 없는 음성 프레임,
+                # glyph_mask=워프 후 숫자 글리프 평면(꺼짐 변형의 지움 마스크),
+                # distractor_family=이 장면의 방해물 계열.
+                neg_frame=neg_frame, glyph_mask=glyph_warped,
+                distractor_family=(DISTRACT_FAMILY if DISTRACT_LAYER else None),
                 # 기기 커버리지(워프 후). 자가검사가 '기기 내부가 두
                 # 코퍼스에서 같은가'를 이걸로 본다. 매니페스트에는 안 적는다.
                 cover=cover,
@@ -3530,6 +3557,237 @@ def degrade(img, rng, spec):
             out = cv2.imdecode(buf, cv2.IMREAD_UNCHANGED)
         ap["jpeg"] = q
     return out, ap
+
+
+# ── 방해물(디스트랙터) 레이어 — 거절 학습 음성 장면 (2026-11-15) ──────────
+#
+# 설계 정본 docs/reports/mosaic-rejection-training-design.md §1 표 2행.
+# 혈당계가 아닌 것이 검출기를 속이는 계열 세 가지:
+#   mosaic  사각형 모자이크·격자·직물형 반복무늬. 출발점은
+#           audit_bundle_rejection.py 의 사각 패치 — 그 무늬가 실제로 확인
+#           시트를 열었다(doc/raw/2026-11-14.md Case 1, pattern_01 0.9868).
+#   print   가격표·포장지·키보드의 문자와 숫자(인쇄체).
+#   seg7    시계·계산기·온도계 7-세그 표시 — 소수점·콜론 포함, 혈당값처럼
+#           보이는 2~3자리 숫자도 넣는다(설계 §1).
+#
+# 난수 규약: 이 레이어는 _drng(독립 파생 스트림)만 소비한다. 양성 난수
+# 흐름(_orng·_brng·_srng·_trng·_prng)이 한 칸도 밀리지 않는다 — 시드가 같으면
+# 방해물 on/off 와 무관하게 양성 픽셀이 동일해야 한다.
+DISTRACTOR_FAMILIES = ("mosaic", "print", "seg7")
+_DISTRACT_SEED = 0xD1574AC7   # 기존 파생 스트림 상수(0x5DEECE66D·0x9E3779B9
+                              # ·0x6A09E667·0x7F4A7C15)와 겹치지 않는 값
+
+
+def _paste_patch(dst, mask, x0, y0, patch):
+    """패치를 dst 에 덮어 붙이고 그린 영역을 mask 에 칠한다(경계 클리프)."""
+    ph, pw = patch.shape
+    x0, y0 = int(x0), int(y0)
+    sx0, sy0 = max(0, x0), max(0, y0)
+    sx1, sy1 = min(dst.shape[1], x0 + pw), min(dst.shape[0], y0 + ph)
+    if sx1 <= sx0 or sy1 <= sy0:
+        return
+    dst[sy0:sy1, sx0:sx1] = patch[sy0 - y0:sy1 - y0, sx0 - x0:sx1 - x0]
+    mask[sy0:sy1, sx0:sx1] = 255
+
+
+def _prop_jitter(patch, drng, p_strength=0.05, roll_max=25.0):
+    """소품 배치용 변형 — 작은 원근 + 회전. 카메라 포즈(_render_once 의
+    호모그래피)와는 별개다: 이건 책상 위 인쇄물이 비스듬히 놓인 것이다."""
+    h, w = patch.shape
+    s = p_strength * min(w, h)
+    src = np.float32([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]])
+    quad = src + np.float32([[drng.uniform(-s, s), drng.uniform(-s, s)]
+                             for _ in range(4)])
+    Mp = cv2.getPerspectiveTransform(src, quad)
+    patch = cv2.warpPerspective(patch, Mp, (w, h), flags=cv2.INTER_LINEAR,
+                                borderMode=cv2.BORDER_REPLICATE)
+    ang = drng.uniform(-roll_max, roll_max)
+    Mr = cv2.getRotationMatrix2D((w / 2.0, h / 2.0), ang, 1.0)
+    return cv2.warpAffine(patch, Mr, (w, h), flags=cv2.INTER_LINEAR,
+                          borderMode=cv2.BORDER_REPLICATE)
+
+
+def _distractor_mosaic(dcan, dmask, drng, W, H):
+    """계열 1 — 사각형 모자이크·격자·직물형 반복무늬. 패치 크기·밀도·대비·
+    불규칙 간격·원근·반복을 장면별로 바꾼다(설계 §1)."""
+    mode = drng.choice(("tiles", "grid", "weave"))
+    pw = max(48, int(drng.uniform(0.35, 1.0) * W))
+    ph = max(48, int(drng.uniform(0.35, 1.0) * H))
+    base = drng.uniform(60, 210)
+    pimg = np.full((ph, pw), base, np.float32)
+    if mode == "tiles":
+        # audit 재현 계열 — 숫자 없는 사각 패치 무리. 확인 시트를 실제로 연
+        # 무늬가 이것이라 건너뛰지 않고 변형으로 키운다.
+        n = max(12, int(drng.uniform(60, 260) * (pw * ph) / (640 * 480)))
+        for _ in range(n):
+            x, y = drng.uniform(0, pw - 4), drng.uniform(0, ph - 4)
+            w = drng.uniform(4, max(5.0, pw * 0.10))
+            h = drng.uniform(4, max(5.0, ph * 0.10))
+            shade = drng.uniform(20, 235)
+            cv2.rectangle(pimg, (int(x), int(y)),
+                          (int(min(pw - 1, x + w)), int(min(ph - 1, y + h))),
+                          shade, -1)
+    elif mode == "grid":
+        cell = drng.uniform(12, 56)
+        lw = max(1, int(cell * drng.uniform(0.04, 0.18)))
+        shade = drng.uniform(25, 120)
+        gap = drng.uniform(0.0, 0.35) * cell      # 불규칙 간격의 폭
+        for gx in np.arange(drng.uniform(0, gap), pw, cell):
+            cv2.line(pimg, (int(gx), 0), (int(gx), ph - 1), shade, lw)
+        for gy in np.arange(drng.uniform(0, gap), ph, cell):
+            cv2.line(pimg, (0, int(gy)), (pw - 1, int(gy)), shade, lw)
+        if drng.random() < 0.4:                    # 일부 셀만 채운 변형
+            fill = drng.uniform(20, 235)
+            for gx in np.arange(0, pw - cell, cell * 2):
+                for gy in np.arange(0, ph - cell, cell * 2):
+                    if drng.random() < 0.3:
+                        cv2.rectangle(pimg, (int(gx + lw), int(gy + lw)),
+                                      (int(gx + cell - lw), int(gy + cell - lw)),
+                                      fill, -1)
+    else:  # weave — 직물: 두 방향 줄무늬 겹침(반투명)
+        period = drng.uniform(5, 24)
+        a1, a2 = drng.uniform(25, 235), drng.uniform(25, 235)
+        for gx in np.arange(0, pw, period):
+            cv2.line(pimg, (int(gx), 0), (int(gx), ph - 1), a1,
+                     max(1, int(period * drng.uniform(0.2, 0.6))))
+        for gy in np.arange(0, ph, period):
+            cv2.line(pimg, (0, int(gy)), (pw - 1, int(gy)), a2,
+                     max(1, int(period * drng.uniform(0.2, 0.6))))
+    pimg = _prop_jitter(pimg, drng)
+    _paste_patch(dcan, dmask, (W - pw) * drng.uniform(0, 1),
+                 (H - ph) * drng.uniform(0, 1), pimg)
+
+
+_PRINT_WORDS = ("SALE", "MILK", "CEREAL", "VITAMIN", "DIGITAL", "THERMO",
+                "COFFEE", "SPECIAL", "MARKET", "BREAD", "JUICE", "Organic",
+                "Natural", "Family", "Premium", "Classic")
+
+
+def _distractor_print(dcan, dmask, drng, W, H):
+    """계열 2 — 가격표·포장지·키보드의 문자와 숫자. 실사진 방해물의 대부분이
+    인쇄물이다(설계 §2). 숫자는 혈당값과 같은 자리수도 낸다."""
+    for _ in range(drng.randint(1, 3)):
+        kind = drng.choice(("tag", "keyboard", "pack"))
+        pw = max(72, int(drng.uniform(0.18, 0.55) * W))
+        ph = max(56, int(drng.uniform(0.14, 0.45) * H))
+        card = float(drng.uniform(180, 245))
+        pimg = np.full((ph, pw), card, np.float32)
+        ink = float(drng.uniform(20, 90))
+        if kind == "tag":
+            y = int(ph * 0.22)
+            for _ in range(drng.randint(1, 3)):
+                word = drng.choice(_PRINT_WORDS)
+                cv2.putText(pimg, word, (6, y), cv2.FONT_HERSHEY_SIMPLEX,
+                            drng.uniform(0.4, 0.8), ink, 1, cv2.LINE_AA)
+                y += max(18, int(ph * 0.16))
+            # 큰 숫자 — 가격. 혈당값 자리수(2~3)와 겹치게.
+            price = drng.choice((f"{drng.randint(3, 599)}",
+                                 f"{drng.randint(10, 99)}",
+                                 f"{drng.randint(100, 599) // 100},"
+                                 f"{drng.randint(100, 999) % 100:02d}"))
+            cv2.putText(pimg, price, (6, ph - 10), cv2.FONT_HERSHEY_SIMPLEX,
+                        drng.uniform(0.9, 1.6), ink, 2, cv2.LINE_AA)
+        elif kind == "keyboard":
+            rows = drng.randint(2, 4)
+            cols = drng.randint(6, 11)
+            cw, chh = (pw - 8) / cols, (ph - 8) / max(1, rows)
+            for r in range(rows):
+                for c in range(cols):
+                    x0, y0 = 4 + c * cw, 4 + r * chh
+                    cv2.rectangle(pimg, (int(x0) + 1, int(y0) + 1),
+                                  (int(x0 + cw) - 1, int(y0 + chh) - 1),
+                                  drng.uniform(60, 140), -1)
+                    ch = drng.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+                    cv2.putText(pimg, ch,
+                                (int(x0 + cw * 0.25), int(y0 + chh * 0.72)),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.45,
+                                float(drng.uniform(200, 255)), 1, cv2.LINE_AA)
+        else:  # pack — 포장지: 상품명 줄 + 바코드 무늬
+            cv2.putText(pimg, drng.choice(_PRINT_WORDS), (6, int(ph * 0.3)),
+                        cv2.FONT_HERSHEY_SIMPLEX, drng.uniform(0.5, 0.9),
+                        ink, 1, cv2.LINE_AA)
+            bx = int(pw * 0.08)
+            for _ in range(int(pw * 0.8 / 3)):
+                bw_ = drng.uniform(1, 4)
+                cv2.line(pimg, (int(bx), int(ph * 0.55)),
+                         (int(bx), int(ph * 0.9)), ink, int(bw_))
+                bx += bw_ + drng.uniform(1.5, 4.0)
+        pimg = _prop_jitter(pimg, drng)
+        _paste_patch(dcan, dmask,
+                     drng.uniform(-0.1, 0.7) * W, drng.uniform(-0.1, 0.7) * H,
+                     pimg)
+
+
+def _distractor_seg7(dcan, dmask, drng, W, H):
+    """계열 3 — 시계·계산기·온도계의 7-세그 표시. 소수점·콜론을 그리고
+    혈당값처럼 보이는 2~3자리 숫자를 포함한다(설계 §1). 핵심 글리프는
+    본체 렌더러와 같은 seg_text 다 — 합성 외부 폰트를 들이지 않는다."""
+    for _ in range(drng.randint(1, 2)):
+        kind = drng.choice(("clock", "calc", "thermo"))
+        pw = max(64, int(drng.uniform(0.16, 0.5) * W))
+        ph = max(48, int(drng.uniform(0.12, 0.4) * H))
+        body = float(drng.uniform(150, 235))
+        pimg = np.full((ph, pw), body, np.float32)
+        win = float(drng.uniform(15, 70))          # 표시창(어두운 LCD)
+        wx0, wy0 = int(pw * 0.08), int(ph * 0.18)
+        wx1, wy1 = pw - int(pw * 0.08), ph - int(ph * 0.18)
+        cv2.rectangle(pimg, (wx0, wy0), (wx1, wy1), win, -1)
+        ink = float(min(255, win + drng.uniform(120, 190)))
+        if kind == "clock":
+            text = f"{drng.randint(0, 23):02d}:{drng.randint(0, 59):02d}"
+        elif kind == "calc":
+            # 계산기는 혈당값과 같은 자리수의 독립 숫자를 자주 보여준다.
+            text = (f"{drng.randint(30, 599)}" if drng.random() < 0.5
+                    else f"{drng.randint(1, 9)}.{drng.randint(0, 9):02d}")
+        else:  # thermo — 소수점이 붙은 2~3자 (36.5 류)
+            text = f"{drng.randint(30, 42)}.{drng.randint(0, 9)}"
+        dh = max(8, int((wy1 - wy0) * 0.72))
+        # seg_text 는 uint8 캔버스에 긋는다 — float 캔버스에 직접 그리면
+        # 내부에서 uint8 가정 마스크가 어긋난다. 창만 uint8 로 그려 되붙인다.
+        win_w, win_h = wx1 - wx0, wy1 - wy0
+        wcan = np.full((win_h, win_w), int(win), np.uint8)
+        seg_text(wcan, 3, max(1, (win_h - dh) // 2), text, dh, int(ink))
+        wr = wcan.astype(np.float32)
+        pimg[wy0:wy1, wx0:wx1] = np.where(wr != int(win), wr, pimg[wy0:wy1, wx0:wx1])
+        pimg = _prop_jitter(pimg, drng)
+        _paste_patch(dcan, dmask,
+                     drng.uniform(-0.05, 0.75) * W, drng.uniform(-0.05, 0.75) * H,
+                     pimg)
+
+
+def draw_distractors(W, H, drng, family):
+    """방해물 한 레이어를 그린다. 반환 (dcan float32, dmask uint8).
+    family=None 은 대조군 — 그리지 않고 돌려준다(단색 프레임)."""
+    dcan = np.zeros((H, W), np.float32)
+    dmask = np.zeros((H, W), np.uint8)
+    if family == "mosaic":
+        _distractor_mosaic(dcan, dmask, drng, W, H)
+    elif family == "print":
+        _distractor_print(dcan, dmask, drng, W, H)
+    elif family == "seg7":
+        _distractor_seg7(dcan, dmask, drng, W, H)
+    elif family is not None:
+        raise ValueError(f"unknown distractor family: {family!r}")
+    return dcan, dmask
+
+
+def _erase_digits(img, glyph_mask, glass_quad, rng):
+    """꺼짐/무숫자 변형 — 표시는 켜져 있되 숫자만 없앤다(설계 §2 3행).
+    glyph_mask 는 워프 후 숫자 글리프 평면이다(보조 표기·아이콘은 그대로).
+    지운 자리는 유리 바깥 톤에서 뽑은 단일 톤+살짝 노이즈로 채운다."""
+    out = img.copy()
+    sel = glyph_mask > 0
+    if not sel.any():
+        return out
+    g = np.zeros(img.shape, np.uint8)
+    if glass_quad is not None:
+        cv2.fillPoly(g, [np.round(np.asarray(glass_quad)).astype(np.int32)], 255)
+    ref = (g > 0) & ~sel
+    if not ref.any():
+        ref = g > 0
+    tone = float(np.median(img[ref])) if ref.any() else float(np.median(img))
+    out[sel] = np.clip(tone + rng.uniform(-3.0, 3.0), 0, 255)
+    return out
 
 
 def build_plan(count, seed, degrade_spec=None, lowc_p=None, seven_p=None):
@@ -3727,6 +3985,129 @@ def generate(count, seed0, out_dir, with_reader=False, bg="flat", scene="panel",
     print(f"layout overlap violations: {viol_total}")
     print(f"band quad clipped digits: {clip_total}")
     return viol_total
+
+
+def generate_scene_groups(count, seed0, out_dir, scene="device",
+                          families=DISTRACTOR_FAMILIES, plain_p=0.10,
+                          degrade_spec=None, sheet_n=8):
+    """거절 학습용 장면 그룹 굽기(2026-11-15) — 설계 §1 표 3행.
+
+    장면 그룹 하나 = 배경·방해물 배치·촬영 계획을 **한 번** 뽑아 세 변형이
+    공유한다: 정상(값 표시) / 기기 없음(음성) / 꺼짐(숫자만 없는 음성).
+    양성은 render_panel 기존 경로를 그대로 지나고(난수 흐름 무변), 음성 둘은
+    그 렌더가 돌려준 neg_frame·glyph_mask 에서 파생한다 — 그룹 시드로
+    재생성하면 세 변형이 모두 재현된다(카드 AC#1).
+
+    매니페스트 행은 scene_group_id·scene_kind·distractor_family·seed·
+    has_band·(음성 사유 neg_reason) 를 남긴다. 양성의 label·box 는 기존
+    스키마 그대로, 음성은 label=null·box=null(설계 §1 표 5행).
+    """
+    global PROCEDURAL_BG, DISTRACT_LAYER, DISTRACT_FAMILY
+    out = Path(out_dir)
+    (out / "images").mkdir(parents=True, exist_ok=True)
+    grng = random.Random(f"{seed0}:plan")     # 계열·대조군 선택만(장면 내용 아님)
+    mf = open(out / "manifest.jsonl", "a", encoding="utf-8")
+    n_pos = n_neg = n_off = 0
+    for i in range(count):
+        gid = f"sg_{seed0}_{i}"
+        fam = None if grng.random() < plain_p else grng.choice(families)
+        seed_i = f"{seed0}:g{i}"
+        rng_i = random.Random(seed_i)
+        PROCEDURAL_BG = True        # 음성 프레임은 배경이 곧 장면이다
+        DISTRACT_LAYER = True
+        DISTRACT_FAMILY = fam
+        s = render_panel(sample_value(rng_i), rng_i, scene=scene)
+        PROCEDURAL_BG = False       # 전역은 다음 호출에 새워지지만 명시적으로
+        DISTRACT_LAYER = False
+        DISTRACT_FAMILY = None
+        variants = [("pos", s["panel"])]
+        if s.get("neg_frame") is not None:
+            variants.append(("neg", s["neg_frame"]))
+            # 꺼짐 변형 — 표시 켜짐·숫자 없음. 음성 파생 난수는 계열 선택과
+            # 독립 스트림(장면 재현은 시드로 결정적).
+            off = _erase_digits(s["panel"], s["glyph_mask"], s["glass_quad"],
+                                random.Random(f"{seed_i}:off"))
+            variants.append(("off", off))
+        if degrade_spec is not None:
+            # 세 변형이 같은 필름을 쓴다 — 같은 spec, 같은 시드(설계 §1 표 4행).
+            variants = [(k, degrade(v, random.Random(f"{seed_i}:d"), degrade_spec)[0])
+                        for k, v in variants]
+        for kind, im in variants:
+            cv2.imwrite(str(out / "images" / f"{gid}_{kind}.png"), im)
+        q = np.round(s["quad"], 2)
+        rec_pos = dict(
+            id=f"{gid}_pos", scene_group_id=gid, scene_kind="positive",
+            has_band=1, distractor_family=fam, seed=seed_i,
+            profile=s["profile"], w=s["W"], h=s["H"], wh=round(s["wh"], 4),
+            # 정답은 축정렬 사각형(2026-09-17 §9.5) — generate() 와 같은 자.
+            box=[round(float(q[:, 0].min()), 1), round(float(q[:, 1].min()), 1),
+                 round(float(q[:, 0].max()), 1), round(float(q[:, 1].max()), 1)],
+            label=s["label"], inverted=s["inverted"],
+            glyph_plane_check=s["glyph_plane_check"],
+            density=s["density"], glare_cover=s.get("glare_cover", 0.0),
+            margin=s["margin"], bezel=s["bezel"],
+            dropped=s["dropped"], band_clip=s.get("band_clip", 0))
+        mf.write(json.dumps(rec_pos, ensure_ascii=False) + "\n")
+        n_pos += 1
+        for kind, reason in (("neg", "no_device"), ("off", "off_lcd")):
+            if not (out / "images" / f"{gid}_{kind}.png").exists():
+                continue
+            mf.write(json.dumps(dict(
+                id=f"{gid}_{kind}", scene_group_id=gid, scene_kind="negative",
+                has_band=0, distractor_family=fam, seed=seed_i,
+                neg_reason=reason, w=s["W"], h=s["H"],
+                label=None, box=None), ensure_ascii=False) + "\n")
+            if kind == "neg":
+                n_neg += 1
+            else:
+                n_off += 1
+    mf.close()
+    if sheet_n:
+        _scene_group_sheet(out, sheet_n)
+    print(f"[scene-groups] {count}그룹 -> 양성 {n_pos} · 기기없음 {n_neg} · "
+          f"꺼짐 {n_off} · 계열 {families} · 단색대조 {plain_p:.0%}")
+    return n_pos + n_neg + n_off
+
+
+def _scene_group_sheet(out, n):
+    """검토 시트 — 그룹별 정상/기기없음/꺼짐을 한 줄로 나란히(설계 §1 완료
+    기준: 세 계열을 미리보기에서 확인)."""
+    rows = [json.loads(l) for l in
+            (out / "manifest.jsonl").read_text(encoding="utf-8").splitlines()
+            if l.strip()]
+    groups, seen = [], set()
+    for r in rows:
+        if r["scene_group_id"] not in seen:
+            seen.add(r["scene_group_id"])
+            groups.append(r["scene_group_id"])
+    picks = []
+    for fam in DISTRACTOR_FAMILIES + (None,):
+        cand = [g for g in groups
+                if next(r for r in rows
+                        if r["scene_group_id"] == g)["distractor_family"] == fam]
+        if cand:
+            picks.append((fam, cand[:n]))
+    tiles = []
+    for fam, gs in picks:
+        for g in gs:
+            row = []
+            for kind in ("pos", "neg", "off"):
+                p = out / "images" / f"{g}_{kind}.png"
+                im = cv2.imread(str(p), cv2.IMREAD_GRAYSCALE)
+                if im is None:
+                    continue
+                h, w = im.shape
+                s_ = 240 / max(h, w)
+                row.append(cv2.resize(im, (int(w * s_), int(h * s_))))
+            if row:
+                tiles.append(np.hstack(row))
+    if not tiles:
+        return
+    th = max(t.shape[0] for t in tiles)
+    tw = max(t.shape[1] for t in tiles)
+    tiles = [cv2.copyMakeBorder(t, 0, th - t.shape[0], 0, tw - t.shape[1],
+                                cv2.BORDER_CONSTANT, value=0) for t in tiles]
+    cv2.imwrite(str(out / "scene_group_sheet.png"), np.vstack(tiles))
 
 
 def _count_overlaps(rects):
