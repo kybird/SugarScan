@@ -1078,7 +1078,8 @@ def _reflection_mask(W, H, kind, orng):
     return msk, alpha
 
 
-def render_panel(value, rng, profile=None, scene="panel", trait=None):
+def render_panel(value, rng, profile=None, scene="panel", trait=None,
+                 skip_digits=False):
     """물리 패널 한 장. 반환 dict:
       panel   최종 캔버스(uint8, 긴 변 896)
       quad    밴드 쿼드 4x2(float32, 캔버스 픽셀, TL-TR-BR-BL) — 이미지와 같은
@@ -1146,7 +1147,7 @@ def render_panel(value, rng, profile=None, scene="panel", trait=None):
     # 렌더는 이제 1회다. 화면에 무엇이 있는지는 기기가 정하고, 밀도는 그
     # 결과를 재서 보고만 한다(manifest.density).
     return _render_once(value, rng, profile, pid, inverted, scene=scene,
-                        trait=trait)
+                        trait=trait, skip_digits=skip_digits)
 
 
 def _gpc_bg_contrast(img, quad, glass_rect):
@@ -1189,7 +1190,8 @@ def glyph_plane_score(img, quad, glyph_warped, glass_rect, ink_thr=None):
     return float((ink & sel).sum()) / max(1, sel.sum())
 
 
-def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None):
+def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None,
+                 skip_digits=False):
     label = str(value)
     assert label.isdigit(), f"라벨 오염: {label!r}"
 
@@ -2004,25 +2006,32 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None):
     _band_reflect = [0]     # 이 장에 밴드 직격 반사광이 들어갔는가(매니페스트용)
     _comp_print = [0]       # 이 장에 경쟁 인쇄가 들어갔는가(매니페스트용)
     glyph_plane = np.zeros((H, W), np.uint8)
-    for j in range(n_vis):
-        ch = label[j]
-        _f = None
-        if isinstance(seg_feat, list):
-            _f = seg_feat[j]
-        elif seg_feat and seg_feat[0] == j:
-            _f = seg_feat[1]
-        _draw_digit_uniform(img, x0 + j * pitch, y0, dh, ch, glyph_w,
-                            ink_digit, variant, glyph_cache, plane=glyph_plane,
-                            feat=_f)
-    for j in range(lead):               # 빈 슬롯 잔상 — 쿼드 안(필드 전체 폭)
-        gx_ = x0 - (lead - j) * pitch if align != "left" \
-            else x0 + field_w + j * pitch
-        if align != "left" and gx_ < px0 + 2:
-            continue
-        if align == "left" and gx_ + glyph_w > px1 - 2:
-            continue
-        _draw_ghost(img, gx_, y0, dh, glyph_w, ink_digit, variant, ghost,
-                    glyph_cache, segs=slot_segs)
+    # skip_digits(2026-11-15 거절 학습 리뷰 상-1): 꺼짐 변형은 숫자를 그리기
+    # **전에** 글리프 렌더를 건너뛴다(설계 §1 표 3행 원문). 드로우 함수들은
+    # rng 를 소비하지 않으므로 건너뛰어도 난수 흐름이 그대로다 — 같은 시드의
+    # 정상 렌더와 몸체·유리·보조 표기·반사·그림자가 전부 동일하고 숫자만
+    # 없다. 완성본을 지우면(구판 _erase_digits) 영분산 채움과 반사 이음매가
+    # 남아 '음성 지문'이 된다(리뷰 실측: 지운 영역 std 0.00, 경계 단차 >12).
+    if not skip_digits:
+        for j in range(n_vis):
+            ch = label[j]
+            _f = None
+            if isinstance(seg_feat, list):
+                _f = seg_feat[j]
+            elif seg_feat and seg_feat[0] == j:
+                _f = seg_feat[1]
+            _draw_digit_uniform(img, x0 + j * pitch, y0, dh, ch, glyph_w,
+                                ink_digit, variant, glyph_cache,
+                                plane=glyph_plane, feat=_f)
+        for j in range(lead):           # 빈 슬롯 잔상 — 쿼드 안(필드 전체 폭)
+            gx_ = x0 - (lead - j) * pitch if align != "left" \
+                else x0 + field_w + j * pitch
+            if align != "left" and gx_ < px0 + 2:
+                continue
+            if align == "left" and gx_ + glyph_w > px1 - 2:
+                continue
+            _draw_ghost(img, gx_, y0, dh, glyph_w, ink_digit, variant, ghost,
+                        glyph_cache, segs=slot_segs)
     dropped = []
     used_texts = set()   # 같은 문자열을 한 패널에 반복하지 않는다(몽타주 규칙)
 
@@ -3609,10 +3618,12 @@ def _prop_jitter(patch, drng, p_strength=0.05, roll_max=25.0):
 
 def _distractor_mosaic(dcan, dmask, drng, W, H):
     """계열 1 — 사각형 모자이크·격자·직물형 반복무늬. 패치 크기·밀도·대비·
-    불규칙 간격·원근·반복을 장면별로 바꾼다(설계 §1)."""
+    불규칙 간격·원근·반복을 장면별로 바꾼다(설계 §1). 크기 하한 0.18 —
+    리뷰 중-2 실측에서 양성의 방해물이 중앙 기기에 89~92% 가려지기만 해
+    '온전히 보이는 방해물=거절'을 위치로 외울 위험을 줄인다."""
     mode = drng.choice(("tiles", "grid", "weave"))
-    pw = max(48, int(drng.uniform(0.35, 1.0) * W))
-    ph = max(48, int(drng.uniform(0.35, 1.0) * H))
+    pw = max(48, int(drng.uniform(0.18, 1.0) * W))
+    ph = max(48, int(drng.uniform(0.18, 1.0) * H))
     base = drng.uniform(60, 210)
     pimg = np.full((ph, pw), base, np.float32)
     if mode == "tiles":
@@ -3653,9 +3664,12 @@ def _distractor_mosaic(dcan, dmask, drng, W, H):
         for gy in np.arange(0, ph, period):
             cv2.line(pimg, (0, int(gy)), (pw - 1, int(gy)), a2,
                      max(1, int(period * drng.uniform(0.2, 0.6))))
-    pimg = _prop_jitter(pimg, drng)
-    _paste_patch(dcan, dmask, (W - pw) * drng.uniform(0, 1),
-                 (H - ph) * drng.uniform(0, 1), pimg)
+        pimg = _prop_jitter(pimg, drng)
+        # 붙임 위치는 프레임 전역(리뷰 중-2) — 구판 [-0.1, 0.7] 상자는 좌상단
+        # 편향으로 중앙 기기 뒤에만 들어갔다. 부분 이탈(프레임 밖 잘림)도
+        # 실사진 방해물의 늘 있는 모습이다.
+        _paste_patch(dcan, dmask, drng.uniform(-0.25, 1.0) * W,
+                     drng.uniform(-0.25, 1.0) * H, pimg)
 
 
 _PRINT_WORDS = ("SALE", "MILK", "CEREAL", "VITAMIN", "DIGITAL", "THERMO",
@@ -3714,7 +3728,8 @@ def _distractor_print(dcan, dmask, drng, W, H):
                 bx += bw_ + drng.uniform(1.5, 4.0)
         pimg = _prop_jitter(pimg, drng)
         _paste_patch(dcan, dmask,
-                     drng.uniform(-0.1, 0.7) * W, drng.uniform(-0.1, 0.7) * H,
+                     # 위치 전역화·부분 이탈 허용(리뷰 중-2)
+                     drng.uniform(-0.25, 1.0) * W, drng.uniform(-0.25, 1.0) * H,
                      pimg)
 
 
@@ -3751,7 +3766,7 @@ def _distractor_seg7(dcan, dmask, drng, W, H):
         pimg[wy0:wy1, wx0:wx1] = np.where(wr != int(win), wr, pimg[wy0:wy1, wx0:wx1])
         pimg = _prop_jitter(pimg, drng)
         _paste_patch(dcan, dmask,
-                     drng.uniform(-0.05, 0.75) * W, drng.uniform(-0.05, 0.75) * H,
+                     drng.uniform(-0.25, 1.0) * W, drng.uniform(-0.25, 1.0) * H,
                      pimg)
 
 
@@ -3769,25 +3784,6 @@ def draw_distractors(W, H, drng, family):
     elif family is not None:
         raise ValueError(f"unknown distractor family: {family!r}")
     return dcan, dmask
-
-
-def _erase_digits(img, glyph_mask, glass_quad, rng):
-    """꺼짐/무숫자 변형 — 표시는 켜져 있되 숫자만 없앤다(설계 §2 3행).
-    glyph_mask 는 워프 후 숫자 글리프 평면이다(보조 표기·아이콘은 그대로).
-    지운 자리는 유리 바깥 톤에서 뽑은 단일 톤+살짝 노이즈로 채운다."""
-    out = img.copy()
-    sel = glyph_mask > 0
-    if not sel.any():
-        return out
-    g = np.zeros(img.shape, np.uint8)
-    if glass_quad is not None:
-        cv2.fillPoly(g, [np.round(np.asarray(glass_quad)).astype(np.int32)], 255)
-    ref = (g > 0) & ~sel
-    if not ref.any():
-        ref = g > 0
-    tone = float(np.median(img[ref])) if ref.any() else float(np.median(img))
-    out[sel] = np.clip(tone + rng.uniform(-3.0, 3.0), 0, 255)
-    return out
 
 
 def build_plan(count, seed, degrade_spec=None, lowc_p=None, seven_p=None):
@@ -4008,66 +4004,91 @@ def generate_scene_groups(count, seed0, out_dir, scene="device",
     grng = random.Random(f"{seed0}:plan")     # 계열·대조군 선택만(장면 내용 아님)
     mf = open(out / "manifest.jsonl", "a", encoding="utf-8")
     n_pos = n_neg = n_off = 0
-    for i in range(count):
-        gid = f"sg_{seed0}_{i}"
-        fam = None if grng.random() < plain_p else grng.choice(families)
-        seed_i = f"{seed0}:g{i}"
-        rng_i = random.Random(seed_i)
-        PROCEDURAL_BG = True        # 음성 프레임은 배경이 곧 장면이다
-        DISTRACT_LAYER = True
-        DISTRACT_FAMILY = fam
-        s = render_panel(sample_value(rng_i), rng_i, scene=scene)
-        PROCEDURAL_BG = False       # 전역은 다음 호출에 새워지지만 명시적으로
+    viol_total = 0
+    try:
+        for i in range(count):
+            gid = f"sg_{seed0}_{i}"
+            fam = None if grng.random() < plain_p else grng.choice(families)
+            seed_i = f"{seed0}:g{i}"
+            rng_i = random.Random(seed_i)
+            PROCEDURAL_BG = True        # 음성 프레임은 배경이 곧 장면이다
+            DISTRACT_LAYER = True
+            DISTRACT_FAMILY = fam
+            s = render_panel(sample_value(rng_i), rng_i, scene=scene)
+            # 꺼짐 변형 — 같은 시드로 **다시 렌더**하되 숫자 글리프만 건너뛴다
+            # (리뷰 상-1: 완성본 지우기가 아니라 '그리기 전에 건너뛰기').
+            # 값 추출과 렌더가 같은 스트림을 순서대로 소비한다 — 정상 변형과
+            # 난수 흐름이 완전히 같아 몸체·보조 표기·반사·그림자가 동일하다.
+            rng_o = random.Random(seed_i)
+            s_off = render_panel(sample_value(rng_o), rng_o, scene=scene,
+                                 skip_digits=True)
+            variants = [("pos", s["panel"]), ("off", s_off["panel"])]
+            if s.get("neg_frame") is not None:
+                variants.append(("neg", s["neg_frame"]))
+            # ── 자가검사 — generate() 가 장마다 돌리는 것과 같은 자(리뷰 중-5)
+            q = np.round(s["quad"], 2)
+            assert q[:, 0].min() >= 0 and q[:, 0].max() <= s["W"] - 1, gid
+            assert q[:, 1].min() >= 0 and q[:, 1].max() <= s["H"] - 1, gid
+            assert s["label"].isdigit(), gid
+            viol = _count_overlaps(s["rects"])
+            viol_total += viol
+            if scene != "panel":
+                lo_, hi_ = s["quad"].min(0), s["quad"].max(0)
+                dc = s["digit_box"]
+                if not (dc is not None
+                        and np.all(lo_ <= np.asarray(dc[:2]) + 1)
+                        and np.all(hi_ >= np.asarray(dc[2:]) - 1)) \
+                        and not s.get("clip_shot"):
+                    raise AssertionError(f"digit containment: {gid}")
+            if degrade_spec is not None:
+                # 세 변형이 같은 필름을 쓴다 — 같은 spec, 같은 시드(§1 표 4행).
+                variants = [(k, degrade(v, random.Random(f"{seed_i}:d"),
+                                        degrade_spec)[0])
+                            for k, v in variants]
+            for kind, im in variants:
+                cv2.imwrite(str(out / "images" / f"{gid}_{kind}.png"), im)
+            rec_pos = dict(
+                id=f"{gid}_pos", scene_group_id=gid, scene_kind="positive",
+                has_band=1, distractor_family=fam, seed=seed_i,
+                profile=s["profile"], w=s["W"], h=s["H"], wh=round(s["wh"], 4),
+                # 정답은 축정렬 사각형(2026-09-17 §9.5) — generate() 와 같은 자.
+                box=[round(float(q[:, 0].min()), 1), round(float(q[:, 1].min()), 1),
+                     round(float(q[:, 0].max()), 1), round(float(q[:, 1].max()), 1)],
+                label=s["label"], inverted=s["inverted"],
+                digit_box=(None if s["digit_box"] is None
+                           else [round(float(v), 1) for v in s["digit_box"]]),
+                glass_quad=np.round(s["glass_quad"], 2).tolist(),
+                overlaps=int(viol),
+                glyph_plane_check=s["glyph_plane_check"],
+                density=s["density"], glare_cover=s.get("glare_cover", 0.0),
+                margin=s["margin"], bezel=s["bezel"],
+                dropped=s["dropped"], band_clip=s.get("band_clip", 0))
+            mf.write(json.dumps(rec_pos, ensure_ascii=False) + "\n")
+            n_pos += 1
+            for kind, reason in (("neg", "no_device"), ("off", "off_lcd")):
+                if not (out / "images" / f"{gid}_{kind}.png").exists():
+                    continue
+                mf.write(json.dumps(dict(
+                    id=f"{gid}_{kind}", scene_group_id=gid, scene_kind="negative",
+                    has_band=0, distractor_family=fam, seed=seed_i,
+                    neg_reason=reason, w=s["W"], h=s["H"],
+                    label=None, box=None), ensure_ascii=False) + "\n")
+                if kind == "neg":
+                    n_neg += 1
+                else:
+                    n_off += 1
+    finally:
+        # 전역 플래그는 예외가 나도 돌려놓는다(리뷰 하-4) — 안 그러면 같은
+        # 프로세스의 다음 굽기가 방해물 섞인 채로 조용히 나간다.
+        PROCEDURAL_BG = False
         DISTRACT_LAYER = False
         DISTRACT_FAMILY = None
-        variants = [("pos", s["panel"])]
-        if s.get("neg_frame") is not None:
-            variants.append(("neg", s["neg_frame"]))
-            # 꺼짐 변형 — 표시 켜짐·숫자 없음. 음성 파생 난수는 계열 선택과
-            # 독립 스트림(장면 재현은 시드로 결정적).
-            off = _erase_digits(s["panel"], s["glyph_mask"], s["glass_quad"],
-                                random.Random(f"{seed_i}:off"))
-            variants.append(("off", off))
-        if degrade_spec is not None:
-            # 세 변형이 같은 필름을 쓴다 — 같은 spec, 같은 시드(설계 §1 표 4행).
-            variants = [(k, degrade(v, random.Random(f"{seed_i}:d"), degrade_spec)[0])
-                        for k, v in variants]
-        for kind, im in variants:
-            cv2.imwrite(str(out / "images" / f"{gid}_{kind}.png"), im)
-        q = np.round(s["quad"], 2)
-        rec_pos = dict(
-            id=f"{gid}_pos", scene_group_id=gid, scene_kind="positive",
-            has_band=1, distractor_family=fam, seed=seed_i,
-            profile=s["profile"], w=s["W"], h=s["H"], wh=round(s["wh"], 4),
-            # 정답은 축정렬 사각형(2026-09-17 §9.5) — generate() 와 같은 자.
-            box=[round(float(q[:, 0].min()), 1), round(float(q[:, 1].min()), 1),
-                 round(float(q[:, 0].max()), 1), round(float(q[:, 1].max()), 1)],
-            label=s["label"], inverted=s["inverted"],
-            digit_box=(None if s["digit_box"] is None
-                       else [round(float(v), 1) for v in s["digit_box"]]),
-            glyph_plane_check=s["glyph_plane_check"],
-            density=s["density"], glare_cover=s.get("glare_cover", 0.0),
-            margin=s["margin"], bezel=s["bezel"],
-            dropped=s["dropped"], band_clip=s.get("band_clip", 0))
-        mf.write(json.dumps(rec_pos, ensure_ascii=False) + "\n")
-        n_pos += 1
-        for kind, reason in (("neg", "no_device"), ("off", "off_lcd")):
-            if not (out / "images" / f"{gid}_{kind}.png").exists():
-                continue
-            mf.write(json.dumps(dict(
-                id=f"{gid}_{kind}", scene_group_id=gid, scene_kind="negative",
-                has_band=0, distractor_family=fam, seed=seed_i,
-                neg_reason=reason, w=s["W"], h=s["H"],
-                label=None, box=None), ensure_ascii=False) + "\n")
-            if kind == "neg":
-                n_neg += 1
-            else:
-                n_off += 1
     mf.close()
     if sheet_n:
         _scene_group_sheet(out, sheet_n)
     print(f"[scene-groups] {count}그룹 -> 양성 {n_pos} · 기기없음 {n_neg} · "
-          f"꺼짐 {n_off} · 계열 {families} · 단색대조 {plain_p:.0%}")
+          f"꺼짐 {n_off} · 겹침 {viol_total} · 계열 {families} · "
+          f"단색대조 {plain_p:.0%}")
     return n_pos + n_neg + n_off
 
 

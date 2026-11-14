@@ -70,7 +70,7 @@ def main():
         rng = np.random.default_rng(7)
         A = []
         for i in rng.integers(0, len(ds), a.aug_n):
-            _, b = ds[int(i)]
+            _, b, _has = ds[int(i)]
             b = np.asarray(b, float) / 416.0
             A.append([(b[0] + b[2]) / 2, (b[1] + b[3]) / 2])
         stat("**증강 뒤** (모델이 봄)", np.array(A))

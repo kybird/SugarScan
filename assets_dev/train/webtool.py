@@ -505,7 +505,7 @@ def api_aug(qs):
 
 def _aug_png(ds, i):
     """CocoBand 한 장 -> (data URI, 상자). 상자는 레터박스 좌표다."""
-    x, b = ds[i]
+    x, b, _has = ds[i]
     img = (x[0].numpy() * 255.0).clip(0, 255).astype("uint8")
     vis = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
     q = [int(round(float(v))) for v in b.tolist()]

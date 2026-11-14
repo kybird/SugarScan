@@ -488,11 +488,23 @@ def verify(out_root, names):
                 and a["bbox"][0] + a["bbox"][2] <= imgs[a["image_id"]]["width"]
                 and a["bbox"][1] + a["bbox"][3] <= imgs[a["image_id"]]["height"]
                 for a in j["annotations"])
-            checks["짝 변형 동반"] = all(
-                any(k.endswith(f"{g}_{kind}") for k in manifest)
-                for g in {r["scene_group_id"] for r in manifest.values()
-                          if r["scene_kind"] == "positive"}
-                for kind in ("pos", "neg", "off"))
+            # 매니페스트-스키마 교차검사(리뷰 2026-11-15 중-1): 구판 검사는
+            # 매니페스트가 쓴 has_band 를 정답표로 삼아 자기일관성만 봤다 —
+            # has_band=0 으로 조작한 양성이 PASS 했다. 라벨 무결성은 스키마로
+            # 잡고, '음성에 기기가 없다'는 내용 검사는 §6 채점기의 몫이다.
+            checks["양성 행 has_band=1·box·label 숫자"] = all(
+                r["has_band"] == 1 and r.get("box") and
+                str(r.get("label", "")).isdigit()
+                for r in manifest.values() if r["scene_kind"] == "positive")
+            checks["음성 행 has_band=0·box·label null"] = all(
+                r["has_band"] == 0 and r.get("box") is None
+                and r.get("label") is None and r.get("neg_reason")
+                for r in manifest.values() if r["scene_kind"] == "negative")
+            checks["그룹 완전성 pos+neg+off"] = all(
+                Counter(k.rsplit("_", 1)[1]
+                        for k in manifest if k.startswith(g + "_")) >=
+                Counter({"pos": 1, "neg": 1, "off": 1})
+                for g in {r["scene_group_id"] for r in manifest.values()})
         else:
             checks["어노테이션 수 = 이미지 수"] = n_img == n_ann
             checks["image_id 유일"] = len({a["image_id"]

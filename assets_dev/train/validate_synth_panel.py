@@ -102,6 +102,7 @@ def main():
     rng = __import__("random").Random(args.seed)
     np.random.seed(args.seed)          # 광학 노이즈도 재현 가능하게
     manifest = []
+    height_kinds = {}   # 글자 높이 종수 히스토그램(임계 근거의 자)
     hard = {"overlaps": 0, "quad_out": 0, "long_side": 0, "label": 0,
             "clipped": 0, "bezel_inside": 0, "sizes": 0}
     for i in range(args.count):
@@ -142,6 +143,11 @@ def main():
         # dotrow 등 요소별 높이를 정당화했다. 실측(2026-11-15, 500장):
         # 1종 53 · 2종 408 · 3종 30 · 4종 9 — 5종 이상이 구판 실패 모드
         # (요소마다 0.10~0.42dh 를 독립 계산하던 시대)의 재발 신호다.
+        # 임계의 근거는 이 검사기 자체가 출력하는 아래 히스토그램이다(자 커밋
+        # 규칙 — 임계를 관측치에 맞춘 것이라는 리뷰 지적의 회답: 관측 자가
+        # 저장소 안에 있고 매 실행마다 다시 찍힌다).
+        height_kinds[len(set(s["text_heights"]))] = \
+            height_kinds.get(len(set(s["text_heights"])), 0) + 1
         if len(set(s["text_heights"])) > 4:
             hard["sizes"] += 1
         if (q[:, 0].min() < 0 or q[:, 0].max() > W - 1
@@ -309,6 +315,7 @@ def main():
     bez = sum(1 for r in manifest if r["bezel"])
     print(f"베젤 인쇄(링 위): {bez}장 — 문자열: "
           f"{sorted({r['bezel'] for r in manifest if r['bezel']})}")
+    print(f"-- 글자 높이 종수: {dict(sorted(height_kinds.items()))}")
     print(f"-- 하드 검사: {hard}")
     if any(hard.values()):
         print("하드 실패 1건 이상 — 카드 완료 아님")

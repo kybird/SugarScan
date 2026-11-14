@@ -36,9 +36,10 @@ class AugmentationTest(unittest.TestCase):
         ds = self.dataset()
         random.seed(42)
         first = [ds[0] for _ in range(8)]
-        self.assertTrue(any(not torch.equal(first[0][1], b) for _, b in first[1:]))
+        self.assertTrue(any(not torch.equal(first[0][1], b)
+                            for _, b, _h in first[1:]))
         random.seed(42)
-        for (x, b), (xx, bb) in zip(first, [ds[0] for _ in range(8)]):
+        for (x, b, _h), (xx, bb, _hh) in zip(first, [ds[0] for _ in range(8)]):
             self.assertTrue(torch.equal(x, xx))
             self.assertTrue(torch.equal(b, bb))
 
@@ -47,7 +48,7 @@ class AugmentationTest(unittest.TestCase):
         ds._photo = lambda im, rng: im
         random.seed(7)
         for _ in range(100):
-            x, b = ds[0]
+            x, b, _h = ds[0]
             self.assertGreaterEqual(float(b.min()), 0)
             self.assertLessEqual(float(b.max()), 96)
             yy, xx = np.where(x[0].numpy() > .8)
@@ -58,8 +59,8 @@ class AugmentationTest(unittest.TestCase):
     def test_no_aug_does_not_consume_randomness_or_change_on_revisit(self):
         ds = self.dataset(False)
         before = random.getstate()
-        x, b = ds[0]
-        xx, bb = ds[0]
+        x, b, _h = ds[0]
+        xx, bb, _hh = ds[0]
         self.assertEqual(before, random.getstate())
         self.assertTrue(torch.equal(x, xx))
         self.assertTrue(torch.equal(b, bb))

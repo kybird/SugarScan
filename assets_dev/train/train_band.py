@@ -226,18 +226,24 @@ class NegRatioBatchSampler(torch.utils.data.Sampler):
     차이만 기록하면 된다. "같은 무늬만 반복하지 않도록" 매 에포크 재섞는다.
     """
 
-    def __init__(self, pos_idx, neg_idx, batch_size, neg_ratio, repeat):
+    def __init__(self, pos_idx, neg_idx, batch_size, neg_ratio, repeat,
+                 seed=0):
         self.pos = list(pos_idx) * max(1, repeat)
         self.neg = list(neg_idx) * max(1, repeat)
         self.bs = batch_size
         self.k_neg = (int(round(batch_size * neg_ratio)) if neg_ratio > 0 else 0)
+        self.seed = seed
         self.epoch = 0
 
     def __len__(self):
         return max(1, len(self.pos) // self.bs)
 
     def __iter__(self):
-        rng = random.Random(9176 + self.epoch)
+        # 시드는 args.seed 를 받는다(리뷰 2026-11-15 중-1): 같은 시드면 arm 간
+        # 양성 순서까지 같아지고, 시드를 바꾸면 순서가 바뀐다 — §5 '같은 시드'
+        # 짝이 표본 수준에서 성립한다. 기준선(shuffle 경로)이 아니라 이 경로를
+        # 양쪽 arm 이 공유하므로 소스 차이도 없다.
+        rng = random.Random(self.seed * 1_000_003 + 9176 + self.epoch)
         self.epoch += 1
         pos, neg = self.pos[:], self.neg[:]
         rng.shuffle(pos)
@@ -249,12 +255,12 @@ class NegRatioBatchSampler(torch.utils.data.Sampler):
             # (수천 장) 에서는 나누어떨어지고 순환은 일어나지 않는다.
             # idx 는 셔플된 풀을 **거쳐** 아이템 인덱스로 매핑한다 — 풀의
             # 위치(0..bs) 를 그대로 쓰면 임의 아이템을 집는다(스모크에서
-            # 실제로 냈다: n=6+14).
+            # 실제로 냈다: n=6+14). 음성도 에포크 안에서 순환한다(리뷰
+            # 하-1) — 풀이 모자라도 뒷배치의 음성 수가 조용히 줄지 않는다.
             idx = [pos[(bi * self.bs + k) % len(pos)] for k in range(self.bs)]
             if self.k_neg and neg:
-                take = min(self.k_neg, len(neg))
-                idx += [neg[(ni + k) % len(neg)] for k in range(take)]
-                ni += take
+                idx += [neg[(ni + k) % len(neg)] for k in range(self.k_neg)]
+                ni += self.k_neg
             yield idx
 
 
@@ -354,14 +360,15 @@ def _quick_gate(model, args, dev, n=200):
             man[m["id"]] = m
     ids = sorted(man)[:n]
     model.eval()
-    ok = miss = 0
+    ok = miss = n_eval = 0     # 분모는 채점 가능한 양성만(리뷰 2026-11-15 중-3)
     for cid in ids:
         m = man[cid]
-        if m.get("digit_box") is None:
+        if m.get("digit_box") is None:      # 음성·보조결손 — 분모에서 뺀다
             continue
         img = cv2.imread(str(root / "train2017" / f"{cid}.png"), cv2.IMREAD_GRAYSCALE)
         if img is None:
             continue
+        n_eval += 1
         lb, r, dx, dy = letterbox(img, args.size)
         x = torch.from_numpy(lb).float().div_(255.).unsqueeze(0).unsqueeze(0)
         o, g = model(x.to(dev))
@@ -374,7 +381,7 @@ def _quick_gate(model, args, dev, n=200):
         d = [float(v) for v in m["digit_box"]]
         if p[0] <= d[0] and p[1] <= d[1] and p[2] >= d[2] and p[3] >= d[3]:
             ok += 1
-    tot = max(1, len(ids))
+    tot = max(1, n_eval)
     return f"합성게이트 {100*ok/tot:.1f}% (n={tot} 미검출 {miss})"
 
 
@@ -388,20 +395,21 @@ def run(args):
                   grow=args.grow, aug=args.aug,
                   scale_min=args.aug_scale_min,
                   include_neg=args.neg_ratio > 0)
+    if not 0.0 <= args.neg_ratio <= 1.0:
+        raise SystemExit(f"--neg-ratio 는 0..1 이어야 한다: {args.neg_ratio}")
     if args.neg_ratio > 0 and not ds.neg_idx:
         raise SystemExit("--neg-ratio > 0 인데 음성(매니페스트 has_band=0)이 "
                          "데이터에 없다 — 세트를 확인하라(설계 §3)")
-    sampler = (NegRatioBatchSampler(ds.pos_idx, ds.neg_idx, args.batch,
-                                    args.neg_ratio, args.repeat)
-               if args.neg_ratio > 0 else None)
-    dl_kw = dict(num_workers=args.workers, pin_memory=True,
-                 persistent_workers=args.workers > 0,
-                 worker_init_fn=init_worker)
-    if sampler is not None:
-        dl = DataLoader(ds, batch_sampler=sampler, **dl_kw)
-    else:
-        dl = DataLoader(ds, batch_size=args.batch, shuffle=True,
-                        drop_last=True, **dl_kw)
+    # 두 arm 이 같은 배치 경로를 쓴다(리뷰 2026-11-15 중-1) — neg_ratio 0 이면
+    # 음성 없는 순수 양성 스트림로 떨어져 기존 shuffle+drop_last 와 동등하되,
+    # 순서가 args.seed 로 짝지된다.
+    sampler = NegRatioBatchSampler(ds.pos_idx, ds.neg_idx, args.batch,
+                                   args.neg_ratio, args.repeat,
+                                   seed=args.seed)
+    dl = DataLoader(ds, batch_sampler=sampler,
+                    num_workers=args.workers, pin_memory=True,
+                    persistent_workers=args.workers > 0,
+                    worker_init_fn=init_worker)
     model = BandNet(width=args.width, stride=args.stride)
     if args.resume:
         ckpt = torch.load(args.resume, map_location="cpu")
@@ -555,9 +563,10 @@ def main():
     ap.add_argument("--data", required=True)
     ap.add_argument("--train-ann", default="instances_train2017.json")
     ap.add_argument("--neg-ratio", type=float, default=0.0,
-                    help="배치당 음성 비중(설계 §3 시작값 0.25). 양성은 항상 "
-                         "batch 장 — 기준선 arm 과 양성 노출·업데이트 수가 "
-                         "같고 음성이 별도 부분으로 추가된다.")
+                    help="양성 batch 장에 **추가**되는 음성 수 비율(설계 §3 "
+                         "시작값 0.25 — batch 32 면 32+8=40 장, 배치 내 음성 "
+                         "비중은 20%다). 양성 노출·업데이트 수는 기준선 arm 과 "
+                         "같고 음성이 별도 부분으로 붙는다(§5).")
     ap.add_argument("--out", required=True)
     ap.add_argument("--size", type=int, default=416)
     ap.add_argument("--stride", type=int, default=16, choices=(8, 16),
