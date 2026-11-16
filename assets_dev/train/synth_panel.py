@@ -327,6 +327,12 @@ GENERIC_INVERTED_P = REAL_BASELINE["polarity"]["inverted_pct"] / 100.0
 # 남은 점수 미달 장(1709·818·1780 등, 숫자줄 obj 0.01~0.09)이 같은 저대비
 # family라 비중을 올린다(사람 승인 "기종추가안하고 다른것들만하자").
 LOWC_P = 0.12
+# GEN5 축 게이트(2026-11-16 DC238 재판으로 확정, doc/raw/2026-11-16.md Case 5).
+# 전부 기본 OFF — 켜지 않으면 기존 출력과 바이트 동일(별도 rng 스트림만 씀).
+LOWC_GRAIN = False     # 저대비(c<0.40) 행에 렌더 시 센서 그레인 결합
+WRINKLE_GLARE_P = 0.0  # 주름 플라스틱 반사(구조화 글레어) 발생 확률
+_GRAIN_SEED = 0x5A17C0DE
+_WRINKLE_SEED = 0x0BADC0DE
 # 7 두 종류(사람 결정 2026-10-04 "A+B+C , A+B+C+F 이렇게 두개야") —
 # 세그먼트 3개형('7s') 뽑기 확률. 라벨은 두 형태 모두 '7' 이다. 계획
 # 빌더(build_plan)와 render_panel 레거시 경로가 같은 값을 쓴다.
@@ -1031,6 +1037,21 @@ def _reflection_mask(W, H, kind, orng):
     0.38W 는 패널 폭의 76%를 덮어 패치가 아니라 도포였다(2026-09-12).
     """
     msk = np.zeros((H, W), np.float32)
+    if kind == "wrinkle":
+        # 주름진 투명 플라스틱(스트립 봉투·튜브)이 유리 위에 놓여 빛을
+        # 흩뿌린 흔적. 저주파 노이즈 장을 문턍화해 불규칙 밝은 패치를 만든다
+        # — 매끈한 타원(specular)과 달리 가장자리가 찢어지고 숫자를 가로질러
+        # 번진다. 밝기는 반사라기보다 굴절 조명에 가깝다(국소 증감).
+        rngw = np.random.default_rng(int(orng.getrandbits(63)))
+        f = rngw.normal(0, 1, (max(8, H // 28), max(8, W // 28)))
+        f = cv2.resize(f, (W, H), interpolation=cv2.INTER_CUBIC)
+        k = 2 * 9 + 1
+        f = cv2.GaussianBlur(f, (k, k), 0)
+        f = (f - f.min()) / max(1e-9, f.max() - f.min())
+        thr = float(orng.uniform(0.62, 0.74))     # 패치 커버리지 조절
+        msk = np.clip((f - thr) / max(1e-9, 1 - thr), 0, 1).astype(np.float32)
+        alpha = float(orng.uniform(0.35, 0.7))
+        return msk, alpha
     if kind == "streak":
         # 가늘고 긴 띠. 길이는 넉넉히 주되 두께를 묶는다 — 띠가 숫자를
         # 가로지르더라도 두께가 얇으면 획 하나만 지난다.
@@ -3089,6 +3110,12 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None,
     _cover = np.zeros((H, W), np.float32)      # 누적 알파 — AC#1 측정용
     for _ in range(_orng.choice([0, 0, 1, 1, 1, 2])):
         kind = _orng.choices(REFLECT_KINDS, weights=REFLECT_WEIGHTS)[0]
+        # GEN5 축2 — 구조화 글레어(사람 관찰 GT374: '주름진 플라스틱 튜브
+        # 반사가 숫자 모양을 왜곡'). 별도 스트림 우선 판정: P>0 이고 당첨이면
+        # wrinkle 으로 갈음, 아니면 구판 종류 선택이 그대로 흐른다(해시 불변).
+        if WRINKLE_GLARE_P > 0 and random.Random(
+                _oseed ^ _WRINKLE_SEED).random() < WRINKLE_GLARE_P:
+            kind = "wrinkle"
         msk, alpha = _reflection_mask(W, H, kind, _orng)
         # 몸체 위 반사는 몸체 톤 기준 — 마스크 무게중심 픽셀에서 시작한다(구판은
         # 패널색 고정이라 어두운 몸체에 하얀 도포가 얹혔다).
@@ -3437,6 +3464,17 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None,
                                 (px0, py0, px1, py1))
     else:
         gpc = 0.0
+
+    # GEN5 축1 — 저대비 × 센서 노이즈 결합(사람 관찰 GT329: '디더링처럼
+    # 희미/강한 픽셀 혼재'). 저조도 촬영의 고ISO 그레인은 c_deg 가 낮은 장에
+    # 함께 온다 — 구판 저조도 행은 노이즈 0 이었고(코드 주석이 지적하던
+    # 간극) 실최악 장과 결이 달랐다. 별도 시드 스트림: 게이트 OFF 면 난수를
+    # 아예 소비하지 않는다(기존 해시 불변).
+    if LOWC_GRAIN and c_deg < 0.40:
+        _sigma = 5.0 + (0.40 - c_deg) * 38.0    # c=0.15 → σ≈14.5
+        _grain = np.random.default_rng(
+            _oseed ^ _GRAIN_SEED).normal(0.0, _sigma, img.shape)
+        img = np.clip(img.astype(np.float32) + _grain, 0, 255).astype(np.uint8)
 
     dens = _density_outside(img, quad)
     # 숫자 필드를 워프 후 이미지 좌표로 옮겨 **축정렬 상자**로 만든다.
@@ -4004,7 +4042,8 @@ def generate(count, seed0, out_dir, with_reader=False, bg="flat", scene="panel",
 
 def generate_scene_groups(count, seed0, out_dir, scene="device",
                           families=DISTRACTOR_FAMILIES, plain_p=0.10,
-                          degrade_spec=None, sheet_n=8):
+                          degrade_spec=None, sheet_n=8, roll_max=None,
+                          lowc_grain=False, wrinkle_glare_p=0.0):
     """거절 학습용 장면 그룹 굽기(2026-11-15) — 설계 §1 표 3행.
 
     장면 그룹 하나 = 배경·방해물 배치·촬영 계획을 **한 번** 뽑아 세 변형이
@@ -4017,7 +4056,13 @@ def generate_scene_groups(count, seed0, out_dir, scene="device",
     has_band·(음성 사유 neg_reason) 를 남긴다. 양성의 label·box 는 기존
     스키마 그대로, 음성은 label=null·box=null(설계 §1 표 5행).
     """
-    global PROCEDURAL_BG, DISTRACT_LAYER, DISTRACT_FAMILY
+    global PROCEDURAL_BG, DISTRACT_LAYER, DISTRACT_FAMILY, CAM_ROLL_MAX
+    global LOWC_GRAIN, WRINKLE_GLARE_P
+    _saved = (CAM_ROLL_MAX, LOWC_GRAIN, WRINKLE_GLARE_P)
+    if roll_max is not None:
+        CAM_ROLL_MAX = float(roll_max)
+    LOWC_GRAIN = lowc_grain
+    WRINKLE_GLARE_P = wrinkle_glare_p
     out = Path(out_dir)
     (out / "images").mkdir(parents=True, exist_ok=True)
     grng = random.Random(f"{seed0}:plan")     # 계열·대조군 선택만(장면 내용 아님)
@@ -4102,6 +4147,7 @@ def generate_scene_groups(count, seed0, out_dir, scene="device",
         PROCEDURAL_BG = False
         DISTRACT_LAYER = False
         DISTRACT_FAMILY = None
+        CAM_ROLL_MAX, LOWC_GRAIN, WRINKLE_GLARE_P = _saved
     mf.close()
     if sheet_n:
         _scene_group_sheet(out, sheet_n)

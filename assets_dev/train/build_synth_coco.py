@@ -382,7 +382,8 @@ def box_sheet(set_dir, coco, out_png, n=10, cols=5):
 
 
 def build_scene_group_set(name, count, seed, out_root, scene="device",
-                          plain_p=0.10, degrade_spec=None, fresh=False):
+                          plain_p=0.10, degrade_spec=None, fresh=False,
+                          roll_max=None, lowc_grain=False, wrinkle_glare_p=0.0):
     """거절 학습용 장면 그룹 세트(2026-11-15) — 설계 §1 표 5행·§2.
 
     generate_scene_groups 로 굽고 COCO 로 내보낸다. **음성 이미지도 COCO
@@ -398,7 +399,8 @@ def build_scene_group_set(name, count, seed, out_root, scene="device",
 
     n_imgs = synth_panel.generate_scene_groups(
         count, seed, set_dir, scene=scene, plain_p=plain_p,
-        degrade_spec=degrade_spec)
+        degrade_spec=degrade_spec, roll_max=roll_max,
+        lowc_grain=lowc_grain, wrinkle_glare_p=wrinkle_glare_p)
     (set_dir / "images").rename(set_dir / "train2017")
 
     rows = [json.loads(l) for l in
@@ -555,6 +557,9 @@ def main():
                     metavar="NAME:COUNT:SEED",
                     help="거절 학습 장면 그룹 세트(예: SGD:3000:20261115). "
                          "반복 가능. 음성은 상자 없는 COCO 이미지로 들어간다.")
+    ap.add_argument("--gen5", action="store_true",
+                    help="GEN5 광학 축: roll 45 + 저대비 그레인 + 주름 글레어 "
+                         "0.15(DC238 재판으로 확정).")
     ap.add_argument("--plain-p", type=float, default=0.10,
                     help="장면 그룹의 단색 대조군 비율. 검증 세트는 0 을 "
                          "권한다 — 단색 프레임은 시드와 무관하게 서로 같아"
@@ -573,8 +578,12 @@ def main():
     out_root.mkdir(parents=True, exist_ok=True)
 
     for n, c, s in sg_specs:
-        build_scene_group_set(n, c, s, out_root, plain_p=args.plain_p,
-                              degrade_spec=synth_panel.parse_degrade(args.degrade))
+        build_scene_group_set(
+            n, c, s, out_root, plain_p=args.plain_p,
+            degrade_spec=synth_panel.parse_degrade(args.degrade),
+            roll_max=45.0 if args.gen5 else None,
+            lowc_grain=bool(args.gen5),
+            wrinkle_glare_p=0.15 if args.gen5 else 0.0)
 
     seeds = {}
     for name in names:
