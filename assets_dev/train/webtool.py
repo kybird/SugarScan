@@ -63,6 +63,9 @@ BAND_FILE = HERE / "band_boxes.jsonl"
 # 다른지(좌-우 쏠림 +0.247, BAND_EXP_PLAN §18.6) 를 가른다.
 # **학습에 쓰지 않는다** — Roboflow 는 CC BY 4.0 (docs/LICENSES.md §1.4).
 RF_BAND_FILE = HERE / "rf_band_boxes.jsonl"
+# Datacluster 238 재판 정답표 — 측정 전용(학습 미사용, 2026-11-16 사람 결정).
+# rf_band_boxes 와 같은 축정렬 쿼드 규약 + 값(value) 이 추가된 형태.
+DC238_FILE = HERE / "dc238_labels.jsonl"
 RF_QUEUE = HERE / "rf_label_queue.json"
 # 잉크 자(diag_ink_clip.py)가 낸 장별 결과. **자를 눈으로 검사하라고** 있는
 # 파일이라 사람이 보는 것이 목적이다 — 수치만 믿지 말라는 요구(2026-09-20).
@@ -1725,6 +1728,32 @@ def api_rfqueue(qs):
             "done_count": sum(1 for i in q["items"] if i["done"])}
 
 
+@route("/api/dc238queue")
+def api_dc238queue(qs):
+    """Datacluster 238 재판 정답표 대기열 — 디렉터리에서 즉석 구성.
+
+    rfqueue 와 달리 큐 파일이 없다: 238장 전량이 항상 대기열이다(선택의
+    여지가 없는 전수 재판). 완료 판정은 dc238_labels.jsonl 의 source.
+    """
+    d = ALT_CORPORA["datacluster"]
+    items = []
+    done_rows = read_jsonl(DC238_FILE)
+    for p in sorted(d.glob("*.jpg")):
+        cid = f"datacluster/{p.stem}"
+        r = done_rows.get(cid) or {}
+        it = {"id": cid, "done": bool(r.get("source"))}
+        if r.get("value") is not None:
+            it["value"] = r["value"]
+        if r.get("quad"):
+            it["quad"] = r["quad"]
+        if r.get("source") == "skipped":
+            it["skipped"] = True
+        items.append(it)
+    return {"items": items,
+            "done_count": sum(1 for i in items if i["done"]),
+            "note": "측정(재판) 전용 — 학습 미사용"}
+
+
 @route("/api/readercrop")
 def api_readercrop(qs):
     """리더가 실제 받는 인풋(144x96 크롭)을 PNG 로 내준다(2026-10-03 사람 요청).
@@ -2268,7 +2297,8 @@ _NAV_TABS = (("labeler", "라벨러"), ("monitor", "모니터"), ("train", "훈�
 _NAV_PAGES = (("/livecmp", "실촬 검수"), ("/devices", "기종"),
               ("/synth", "합성 코퍼스"),
               ("/profedit", "프로파일"), ("/aug", "증강"),
-              ("/inkclip", "잉크 검사"), ("/rfband", "Roboflow 라벨"))
+              ("/inkclip", "잉크 검사"), ("/rfband", "Roboflow 라벨"),
+              ("/dc238", "DC238 재판표"))
 _NAV_CSS = (
     "<style>#topnav{display:flex;flex-wrap:wrap;gap:6px;align-items:center;"
     "padding:6px 12px;background:#14161a;border-bottom:1px solid #333;"
@@ -2401,6 +2431,9 @@ class Handler(BaseHTTPRequestHandler):
             return
         if u.path == "/rfband":
             self._send_page("rf_band_label.html", "/rfband")
+            return
+        if u.path == "/dc238":
+            self._send_page("dc238_label.html", "/dc238")
             return
         if u.path == "/aug":
             self._send_page("aug_view.html", "/aug")
@@ -2564,6 +2597,35 @@ class Handler(BaseHTTPRequestHandler):
                 rows[cid] = row
             write_jsonl(p, rows)
             self._json({"ok": True})
+            return
+        if u.path == "/api/dc238":
+            # Datacluster 238 재판 정답표 — 값+밴드박스. **측정 전용**(학습
+            # 미사용, LICENSES §4 2026-11-16). rf 화면과 같은 축정렬 쿼드.
+            cid = body.get("id", "")
+            if not cid.startswith("datacluster/") or ".." in cid:
+                self._json({"error": "bad id"}, 400)
+                return
+            src = body.get("source", "human")
+            if src not in ("human", "skipped"):
+                src = "human"
+            value = body.get("value")
+            if value is not None and not (isinstance(value, int) and 0 <= value <= 999):
+                self._json({"error": "bad value"}, 400)
+                return
+            row = {"id": cid, "value": value, "source": src}
+            if src == "human":
+                quad = body.get("quad")
+                if not quad or len(quad) != 4:
+                    self._json({"error": "bad quad"}, 400)
+                    return
+                row["quad"] = quad
+                row["ow"] = body.get("ow")
+                row["oh"] = body.get("oh")
+            rows = read_jsonl(DC238_FILE)
+            rows[cid] = row
+            write_jsonl(DC238_FILE, rows)
+            self._json({"ok": True, "done": sum(
+                1 for r in rows.values() if r.get("source"))})
             return
         if u.path == "/api/gtfix":
             cid = body.get("id", "")
