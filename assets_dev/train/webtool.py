@@ -1756,6 +1756,8 @@ def api_dc238queue(qs):
             it["quad"] = r["quad"]
         if r.get("source") == "skipped":
             it["skipped"] = True
+        if r.get("rot45"):
+            it["rot45"] = True
         if r.get("rot90"):
             it["rot90"] = True
         if r.get("faint"):
@@ -2703,6 +2705,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"error": "bad value"}, 400)
                 return
             row = {"id": cid, "value": value, "source": src}
+            if body.get("rot45"):
+                row["rot45"] = True
             if body.get("rot90"):
                 row["rot90"] = True
             if body.get("faint"):

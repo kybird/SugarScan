@@ -62,7 +62,9 @@
   <div id="vwrap">
     <input id="val" placeholder="값 (mg/dL)" inputmode="numeric"
            autocomplete="off">
-    <label title="기기가 화면 안에서 90도(옆모습)로 누워 있음"><input
+    <label title="기기가 30~60도 정도 비스듬히 누워 있음"><input
+      type="checkbox" id="rot45">회전45</label>
+    <label title="기기가 거의 옆으로 완전히 누워 있음(좌우 방향 무관)"><input
       type="checkbox" id="rot90">회전90</label>
     <label title="노출 흐림/저조도/반사로 숫자가 희미함"><input
       type="checkbox" id="faint">희미</label>
@@ -97,7 +99,8 @@
     <p>포함하지 않는 것: 단위(mg/dL) · 날짜·시각 · 아이콘 · LCD 테두리·몸통.
        기울어진 화면도 <b>축정렬 직사각형</b>으로 통째로 감싼다.</p>
     <h3>난이도 태그 (저장할 때 같이 남는다)</h3>
-    <p><b>회전90</b>: 기기가 90도로 누워 있음. <b>희미</b>: 흐림·저조도·
+    <p><b>회전45</b>: 30~60도 비스듬함. <b>회전90</b>: 거의 완전히 옆으로
+       누움(방향 무관). 둘 중 하나만. <b>희미</b>: 흐림·저조도·
        반사로 숫자가 희미함. 재판 채점이 층화된다(정상/회전/희미별 성적).</p>
     <h3>판독불가 (K)</h3>
     <p>값이 가려졌거나 화면이 꺼져 있거나 아예 혈당계가 아니면
@@ -150,6 +153,7 @@ async function show() {
   const prev = it.quad;
   if (prev) box = quadToBox(prev.map(toView));
   $('val').value = (it.value !== undefined && it.value !== null) ? it.value : '';
+  $('rot45').checked = !!it.rot45;
   $('rot90').checked = !!it.rot90;
   $('faint').checked = !!it.faint;
   pred = null;
@@ -314,7 +318,8 @@ function zoom(p) {
 }
 
 function tags() {
-  return {rot90: $('rot90').checked, faint: $('faint').checked};
+  return {rot45: $('rot45').checked, rot90: $('rot90').checked,
+         faint: $('faint').checked};
 }
 async function post(body) {
   const r = await (await fetch('/api/dc238', {
