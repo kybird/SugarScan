@@ -3386,11 +3386,27 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None,
                 else np.full((H, W), float(bg_col), np.float32))
         base = bgim
         if DISTRACT_LAYER:
-            _drng = random.Random(_oseed ^ _DISTRACT_SEED)
-            dcan, dmask = draw_distractors(W, H, _drng, DISTRACT_FAMILY)
+            # 계열이 정해졌으면 **워프 후에도** 보여야 한다(2026-11-16 GEN4
+            # 재검증 실패의 교훈): 붙임 클램프는 워프 전 캔버스와의 겹침만
+            # 보장한다 — 카메라 zoom-out 이 그린 패치를 프레임 밖으로 밀면
+            # std=0 단색 프레임이 되어 계열 라벨과 어긋나고 교차풀 충돌을
+            # 낸다(실측: sg_20261121_2675 — mosaic 계열인데 flat). 재추출은
+            # 시드+시도횟수의 결정적 함수라 재현성은 그대로.
+            _dw = _dmw = None
+            for _attempt in range(4):
+                _drng = random.Random(_oseed ^ _DISTRACT_SEED ^ _attempt)
+                dcan, dmask = draw_distractors(W, H, _drng, DISTRACT_FAMILY)
+                if DISTRACT_FAMILY is None:
+                    break
+                _dw = _warp_img(dcan, cv2.INTER_LINEAR, Mk, Mr, border=0)
+                _dmw = _warp_img(dmask, cv2.INTER_LINEAR, Mk, Mr, border=0)
+                if float(_dmw.mean()) >= 0.001:      # 워프 후 가시
+                    break
             if dmask.any():
-                dwarp = _warp_img(dcan, cv2.INTER_LINEAR, Mk, Mr, border=0)
-                dm_w = _warp_img(dmask, cv2.INTER_LINEAR, Mk, Mr, border=0)
+                dwarp = (_dw if _dw is not None
+                         else _warp_img(dcan, cv2.INTER_LINEAR, Mk, Mr, border=0))
+                dm_w = (_dmw if _dmw is not None
+                        else _warp_img(dmask, cv2.INTER_LINEAR, Mk, Mr, border=0))
                 da = dm_w.astype(np.float32) / 255.0
                 base = np.clip(base * (1.0 - da) + dwarp * da, 0, 255)
             neg_frame = base.astype(np.uint8)
