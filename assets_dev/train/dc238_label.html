@@ -204,8 +204,27 @@ function handles(b) {
 function draw() {
   if (!img.width) return;
   cx.drawImage(img, 0, 0);
-  if (!box) return;
   const z = k();
+  if (pred && pred.box) {
+    // pred.box 는 원본(EXIF 지향) 픽셀 평면 [x0,y0,x1,y1] — 캔버스로 환산.
+    const b = {x0: pred.box[0] / sc(), y0: pred.box[1] / sc(),
+               x1: pred.box[2] / sc(), y1: pred.box[3] / sc()};
+    cx.lineWidth = 3 * z; cx.strokeStyle = '#f87171';
+    cx.setLineDash([10 * z, 6 * z]);
+    cx.strokeRect(b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0);
+    cx.setLineDash([]);
+    const label = (pred.val !== null && pred.val !== undefined
+                   ? pred.val : (pred.text || '·'))
+      + `  s=${pred.score} c=${pred.conf}  ${pred.stage}`;
+    cx.font = (16 * z) + 'px system-ui';
+    const tw = cx.measureText(label).width;
+    const ty = Math.max(14 * z, b.y0 - 8 * z);
+    cx.fillStyle = 'rgba(20,20,20,0.8)';
+    cx.fillRect(b.x0, ty - 16 * z, tw + 10 * z, 22 * z);
+    cx.fillStyle = '#f87171';
+    cx.fillText(label, b.x0 + 5 * z, ty);
+  }
+  if (!box) return;
   cx.lineWidth = LINE_W * z; cx.strokeStyle = '#4ade80';
   cx.strokeRect(box.x0, box.y0, box.x1 - box.x0, box.y1 - box.y0);
   handles(box).forEach(h => {
@@ -217,23 +236,6 @@ function draw() {
     cx.fill();
     cx.lineWidth = 1.5 * z; cx.strokeStyle = '#0a0a0a'; cx.stroke();
   });
-}
-if (pred && pred.box) {
-  const z = k();
-  const b = quadToBox(pred.box.map(toView));
-  cx.lineWidth = 3 * z; cx.strokeStyle = '#f87171';
-  cx.setLineDash([10 * z, 6 * z]);
-  cx.strokeRect(b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0);
-  cx.setLineDash([]);
-  const label = (pred.val !== null && pred.val !== undefined
-                 ? pred.val : (pred.text || '·'))
-    + `  s=${pred.score} c=${pred.conf}  ${pred.stage}`;
-  cx.font = `${16 * z}px system-ui`;
-  const tw = cx.measureText(label).width;
-  cx.fillStyle = 'rgba(20,20,20,0.8)';
-  cx.fillRect(b.x0, Math.max(0, b.y0 - 24 * z), tw + 10 * z, 22 * z);
-  cx.fillStyle = '#f87171';
-  cx.fillText(label, b.x0 + 5 * z, Math.max(14 * z, b.y0 - 8 * z));
 }
 
 function at(e) {
