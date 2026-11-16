@@ -1766,6 +1766,60 @@ def api_dc238queue(qs):
             "note": "측정(재판) 전용 — 학습 미사용"}
 
 
+_DC238_PRED_MEMO = {}
+
+
+def _dc238_models():
+    """PS 계보(출하후보) 검출기·리더 지연 적재 — webtool 시작을 느리게 않게."""
+    if "m" not in _DC238_PRED_MEMO:
+        from eval_reject_stages import load_detector, load_reader
+        _DC238_PRED_MEMO["m"] = (
+            load_detector(str(HERE / "band_out" / "ps_det_neg25.pt"))[0],
+            load_reader(str(HERE / "reader_out" / "ps_rdr_neg" / "best.pt")))
+    return _DC238_PRED_MEMO["m"]
+
+
+@route("/api/dc238pred")
+def api_dc238pred(qs):
+    """DC238 사진 1장을 PS 계보 전 파이프라인으로 재현 — 앱 확정 규칙 그대로.
+    좌표는 EXIF 지향 원본 픽셀(라벨러 캔버스와 같은 좌표계)."""
+    from eval_reject_stages import CONF_GATE, MIN_FRAC, READ_CONF, VLO, VHI
+    cid = qs.get("id", [""])[0]
+    if not cid.startswith("datacluster/"):
+        return {"error": "bad id"}
+    if cid in _DC238_PRED_MEMO:
+        return _DC238_PRED_MEMO[cid]
+    stem = cid.split("/", 1)[1]
+    src = ALT_CORPORA["datacluster"] / f"{stem}.jpg"
+    from PIL import Image, ImageOps
+    import numpy as np
+    with Image.open(src) as im:
+        g = np.asarray(ImageOps.exif_transpose(im).convert("L"))
+    det_run, read = _dc238_models()
+    b, score, (r, dx, dy) = det_run(g)
+    H, W = g.shape
+    p = [(b[0] - dx) / r, (b[1] - dy) / r, (b[2] - dx) / r, (b[3] - dy) / r]
+    frac = ((p[2] - p[0]) * (p[3] - p[1])) / (H * W)
+    out = {"box": [round(v, 1) for v in p], "score": round(float(score), 3),
+           "frac": round(frac, 4)}
+    stage, text, conf, val = "검출게이트", "", 0.0, None
+    if score >= CONF_GATE and frac >= MIN_FRAC:
+        crop = g[max(0, int(p[1])):min(H, int(p[3])),
+                 max(0, int(p[0])):min(W, int(p[2]))]
+        text, conf = read(crop)
+        stage = "판독"
+        if text:
+            stage = "값검증"
+            if text.isdigit() and VLO <= int(text) <= VHI:
+                val = int(text)
+                stage = "확신도"
+                if conf >= READ_CONF:
+                    stage = "확정"
+    out.update(stage=stage, text=text, conf=round(float(conf), 3), val=val)
+    _DC238_PRED_MEMO[cid] = out
+    return out
+
+
 @route("/api/readercrop")
 def api_readercrop(qs):
     """리더가 실제 받는 인풋(144x96 크롭)을 PNG 로 내준다(2026-10-03 사람 요청).
