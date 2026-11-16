@@ -62,6 +62,10 @@
   <div id="vwrap">
     <input id="val" placeholder="값 (mg/dL)" inputmode="numeric"
            autocomplete="off">
+    <label title="기기가 화면 안에서 90도(옆모습)로 누워 있음"><input
+      type="checkbox" id="rot90">회전90</label>
+    <label title="노출 흐림/저조도/반사로 숫자가 희미함"><input
+      type="checkbox" id="faint">희미</label>
     <button id="save" class="p">저장 (S)</button>
   </div>
   <button id="skip" class="s">판독불가 (K)</button>
@@ -90,6 +94,9 @@
        그 빈 칸을 포함한다. 거기에 <b>사방으로 숫자 높이의 10%</b>.</p>
     <p>포함하지 않는 것: 단위(mg/dL) · 날짜·시각 · 아이콘 · LCD 테두리·몸통.
        기울어진 화면도 <b>축정렬 직사각형</b>으로 통째로 감싼다.</p>
+    <h3>난이도 태그 (저장할 때 같이 남는다)</h3>
+    <p><b>회전90</b>: 기기가 90도로 누워 있음. <b>희미</b>: 흐림·저조도·
+       반사로 숫자가 희미함. 재판 채점이 층화된다(정상/회전/희미별 성적).</p>
     <h3>판독불가 (K)</h3>
     <p>값이 가려졌거나 화면이 꺼져 있거나 아예 혈당계가 아니면
        <b>K</b>. 애매한 값을 억지로 만들면 재판 정답표가 오염된다.</p>
@@ -141,6 +148,8 @@ async function show() {
   const prev = it.quad;
   if (prev) box = quadToBox(prev.map(toView));
   $('val').value = (it.value !== undefined && it.value !== null) ? it.value : '';
+  $('rot90').checked = !!it.rot90;
+  $('faint').checked = !!it.faint;
   draw();
 }
 
@@ -275,6 +284,9 @@ function zoom(p) {
   zx.stroke();
 }
 
+function tags() {
+  return {rot90: $('rot90').checked, faint: $('faint').checked};
+}
 async function post(body) {
   const r = await (await fetch('/api/dc238', {
     method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -293,12 +305,12 @@ async function save() {
   const ok = await post({id: Q[idx].id, value: parseInt(raw, 10),
                          source: 'human',
                          quad: boxToQuad(box).map(toOrig),
-                         ow: meta.ow, oh: meta.oh});
+                         ow: meta.ow, oh: meta.oh, ...tags()});
   if (ok) nextUndone();
 }
 
 async function skip() {
-  if (await post({id: Q[idx].id, value: null, source: 'skipped'}))
+  if (await post({id: Q[idx].id, value: null, source: 'skipped', ...tags()}))
     nextUndone();
 }
 

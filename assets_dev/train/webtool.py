@@ -1728,6 +1728,14 @@ def api_rfqueue(qs):
             "done_count": sum(1 for i in q["items"] if i["done"])}
 
 
+def _dc238_backup():
+    """정답표 직전 상태 스냅샷 — 저장 경로마다 돌린다. rm 으로 살아진
+    2026-11-16 사고의 재발 방지(그날은 브라우저 메모리가 유일한 원본이었다)."""
+    import shutil
+    if DC238_FILE.exists():
+        shutil.copyfile(DC238_FILE, DC238_FILE.with_name("dc238_labels.bak.jsonl"))
+
+
 @route("/api/dc238queue")
 def api_dc238queue(qs):
     """Datacluster 238 재판 정답표 대기열 — 디렉터리에서 즉석 구성.
@@ -1748,6 +1756,10 @@ def api_dc238queue(qs):
             it["quad"] = r["quad"]
         if r.get("source") == "skipped":
             it["skipped"] = True
+        if r.get("rot90"):
+            it["rot90"] = True
+        if r.get("faint"):
+            it["faint"] = True
         items.append(it)
     return {"items": items,
             "done_count": sum(1 for i in items if i["done"]),
@@ -2598,6 +2610,30 @@ class Handler(BaseHTTPRequestHandler):
             write_jsonl(p, rows)
             self._json({"ok": True})
             return
+        if u.path == "/api/dc238rebuild":
+            # 브라우저 메모리(Q 배열)에서 정답표를 재구축한다 — 2026-11-16
+            # rm 사고로 dc238_labels.jsonl 을 잃었을 때 열려 있던 탭이 원본이다.
+            items = body.get("items") or []
+            rows = {}
+            for it in items:
+                cid = it.get("id", "")
+                if not cid.startswith("datacluster/") or ".." in cid:
+                    continue
+                if not it.get("done"):
+                    continue
+                src = "skipped" if it.get("skipped") else "human"
+                row = {"id": cid, "value": it.get("value"), "source": src}
+                if it.get("quad") and src == "human":
+                    row["quad"] = it["quad"]
+                if it.get("rot90"):
+                    row["rot90"] = True
+                if it.get("faint"):
+                    row["faint"] = True
+                rows[cid] = row
+            _dc238_backup()
+            write_jsonl(DC238_FILE, rows)
+            self._json({"ok": True, "recovered": len(rows)})
+            return
         if u.path == "/api/dc238":
             # Datacluster 238 재판 정답표 — 값+밴드박스. **측정 전용**(학습
             # 미사용, LICENSES §4 2026-11-16). rf 화면과 같은 축정렬 쿼드.
@@ -2613,6 +2649,10 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"error": "bad value"}, 400)
                 return
             row = {"id": cid, "value": value, "source": src}
+            if body.get("rot90"):
+                row["rot90"] = True
+            if body.get("faint"):
+                row["faint"] = True
             if src == "human":
                 quad = body.get("quad")
                 if not quad or len(quad) != 4:
@@ -2623,6 +2663,7 @@ class Handler(BaseHTTPRequestHandler):
                 row["oh"] = body.get("oh")
             rows = read_jsonl(DC238_FILE)
             rows[cid] = row
+            _dc238_backup()
             write_jsonl(DC238_FILE, rows)
             self._json({"ok": True, "done": sum(
                 1 for r in rows.values() if r.get("source"))})
