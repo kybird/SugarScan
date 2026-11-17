@@ -1334,13 +1334,10 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None,
         _wr = REAL_BASELINE["band"]["wide_raw"]
         _wide_t = _wr[rng.randrange(len(_wr))]
         _wide_row = _wide_t[0] >= 0.75
-    # 코드 화면은 칼럼 레이아웃을 쓰지 않는다(사람 지시 2026-11-17 "칼럼이
-    # 좁으면 기기를 키워라") — 근본 원인은 칼럼 폭 부족이지만 기기 크기를
-    # 늘리는 대신 하단행형(밴드 안 전체 폭)으로 렌더한다. CODE 가 항상
-    # 들어가고, 세로형 밴드 아래는 비워 두는 규약(SPEC)도 지켜진다.
-    if screen_mode == "code":
-        _wide_t = None
-        _wide_row = False
+    # 코드 화면: 칼럼 레이아웃 유지(시각·날짜는 칼럼에 그대로). CODE 는
+    # 칼럼이 아니라 밴드 안 하단(숫자 아래 전체 폭)에 그린다 — 칼럼 폭
+    # 문제를 우회하면서 우측 정보는 살린다(사람 지시 2026-11-17).
+    # 구현: 칼럼의 unit 슬롯에서 CODE 를 스킵하고, 하단행 경로에서 그린다.
 
     # ── 몸체 + 액정 — GM 크롭과 같은 물건(카드 2026-09-12) ──────────────────
     # 실사진 GM 크롭의 바깥 링(15%) 밀도 2.84% 는 기기 몸체에서 온다 — 몸체 인쇄
@@ -2222,14 +2219,16 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None,
     # GEN6 코드 화면(2026-11-17): 단위는 **CODE 로 교체**(같은 배치 슬롯).
     # 와이드 칼럼·하단행·세로형 모두 이 교체 뒤에 _ut 를 뽑는다.
     # 식전식후·메모리·GLU 만 억제. 실물 근거 DC238 11번.
+    # 코드 화면: 텍스트만 교체한다. 위치·크기·h·p·gap 전부 프로파일의
+    # 기존 unit 선언을 그대로 — 레이아웃 시스템이 알아서 배치한다(사람
+    # 지시 2026-11-17 "프로파일에 정의돼 있지 않냐"). 식전식후·메모리·GLU
+    # 만 억제. 실물 근거 DC238 11번.
     if screen_mode == "code":
         _u_base = dict(profile.get("unit") or {})
-        _u_base.update({"texts": ["CODE"], "p": 1.0, "h": 1.8})
-        # 세로형 unit 소비자가 요구하는 키들의 기본값 — 원본 unit 이 없는
-        # 프로파일에서 KeyError 로 죽지 않게(2026-11-17 로그로 발견).
-        _u_base.setdefault("pos", "below-center")
-        _u_base.setdefault("gap", (3, 8))
-        _u_base.setdefault("dx", 0.0)
+        _u_base["texts"] = ["CODE"]
+        if "p" not in _u_base:   # 원본 unit 이 없는 프로파일 — 최소 키만
+            _u_base.update({"p": 1.0, "pos": "below-center",
+                            "gap": (3, 8), "dx": 0.0})
         profile = {**profile, "unit": _u_base, "meal": None,
                    "mem": None, "glulabel": None}
     if _wide_t is not None:
@@ -2284,25 +2283,14 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None,
                 # (검사 5: wide:date -> [2, 5]). 실물 액정은 칸이 고정이고
                 # 꺼진 칸은 그냥 비어 있다 — 세그먼트가 안 켜질 뿐이다.
                 _ORDER = ("time", "date", "unit", "mem")
-                # 코드 화면의 unit(=CODE)은 더 크게 — 시인성이 생명이다.
-                _uh = int(aux_h * float(
-                    (profile.get("unit") or {}).get("h", 1.0)))
-                _slot_h = max(max(aux_h, _uh) + 2,
+                _slot_h = max(aux_h + 2,
                               int((_cy_bot - _cy_top) / float(len(_ORDER))))
                 _on = dict(_items)
                 for _si, _nm in enumerate(_ORDER):
                     if _nm not in _on:
                         continue          # 그 칸은 비워 둔다
                     _txt = _on[_nm]
-                    _h_ = _uh if _nm == "unit" else aux_h
-                    # CODE(=unit)는 크기를 줄여서라도 반드시 넣는다 —
-                    # 칼럼에 안 들어간 코드화면은 그냥 숫자만 있는 사진이
-                    # 되어 학습에 무의미하다(사람 확인 2026-11-17: 3·4번).
-                    if _nm == "unit" and _txt == "CODE":
-                        while _h_ > 8 and (seg_text_width(_txt, _h_, aux_slant,
-                                _dw(_h_)) > _cw or _cy_top + _si * _slot_h
-                                + _h_ > _cy_bot):
-                            _h_ -= 1
+                    _h_ = aux_h
                     _cy_ = _cy_top + _si * _slot_h
                     _tw_ = seg_text_width(_txt, _h_, aux_slant, _dw(_h_))
                     if _tw_ > _cw or _cy_ + _h_ > _cy_bot:
@@ -2316,19 +2304,6 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None,
                   digit_mask=_dmask, digit_w=_dw(aux_h))
                         used_texts.add(_txt)
                         _cy_ = _r[3] + max(6, int(dh * 0.10))
-            # 코드 화면에서 칼럼에 CODE 가 못 들어간 경우 — 밴드 아래에
-            # 반드시 그린다(사람 지시 2026-11-17 "기기크기를 늘려라" —
-            # 근본 원인은 칼럼 폭 부족이지만 CODE 없는 코드화면은 학습
-            # 무의미하므로 어떤 경로로든 렌더 보장).
-            if screen_mode == "code" and "CODE" not in used_texts:
-                _ch2 = max(10, min(int(dh * 0.20), int(py1 - band_bot - 4)))
-                if _ch2 >= 8:
-                    _cy3 = int(min(band_bot + max(3, int(dh * 0.04)),
-                                   py1 - _ch2 - 2))
-                    _lcd_text(img, int(x0), _cy3, "CODE", _ch2, ink_small,
-                              "code_fallback", heights=text_heights,
-                              thick=aux_t, slant=aux_slant)
-                    used_texts.add("CODE")
         else:
             # 하단행형 — 정보행은 쿼드 안(밴드 예약 영역)이라 Placer 없이 그린다.
             # 배치 근거: 821(DATE·AM 1.29·12:23)·971(mg/dL·AM 9:48)·
