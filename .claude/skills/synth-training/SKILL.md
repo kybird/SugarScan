@@ -75,6 +75,11 @@ $PY train_band.py --data synth_coco/TRAIN --out band_out/det_neg.pt \
 
 ## 리더 학습
 
+**속도 최적화**: 리더(CRNN)는 모델이 작아(2.3M·144×96) GPU 병목이 아니라
+**DataLoader num_workers=0**(싱글스레드)가 병목이다. VRAM 4.2GB/16GB
+수준이 정상. 다음 라운드부터 `reader_crnn.py` 의 DataLoader 에
+`num_workers=8` 추가 예정.
+
 ```bash
 # 크롭 추출 (검출기 제안 상자)
 $PY infer_bandnet_crops.py --set synth_coco/READER \
