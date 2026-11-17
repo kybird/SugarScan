@@ -828,7 +828,9 @@ CAM_POSE_P = 0.92          # 이 확률로 포즈를 준다. 나머지는 정면
 # 클로즈업 사진의 작은 보조텍스트(화면 0.66%)를 score 0.9 로 밴드로
 # 오탐했다(2319·2414, doc/raw/2026-09-28.md). 실촬에 없는 스케일을
 # 가르치지 않는다 — 2026-09-17 값으로 되돌린다.
-CAM_ZOOM_RANGE = (0.25, 1.0)
+CAM_ZOOM_RANGE = (0.55, 1.0)  # 사람 지시 2026-11-17 "기기크기를 늘려라" —
+                               # 원경 사진은 숫자·CODE 다 안 보여 학습 무의미.
+                               # 실촬도 기기가 화면의 절반 이상을 차지한다.
 # 구도 축의 목표 분포(2026-09-21 카드 B4 가 이 상수들의 근거로 명시):
 # 로보플로우 dev 586 의 READING 구도(classify_rf_miss.py — B1 완전 미검출
 # 3분할 보고서와 같은 자) area_frac p10 0.0103 / 중앙 0.0266 / p90 0.0527.
@@ -2216,6 +2218,11 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None,
     if screen_mode == "code":
         _u_base = dict(profile.get("unit") or {})
         _u_base.update({"texts": ["CODE"], "p": 1.0, "h": 1.8})
+        # 세로형 unit 소비자가 요구하는 키들의 기본값 — 원본 unit 이 없는
+        # 프로파일에서 KeyError 로 죽지 않게(2026-11-17 로그로 발견).
+        _u_base.setdefault("pos", "below-center")
+        _u_base.setdefault("gap", (3, 8))
+        _u_base.setdefault("dx", 0.0)
         profile = {**profile, "unit": _u_base, "meal": None,
                    "mem": None, "glulabel": None}
     if _wide_t is not None:
@@ -2281,6 +2288,14 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None,
                         continue          # 그 칸은 비워 둔다
                     _txt = _on[_nm]
                     _h_ = _uh if _nm == "unit" else aux_h
+                    # CODE(=unit)는 크기를 줄여서라도 반드시 넣는다 —
+                    # 칼럼에 안 들어간 코드화면은 그냥 숫자만 있는 사진이
+                    # 되어 학습에 무의미하다(사람 확인 2026-11-17: 3·4번).
+                    if _nm == "unit" and _txt == "CODE":
+                        while _h_ > 8 and (seg_text_width(_txt, _h_, aux_slant,
+                                _dw(_h_)) > _cw or _cy_top + _si * _slot_h
+                                + _h_ > _cy_bot):
+                            _h_ -= 1
                     _cy_ = _cy_top + _si * _slot_h
                     _tw_ = seg_text_width(_txt, _h_, aux_slant, _dw(_h_))
                     if _tw_ > _cw or _cy_ + _h_ > _cy_bot:
