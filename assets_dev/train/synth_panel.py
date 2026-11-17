@@ -4097,7 +4097,8 @@ def generate(count, seed0, out_dir, with_reader=False, bg="flat", scene="panel",
 def generate_scene_groups(count, seed0, out_dir, scene="device",
                           families=DISTRACTOR_FAMILIES, plain_p=0.10,
                           degrade_spec=None, sheet_n=8, roll_max=None,
-                          lowc_grain=False, wrinkle_glare_p=0.0, code_p=0.0):
+                          lowc_grain=False, wrinkle_glare_p=0.0, code_p=0.0,
+                          far_p=0.0):
     """거절 학습용 장면 그룹 굽기(2026-11-15) — 설계 §1 표 3행.
 
     장면 그룹 하나 = 배경·방해물 배치·촬영 계획을 **한 번** 뽑아 세 변형이
@@ -4157,6 +4158,16 @@ def generate_scene_groups(count, seed0, out_dir, scene="device",
                 variants.append(("code", s_code["panel"]))
             if s.get("neg_frame") is not None:
                 variants.append(("neg", s["neg_frame"]))
+            # GEN8 원경 음성 — 줌 하한을 일시적으로 낮춰 '너무 멀어서 못
+            # 읽는' 사진을 만든다(사람 지시 2026-11-17). 정상 혈당 표시가
+            # 있지만 거리가 멀어 숫자가 수 픽셀밖에 안 되는 상태.
+            if far_p > 0 and grng.random() < far_p:
+                _saved_zoom = CAM_ZOOM_RANGE
+                CAM_ZOOM_RANGE = (0.20, 0.35)
+                rng_f = random.Random(seed_i)
+                s_far = render_panel(sample_value(rng_f), rng_f, scene=scene)
+                CAM_ZOOM_RANGE = _saved_zoom
+                variants.append(("far", s_far["panel"]))
             # ── 자가검사 — generate() 가 장마다 돌리는 것과 같은 자(리뷰 중-5)
             q = np.round(s["quad"], 2)
             assert q[:, 0].min() >= 0 and q[:, 0].max() <= s["W"] - 1, gid
@@ -4198,7 +4209,8 @@ def generate_scene_groups(count, seed0, out_dir, scene="device",
             mf.write(json.dumps(rec_pos, ensure_ascii=False) + "\n")
             n_pos += 1
             for kind, reason in (("neg", "no_device"), ("off", "off_lcd"),
-                                 ("code", "code_screen")):
+                                 ("code", "code_screen"),
+                                 ("far", "too_far")):
                 if not (out / "images" / f"{gid}_{kind}.png").exists():
                     continue
                 mf.write(json.dumps(dict(

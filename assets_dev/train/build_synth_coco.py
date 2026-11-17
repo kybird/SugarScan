@@ -568,6 +568,8 @@ def main():
                     help="장면 그룹의 단색 대조군 비율. 검증 세트는 0 을 "
                     "권한다 — 단색 프레임은 시드와 무관하게 서로 같아"
                          "져 교차풀 픽셀 검사를 어기기 때문이다.")
+    ap.add_argument("--far-p", type=float, default=0.0,
+                    help="원경 거부 음성 비율(줌 0.20~0.35). GEN8.")
     ap.add_argument("--jobs", type=int, default=1,
                     help="병렬 굽기 프로세스 수. 각 세트를 N 청크로 쪼개 "
                          "N개 프로세스로 동시에 굽는다(2026-11-17 사람 지시 "
@@ -598,6 +600,8 @@ def main():
         elif args.gen5: gen_flags.append("--gen5")
         if args.plain_p != 0.10:
             gen_flags.extend(["--plain-p", str(args.plain_p)])
+        if args.far_p > 0:
+            gen_flags.extend(["--far-p", str(args.far_p)])
 
         procs = []
         sub_map = {}
@@ -687,7 +691,8 @@ def main():
             roll_max=45.0 if (args.gen5 or args.gen6) else None,
             lowc_grain=bool(args.gen5 or args.gen6),
             wrinkle_glare_p=0.15 if (args.gen5 or args.gen6) else 0.0,
-            code_p=0.30 if args.gen6 else 0.0)
+            code_p=0.30 if args.gen6 else 0.0,
+            far_p=args.far_p)
 
     seeds = {}
     for name in names:
