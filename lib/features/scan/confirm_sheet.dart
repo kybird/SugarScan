@@ -1,10 +1,13 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 
 import '../../domain/models/glucose_unit.dart';
 import '../../domain/models/measurement_tag.dart';
 import '../../domain/services/glucose_validator.dart';
 import '../../l10n/generated/app_localizations.dart';
+import '../../ocr/ocr.dart';
 import '../shared/tag_labels.dart';
+import 'ocr_crop_image.dart';
 import 'scan_entry.dart';
 
 /// 저장 전 확인 시트.
@@ -19,19 +22,23 @@ import 'scan_entry.dart';
 Future<ScanEntry?> showConfirmSheet(
   BuildContext context, {
   required ScanEntry entry,
+  OcrCrop? evidence,
 }) {
   return showModalBottomSheet<ScanEntry>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    builder: (context) => _ConfirmSheet(entry: entry),
+    builder: (context) => _ConfirmSheet(entry: entry, evidence: evidence),
   );
 }
 
 class _ConfirmSheet extends StatefulWidget {
-  const _ConfirmSheet({required this.entry});
+  const _ConfirmSheet({required this.entry, this.evidence});
 
   final ScanEntry entry;
+
+  /// 앱이 이 값을 읽어낸 이미지. 사용자가 "내 혈당계와 비교"할 근거다.
+  final OcrCrop? evidence;
 
   @override
   State<_ConfirmSheet> createState() => _ConfirmSheetState();
@@ -81,6 +88,19 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
               style: theme.textTheme.titleMedium,
               textAlign: TextAlign.center,
             ),
+            // 근거 이미지 — 앱이 판독에 쓴 밴드. 값 옆에 두는 것보다 값보다
+            // 먼저 보이는 편이 "이 값이 어디서 나왔는지"를 자연스럽게 알린다.
+            if (widget.evidence != null) ...[
+              const SizedBox(height: 8),
+              Center(child: OcrCropImage(crop: widget.evidence!, maxHeight: 96)),
+              if (kDebugMode && widget.entry.rawText != null)
+                Text(
+                  '원문 "${widget.entry.rawText}" · ${widget.entry.engineId}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+            ],
             const SizedBox(height: 16),
 
             // 값은 크게. 사용자가 확인해야 할 대상이 화면에서 가장 두드러져야 한다.

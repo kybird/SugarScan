@@ -99,3 +99,23 @@ class OcrFrame {
   /// null 이면 전체 프레임을 대상으로 한다.
   final NormalizedRect? roi;
 }
+
+/// 엔진이 판독에 실제로 쓴 이미지 조각 (grayscale8).
+///
+/// "앱이 무엇을 보고 이 값을 냈는가"를 화면 표시(라이브 미리보기·확정 근거)
+/// 와 디버그 기록으로 꺼내 주는 값이다. 값 판정의 근거가 되지는 않는다 —
+/// 확정 여부는 스캐너의 프레임 합의가 정하고, 이 이미지는 사람이 볼 것이다.
+class OcrCrop {
+  const OcrCrop({
+    required this.bytes,
+    required this.width,
+    required this.height,
+  });
+
+  final Uint8List bytes;
+  final int width;
+  final int height;
+
+  @override
+  String toString() => 'OcrCrop(${width}x$height)';
+}

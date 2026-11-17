@@ -3245,15 +3245,23 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None,
     # roll 이 구판의 회전(ang)을 흡수한다. 따로 돌리지 않는다 — 회전과 원근을
     # 두 단계로 나누면 그 조합이 다시 카메라 밖으로 나갈 수 있다.
     do_pose = _orng.random() < CAM_POSE_P
-    cam_yaw = _orng.uniform(-CAM_YAW_MAX, CAM_YAW_MAX)      # 좌우로 비스듬히(도)
-    cam_pitch = _orng.uniform(-CAM_PITCH_MAX, CAM_PITCH_MAX)  # 위아래로 비스듬히
+    # 코드 화면은 각도를 40% 로 제한(사람 지시 2026-11-17 "극단적인
+    # yaw pitch roll 돌릴 필요 없다") — 코드 화면은 사용자가 의도적으로
+    # 확인하러 찍는 것이므로 구도가 반듯하다. CODE 라벨·숫자가 읽혀야
+    # 학습이 성립하는데 극단 회전은 그 자체를 파괴한다.
+    _pose_scale = 0.4 if screen_mode == "code" else 1.0
+    cam_yaw = _orng.uniform(-CAM_YAW_MAX * _pose_scale,
+                             CAM_YAW_MAX * _pose_scale)
+    cam_pitch = _orng.uniform(-CAM_PITCH_MAX * _pose_scale,
+                              CAM_PITCH_MAX * _pose_scale)
     # 손목 비틀림. ±1.5 는 굶주린 값이었다 — 합성 기울기 중앙값 0.63°/p90
     # 1.50° 라 사실상 꼿꼿한 판만 배웠고, 검출기가 실촬의 기울어진 밴드에서
     # 숫자를 잘랐다. 사람이 15도까지 넣으라고 정했다(2026-09-15).
     # 0 근처에 몰린 분포다 — 실제로 크게 비트는 장은 드물고, 균등하게 뿌리면
     # 흔한 구도(거의 반듯함)를 오히려 덜 보게 된다.
-    cam_roll = max(-CAM_ROLL_MAX, min(CAM_ROLL_MAX,
-                                      _orng.gauss(0.0, CAM_ROLL_MAX / 2.0)))
+    cam_roll = max(-CAM_ROLL_MAX * _pose_scale,
+                   min(CAM_ROLL_MAX * _pose_scale,
+                       _orng.gauss(0.0, CAM_ROLL_MAX * _pose_scale / 2.0)))
     cam_fk = _orng.uniform(1.6, 3.2)        # 초점거리 / 긴 변 (폰 렌즈 대역)
     cam_zoom = _orng.uniform(*CAM_ZOOM_RANGE)   # 이 장의 촬영 배율(1.0=꽉 참)
     # 잘림 구도(GEN2 2026-10-05) — 두 값은 항상 뽑는다(난수 소비 개수는

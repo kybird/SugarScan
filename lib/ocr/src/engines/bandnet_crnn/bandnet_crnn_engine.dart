@@ -146,10 +146,13 @@ class BandNetCrnnEngine implements OcrEngine {
     }
 
     // ② 판독: 밴드 크롭을 늘려 리더에.
+    final cropW = rect.x1 - rect.x0;
+    final cropH = rect.y1 - rect.y0;
+    final rawCrop = _crop(gray, rect);
     final crop = DeployPreprocess.resizeBilinear(
-      _crop(gray, rect),
-      rect.x1 - rect.x0,
-      rect.y1 - rect.y0,
+      rawCrop,
+      cropW,
+      cropH,
       _readerInW,
       _readerInH,
     );
@@ -179,6 +182,9 @@ class BandNetCrnnEngine implements OcrEngine {
           rawText: reading.text,
           confidence: reading.confidence,
           perCharConfidence: reading.perCharConfidence,
+          // 검출기가 잡은 밴드를 원 해상도 그대로. 표시·기록용 참조라
+          // 별도 복사는 하지 않는다.
+          crop: OcrCrop(bytes: rawCrop, width: cropW, height: cropH),
         ),
       ],
       latency: stopwatch.elapsed,

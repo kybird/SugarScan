@@ -1,3 +1,5 @@
+import 'ocr_frame.dart' show OcrCrop;
+
 /// 엔진이 읽어낸 후보 하나.
 ///
 /// **모듈 내부 타입이다.** 앱은 이 타입을 보지 않는다. 엔진은 "이게 혈당값이다"
@@ -8,6 +10,7 @@ class OcrCandidate {
     required this.rawText,
     required this.confidence,
     this.perCharConfidence = const [],
+    this.crop,
   });
 
   /// 엔진이 읽은 원문. 예: `138`, `7.6 mg/dL`, `1O5`(오인식 포함).
@@ -18,6 +21,12 @@ class OcrCandidate {
 
   /// 글자별 확신도. 어느 자리가 흔들리는지 분석할 때 쓴다.
   final List<double> perCharConfidence;
+
+  /// 이 후보를 읽어낸 이미지 조각. 내지 못하는 엔진은 null.
+  ///
+  /// 화면 표시와 디버그 기록용이며 값 판정과 무관하다. 엔진이 이미 갖고 있는
+  /// 버퍼의 참조일 뿐 복사가 일어나지 않는다.
+  final OcrCrop? crop;
 
   @override
   String toString() =>

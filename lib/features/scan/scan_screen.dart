@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'dart:io' show File, Platform;
 
 import 'package:camera/camera.dart';
@@ -15,9 +16,11 @@ import '../../ocr/ocr.dart';
 import 'camera_image_adapter.dart';
 import 'confirm_sheet.dart';
 import 'manual_entry_sheet.dart';
+import 'ocr_crop_image.dart';
 import 'photo_align_screen.dart';
 import 'photo_import_sheet.dart';
 import 'photo_preprocessor.dart';
+import 'scan_debug_recorder.dart';
 import 'scan_entry.dart';
 
 /// 카메라 스캐너 화면.
@@ -67,6 +70,10 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
   GlucoseUnit _unit = GlucoseUnit.mgdl;
 
   ScanOutcome _outcome = const ScanIdle();
+
+  /// 스캔 증거 기록. debug 빌드에서만 만들고, 만들지 못하면 null — 기록이
+  /// 꺼져도 스캔 자체에는 아무 영향이 없다.
+  ScanDebugRecorder? _debugRecorder;
 
   /// 확인 시트가 떠 있는 동안에는 프레임을 흘려보낸다.
   bool _paused = false;
@@ -123,6 +130,15 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
     _unit = defaultUnitForCountry(
       WidgetsBinding.instance.platformDispatcher.locale.countryCode,
     );
+
+    if (kDebugMode && _debugRecorder == null) {
+      // 기록기 생성이 카메라 부팅을 막지 않게 한다. 플랫폼 채널이 응답하지
+      // 않는 환경(위젯 테스트 등)에서 await 로 기다렸다가는 카메라 타임아웃
+      // // 조차 못 타고 화면이 멈춘다. 첫 확정 전에 도착하면 충분하다.
+      unawaited(
+        ScanDebugRecorder.create().then((r) => _debugRecorder = r),
+      );
+    }
 
     try {
       final cameras = await availableCameras().timeout(_setupTimeout);
@@ -242,11 +258,27 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
     if (!mounted || _paused) return;
 
     _logInference();
+    _debugRecorder?.note(frame, _cropOf(outcome), _valueOf(outcome));
+
     setState(() => _outcome = outcome);
     if (outcome is ScanConfirmed) {
       await _handleConfirmed(outcome);
     }
   }
+
+  /// 이 프레임 결과에서 "엔진이 본 크롭"을 꺼낸다. 표시·기록용 부속물이라
+  /// 없는 엔진·프레임에서는 null 이고 그대로 숨긴다.
+  OcrCrop? _cropOf(ScanOutcome outcome) => switch (outcome) {
+    ScanScanning(:final candidateCrop) => candidateCrop,
+    ScanConfirmed(:final confirmedCrop) => confirmedCrop,
+    _ => null,
+  };
+
+  String? _valueOf(ScanOutcome outcome) => switch (outcome) {
+    ScanScanning(:final previewValue) => previewValue,
+    ScanConfirmed(:final value, :final unit) => unit.format(value),
+    _ => null,
+  };
 
   Future<void> _handleConfirmed(ScanConfirmed confirmed) async {
     _paused = true;
@@ -264,7 +296,15 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
       rawText: confirmed.rawText,
     );
 
-    final saved = await showConfirmSheet(context, entry: entry);
+    // 증거 기록은 확인 시트를 기다리게 하지 않는다.
+    final recorder = _debugRecorder;
+    if (recorder != null) unawaited(recorder.dumpConfirmed(confirmed));
+
+    final saved = await showConfirmSheet(
+      context,
+      entry: entry,
+      evidence: confirmed.confirmedCrop,
+    );
     if (!mounted) return;
 
     if (saved != null) {
@@ -590,6 +630,10 @@ class _GuideBoxOverlay extends StatelessWidget {
         ? (outcome as ScanScanning).previewValue
         : null;
 
+    final crop = outcome is ScanScanning
+        ? (outcome as ScanScanning).candidateCrop
+        : null;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final w = constraints.maxWidth;
@@ -609,20 +653,45 @@ class _GuideBoxOverlay extends StatelessWidget {
                 ),
               ),
             ),
-            if (preview != null)
+            if (preview != null || crop != null)
               Positioned(
                 left: 0,
                 right: 0,
                 top: roi.bottom * h + 12,
-                child: Text(
-                  preview,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    // 흔들리는 중이라는 신호. 확정값처럼 보이면 안 된다.
-                    color: color.withValues(alpha: 0.7),
-                    fontSize: 28,
-                    fontWeight: FontWeight.w600,
-                  ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (preview != null)
+                      Text(
+                        preview,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          // 흔들리는 중이라는 신호. 확정값처럼 보이면 안 된다.
+                          color: color.withValues(alpha: 0.7),
+                          fontSize: 28,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    if (crop != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.4),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.white24),
+                          ),
+                          // 앱이 지금 보고 있는 밴드. 이 이미지가 요동칠 때
+                          // 미리보기 값도 함께 요동친다 — 사용자가 카메라를
+                          // 움직여 잡아야 한다는 피드백이 된다.
+                          child: OcrCropImage(crop: crop),
+                        ),
+                      ),
+                  ],
                 ),
               ),
           ],

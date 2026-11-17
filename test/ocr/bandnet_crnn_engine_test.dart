@@ -205,6 +205,27 @@ void main() {
     expect(result.best?.rawText, '127');
   });
 
+  test('판독에 쓴 밴드 크롭을 후보에 실어 낸다 (표시·기록용)', () async {
+    final engine = BandNetCrnnEngine(
+      detectorLoader: () async =>
+          _FakeModel({'obj': detObj(), 'reg': detReg()}),
+      readerLoader: () async => _FakeModel({'logits': readerLogits()}),
+    );
+    await engine.initialize(const OcrEngineConfig());
+
+    final result = await engine.recognize(grayFrame());
+
+    // 레터박스 상자 (278,118,428,268) → 원 해상도 150×150 크롭.
+    final crop = result.best!.crop;
+    expect(crop, isNotNull);
+    expect(crop!.width, 150);
+    expect(crop.height, 150);
+    expect(crop.bytes.length, 150 * 150);
+    // 프레임을 채운 114 회색이 그대로 보인다 — 리더 입력 리사이즈 이전의
+    // 원본 크롭이어야 한다.
+    expect(crop.bytes.every((b) => b == 114), isTrue);
+  });
+
   test('dispose 뒤에는 notInitialized', () async {
     final detector = _FakeModel({'obj': detObj(), 'reg': detReg()});
     final engine = BandNetCrnnEngine(

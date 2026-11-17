@@ -1,4 +1,5 @@
 import '../../../domain/models/glucose_unit.dart';
+import '../engine/ocr_frame.dart' show OcrCrop;
 
 /// 혈당계가 값 대신 범위 초과를 표시한 경우.
 enum ScanRejectionReason {
@@ -44,7 +45,11 @@ final class ScanIdle extends ScanOutcome {
 
 /// 읽는 중. 아직 확정 조건을 못 채웠다.
 final class ScanScanning extends ScanOutcome {
-  const ScanScanning({required this.progress, this.previewValue});
+  const ScanScanning({
+    required this.progress,
+    this.previewValue,
+    this.candidateCrop,
+  });
 
   /// 0.0 ~ 1.0. 확정까지 얼마나 왔는지. 테두리 애니메이션에 쓴다.
   final double progress;
@@ -52,6 +57,12 @@ final class ScanScanning extends ScanOutcome {
   /// 지금 읽히고 있는 값. **저장하면 안 된다.** 흔들리는 중이라는 신호를
   /// 사용자에게 보여주기 위한 표시용이다.
   final String? previewValue;
+
+  /// 이 프레임에서 엔진이 판독에 쓴 밴드 크롭. 없으면 null(숨긴다).
+  ///
+  /// 사용자가 "앱이 지금 무엇을 보고 있는가"를 눈으로 확인하는 용도다.
+  /// 미리보기 값과 마찬가지로 저장 대상이 아니다.
+  final OcrCrop? candidateCrop;
 }
 
 /// 확정. 앱은 이 값을 그대로 쓴다.
@@ -63,6 +74,7 @@ final class ScanConfirmed extends ScanOutcome {
     required this.engineId,
     required this.rawText,
     required this.frameCount,
+    this.confirmedCrop,
   });
 
   /// [unit] 기준으로 이미 보정·검증까지 끝난 값.
@@ -79,6 +91,12 @@ final class ScanConfirmed extends ScanOutcome {
   final String rawText;
 
   final int frameCount;
+
+  /// 확정 프레임에서 엔진이 판독에 쓴 밴드 크롭. 확인 시트의 근거 이미지.
+  ///
+  /// 값 판정과 무관한 표시·기록용 부속물이라 엔진이 내지 못하면 null 이어도
+  /// 확정 자체의 의미는 변하지 않는다.
+  final OcrCrop? confirmedCrop;
 
   /// 저장 정본. 앱은 단위 변환을 신경 쓸 필요가 없다.
   double get valueMgdl => unit.toMgdl(value);

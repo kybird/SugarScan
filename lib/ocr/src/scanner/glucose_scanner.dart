@@ -214,14 +214,14 @@ class GlucoseScanner {
         );
 
       case UnreadableReading():
-        return _pending(null);
+        return _pending(null, crop: candidate.crop);
 
       case NormalizedNumber(:final text):
         final parsed = _validator.parse(text, unit);
         // 검증에 실패한 값은 안정화기에 아예 넣지 않는다. 말이 안 되는 값이
         // 연속으로 나온다고 해서 확정되어서는 안 된다.
         if (parsed is! Ok<double, GlucoseValidationFailure>) {
-          return _pending(null);
+          return _pending(null, crop: candidate.crop);
         }
 
         final outcome = _stabilizer.add(
@@ -239,9 +239,13 @@ class GlucoseScanner {
               engineId: result.engineId,
               rawText: candidate.rawText,
               frameCount: frameCount,
+              crop: candidate.crop,
             ),
-          StabilizerPending(:final progress) =>
-            ScanScanning(progress: progress, previewValue: text),
+          StabilizerPending(:final progress) => ScanScanning(
+            progress: progress,
+            previewValue: text,
+            candidateCrop: candidate.crop,
+          ),
         };
     }
   }
@@ -253,6 +257,7 @@ class GlucoseScanner {
     required String engineId,
     required String rawText,
     required int frameCount,
+    OcrCrop? crop,
   }) {
     // 확정 즉시 비운다. 같은 값이 계속 들어와 중복 확정되는 것을 막는다.
     _stabilizer.reset();
@@ -263,13 +268,18 @@ class GlucoseScanner {
       engineId: engineId,
       rawText: rawText,
       frameCount: frameCount,
+      confirmedCrop: crop,
     );
   }
 
-  ScanOutcome _pending(String? preview) {
+  ScanOutcome _pending(String? preview, {OcrCrop? crop}) {
     final current = _last;
     final progress = current is ScanScanning ? current.progress : 0.0;
-    return ScanScanning(progress: progress, previewValue: preview);
+    return ScanScanning(
+      progress: progress,
+      previewValue: preview,
+      candidateCrop: crop,
+    );
   }
 
   ScanOutcome _emit(ScanOutcome outcome) {

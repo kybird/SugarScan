@@ -10,7 +10,8 @@
 /// 하지 않는다. 앱이 그것들을 알게 되는 순간 엔진 교체 비용이 앱으로 번진다.
 library;
 
-export 'src/engine/ocr_frame.dart' show OcrFrame, OcrImageFormat, NormalizedRect;
+export 'src/engine/ocr_frame.dart'
+    show OcrFrame, OcrImageFormat, NormalizedRect, OcrCrop;
 export 'src/ocr_bootstrap.dart' show buildGlucoseScanner;
 export 'src/scanner/glucose_scanner.dart' show GlucoseScanner;
 export 'src/scanner/scan_outcome.dart';

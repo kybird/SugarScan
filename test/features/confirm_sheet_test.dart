@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -5,8 +7,10 @@ import 'package:sugarscan/domain/models/glucose_unit.dart';
 import 'package:sugarscan/domain/models/measurement_tag.dart';
 import 'package:sugarscan/domain/models/reading_source.dart';
 import 'package:sugarscan/features/scan/confirm_sheet.dart';
+import 'package:sugarscan/features/scan/ocr_crop_image.dart';
 import 'package:sugarscan/features/scan/scan_entry.dart';
 import 'package:sugarscan/l10n/generated/app_localizations.dart';
+import 'package:sugarscan/ocr/ocr.dart';
 
 /// G14 — 저장 전 확인 시트. **저장은 사용자의 1탭을 거친다**는 안전·규제
 /// 요구사항을 고정한다. 화면 코드는 고치지 않는다.
@@ -22,7 +26,7 @@ void main() {
 
   setUp(() => result = null);
 
-  Future<void> openSheet(WidgetTester tester, ScanEntry e) async {
+  Future<void> openSheet(WidgetTester tester, ScanEntry e, {OcrCrop? evidence}) async {
     await tester.pumpWidget(
       MaterialApp(
         localizationsDelegates: const [
@@ -37,7 +41,11 @@ void main() {
             body: Center(
               child: ElevatedButton(
                 onPressed: () async {
-                  result = await showConfirmSheet(context, entry: e);
+                  result = await showConfirmSheet(
+                    context,
+                    entry: e,
+                    evidence: evidence,
+                  );
                 },
                 child: const Text('open'),
               ),
@@ -123,6 +131,35 @@ void main() {
     expect(result!.value, 137);
     // 고치지 않았으면 adjustedByUser 는 선지 않는다.
     expect(result!.adjustedByUser, isFalse);
+
+    await unmount(tester);
+  });
+
+  testWidgets('근거 이미지(앱이 읽은 밴드)가 값과 함께 보인다', (tester) async {
+    final evidence = OcrCrop(
+      bytes: Uint8List.fromList(List<int>.filled(4 * 3, 255)),
+      width: 4,
+      height: 3,
+    );
+    await openSheet(tester, entry(value: 137), evidence: evidence);
+    // dart:ui 디코드는 가짜 시계 밖에서 완료된다(ocr_crop_image_test 참고).
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    await tester.pump();
+
+    expect(find.byType(OcrCropImage), findsOneWidget);
+    expect(find.byType(RawImage), findsOneWidget);
+
+    await unmount(tester);
+  });
+
+  testWidgets('근거 이미지가 없어도 시트는 그대로 동작한다', (tester) async {
+    await openSheet(tester, entry(value: 137));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.byType(OcrCropImage), findsNothing);
+    expect(find.text('137'), findsOneWidget);
 
     await unmount(tester);
   });

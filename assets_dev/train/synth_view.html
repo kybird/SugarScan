@@ -36,9 +36,10 @@
   figure { margin:0; background:#1c1f24; border:1px solid #2c3037; border-radius:7px;
            overflow:hidden; }
   figure.sel { border-color:#6ea8fe; }
-  canvas { display:block; width:100%; height:auto; max-height:300px;
-         object-fit:contain; background:#0e1012; cursor:zoom-in;
-         margin:0 auto; }
+  figure { height:320px; display:flex; align-items:center;
+         justify-content:center; overflow:hidden; }
+canvas { display:block; max-width:100%; max-height:100%;
+         width:auto; height:auto; background:#0e1012; cursor:zoom-in; }
   figcaption { padding:6px 8px; font-size:11px; color:#9aa2ad;
                display:flex; justify-content:space-between; gap:8px; }
   figcaption b { color:#d6dce4; font-weight:600; }

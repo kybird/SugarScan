@@ -14,6 +14,7 @@ class FakeOcrEngine implements OcrEngine {
     this.latency = const Duration(milliseconds: 1),
     this.loop = true,
     this.failure,
+    this.crop,
     Set<GlucoseUnit> supportedUnits = const {
       GlucoseUnit.mgdl,
       GlucoseUnit.mmoll,
@@ -42,6 +43,9 @@ class FakeOcrEngine implements OcrEngine {
 
   /// 설정되면 항상 이 실패를 돌려준다. 엔진 오류 경로 테스트용.
   final OcrFailure? failure;
+
+  /// 모든 후보에 붙일 크롭. 크롭 전달(라이브 표시·증거 기록) 경로 테스트용.
+  final OcrCrop? crop;
 
   static const String engineId = 'fake';
 
@@ -96,7 +100,9 @@ class FakeOcrEngine implements OcrEngine {
     _cursor++;
     return OcrResult(
       engineId: engineId,
-      candidates: [OcrCandidate(rawText: text, confidence: confidence)],
+      candidates: [
+        OcrCandidate(rawText: text, confidence: confidence, crop: crop),
+      ],
       latency: latency,
     );
   }
