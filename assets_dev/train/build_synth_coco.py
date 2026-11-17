@@ -591,7 +591,8 @@ def main():
         import shutil
         import sys as _sys
         PY_EXE = _sys.executable
-        THIS = str(Path(__file__).resolve())
+        THIS = Path(__file__).resolve()
+        THIS_STR = str(THIS)
         gen_flags = []
         if args.gen6: gen_flags.append("--gen6")
         elif args.gen5: gen_flags.append("--gen5")
@@ -609,7 +610,7 @@ def main():
                     continue
                 sub_n = f"{n}_w{j}"
                 sub_map[n].append((sub_n, sub_c, s * 100 + j))
-                cmd = [PY_EXE, THIS, "--out", str(out_root), "--sets", "",
+                cmd = [PY_EXE, THIS_STR, "--out", str(out_root), "--sets", "",
                        "--scene-group", f"{sub_n}:{sub_c}:{s * 100 + j}",
                        "--jobs", "1"] + gen_flags
                 procs.append(subprocess.Popen(cmd, cwd=str(THIS.parent)))
