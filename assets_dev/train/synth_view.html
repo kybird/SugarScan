@@ -144,13 +144,19 @@ function tile(it) {
   const fig = document.createElement("figure");
   const cv = document.createElement("canvas");
   const cap = document.createElement("figcaption");
+  // 음성(코드화면·기기없음·꺼짐)은 box·quad 둘 다 없다 — null 로 죽지 않게.
   const _g = it.box ? [[it.box[0],it.box[1]],[it.box[2],it.box[1]],
                       [it.box[2],it.box[3]],[it.box[0],it.box[3]]] : it.quad;
-  const bw = (_g[1][0] - _g[0][0]);
-  const bh = (_g[3][1] - _g[0][1]);
-  cap.innerHTML = `<span><b>${it.label}</b> · ${it.profile}` +
-    (it.inverted ? ' · <span style="color:#ff9f0a">반전</span>' : "") + `</span>` +
-    `<span class="muted">밴드 ${Math.round(bw)}×${Math.round(bh)}` +
+  const bw = _g ? (_g[1][0] - _g[0][0]) : 0;
+  const bh = _g ? (_g[3][1] - _g[0][1]) : 0;
+  const negTag = !_g
+    ? (it.neg_reason ? ` · <span style="color:#ff9f0a">${it.neg_reason}</span>`
+                     : ' · <span style="color:#ff9f0a">음성</span>')
+    : "";
+  cap.innerHTML = `<span><b>${it.label ?? "—"}</b> · ${it.profile ?? ""}` +
+    (it.inverted ? ' · <span style="color:#ff9f0a">반전</span>' : "") +
+    `${negTag}</span>` +
+    `<span class="muted">${_g ? "밴드 " + Math.round(bw) + "×" + Math.round(bh) : "상자 없음"}` +
     (it.dropped && it.dropped.length ? ` · 탈락 ${it.dropped.length}` : "") +
     (it.pred ? ` · <span style="color:#ff453a">${ARM}점수 ${it.pred_score}` +
                (it.pred_iou != null ? ` IoU ${it.pred_iou}` : "") + `</span>`
