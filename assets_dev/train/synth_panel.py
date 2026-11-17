@@ -4112,8 +4112,8 @@ def generate_scene_groups(count, seed0, out_dir, scene="device",
     스키마 그대로, 음성은 label=null·box=null(설계 §1 표 5행).
     """
     global PROCEDURAL_BG, DISTRACT_LAYER, DISTRACT_FAMILY, CAM_ROLL_MAX
-    global LOWC_GRAIN, WRINKLE_GLARE_P
-    _saved = (CAM_ROLL_MAX, LOWC_GRAIN, WRINKLE_GLARE_P)
+    global LOWC_GRAIN, WRINKLE_GLARE_P, CAM_ZOOM_RANGE
+    _saved = (CAM_ROLL_MAX, LOWC_GRAIN, WRINKLE_GLARE_P, CAM_ZOOM_RANGE)
     if roll_max is not None:
         CAM_ROLL_MAX = float(roll_max)
     LOWC_GRAIN = lowc_grain
@@ -4228,7 +4228,7 @@ def generate_scene_groups(count, seed0, out_dir, scene="device",
         PROCEDURAL_BG = False
         DISTRACT_LAYER = False
         DISTRACT_FAMILY = None
-        CAM_ROLL_MAX, LOWC_GRAIN, WRINKLE_GLARE_P = _saved
+        CAM_ROLL_MAX, LOWC_GRAIN, WRINKLE_GLARE_P, CAM_ZOOM_RANGE = _saved
     mf.close()
     if sheet_n:
         _scene_group_sheet(out, sheet_n)
