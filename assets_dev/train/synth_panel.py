@@ -1100,7 +1100,7 @@ def _reflection_mask(W, H, kind, orng):
 
 
 def render_panel(value, rng, profile=None, scene="panel", trait=None,
-                 skip_digits=False):
+                 skip_digits=False, screen_mode="glucose"):
     """물리 패널 한 장. 반환 dict:
       panel   최종 캔버스(uint8, 긴 변 896)
       quad    밴드 쿼드 4x2(float32, 캔버스 픽셀, TL-TR-BR-BL) — 이미지와 같은
@@ -1168,7 +1168,8 @@ def render_panel(value, rng, profile=None, scene="panel", trait=None,
     # 렌더는 이제 1회다. 화면에 무엇이 있는지는 기기가 정하고, 밀도는 그
     # 결과를 재서 보고만 한다(manifest.density).
     return _render_once(value, rng, profile, pid, inverted, scene=scene,
-                        trait=trait, skip_digits=skip_digits)
+                        trait=trait, skip_digits=skip_digits,
+                        screen_mode=screen_mode)
 
 
 def _gpc_bg_contrast(img, quad, glass_rect):
@@ -1212,7 +1213,7 @@ def glyph_plane_score(img, quad, glyph_warped, glass_rect, ink_thr=None):
 
 
 def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None,
-                 skip_digits=False):
+                 skip_digits=False, screen_mode="glucose"):
     label = str(value)
     assert label.isdigit(), f"라벨 오염: {label!r}"
 
@@ -2304,6 +2305,12 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None,
 
     # ── 액정 요소 — 전부 실폭 재서 배치, 패널 밖으로 못 나가게(AC#12) ──────
     # 가로형은 단위를 칼럼/하단행이 담당한다(위) — 프로파일 unit 요소는 세로형만.
+    if screen_mode == "code":
+        # GEN6 코드 화면(2026-11-17): 혈당 문맥을 통째로 억제한다 — 단위·
+        # 식전식후·메모리·GLU. 실물 근거 DC238 11번(On Call Plus 코드화면:
+        # 날짜·시각·숫자·CODE 라벨뿐, 단위 없음). 날짜·시각은 그대로.
+        profile = {**profile, "unit": None, "meal": None,
+                   "mem": None, "glulabel": None}
     u = profile.get("unit")
     if u and _shown("unit", u["p"]) and _wide_t is None:
         # 단위 표기는 기기의 성질이다 — 같은 기기가 어떤 장은 mg/dL, 어떤 장은
@@ -2521,6 +2528,16 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None,
                       heights=text_heights, thick=aux_t, slant=aux_slant,
                   digit_mask=_dmask, digit_w=_dw(aux_h))
             used_texts.add("GLU")
+
+    if screen_mode == "code":
+        # CODE 인쇄 라벨 — 숫자 아래, 단위가 있던 자리 무렵. _lcd_text 의
+        # 백 리스트는 혈당 패널 토큰 규약이라 여기선 putText 전용 경로로
+        # 간다(인쇄 라벨이지 세그먼트가 아니다 — 실물도 인쇄체다).
+        _cy = int(min(band_bot + max(4, int(dh * 0.08)), py1 - aux_h - 2))
+        if _cy > band_bot:
+            cv2.putText(img, "CODE", (int(x0), _cy + aux_h),
+                        cv2.FONT_HERSHEY_SIMPLEX, max(0.4, aux_h / 30.0),
+                        int(ink_small), max(1, aux_h // 15), cv2.LINE_AA)
 
     a = profile.get("arrow")
     if a and _shown("meter_arrow" if profile.get("meter") else "arrow",
@@ -4043,7 +4060,7 @@ def generate(count, seed0, out_dir, with_reader=False, bg="flat", scene="panel",
 def generate_scene_groups(count, seed0, out_dir, scene="device",
                           families=DISTRACTOR_FAMILIES, plain_p=0.10,
                           degrade_spec=None, sheet_n=8, roll_max=None,
-                          lowc_grain=False, wrinkle_glare_p=0.0):
+                          lowc_grain=False, wrinkle_glare_p=0.0, code_p=0.0):
     """거절 학습용 장면 그룹 굽기(2026-11-15) — 설계 §1 표 3행.
 
     장면 그룹 하나 = 배경·방해물 배치·촬영 계획을 **한 번** 뽑아 세 변형이
@@ -4087,6 +4104,15 @@ def generate_scene_groups(count, seed0, out_dir, scene="device",
             s_off = render_panel(sample_value(rng_o), rng_o, scene=scene,
                                  skip_digits=True)
             variants = [("pos", s["panel"]), ("off", s_off["panel"])]
+            if code_p > 0 and grng.random() < code_p:
+                # GEN6 제4변형 — 같은 장면에서 기기가 코드 화면을 보인다.
+                # 코드값은 일부러 혈당 범위(10~600) 안: 범위 밖(944 류)은 값
+                # 검증이 걸러주니 위험한 쪽이 범위 내 코드다(재판 실측).
+                rng_c = random.Random(seed_i)
+                code_val = random.Random(f"{seed_i}:code").randint(10, 600)
+                s_code = render_panel(code_val, rng_c, scene=scene,
+                                      screen_mode="code")
+                variants.append(("code", s_code["panel"]))
             if s.get("neg_frame") is not None:
                 variants.append(("neg", s["neg_frame"]))
             # ── 자가검사 — generate() 가 장마다 돌리는 것과 같은 자(리뷰 중-5)
@@ -4129,7 +4155,8 @@ def generate_scene_groups(count, seed0, out_dir, scene="device",
                 dropped=s["dropped"], band_clip=s.get("band_clip", 0))
             mf.write(json.dumps(rec_pos, ensure_ascii=False) + "\n")
             n_pos += 1
-            for kind, reason in (("neg", "no_device"), ("off", "off_lcd")):
+            for kind, reason in (("neg", "no_device"), ("off", "off_lcd"),
+                                 ("code", "code_screen")):
                 if not (out / "images" / f"{gid}_{kind}.png").exists():
                     continue
                 mf.write(json.dumps(dict(
