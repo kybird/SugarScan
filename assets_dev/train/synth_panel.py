@@ -2226,8 +2226,13 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None,
     if screen_mode == "code":
         _u_base = dict(profile.get("unit") or {})
         _u_base["texts"] = ["CODE"]
-        if "p" not in _u_base:   # 원본 unit 이 없는 프로파일 — 최소 키만
-            _u_base.update({"p": 1.0, "pos": "below-center",
+        # p=1.0 필수: CODE 라벨은 코드 화면의 유일한 구분 신호다. 프로파일의
+        # 원래 p(0.7 등)를 물려받으면 CODE 없는 코드화면이 나온다(로그로
+        # 발견 2026-11-17: onetouch_ultramini p=0.7 → 30% 스킵 + 와이드
+        # 칼럼 _shown 0.8 → 추가 20% 스킵 = 44% CODE 소실).
+        _u_base["p"] = 1.0
+        if "pos" not in _u_base:
+            _u_base.update({"pos": "below-center",
                             "gap": (3, 8), "dx": 0.0})
         profile = {**profile, "unit": _u_base, "meal": None,
                    "mem": None, "glulabel": None}
@@ -2274,7 +2279,7 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None,
                 if _shown("wide:date", 0.6):
                     _items.append(("date", f"{rng.randint(1, 12)}-"
                                            f"{rng.randint(1, 31)}"))
-                if _shown("wide:unit", 0.8):   # 선언 상한(2026-09-17, 0.6~0.8)
+                if screen_mode == "code" or _shown("wide:unit", 0.8):
                     _items.append(("unit", _ut))
                 if rng.random() < (0.5 if ident is not None else 0.3):
                     _items.append(("mem", "M"))
@@ -2304,6 +2309,21 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None,
                   digit_mask=_dmask, digit_w=_dw(aux_h))
                         used_texts.add(_txt)
                         _cy_ = _r[3] + max(6, int(dh * 0.10))
+            # 칼럼에서 CODE(=unit) 가 못 들어간 경우 — 하단행으로 물러난다.
+            # wide_unknown 의 unit pos="below-right" 는 하단행 위치다.
+            # _cw<=26 이면 칼럼·하단행·세로형 세 경로 모두에서 떨어진다.
+            if screen_mode == "code" and _ut == "CODE" \
+                    and "CODE" not in used_texts:
+                _ry = min(int(y0 + dh + max(4, int(dh * 0.10))),
+                          int(qy0 + band_h - aux_h - 4))
+                if _ry > y0 + dh - 2 and _ry + aux_h < qy0 + band_h:
+                    _tw_ = seg_text_width(_ut, aux_h, aux_slant, _dw(aux_h))
+                    if qx0 + 10 + _tw_ < fx0 or _tw_ < qw:
+                        _lcd_text(img, max(int(qx0) + 10, int(qx0 + qw - 10 - _tw_)),
+                                  _ry, _ut, aux_h, ink_small, "wide",
+                                  heights=text_heights, thick=aux_t,
+                                  slant=aux_slant)
+                        used_texts.add(_ut)
         else:
             # 하단행형 — 정보행은 쿼드 안(밴드 예약 영역)이라 Placer 없이 그린다.
             # 배치 근거: 821(DATE·AM 1.29·12:23)·971(mg/dL·AM 9:48)·
