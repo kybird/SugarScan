@@ -384,7 +384,7 @@ def box_sheet(set_dir, coco, out_png, n=10, cols=5):
 def build_scene_group_set(name, count, seed, out_root, scene="device",
                           plain_p=0.10, degrade_spec=None, fresh=False,
                           roll_max=None, lowc_grain=False, wrinkle_glare_p=0.0,
-                          code_p=0.0):
+                          code_p=0.0, far_p=0.0):
     """거절 학습용 장면 그룹 세트(2026-11-15) — 설계 §1 표 5행·§2.
 
     generate_scene_groups 로 굽고 COCO 로 내보낸다. **음성 이미지도 COCO
@@ -402,7 +402,7 @@ def build_scene_group_set(name, count, seed, out_root, scene="device",
         count, seed, set_dir, scene=scene, plain_p=plain_p,
         degrade_spec=degrade_spec, roll_max=roll_max,
         lowc_grain=lowc_grain, wrinkle_glare_p=wrinkle_glare_p,
-        code_p=code_p)
+        code_p=code_p, far_p=far_p)
     (set_dir / "images").rename(set_dir / "train2017")
 
     rows = [json.loads(l) for l in
