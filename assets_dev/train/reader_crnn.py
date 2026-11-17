@@ -340,9 +340,13 @@ def evaluate(model, loader, dev, dump=None, beam=0):
     return ok / n, n
 
 
-def loaders(ds, bs, shuffle=True):
-    return torch.utils.data.DataLoader(ds, batch_size=bs, shuffle=shuffle,
-                                       collate_fn=collate, num_workers=0)
+def loaders(ds, bs, shuffle=True, workers=8):
+    # num_workers=8: 리더는 모델이 작아(2.3M·144×96) GPU 가 아니라 데이터
+    # 적재가 병목이었다(2026-11-17 실측: VRAM 4.2GB/16GB·싱글스레드).
+    return torch.utils.DataLoader(ds, batch_size=bs, shuffle=shuffle,
+                                       collate_fn=collate, num_workers=workers,
+                                  persistent_workers=workers > 0,
+                                  pin_memory=True)
 
 
 def main():
