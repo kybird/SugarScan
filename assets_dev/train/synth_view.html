@@ -36,7 +36,9 @@
   figure { margin:0; background:#1c1f24; border:1px solid #2c3037; border-radius:7px;
            overflow:hidden; }
   figure.sel { border-color:#6ea8fe; }
-  canvas { display:block; width:100%; height:auto; background:#0e1012; cursor:zoom-in; }
+  canvas { display:block; width:100%; height:auto; max-height:300px;
+         object-fit:contain; background:#0e1012; cursor:zoom-in;
+         margin:0 auto; }
   figcaption { padding:6px 8px; font-size:11px; color:#9aa2ad;
                display:flex; justify-content:space-between; gap:8px; }
   figcaption b { color:#d6dce4; font-weight:600; }
@@ -154,7 +156,8 @@ function tile(it) {
     ? (it.neg_reason ? ` · <span style="color:#ff9f0a">${it.neg_reason}</span>`
                      : ' · <span style="color:#ff9f0a">음성</span>')
     : "";
-  cap.innerHTML = `<span><b>${it.label ?? "—"}</b> · ${it.profile ?? ""}` +
+  cap.innerHTML = `<span style="font-size:10px;color:#678">${it.id} · ${it.w}×${it.h}</span><br>` +
+    `<span><b>${it.label ?? "—"}</b> · ${it.profile ?? ""}` +
     (it.inverted ? ' · <span style="color:#ff9f0a">반전</span>' : "") +
     `${negTag}</span>` +
     `<span class="muted">${_g ? "밴드 " + Math.round(bw) + "×" + Math.round(bh) : "상자 없음"}` +
