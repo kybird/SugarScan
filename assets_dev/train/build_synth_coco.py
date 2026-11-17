@@ -633,7 +633,8 @@ def main():
                     mf_lines.extend(
                         l for l in smf.read_text(encoding="utf-8").splitlines()
                         if l.strip())
-                si = sub / "images"
+                si = sub / "train2017" if (sub / "train2017").exists() \
+                    else sub / "images"
                 if si.exists():
                     for f in si.iterdir():
                         shutil.move(str(f), str(final / "images" / f.name))
