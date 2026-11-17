@@ -57,6 +57,7 @@
   <label><input type="checkbox" id="showRects"> 배치 사각형</label>
   <label><input type="checkbox" id="showPred" checked> 검출기 예측(빨강)</label>
   <label><input type="checkbox" id="onlyMiss"> 상자 없는 장만</label>
+  <label>종류 <select id="negF"><option value="">전체</option><option value="code_screen">코드화면</option><option value="off_lcd">꺼짐</option><option value="no_device">기기없음</option></select></label>
   <label><input type="checkbox" id="rMiss"> 리더 오독만(배포조건)</label>
   <label>한 쪽 <select id="pagesize">
     <option>24</option><option selected>60</option><option>120</option><option>240</option>
@@ -238,6 +239,7 @@ async function load() {
   const q = new URLSearchParams({ dir: st.dir, profile: st.profile, arm: st.arm,
                                   offset: st.offset, limit: PAGE,
                                   miss: $("onlyMiss").checked ? "1" : "",
+                                  neg: $("negF").value,
                                   rmiss: $("rMiss").checked ? "1" : "" });
   const r = await api("/api/synth/list?" + q);
   st.total = r.total; st.items = r.items; st.hasPred = !!r.has_pred;
@@ -303,6 +305,7 @@ async function boot() {
   $("pagesize").onchange = async e => { PAGE = parseInt(e.target.value, 10);
                                         st.offset = 0; await load(); };
   for (const id of ["showGlass", "showRects", "showPred", "onlyMiss", "rMiss"]) $(id).onchange = load;
+  $("negF").onchange = load;
   $("big").onclick = () => { $("big").style.display = "none"; };
   document.onkeydown = e => {
     if (e.key === "Escape") $("big").style.display = "none";
