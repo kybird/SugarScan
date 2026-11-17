@@ -2,3 +2,4 @@
 {"ts":"2026-11-14T14:48:57.003Z","query":"sugartrain 환경 torch opencv 설치","grep":20,"semantic":0}
 {"ts":"2026-11-14T15:02:44.211Z","query":"synth_panel generate procedural_bg 배경 scene","grep":33,"semantic":0}
 {"ts":"2026-11-14T15:24:46.360Z","query":"CocoBand assign_targets objectness 손실","grep":21,"semantic":0}
+{"ts":"2026-11-17T11:27:12.360Z","query":"합성기 레이아웃 프로파일 unit 칼럼 와이드","grep":37,"semantic":0}

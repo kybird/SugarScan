@@ -1011,6 +1011,12 @@ def api_synth_list(qs):
         return j if j and j.get("det") else None
     if prof:
         rows = [r for r in rows if r.get("profile") == prof]
+    _neg = qs.get("neg", [""])[0]
+    if _neg:
+        rows = [r for r in rows if r.get("neg_reason") == _neg]
+    _neg = qs.get("neg", [""])[0]
+    if _neg:
+        rows = [r for r in rows if r.get("neg_reason") == _neg]
     if qs.get("miss", [""])[0] == "1":
         # 검출기가 상자를 못 낸 장만. 1000장에서 한 장을 찾는 일이라
         # 페이지를 넘겨 가며 눈으로 뒤지게 두면 안 된다.
