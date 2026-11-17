@@ -186,6 +186,7 @@ LCD_TOKENS = {
     "AC", "PC",               # 식전후 마커 — 관찰 0건, AC#14 목록 요구로 소수 렌더
     "DAY", "AVG",             # 231, 2443, 1911 (+요일수 7·14)
     "OK", "CHECK", "STRIP",   # 120, 694, 695 (도루코 도트줄)
+    "CODE",                    # 코드 화면 상태 표시 (On Call Plus 등)
     "am", "pm", "AM", "PM",   # 497
 }
 
@@ -1214,7 +1215,9 @@ def glyph_plane_score(img, quad, glyph_warped, glass_rect, ink_thr=None):
 
 def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None,
                  skip_digits=False, screen_mode="glucose"):
-    label = str(value)
+    # 코드 화면은 3자리 고정폭 zero-pad(OneTouch Ultra 등 실측: 코드 25→"025").
+    # 혈당 판독은 절대 앞에 0 이 안 붙는다 — 자릿수 형태 자체가 구분 신호다.
+    label = f"{value:03d}" if screen_mode == "code" else str(value)
     assert label.isdigit(), f"라벨 오염: {label!r}"
 
     # 촬영 변인(광학·카메라 포즈)은 **화면 내용과 독립**이어야 한다. 같은 rng
@@ -2207,6 +2210,14 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None,
     #   하단 행형(12/39, band_w>=0.75) — 숫자줄 아래 단위·시간 가로 행.
     #     근거 821(DATE·AM 1.29·12:23)·971(mg/dL·AM 9:48)·66(26·PM·12:36)·
     #     497 하단(1/10·11:38 AM).
+    # GEN6 코드 화면(2026-11-17): 단위는 **CODE 로 교체**(같은 배치 슬롯).
+    # 와이드 칼럼·하단행·세로형 모두 이 교체 뒤에 _ut 를 뽑는다.
+    # 식전식후·메모리·GLU 만 억제. 실물 근거 DC238 11번.
+    if screen_mode == "code":
+        _u_base = dict(profile.get("unit") or {})
+        _u_base.update({"texts": ["CODE"], "p": 1.0, "h": 1.8})
+        profile = {**profile, "unit": _u_base, "meal": None,
+                   "mem": None, "glulabel": None}
     if _wide_t is not None:
         _uts = (profile.get("unit") or {}).get("texts") or LCD_UNITS
         _ut = _uts[zlib.crc32(pid.encode("utf-8")) % len(_uts)] \
@@ -2259,22 +2270,26 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None,
                 # (검사 5: wide:date -> [2, 5]). 실물 액정은 칸이 고정이고
                 # 꺼진 칸은 그냥 비어 있다 — 세그먼트가 안 켜질 뿐이다.
                 _ORDER = ("time", "date", "unit", "mem")
-                _slot_h = max(aux_h + 2,
+                # 코드 화면의 unit(=CODE)은 더 크게 — 시인성이 생명이다.
+                _uh = int(aux_h * float(
+                    (profile.get("unit") or {}).get("h", 1.0)))
+                _slot_h = max(max(aux_h, _uh) + 2,
                               int((_cy_bot - _cy_top) / float(len(_ORDER))))
                 _on = dict(_items)
                 for _si, _nm in enumerate(_ORDER):
                     if _nm not in _on:
                         continue          # 그 칸은 비워 둔다
                     _txt = _on[_nm]
+                    _h_ = _uh if _nm == "unit" else aux_h
                     _cy_ = _cy_top + _si * _slot_h
-                    _tw_ = seg_text_width(_txt, aux_h, aux_slant, _dw(aux_h))
-                    if _tw_ > _cw or _cy_ + aux_h > _cy_bot:
+                    _tw_ = seg_text_width(_txt, _h_, aux_slant, _dw(_h_))
+                    if _tw_ > _cw or _cy_ + _h_ > _cy_bot:
                         continue
                     if maybe(placer.try_place(_cx0 + (_cw - _tw_) // 2, _cy_,
-                                              _tw_, aux_h, f"wide:{_nm}"),
+                                              _tw_, _h_, f"wide:{_nm}"),
                              f"wide:{_nm}"):
                         _r = placer.rects[-1]
-                        _lcd_text(img, _r[0], _r[1], _txt, aux_h, ink_small,
+                        _lcd_text(img, _r[0], _r[1], _txt, _h_, ink_small,
                                   "wide", heights=text_heights, thick=aux_t, slant=aux_slant,
                   digit_mask=_dmask, digit_w=_dw(aux_h))
                         used_texts.add(_txt)
@@ -2305,12 +2320,6 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None,
 
     # ── 액정 요소 — 전부 실폭 재서 배치, 패널 밖으로 못 나가게(AC#12) ──────
     # 가로형은 단위를 칼럼/하단행이 담당한다(위) — 프로파일 unit 요소는 세로형만.
-    if screen_mode == "code":
-        # GEN6 코드 화면(2026-11-17): 혈당 문맥을 통째로 억제한다 — 단위·
-        # 식전식후·메모리·GLU. 실물 근거 DC238 11번(On Call Plus 코드화면:
-        # 날짜·시각·숫자·CODE 라벨뿐, 단위 없음). 날짜·시각은 그대로.
-        profile = {**profile, "unit": None, "meal": None,
-                   "mem": None, "glulabel": None}
     u = profile.get("unit")
     if u and _shown("unit", u["p"]) and _wide_t is None:
         # 단위 표기는 기기의 성질이다 — 같은 기기가 어떤 장은 mg/dL, 어떤 장은
@@ -2528,16 +2537,6 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None,
                       heights=text_heights, thick=aux_t, slant=aux_slant,
                   digit_mask=_dmask, digit_w=_dw(aux_h))
             used_texts.add("GLU")
-
-    if screen_mode == "code":
-        # CODE 인쇄 라벨 — 숫자 아래, 단위가 있던 자리 무렵. _lcd_text 의
-        # 백 리스트는 혈당 패널 토큰 규약이라 여기선 putText 전용 경로로
-        # 간다(인쇄 라벨이지 세그먼트가 아니다 — 실물도 인쇄체다).
-        _cy = int(min(band_bot + max(4, int(dh * 0.08)), py1 - aux_h - 2))
-        if _cy > band_bot:
-            cv2.putText(img, "CODE", (int(x0), _cy + aux_h),
-                        cv2.FONT_HERSHEY_SIMPLEX, max(0.4, aux_h / 30.0),
-                        int(ink_small), max(1, aux_h // 15), cv2.LINE_AA)
 
     a = profile.get("arrow")
     if a and _shown("meter_arrow" if profile.get("meter") else "arrow",
@@ -4106,10 +4105,15 @@ def generate_scene_groups(count, seed0, out_dir, scene="device",
             variants = [("pos", s["panel"]), ("off", s_off["panel"])]
             if code_p > 0 and grng.random() < code_p:
                 # GEN6 제4변형 — 같은 장면에서 기기가 코드 화면을 보인다.
-                # 코드값은 일부러 혈당 범위(10~600) 안: 범위 밖(944 류)은 값
-                # 검증이 걸러주니 위험한 쪽이 범위 내 코드다(재판 실측).
+                # 코드값은 혈당 검증기(10~600)가 절대 통과시키지 않는 범위만:
+                # 70% 601~999(상한 초과) + 30% 1~9(하한 미만). 값 검증이
+                # 백업 방어선이다(1층=검출기 거절, 2층=값 검증, 3층=사람 확인).
                 rng_c = random.Random(seed_i)
-                code_val = random.Random(f"{seed_i}:code").randint(10, 600)
+                _cr = random.Random(f"{seed_i}:code")
+                if _cr.random() < 0.7:
+                    code_val = _cr.randint(601, 999)
+                else:
+                    code_val = _cr.randint(1, 9)
                 s_code = render_panel(code_val, rng_c, scene=scene,
                                       screen_mode="code")
                 variants.append(("code", s_code["panel"]))
