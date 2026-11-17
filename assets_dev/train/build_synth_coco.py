@@ -566,8 +566,12 @@ def main():
                          "0.15(DC238 재판으로 확정).")
     ap.add_argument("--plain-p", type=float, default=0.10,
                     help="장면 그룹의 단색 대조군 비율. 검증 세트는 0 을 "
-                         "권한다 — 단색 프레임은 시드와 무관하게 서로 같아"
+                    "권한다 — 단색 프레임은 시드와 무관하게 서로 같아"
                          "져 교차풀 픽셀 검사를 어기기 때문이다.")
+    ap.add_argument("--jobs", type=int, default=1,
+                    help="병렬 굽기 프로세스 수. 각 세트를 N 청크로 쪼개 "
+                         "N개 프로세스로 동시에 굽는다(2026-11-17 사람 지시 "
+                         "'16코어 32쓰레드인데 13%밖에 안쓴다').")
     args = ap.parse_args()
 
     out_root = Path(args.out)
@@ -580,6 +584,99 @@ def main():
         return verify(out_root, names + [n for n, _, _ in sg_specs])
 
     out_root.mkdir(parents=True, exist_ok=True)
+
+    # ── 병렬 굽기: 각 세트를 jobs 청크로 쪼개 N프로세스로 동시 굽기 ──────
+    if args.jobs > 1 and sg_specs:
+        import subprocess
+        import shutil
+        import sys as _sys
+        PY_EXE = _sys.executable
+        THIS = str(Path(__file__).resolve())
+        gen_flags = []
+        if args.gen6: gen_flags.append("--gen6")
+        elif args.gen5: gen_flags.append("--gen5")
+        if args.plain_p != 0.10:
+            gen_flags.extend(["--plain-p", str(args.plain_p)])
+
+        procs = []
+        sub_map = {}
+        for n, c, s in sg_specs:
+            chunk = max(1, c // args.jobs)
+            sub_map[n] = []
+            for j in range(args.jobs):
+                sub_c = chunk if j < args.jobs - 1 else c - chunk * (args.jobs - 1)
+                if sub_c <= 0:
+                    continue
+                sub_n = f"{n}_w{j}"
+                sub_map[n].append((sub_n, sub_c, s * 100 + j))
+                cmd = [PY_EXE, THIS, "--out", str(out_root), "--sets", "",
+                       "--scene-group", f"{sub_n}:{sub_c}:{s * 100 + j}",
+                       "--jobs", "1"] + gen_flags
+                procs.append(subprocess.Popen(cmd, cwd=str(THIS.parent)))
+        print(f"[병렬] {len(procs)}프로세스 굽기 시작 (jobs={args.jobs})",
+              flush=True)
+        fails = [p.wait() or p.returncode for p in procs]
+        if any(fails):
+            print(f"[병렬] 실패한 프로세스 있음: {fails}")
+            return 1
+        # 서브세트 → 본세트 병합
+        for n, subs in sub_map.items():
+            final = out_root / n
+            final.mkdir(parents=True, exist_ok=True)
+            (final / "images").mkdir(exist_ok=True)
+            mf_lines = []
+            for sub_n, _, _ in subs:
+                sub = out_root / sub_n
+                smf = sub / "manifest.jsonl"
+                if smf.exists():
+                    mf_lines.extend(
+                        l for l in smf.read_text(encoding="utf-8").splitlines()
+                        if l.strip())
+                si = sub / "images"
+                if si.exists():
+                    for f in si.iterdir():
+                        shutil.move(str(f), str(final / "images" / f.name))
+                shutil.rmtree(sub, ignore_errors=True)
+            (final / "manifest.jsonl").write_text(
+                "\n".join(mf_lines) + "\n", encoding="utf-8")
+            # COCO 주석 재생성 — 매니페스트에서 직접
+            rows = [json.loads(l) for l in mf_lines if l.strip()]
+            coco = {"info": {"description": f"sugarScan scene-group set {n}",
+                            "generator": "parallel bake",
+                            "set": n, "seed": subs[0][2], "count": len(rows)},
+                   "licenses": [], "categories": [CATEGORY],
+                   "images": [], "annotations": []}
+            ann_id = 0
+            for i, r in enumerate(rows):
+                fname = f"{r['id']}.png"
+                assert (final / "images" / fname).exists(), fname
+                coco["images"].append({"id": i, "file_name": fname,
+                                       "width": r["w"], "height": r["h"]})
+                if r.get("has_band"):
+                    bbox = box_to_bbox(r["box"], r["w"], r["h"])
+                    coco["annotations"].append({
+                        "id": ann_id, "image_id": i,
+                        "category_id": CATEGORY["id"],
+                        "bbox": bbox, "area": round(bbox[2] * bbox[3], 2),
+                        "iscrowd": 0, "segmentation": []})
+                    ann_id += 1
+            (final / "annotations").mkdir(exist_ok=True)
+            (final / "annotations" / "instances_train2017.json").write_text(
+                json.dumps(coco), encoding="utf-8")
+            # images → train2017 rename
+            tr = final / "train2017"
+            if not tr.exists():
+                (final / "images").rename(tr)
+            print(f"[병렬] {n}: {len(rows)}행 · 상자 {ann_id}개 병합 완료")
+        # seeds.json 갱신
+        seed_path = out_root / "seeds.json"
+        existing = json.loads(seed_path.read_text()) if seed_path.exists() else {}
+        for n, _, s in sg_specs:
+            existing["sets"] = existing.get("sets", {})
+            existing["sets"][n] = {"count": 0, "seed": s, "scene_group": True}
+        seed_path.write_text(json.dumps(existing, ensure_ascii=False, indent=2))
+        print("[병렬] 굽기·병합 완료")
+        return 0
 
     for n, c, s in sg_specs:
         build_scene_group_set(
