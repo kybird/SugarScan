@@ -1334,6 +1334,13 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None,
         _wr = REAL_BASELINE["band"]["wide_raw"]
         _wide_t = _wr[rng.randrange(len(_wr))]
         _wide_row = _wide_t[0] >= 0.75
+    # 코드 화면은 칼럼 레이아웃을 쓰지 않는다(사람 지시 2026-11-17 "칼럼이
+    # 좁으면 기기를 키워라") — 근본 원인은 칼럼 폭 부족이지만 기기 크기를
+    # 늘리는 대신 하단행형(밴드 안 전체 폭)으로 렌더한다. CODE 가 항상
+    # 들어가고, 세로형 밴드 아래는 비워 두는 규약(SPEC)도 지켜진다.
+    if screen_mode == "code":
+        _wide_t = None
+        _wide_row = False
 
     # ── 몸체 + 액정 — GM 크롭과 같은 물건(카드 2026-09-12) ──────────────────
     # 실사진 GM 크롭의 바깥 링(15%) 밀도 2.84% 는 기기 몸체에서 온다 — 몸체 인쇄
@@ -2309,6 +2316,19 @@ def _render_once(value, rng, profile, pid, inverted, scene="panel", trait=None,
                   digit_mask=_dmask, digit_w=_dw(aux_h))
                         used_texts.add(_txt)
                         _cy_ = _r[3] + max(6, int(dh * 0.10))
+            # 코드 화면에서 칼럼에 CODE 가 못 들어간 경우 — 밴드 아래에
+            # 반드시 그린다(사람 지시 2026-11-17 "기기크기를 늘려라" —
+            # 근본 원인은 칼럼 폭 부족이지만 CODE 없는 코드화면은 학습
+            # 무의미하므로 어떤 경로로든 렌더 보장).
+            if screen_mode == "code" and "CODE" not in used_texts:
+                _ch2 = max(10, min(int(dh * 0.20), int(py1 - band_bot - 4)))
+                if _ch2 >= 8:
+                    _cy3 = int(min(band_bot + max(3, int(dh * 0.04)),
+                                   py1 - _ch2 - 2))
+                    _lcd_text(img, int(x0), _cy3, "CODE", _ch2, ink_small,
+                              "code_fallback", heights=text_heights,
+                              thick=aux_t, slant=aux_slant)
+                    used_texts.add("CODE")
         else:
             # 하단행형 — 정보행은 쿼드 안(밴드 예약 영역)이라 Placer 없이 그린다.
             # 배치 근거: 821(DATE·AM 1.29·12:23)·971(mg/dL·AM 9:48)·
