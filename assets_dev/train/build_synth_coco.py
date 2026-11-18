@@ -384,7 +384,7 @@ def box_sheet(set_dir, coco, out_png, n=10, cols=5):
 def build_scene_group_set(name, count, seed, out_root, scene="device",
                           plain_p=0.10, degrade_spec=None, fresh=False,
                           roll_max=None, lowc_grain=False, wrinkle_glare_p=0.0,
-                          code_p=0.0, far_p=0.0):
+                          code_p=0.0, far_p=0.0, zoom_min=None):
     """거절 학습용 장면 그룹 세트(2026-11-15) — 설계 §1 표 5행·§2.
 
     generate_scene_groups 로 굽고 COCO 로 내보낸다. **음성 이미지도 COCO
@@ -402,7 +402,7 @@ def build_scene_group_set(name, count, seed, out_root, scene="device",
         count, seed, set_dir, scene=scene, plain_p=plain_p,
         degrade_spec=degrade_spec, roll_max=roll_max,
         lowc_grain=lowc_grain, wrinkle_glare_p=wrinkle_glare_p,
-        code_p=code_p, far_p=far_p)
+        code_p=code_p, far_p=far_p, zoom_min=zoom_min)
     (set_dir / "images").rename(set_dir / "train2017")
 
     rows = [json.loads(l) for l in
@@ -570,6 +570,10 @@ def main():
                          "져 교차풀 픽셀 검사를 어기기 때문이다.")
     ap.add_argument("--far-p", type=float, default=0.0,
                     help="원경 거부 음성 비율(줌 0.20~0.35). GEN8.")
+    ap.add_argument("--zoom-min", type=float, default=None,
+                    help="줌 하한(기본 0.55). GEN10 스케일 축 — 실밴드 "
+                         "높이/이미지 중앙 0.155 vs 합성 0.273 측정으로 "
+                         "0.40 권장.")
     ap.add_argument("--jobs", type=int, default=1,
                     help="병렬 굽기 프로세스 수. 각 세트를 N 청크로 쪼개 "
                          "N개 프로세스로 동시에 굽는다(2026-11-17 사람 지시 "
@@ -602,6 +606,8 @@ def main():
             gen_flags.extend(["--plain-p", str(args.plain_p)])
         if args.far_p > 0:
             gen_flags.extend(["--far-p", str(args.far_p)])
+        if args.zoom_min is not None:
+            gen_flags.extend(["--zoom-min", str(args.zoom_min)])
 
         procs = []
         sub_map = {}
@@ -692,7 +698,7 @@ def main():
             lowc_grain=bool(args.gen5 or args.gen6),
             wrinkle_glare_p=0.15 if (args.gen5 or args.gen6) else 0.0,
             code_p=0.30 if args.gen6 else 0.0,
-            far_p=args.far_p)
+            far_p=args.far_p, zoom_min=args.zoom_min)
 
     seeds = {}
     for name in names:

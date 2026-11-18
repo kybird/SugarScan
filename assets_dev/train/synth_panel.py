@@ -4098,7 +4098,7 @@ def generate_scene_groups(count, seed0, out_dir, scene="device",
                           families=DISTRACTOR_FAMILIES, plain_p=0.10,
                           degrade_spec=None, sheet_n=8, roll_max=None,
                           lowc_grain=False, wrinkle_glare_p=0.0, code_p=0.0,
-                          far_p=0.0):
+                          far_p=0.0, zoom_min=None):
     """거절 학습용 장면 그룹 굽기(2026-11-15) — 설계 §1 표 3행.
 
     장면 그룹 하나 = 배경·방해물 배치·촬영 계획을 **한 번** 뽑아 세 변형이
@@ -4118,6 +4118,12 @@ def generate_scene_groups(count, seed0, out_dir, scene="device",
         CAM_ROLL_MAX = float(roll_max)
     LOWC_GRAIN = lowc_grain
     WRINKLE_GLARE_P = wrinkle_glare_p
+    # GEN10 스케일 축(2026-11-18 측정): 실밴드 높이/이미지 중앙 0.155 vs
+    # 합성 0.273 — 합성 기기가 약 2배 크다. 줌 하한을 내려 실측 p10
+    # (0.104)까지 덮는다. 원경 음성(0.20~0.35)과는 별개 축 — 이건 양성
+    # 프레임의 기기가 작아지는 것(0.40~1.0), 읽기 가능성은 유지된다.
+    if zoom_min is not None:
+        CAM_ZOOM_RANGE = (float(zoom_min), CAM_ZOOM_RANGE[1])
     out = Path(out_dir)
     (out / "images").mkdir(parents=True, exist_ok=True)
     grng = random.Random(f"{seed0}:plan")     # 계열·대조군 선택만(장면 내용 아님)
