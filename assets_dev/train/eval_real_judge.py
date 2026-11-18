@@ -84,6 +84,13 @@ def main():
             if val is None:
                 pos[f"미확정({stage})"] += 1
                 outcome = "미확정"
+            elif stage != "확정":
+                # 2026-11-18 집계 수정: 확신도 게이트에 막힌 행은 앱이 확정하지
+                # 않는다 — 확정으로 세면 정답·오답이 둘 다 부풀어 오답% 근거가
+                # 된다(GEN9 요약 '오답 확정 22' 중 실제 확정은 9). 판독이
+                # 옳았는지는 별도 버킷으로 남긴다(문턱 조정의 교환 근거).
+                pos[f"확신도차단(판독{'정답' if val == gt['value'] else '오답'})"] += 1
+                outcome = f"오답({val})" if val != gt["value"] else "정답"
             elif val == gt["value"]:
                 pos["정답 확정"] += 1
                 outcome = "정답"
@@ -95,6 +102,9 @@ def main():
             if val is None:
                 trap["거절(정상)"] += 1
                 outcome = "거절"
+            elif stage != "확정":
+                trap["확신도차단"] += 1
+                outcome = f"함정통과({val})"
             else:
                 trap["오답 확정(함정통과)"] += 1
                 outcome = f"함정통과({val})"
