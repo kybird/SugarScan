@@ -108,8 +108,10 @@ def main():
             else:
                 trap["오답 확정(함정통과)"] += 1
                 outcome = f"함정통과({val})"
+        # text(원판독)도 남긴다(2026-11-18) — 값검증 탈락행은 val=None 이라
+        # 판독문자열이 안 보여 원인(끝가짜자리·선두소실)이 가려졌다.
         detail.append((stem, outcome, stage, gt.get("value"), val,
-                       round(score, 3), round(conf, 3)))
+                       round(score, 3), round(conf, 3), text))
 
     lines = [f"## {args.name} — DC238 재판",
              f"- 검출기 `{args.detector}` · 리더 `{args.reader}` · "
@@ -132,8 +134,8 @@ def main():
               encoding="utf-8") as f:
         for d in detail:
             f.write(json.dumps(dict(zip(
-                ("id", "outcome", "stage", "gt", "pred", "det", "conf"), d)),
-                ensure_ascii=False) + "\n")
+                ("id", "outcome", "stage", "gt", "pred", "det", "conf",
+                 "text"), d)), ensure_ascii=False) + "\n")
 
 
 if __name__ == "__main__":
