@@ -1,0 +1,238 @@
+{"id": "20210802_15_01_13_000_ezqXIKE8x4Qo3j3qx14DU4m6m3H3_T_4160_2080", "outcome": "정답", "stage": "확정", "gt": 183, "pred": 183, "det": 1.0, "conf": 0.882, "text": "183"}
+{"id": "20210802_15_05_23_000_ELKETNgO12gBRrG69AFvIijhk402_T_2136_4624 (1)", "outcome": "미확정", "stage": "판독", "gt": 122, "pred": null, "det": 0.558, "conf": 0.0, "text": ""}
+{"id": "20210803_14_11_02_000_X0TazrdODKRfud2AWTn6rC2lXbq1_F_3096_4128", "outcome": "정답", "stage": "확정", "gt": 138, "pred": 138, "det": 1.0, "conf": 1.0, "text": "138"}
+{"id": "20210804_20_45_09_000_7l6JXxHcrEc2QlaI05evNtFJuLg2_F_4000_3000", "outcome": "정답", "stage": "확정", "gt": 198, "pred": 198, "det": 0.552, "conf": 0.928, "text": "198"}
+{"id": "20210805_11_58_56_000_ZzQX2jTj53YXTpjUai1Q7tLY0N22_F_3264_2448", "outcome": "오답(11)", "stage": "확신도", "gt": 131, "pred": 11, "det": 0.973, "conf": 0.707, "text": "11"}
+{"id": "20210805_16_33_05_000_iAE8ljvxgPMkKoukne028OsZjyV2_F_3096_4128", "outcome": "미확정", "stage": "검출게이트", "gt": 143, "pred": null, "det": 0.106, "conf": 0.0, "text": ""}
+{"id": "20210805_16_52_42_000_xBN9LSUJ4lS18DIDO0eluxOT6xb2_F_4160_3120", "outcome": "정답", "stage": "확신도", "gt": 101, "pred": 101, "det": 1.0, "conf": 0.659, "text": "101"}
+{"id": "20210805_17_18_25_000_DHdl0XMIsEdUhwMzzTPtq8r5H4M2_F_3096_4128 (1)", "outcome": "정답", "stage": "확신도", "gt": 110, "pred": 110, "det": 0.863, "conf": 0.578, "text": "110"}
+{"id": "20210805_17_19_46_000_DHdl0XMIsEdUhwMzzTPtq8r5H4M2_F_3096_4128 (1)", "outcome": "함정통과(121)", "stage": "확정", "gt": null, "pred": 121, "det": 0.998, "conf": 0.999, "text": "121"}
+{"id": "20210805_17_20_20_000_DHdl0XMIsEdUhwMzzTPtq8r5H4M2_F_3096_4128", "outcome": "미확정", "stage": "값검증", "gt": 110, "pred": null, "det": 0.792, "conf": 0.779, "text": "1110"}
+{"id": "20210805_17_34_11_000_DHdl0XMIsEdUhwMzzTPtq8r5H4M2_F_3096_4128 (1)", "outcome": "함정통과(44)", "stage": "확정", "gt": null, "pred": 44, "det": 1.0, "conf": 0.996, "text": "44"}
+{"id": "20210805_19_24_22_000_zFML3pShSPYJ5zVUd9nMmwkObIo1_F_2448_3264", "outcome": "오답(31)", "stage": "확정", "gt": 310, "pred": 31, "det": 0.992, "conf": 0.855, "text": "31"}
+{"id": "20210805_23_00_58_000_IFix9cz8E4XHi7nbm3k2NwbFXNl1_F_3000_4000 (1)", "outcome": "정답", "stage": "확정", "gt": 145, "pred": 145, "det": 1.0, "conf": 0.867, "text": "145"}
+{"id": "20210805_23_01_47_000_IFix9cz8E4XHi7nbm3k2NwbFXNl1_F_3000_4000", "outcome": "정답", "stage": "확신도", "gt": 85, "pred": 85, "det": 0.999, "conf": 0.668, "text": "85"}
+{"id": "20210805_23_48_31_000_XmGwpmSSmDb98ALcueWDF8OFWrG2_F_4160_3120", "outcome": "정답", "stage": "확신도", "gt": 177, "pred": 177, "det": 1.0, "conf": 0.548, "text": "177"}
+{"id": "20210805_23_50_05_000_XmGwpmSSmDb98ALcueWDF8OFWrG2_F_4160_3120", "outcome": "정답", "stage": "확신도", "gt": 251, "pred": 251, "det": 1.0, "conf": 0.607, "text": "251"}
+{"id": "20210805_23_51_16_000_XmGwpmSSmDb98ALcueWDF8OFWrG2_F_4160_3120", "outcome": "정답", "stage": "확정", "gt": 209, "pred": 209, "det": 1.0, "conf": 1.0, "text": "209"}
+{"id": "20210806_14_39_21_000_zFML3pShSPYJ5zVUd9nMmwkObIo1_F_2448_3264", "outcome": "거절", "stage": "판독", "gt": null, "pred": null, "det": 0.998, "conf": 0.0, "text": ""}
+{"id": "20210806_17_07_31_000_wFlY39NOieR2fsNI4wU820Izeog2_F_3456_4608", "outcome": "정답", "stage": "확정", "gt": 164, "pred": 164, "det": 1.0, "conf": 1.0, "text": "164"}
+{"id": "20210806_17_09_26_000_wFlY39NOieR2fsNI4wU820Izeog2_F_3456_4608", "outcome": "정답", "stage": "확정", "gt": 179, "pred": 179, "det": 1.0, "conf": 1.0, "text": "179"}
+{"id": "20210807_09_59_50_000_IqYZv6UnHQdO3249KAmfOxHMJhs2_F_3264_2448 (1)", "outcome": "미확정", "stage": "검출게이트", "gt": 96, "pred": null, "det": 0.022, "conf": 0.0, "text": ""}
+{"id": "20210807_10_41_26_000_p8Nd1v2wuLZeaak36Q3tB90El333_F_3000_4000", "outcome": "정답", "stage": "확정", "gt": 200, "pred": 200, "det": 1.0, "conf": 0.97, "text": "200"}
+{"id": "20210808_09_45_48_000_SrR1euGc9XWObcMVhApCggGMteb2_T_2080_4624", "outcome": "정답", "stage": "확정", "gt": 194, "pred": 194, "det": 1.0, "conf": 1.0, "text": "194"}
+{"id": "20210808_15_55_30_103_000_DPC9Ef6bczXYD8g7gbxcn2S9y7Y2_F_3264_2448 (1)", "outcome": "거절", "stage": "판독", "gt": null, "pred": null, "det": 1.0, "conf": 0.0, "text": ""}
+{"id": "20210808_17_06_56_428_000_HflEFS3FzhWhHCMxWNuBL9kJ1433_F_1932_2576 (1)", "outcome": "함정통과(107)", "stage": "확신도", "gt": null, "pred": 107, "det": 1.0, "conf": 0.538, "text": "0107"}
+{"id": "20210808_20_48_55_935_000_qg2NDAhSeCX7kAEWB0JvmTf0bkX2_F_2448_3264", "outcome": "정답", "stage": "확정", "gt": 230, "pred": 230, "det": 0.973, "conf": 0.979, "text": "230"}
+{"id": "20210808_20_49_47_136_000_qg2NDAhSeCX7kAEWB0JvmTf0bkX2_F_2448_3264", "outcome": "정답", "stage": "확정", "gt": 201, "pred": 201, "det": 1.0, "conf": 0.999, "text": "201"}
+{"id": "20210809_01_49_42_981_000_jVSbCIYOpxeuFPMsJb5L6GoyXlD2_F_4000_3000", "outcome": "정답", "stage": "확신도", "gt": 176, "pred": 176, "det": 1.0, "conf": 0.79, "text": "176"}
+{"id": "20210809_11_32_20_173_000_3baaPTfJXLexq8wvLm4YNMsFZ853_F_3264_2448", "outcome": "정답", "stage": "확신도", "gt": 230, "pred": 230, "det": 1.0, "conf": 0.73, "text": "230"}
+{"id": "20210809_11_33_49_929_000_3baaPTfJXLexq8wvLm4YNMsFZ853_F_3264_2448", "outcome": "오답(207)", "stage": "확정", "gt": 201, "pred": 207, "det": 0.999, "conf": 0.985, "text": "207"}
+{"id": "20210809_17_46_41_290_000_pwqQxHTxK3bz0BtO6v4PAZ8cWs43_T_3968_2976", "outcome": "정답", "stage": "확정", "gt": 160, "pred": 160, "det": 1.0, "conf": 0.999, "text": "160"}
+{"id": "20210809_20_45_34_000_rMPQE2hZSaWYWwE3uekAxxDtJ5o1_F_3984_2988", "outcome": "정답", "stage": "확신도", "gt": 135, "pred": 135, "det": 1.0, "conf": 0.669, "text": "135"}
+{"id": "20210810_09_58_42_000_bN1ZvL8ypDMBuWNsZ104Iv1esRG2_F_4160_3120", "outcome": "정답", "stage": "확정", "gt": 109, "pred": 109, "det": 0.756, "conf": 0.999, "text": "109"}
+{"id": "20210810_12_30_54_381_000_7eopuQ3003MoCuKdTqV01KQ1n723_F_3264_2448", "outcome": "오답(141)", "stage": "확신도", "gt": 171, "pred": 141, "det": 0.944, "conf": 0.793, "text": "141"}
+{"id": "20210810_14_56_28_427_000_wmO8RFoaLcbLFpr0Jectrz3SP042_F_3264_2448", "outcome": "오답(490)", "stage": "확정", "gt": 190, "pred": 490, "det": 1.0, "conf": 0.992, "text": "490"}
+{"id": "20210810_15_05_53_057_000_wmO8RFoaLcbLFpr0Jectrz3SP042_F_3264_2448", "outcome": "정답", "stage": "확정", "gt": 158, "pred": 158, "det": 1.0, "conf": 1.0, "text": "158"}
+{"id": "20210810_15_27_37_763_000_eFS2rWFgvKf87TdgWVI07w7orvr2_F_4000_3000", "outcome": "정답", "stage": "확정", "gt": 161, "pred": 161, "det": 0.996, "conf": 0.999, "text": "161"}
+{"id": "20210810_16_46_48_146_000_lUeFy5q6WrdFuMdjQdeQZeoitrz1_F_3000_4000", "outcome": "미확정", "stage": "검출게이트", "gt": 119, "pred": null, "det": 0.226, "conf": 0.0, "text": ""}
+{"id": "20210810_19_41_44_993_000_GA0fDyUPwUeWo8q3qKTry4j7q052_F_4160_3120 (1)", "outcome": "정답", "stage": "확정", "gt": 99, "pred": 99, "det": 0.95, "conf": 1.0, "text": "99"}
+{"id": "20210810_21_45_00_150_000_5XIWzz9zhpWeOWO1ulYXXU0CiEA3_T_2322_4128", "outcome": "미확정", "stage": "값검증", "gt": 129, "pred": null, "det": 0.996, "conf": 0.536, "text": "5"}
+{"id": "20210811_00_11_01_261_000_FHJvOrcQpIQT1LdwIUWJxmX1Lie2_F_3000_4000 (1)", "outcome": "함정통과(121)", "stage": "확정", "gt": null, "pred": 121, "det": 0.999, "conf": 0.999, "text": "121"}
+{"id": "20210811_09_17_43_524_000_rsGisR1i8VXny1ohxxD9oh1Xxhn1_F_3000_4000", "outcome": "함정통과(338)", "stage": "확정", "gt": null, "pred": 338, "det": 1.0, "conf": 0.956, "text": "338"}
+{"id": "20210811_09_49_28_170_000_FHJvOrcQpIQT1LdwIUWJxmX1Lie2_F_3000_4000 (1)", "outcome": "함정통과(121)", "stage": "확정", "gt": null, "pred": 121, "det": 1.0, "conf": 0.998, "text": "121"}
+{"id": "20210811_10_47_53_542_000_kCoPYNlq3YXpBFAqM3Z8AhgbGMs1_F_3264_2448", "outcome": "정답", "stage": "확정", "gt": 109, "pred": 109, "det": 1.0, "conf": 1.0, "text": "109"}
+{"id": "20210811_14_49_48_688_000_T54lKx4A7QZiDCdTrSViCqgiLD42_F_4032_3024", "outcome": "정답", "stage": "확신도", "gt": 120, "pred": 120, "det": 1.0, "conf": 0.708, "text": "120"}
+{"id": "20210811_14_58_24_103_000_6Y4BjUQt0IeBn5L9aThwRTEyaxt1_F_3264_2448", "outcome": "오답(150)", "stage": "확정", "gt": 157, "pred": 150, "det": 0.879, "conf": 0.995, "text": "150"}
+{"id": "20210811_15_04_10_422_000_bBYOWSVWKfdMwgS0b9XHL5w66nx2_F_4160_3120", "outcome": "미확정", "stage": "검출게이트", "gt": 129, "pred": null, "det": 0.997, "conf": 0.0, "text": ""}
+{"id": "20210811_15_04_27_289_000_FHJvOrcQpIQT1LdwIUWJxmX1Lie2_F_3000_4000 (1)", "outcome": "거절", "stage": "값검증", "gt": null, "pred": null, "det": 1.0, "conf": 0.703, "text": "1214"}
+{"id": "20210811_15_05_03_958_000_bBYOWSVWKfdMwgS0b9XHL5w66nx2_F_4160_3120", "outcome": "정답", "stage": "확정", "gt": 129, "pred": 129, "det": 1.0, "conf": 0.998, "text": "129"}
+{"id": "20210811_15_13_24_789_000_LOEnR2s2ccQyz445xabBTgBAGTo1_F_3264_2448", "outcome": "정답", "stage": "확정", "gt": 374, "pred": 374, "det": 0.918, "conf": 0.994, "text": "374"}
+{"id": "20210811_15_33_04_408_000_DCyt2GrQ2uaK7QEduta75ETX7sm1_F_3264_2448 (1)", "outcome": "정답", "stage": "확정", "gt": 278, "pred": 278, "det": 0.999, "conf": 0.984, "text": "278"}
+{"id": "20210811_17_00_59_124_000_OCNgvxwC4uSSeVkZthYmAtzbEgI2_F_4160_3120", "outcome": "정답", "stage": "확정", "gt": 283, "pred": 283, "det": 0.81, "conf": 1.0, "text": "283"}
+{"id": "20210812_21_27_57_066_000_fwcqJUZbziU5Lr170zjCbxVzJsw1_F_4160_3120", "outcome": "미확정", "stage": "판독", "gt": 138, "pred": null, "det": 0.914, "conf": 0.0, "text": ""}
+{"id": "20210813_09_01_56_005_000_cJhKs4LtDXf6buACr8L2lgfuy2b2_F_3264_2448", "outcome": "거절", "stage": "값검증", "gt": null, "pred": null, "det": 1.0, "conf": 0.818, "text": "888"}
+{"id": "20210813_14_28_29_497_000_alOL9zeX9re31uArwahC7nZPPPk2_F_3264_2448", "outcome": "오답(15)", "stage": "확신도", "gt": 116, "pred": 15, "det": 0.783, "conf": 0.467, "text": "15"}
+{"id": "20210813_14_53_43_861_000_pwqQxHTxK3bz0BtO6v4PAZ8cWs43_F_4160_3120", "outcome": "미확정", "stage": "값검증", "gt": 160, "pred": null, "det": 1.0, "conf": 0.562, "text": "1601"}
+{"id": "20210813_15_44_48_501_000_CBeSepMIZleaMWKogzUZdLxBHsz1_F_4160_3120 (1)", "outcome": "미확정", "stage": "판독", "gt": 146, "pred": null, "det": 0.922, "conf": 0.0, "text": ""}
+{"id": "20210813_17_05_38_435_000_pwqQxHTxK3bz0BtO6v4PAZ8cWs43_F_4160_3120", "outcome": "정답", "stage": "확정", "gt": 160, "pred": 160, "det": 0.605, "conf": 0.999, "text": "160"}
+{"id": "20210813_17_40_16_094_000_M8edkDPzbOdnTM3x6Qvupp9OV9o2_F_3096_4128", "outcome": "미확정", "stage": "판독", "gt": 161, "pred": null, "det": 0.949, "conf": 0.0, "text": ""}
+{"id": "20210813_18_56_23_238_000_zpKSUMFFA6TmePHDzCys95jDEav2_F_4160_3120", "outcome": "정답", "stage": "확정", "gt": 161, "pred": 161, "det": 0.971, "conf": 0.999, "text": "161"}
+{"id": "20210813_19_45_44_498_000_alOL9zeX9re31uArwahC7nZPPPk2_F_3264_2448", "outcome": "미확정", "stage": "판독", "gt": 138, "pred": null, "det": 0.261, "conf": 0.0, "text": ""}
+{"id": "20210814_02_01_15_363_000_be7ndMjt30YXD9PbSgQcNboIVry2_F_4160_3120", "outcome": "정답", "stage": "확정", "gt": 208, "pred": 208, "det": 0.995, "conf": 0.999, "text": "208"}
+{"id": "20210814_06_55_15_145_000_TLA5Quo5ujdx8G4F6QH7MeBxwRp1_F_4160_3120", "outcome": "미확정", "stage": "판독", "gt": 108, "pred": null, "det": 0.373, "conf": 0.0, "text": ""}
+{"id": "20210814_07_53_56_077_000_5GFch1O1skRE1K4kFJFowgtsQ9u2_T_3000_3000", "outcome": "미확정", "stage": "값검증", "gt": 21, "pred": null, "det": 0.99, "conf": 0.619, "text": "1"}
+{"id": "20210814_09_29_08_465_000_MzJP948e1PhraAN0971LhgH97e22_F_3000_4000", "outcome": "미확정", "stage": "검출게이트", "gt": 140, "pred": null, "det": 0.003, "conf": 0.0, "text": ""}
+{"id": "20210814_09_30_00_917_000_MzJP948e1PhraAN0971LhgH97e22_F_3000_4000", "outcome": "오답(78)", "stage": "확정", "gt": 140, "pred": 78, "det": 0.998, "conf": 0.873, "text": "78"}
+{"id": "20210814_10_11_58_449_000_wVWQl3sChLhOS2A42U7bbgydQj13_F_3096_4128", "outcome": "정답", "stage": "확정", "gt": 108, "pred": 108, "det": 1.0, "conf": 0.998, "text": "108"}
+{"id": "20210814_10_15_01_865_000_wVWQl3sChLhOS2A42U7bbgydQj13_F_3096_4128", "outcome": "미확정", "stage": "검출게이트", "gt": 137, "pred": null, "det": 0.011, "conf": 0.0, "text": ""}
+{"id": "20210814_10_25_08_143_000_CBeSepMIZleaMWKogzUZdLxBHsz1_F_4160_3120 (1)", "outcome": "정답", "stage": "확정", "gt": 175, "pred": 175, "det": 0.554, "conf": 0.997, "text": "175"}
+{"id": "20210814_11_38_55_489_000_alOL9zeX9re31uArwahC7nZPPPk2_F_3264_2448", "outcome": "오답(15)", "stage": "확정", "gt": 134, "pred": 15, "det": 0.895, "conf": 0.957, "text": "15"}
+{"id": "20210814_17_22_32_714_000_8sJlqp17KENYIY0CkR2boa0qhem2_T_4160_1872 (1)", "outcome": "미확정", "stage": "값검증", "gt": 343, "pred": null, "det": 0.988, "conf": 0.686, "text": "5434"}
+{"id": "20210814_20_33_40_546_000_ssYXWhX9UUONB4YwdwdynjIe34q1_F_4160_3120", "outcome": "정답", "stage": "확정", "gt": 222, "pred": 222, "det": 0.999, "conf": 0.913, "text": "222"}
+{"id": "20210814_23_28_56_589_000_KN1QCWKVJChN0i3oNO3T4RKCiN22_F_3000_4000", "outcome": "정답", "stage": "확정", "gt": 188, "pred": 188, "det": 1.0, "conf": 0.985, "text": "188"}
+{"id": "20210814_23_32_23_161_000_KN1QCWKVJChN0i3oNO3T4RKCiN22_F_3000_4000", "outcome": "미확정", "stage": "값검증", "gt": 107, "pred": null, "det": 0.435, "conf": 0.356, "text": "1415"}
+{"id": "20210815_08_47_31_952_000_LOEnR2s2ccQyz445xabBTgBAGTo1_F_3264_2448", "outcome": "정답", "stage": "확정", "gt": 374, "pred": 374, "det": 0.989, "conf": 0.891, "text": "374"}
+{"id": "20210815_08_49_50_766_000_LOEnR2s2ccQyz445xabBTgBAGTo1_F_3264_2448", "outcome": "정답", "stage": "확신도", "gt": 374, "pred": 374, "det": 0.999, "conf": 0.774, "text": "374"}
+{"id": "20210815_09_49_00_599_000_3ZVbD8l86RPFNgVUuH4GpCX6E8A3_F_4160_3120", "outcome": "오답(325)", "stage": "확정", "gt": 329, "pred": 325, "det": 0.999, "conf": 0.945, "text": "325"}
+{"id": "20210815_10_32_52_534_000_yhc2U5hUNIOPWXky2iOPPiKsNMr2_F_3000_4000", "outcome": "미확정", "stage": "판독", "gt": 92, "pred": null, "det": 0.417, "conf": 0.0, "text": ""}
+{"id": "20210815_10_38_02_141_000_yhc2U5hUNIOPWXky2iOPPiKsNMr2_F_3000_4000", "outcome": "오답(171)", "stage": "확신도", "gt": 174, "pred": 171, "det": 1.0, "conf": 0.673, "text": "171"}
+{"id": "20210815_15_02_52_682_000_JwWZC6W7dQdr2ZV4C3xk1eJjnd62_T_4160_1952", "outcome": "정답", "stage": "확정", "gt": 283, "pred": 283, "det": 0.996, "conf": 0.992, "text": "283"}
+{"id": "20210815_15_02_52_682_000_JwWZC6W7dQdr2ZV4C3xk1eJjnd62_T_4160_1952 (1)", "outcome": "정답", "stage": "확정", "gt": 283, "pred": 283, "det": 0.996, "conf": 0.992, "text": "283"}
+{"id": "20210815_15_28_43_835_000_0VISzy1R1YT1VaaRmgwKr8lXa8J2_F_3264_2448", "outcome": "정답", "stage": "확신도", "gt": 186, "pred": 186, "det": 1.0, "conf": 0.519, "text": "186"}
+{"id": "20210815_15_29_25_842_000_0VISzy1R1YT1VaaRmgwKr8lXa8J2_F_3264_2448", "outcome": "정답", "stage": "확정", "gt": 186, "pred": 186, "det": 1.0, "conf": 0.999, "text": "186"}
+{"id": "20210815_20_31_38_575_000_aZ8878b1jUPNbMRwEzn8I2Xw1oe2_F_4320_5760", "outcome": "정답", "stage": "확정", "gt": 153, "pred": 153, "det": 1.0, "conf": 1.0, "text": "153"}
+{"id": "20210815_20_34_45_079_000_aZ8878b1jUPNbMRwEzn8I2Xw1oe2_F_4320_5760", "outcome": "미확정", "stage": "판독", "gt": 238, "pred": null, "det": 0.998, "conf": 0.0, "text": ""}
+{"id": "20210816_00_38_46_018_000_zje4m4Ksi0Wtpj8UWUsdIKsa30E3_F_2592_1944", "outcome": "정답", "stage": "확신도", "gt": 100, "pred": 100, "det": 1.0, "conf": 0.681, "text": "100"}
+{"id": "20210816_06_39_54_099_000_TLA5Quo5ujdx8G4F6QH7MeBxwRp1_F_4160_3120", "outcome": "미확정", "stage": "검출게이트", "gt": 110, "pred": null, "det": 0.011, "conf": 0.0, "text": ""}
+{"id": "20210816_09_33_56_787_000_rL2kqMTF49hV0ItNsiriKZcad3r1_F_3096_4128", "outcome": "정답", "stage": "확정", "gt": 128, "pred": 128, "det": 1.0, "conf": 1.0, "text": "128"}
+{"id": "20210816_09_36_05_878_000_rL2kqMTF49hV0ItNsiriKZcad3r1_F_3096_4128", "outcome": "정답", "stage": "확정", "gt": 128, "pred": 128, "det": 1.0, "conf": 0.999, "text": "128"}
+{"id": "20210816_14_23_03_822_000_MkfwhctJoRRL9mpPGvONc64KmWh1_F_3264_2448", "outcome": "거절", "stage": "판독", "gt": null, "pred": null, "det": 0.998, "conf": 0.0, "text": ""}
+{"id": "20210817_08_09_40_199_000_TLA5Quo5ujdx8G4F6QH7MeBxwRp1_F_4160_3120", "outcome": "미확정", "stage": "검출게이트", "gt": 112, "pred": null, "det": 0.073, "conf": 0.0, "text": ""}
+{"id": "20210817_12_35_03_859_000_Xyfrcq8vF5XqwmDi1zv8Z5oT7wI2_F_3096_4128", "outcome": "정답", "stage": "확정", "gt": 262, "pred": 262, "det": 1.0, "conf": 0.999, "text": "262"}
+{"id": "20210817_14_21_28_297_000_RzUGTTev9QQWmGcQlRGXNMSmZri2_T_2659_2038", "outcome": "미확정", "stage": "판독", "gt": 137, "pred": null, "det": 0.9, "conf": 0.0, "text": ""}
+{"id": "20210817_14_27_41_240_000_T54lKx4A7QZiDCdTrSViCqgiLD42_F_4032_3024", "outcome": "정답", "stage": "확정", "gt": 87, "pred": 87, "det": 0.997, "conf": 0.999, "text": "87"}
+{"id": "20210817_14_30_29_762_000_T54lKx4A7QZiDCdTrSViCqgiLD42_F_4032_3024", "outcome": "정답", "stage": "확정", "gt": 87, "pred": 87, "det": 1.0, "conf": 0.999, "text": "87"}
+{"id": "20210820_11_34_34_057_000_xYx8oAo238YjNeRUeGxW3ADu9ii2_T_3116_2349", "outcome": "미확정", "stage": "값검증", "gt": 101, "pred": null, "det": 0.996, "conf": 0.609, "text": "1111"}
+{"id": "20210820_15_17_17_576_000_T54lKx4A7QZiDCdTrSViCqgiLD42_F_4032_3024", "outcome": "정답", "stage": "확정", "gt": 107, "pred": 107, "det": 1.0, "conf": 0.995, "text": "107"}
+{"id": "20210820_15_23_59_585_000_T54lKx4A7QZiDCdTrSViCqgiLD42_F_4032_3024", "outcome": "정답", "stage": "확정", "gt": 107, "pred": 107, "det": 0.999, "conf": 0.992, "text": "107"}
+{"id": "20210821_08_16_07_197_000_4OD7FX6tRic4L4mR3ktGTny46Iv1_F_3000_4000", "outcome": "정답", "stage": "확정", "gt": 155, "pred": 155, "det": 1.0, "conf": 1.0, "text": "155"}
+{"id": "20210821_13_35_19_378_000_8svWcOR3oWa3YEU7iM91BDriYhf1_F_4160_3120", "outcome": "미확정", "stage": "판독", "gt": 134, "pred": null, "det": 0.998, "conf": 0.0, "text": ""}
+{"id": "20210821_17_45_55_283_000_rL2kqMTF49hV0ItNsiriKZcad3r1_F_3096_4128", "outcome": "정답", "stage": "확정", "gt": 128, "pred": 128, "det": 1.0, "conf": 0.897, "text": "128"}
+{"id": "20210821_23_01_22_833_000_qn2VyTAQoQf3lwtOoqtMxsPBeui2_F_3264_2448", "outcome": "미확정", "stage": "검출게이트", "gt": 121, "pred": null, "det": 0.02, "conf": 0.0, "text": ""}
+{"id": "20210822_10_14_41_356_000_zFML3pShSPYJ5zVUd9nMmwkObIo1_F_2448_3264", "outcome": "거절", "stage": "검출게이트", "gt": null, "pred": null, "det": 0.172, "conf": 0.0, "text": ""}
+{"id": "20210823_05_40_03_157_000_rUsQWUJGXwZr1da69AP3LdMM1uu2_F_3264_2448", "outcome": "정답", "stage": "확정", "gt": 199, "pred": 199, "det": 0.999, "conf": 1.0, "text": "199"}
+{"id": "20210823_07_32_43_877_000_TLA5Quo5ujdx8G4F6QH7MeBxwRp1_F_4160_3120", "outcome": "미확정", "stage": "검출게이트", "gt": 103, "pred": null, "det": 0.006, "conf": 0.0, "text": ""}
+{"id": "20210823_07_33_12_256_000_TLA5Quo5ujdx8G4F6QH7MeBxwRp1_F_4160_3120", "outcome": "미확정", "stage": "값검증", "gt": 103, "pred": null, "det": 0.999, "conf": 0.923, "text": "2"}
+{"id": "20210823_10_58_53_236_000_bZy8xPq1p3WTOXBy9pDMqQeh9sq1_F_3264_2448", "outcome": "정답", "stage": "확정", "gt": 121, "pred": 121, "det": 0.998, "conf": 0.961, "text": "121"}
+{"id": "20210823_11_11_30_736_000_bZy8xPq1p3WTOXBy9pDMqQeh9sq1_F_3264_2448", "outcome": "정답", "stage": "확신도", "gt": 121, "pred": 121, "det": 0.995, "conf": 0.571, "text": "121"}
+{"id": "20210823_11_11_59_461_000_bZy8xPq1p3WTOXBy9pDMqQeh9sq1_F_3264_2448", "outcome": "정답", "stage": "확정", "gt": 121, "pred": 121, "det": 0.997, "conf": 1.0, "text": "121"}
+{"id": "20210823_11_12_06_439_000_bZy8xPq1p3WTOXBy9pDMqQeh9sq1_F_3264_2448", "outcome": "미확정", "stage": "값검증", "gt": 134, "pred": null, "det": 0.999, "conf": 0.662, "text": "1341"}
+{"id": "20210823_12_54_58_028_000_RpnyZTKRPiTM6SH5vmplbCNYUHb2_F_3000_4000", "outcome": "미확정", "stage": "판독", "gt": 120, "pred": null, "det": 0.498, "conf": 0.0, "text": ""}
+{"id": "20210823_13_02_04_506_000_RpnyZTKRPiTM6SH5vmplbCNYUHb2_F_3000_4000", "outcome": "정답", "stage": "확정", "gt": 97, "pred": 97, "det": 0.999, "conf": 0.985, "text": "97"}
+{"id": "20210823_20_15_05_056_000_lVfCAiAXrxgVRZ8dwpTKfo0znnW2_F_4608_3456", "outcome": "정답", "stage": "확정", "gt": 136, "pred": 136, "det": 1.0, "conf": 0.999, "text": "136"}
+{"id": "20210823_20_59_42_354_000_3FQ7xpkMmcdRS27U2bBCBMfyWxs1_F_4000_3000", "outcome": "정답", "stage": "확정", "gt": 173, "pred": 173, "det": 0.999, "conf": 0.999, "text": "173"}
+{"id": "20210824_13_12_36_191_000_T54lKx4A7QZiDCdTrSViCqgiLD42_F_4032_3024", "outcome": "정답", "stage": "확정", "gt": 173, "pred": 173, "det": 1.0, "conf": 0.911, "text": "173"}
+{"id": "20210824_13_19_07_439_000_T54lKx4A7QZiDCdTrSViCqgiLD42_F_4032_3024", "outcome": "정답", "stage": "확신도", "gt": 216, "pred": 216, "det": 0.998, "conf": 0.803, "text": "216"}
+{"id": "20210824_19_06_01_482_000_wVWQl3sChLhOS2A42U7bbgydQj13_F_3096_4128", "outcome": "미확정", "stage": "검출게이트", "gt": 192, "pred": null, "det": 0.006, "conf": 0.0, "text": ""}
+{"id": "20210824_19_06_21_422_000_wVWQl3sChLhOS2A42U7bbgydQj13_F_3096_4128", "outcome": "정답", "stage": "확신도", "gt": 203, "pred": 203, "det": 1.0, "conf": 0.691, "text": "203"}
+{"id": "20210824_19_06_49_311_000_wVWQl3sChLhOS2A42U7bbgydQj13_F_3096_4128", "outcome": "미확정", "stage": "검출게이트", "gt": 192, "pred": null, "det": 0.023, "conf": 0.0, "text": ""}
+{"id": "20210824_20_51_50_803_000_ZaG8yzjrIdPimkMRBMHzy2ylhP62_T_5120_3840", "outcome": "오답(498)", "stage": "확신도", "gt": 389, "pred": 498, "det": 0.999, "conf": 0.361, "text": "498"}
+{"id": "20210825_07_12_49_940_000_TLA5Quo5ujdx8G4F6QH7MeBxwRp1_F_4160_3120", "outcome": "미확정", "stage": "값검증", "gt": 95, "pred": null, "det": 0.574, "conf": 0.36, "text": "0"}
+{"id": "20210825_07_13_43_587_000_TLA5Quo5ujdx8G4F6QH7MeBxwRp1_F_4160_3120", "outcome": "미확정", "stage": "판독", "gt": 95, "pred": null, "det": 0.579, "conf": 0.0, "text": ""}
+{"id": "20210825_07_20_40_701_000_Uk4TyRC05LeVScctBlWyOmsATMf2_F_3000_4000", "outcome": "정답", "stage": "확정", "gt": 175, "pred": 175, "det": 1.0, "conf": 1.0, "text": "175"}
+{"id": "20210825_20_04_43_156_000_b9etrxAW0NcdAdUmHdMNZsKbARk1_F_3024_4032", "outcome": "정답", "stage": "확정", "gt": 320, "pred": 320, "det": 0.997, "conf": 0.964, "text": "320"}
+{"id": "20210826_09_33_40_734_000_b9etrxAW0NcdAdUmHdMNZsKbARk1_F_3024_4032", "outcome": "오답(29)", "stage": "확정", "gt": 291, "pred": 29, "det": 0.524, "conf": 1.0, "text": "29"}
+{"id": "20210826_09_33_47_217_000_b9etrxAW0NcdAdUmHdMNZsKbARk1_F_3024_4032", "outcome": "미확정", "stage": "검출게이트", "gt": 129, "pred": null, "det": 0.083, "conf": 0.0, "text": ""}
+{"id": "20210826_09_33_53_274_000_b9etrxAW0NcdAdUmHdMNZsKbARk1_F_3024_4032", "outcome": "미확정", "stage": "검출게이트", "gt": 110, "pred": null, "det": 0.233, "conf": 0.0, "text": ""}
+{"id": "20210826_09_36_59_993_000_3FQ7xpkMmcdRS27U2bBCBMfyWxs1_F_4000_3000", "outcome": "정답", "stage": "확정", "gt": 166, "pred": 166, "det": 1.0, "conf": 0.999, "text": "166"}
+{"id": "20210826_09_59_39_969_000_ZaG8yzjrIdPimkMRBMHzy2ylhP62_T_3840_5120", "outcome": "미확정", "stage": "검출게이트", "gt": 122, "pred": null, "det": 0.194, "conf": 0.0, "text": ""}
+{"id": "20210826_15_22_03_844_000_BC4XqqkCDmVpcdWGZ4rcicrjmwJ3_F_5184_3880", "outcome": "정답", "stage": "확정", "gt": 160, "pred": 160, "det": 1.0, "conf": 1.0, "text": "160"}
+{"id": "20210826_15_22_03_844_000_BC4XqqkCDmVpcdWGZ4rcicrjmwJ3_F_5184_3880 (1)", "outcome": "정답", "stage": "확정", "gt": 160, "pred": 160, "det": 1.0, "conf": 1.0, "text": "160"}
+{"id": "20210827_08_08_08_894_000_JwWZC6W7dQdr2ZV4C3xk1eJjnd62_T_1952_4160 (1)", "outcome": "미확정", "stage": "검출게이트", "gt": 213, "pred": null, "det": 0.005, "conf": 0.0, "text": ""}
+{"id": "20210827_15_25_05_701_000_LT14Leaw0UYGtqVVDIXPEVsTh2y2_F_3264_2448", "outcome": "미확정", "stage": "값검증", "gt": 345, "pred": null, "det": 1.0, "conf": 0.466, "text": "3145"}
+{"id": "20210827_17_32_30_824_000_7xkUWL80sgf0bdFSdRxPIxiIf5E2_F_4160_3120", "outcome": "정답", "stage": "확정", "gt": 398, "pred": 398, "det": 1.0, "conf": 0.999, "text": "398"}
+{"id": "20210828_00_05_48_022_000_XK1JYgJ397guebekaoLEKvklPAG2_F_3000_4000", "outcome": "미확정", "stage": "검출게이트", "gt": 168, "pred": null, "det": 0.151, "conf": 0.0, "text": ""}
+{"id": "20210828_06_43_15_784_000_w5RAsJajo1Np5Vpeuxvu0lB7i7J2_T_874_711", "outcome": "정답", "stage": "확정", "gt": 74, "pred": 74, "det": 1.0, "conf": 0.999, "text": "74"}
+{"id": "20210828_08_22_56_895_000_TLA5Quo5ujdx8G4F6QH7MeBxwRp1_F_4160_3120", "outcome": "오답(44)", "stage": "확정", "gt": 94, "pred": 44, "det": 0.954, "conf": 0.914, "text": "44"}
+{"id": "20210828_08_28_27_426_000_TLA5Quo5ujdx8G4F6QH7MeBxwRp1_F_4160_3120", "outcome": "미확정", "stage": "검출게이트", "gt": 94, "pred": null, "det": 0.007, "conf": 0.0, "text": ""}
+{"id": "20210828_08_58_11_150_000_yyEkut2ZZCe78x3sKtsUoWRuwCX2_T_3028_2470", "outcome": "정답", "stage": "확신도", "gt": 139, "pred": 139, "det": 1.0, "conf": 0.591, "text": "139"}
+{"id": "20210828_11_18_49_466_000_k7qdu8DrCHNnU5ZI4ihpL5WxmuJ3_F_3456_4608", "outcome": "정답", "stage": "확정", "gt": 117, "pred": 117, "det": 1.0, "conf": 0.971, "text": "117"}
+{"id": "20210828_16_34_38_476_000_xBN9LSUJ4lS18DIDO0eluxOT6xb2_F_4160_3120", "outcome": "정답", "stage": "확정", "gt": 103, "pred": 103, "det": 1.0, "conf": 0.911, "text": "103"}
+{"id": "20210828_16_35_51_468_000_xBN9LSUJ4lS18DIDO0eluxOT6xb2_F_4160_3120", "outcome": "정답", "stage": "확정", "gt": 86, "pred": 86, "det": 0.991, "conf": 0.946, "text": "86"}
+{"id": "20210828_16_36_33_062_000_xBN9LSUJ4lS18DIDO0eluxOT6xb2_F_4160_3120", "outcome": "정답", "stage": "확신도", "gt": 96, "pred": 96, "det": 1.0, "conf": 0.54, "text": "96"}
+{"id": "20210828_16_37_42_147_000_xBN9LSUJ4lS18DIDO0eluxOT6xb2_F_4160_3120", "outcome": "정답", "stage": "확정", "gt": 92, "pred": 92, "det": 0.997, "conf": 0.987, "text": "92"}
+{"id": "20210828_16_38_12_406_000_xBN9LSUJ4lS18DIDO0eluxOT6xb2_F_4160_3120", "outcome": "정답", "stage": "확신도", "gt": 105, "pred": 105, "det": 0.998, "conf": 0.833, "text": "105"}
+{"id": "20210828_17_25_23_982_000_8svWcOR3oWa3YEU7iM91BDriYhf1_F_4160_3120", "outcome": "미확정", "stage": "값검증", "gt": 169, "pred": null, "det": 0.993, "conf": 0.556, "text": "4595"}
+{"id": "20210828_17_25_23_982_000_8svWcOR3oWa3YEU7iM91BDriYhf1_F_4160_3120 (1)", "outcome": "미확정", "stage": "값검증", "gt": 169, "pred": null, "det": 0.993, "conf": 0.556, "text": "4595"}
+{"id": "20210828_17_30_05_085_000_8svWcOR3oWa3YEU7iM91BDriYhf1_F_4160_3120 (1)", "outcome": "거절", "stage": "검출게이트", "gt": null, "pred": null, "det": 0.031, "conf": 0.0, "text": ""}
+{"id": "20210828_23_40_05_991_000_KN1QCWKVJChN0i3oNO3T4RKCiN22_F_3000_4000", "outcome": "정답", "stage": "확정", "gt": 189, "pred": 189, "det": 1.0, "conf": 0.976, "text": "189"}
+{"id": "20210828_23_42_11_820_000_KN1QCWKVJChN0i3oNO3T4RKCiN22_F_3000_4000", "outcome": "오답(120)", "stage": "확신도", "gt": 122, "pred": 120, "det": 1.0, "conf": 0.384, "text": "120"}
+{"id": "20210828_23_42_34_554_000_KN1QCWKVJChN0i3oNO3T4RKCiN22_F_3000_4000", "outcome": "정답", "stage": "확신도", "gt": 142, "pred": 142, "det": 1.0, "conf": 0.655, "text": "142"}
+{"id": "20210828_23_42_50_861_000_KN1QCWKVJChN0i3oNO3T4RKCiN22_F_3000_4000", "outcome": "오답(54)", "stage": "확정", "gt": 294, "pred": 54, "det": 0.998, "conf": 0.955, "text": "54"}
+{"id": "20210828_23_43_27_973_000_KN1QCWKVJChN0i3oNO3T4RKCiN22_F_3000_4000", "outcome": "미확정", "stage": "판독", "gt": 243, "pred": null, "det": 0.925, "conf": 0.0, "text": ""}
+{"id": "20210829_08_30_33_710_000_ado7Dvvzm6YhPnCu7cWdVIjplmv1_F_3000_4000", "outcome": "미확정", "stage": "판독", "gt": 162, "pred": null, "det": 0.926, "conf": 0.0, "text": ""}
+{"id": "20210829_11_46_48_090_000_wmO8RFoaLcbLFpr0Jectrz3SP042_F_3264_2448", "outcome": "정답", "stage": "확정", "gt": 223, "pred": 223, "det": 0.997, "conf": 1.0, "text": "223"}
+{"id": "20210829_11_47_01_856_000_wmO8RFoaLcbLFpr0Jectrz3SP042_F_3264_2448", "outcome": "정답", "stage": "확신도", "gt": 162, "pred": 162, "det": 0.998, "conf": 0.742, "text": "162"}
+{"id": "20210829_11_47_29_063_000_wmO8RFoaLcbLFpr0Jectrz3SP042_F_3264_2448", "outcome": "정답", "stage": "확정", "gt": 220, "pred": 220, "det": 1.0, "conf": 0.975, "text": "220"}
+{"id": "20210829_11_48_20_565_000_wmO8RFoaLcbLFpr0Jectrz3SP042_F_3264_2448", "outcome": "정답", "stage": "확정", "gt": 162, "pred": 162, "det": 1.0, "conf": 0.968, "text": "162"}
+{"id": "20210829_11_48_57_060_000_wmO8RFoaLcbLFpr0Jectrz3SP042_F_3264_2448", "outcome": "오답(171)", "stage": "확신도", "gt": 191, "pred": 171, "det": 0.999, "conf": 0.817, "text": "171"}
+{"id": "20210829_11_49_38_120_000_wmO8RFoaLcbLFpr0Jectrz3SP042_F_3264_2448", "outcome": "정답", "stage": "확정", "gt": 223, "pred": 223, "det": 1.0, "conf": 0.999, "text": "223"}
+{"id": "20210829_11_55_53_388_000_xXNkd3clw0X4SPc4R0T3vmui7Hv1_F_3096_4128", "outcome": "오답(16)", "stage": "확신도", "gt": 186, "pred": 16, "det": 0.545, "conf": 0.464, "text": "16"}
+{"id": "20210829_11_57_47_887_000_xXNkd3clw0X4SPc4R0T3vmui7Hv1_F_3096_4128", "outcome": "미확정", "stage": "검출게이트", "gt": 136, "pred": null, "det": 0.011, "conf": 0.0, "text": ""}
+{"id": "20210829_12_58_50_960_000_oN9fhwxmSeQSLXMh44j4yjetiqC2_F_3000_4000", "outcome": "정답", "stage": "확정", "gt": 249, "pred": 249, "det": 1.0, "conf": 0.975, "text": "249"}
+{"id": "20210829_17_43_58_144_000_8svWcOR3oWa3YEU7iM91BDriYhf1_F_4160_3120", "outcome": "정답", "stage": "확정", "gt": 169, "pred": 169, "det": 0.998, "conf": 0.999, "text": "169"}
+{"id": "20210829_17_46_17_708_000_8svWcOR3oWa3YEU7iM91BDriYhf1_F_4160_3120", "outcome": "미확정", "stage": "값검증", "gt": 169, "pred": null, "det": 0.378, "conf": 0.766, "text": "1695"}
+{"id": "20210830_01_10_27_271_000_LT14Leaw0UYGtqVVDIXPEVsTh2y2_F_3264_2448", "outcome": "오답(182)", "stage": "확신도", "gt": 102, "pred": 182, "det": 1.0, "conf": 0.569, "text": "182"}
+{"id": "20210830_01_11_31_971_000_LT14Leaw0UYGtqVVDIXPEVsTh2y2_F_3264_2448", "outcome": "정답", "stage": "확정", "gt": 255, "pred": 255, "det": 1.0, "conf": 0.999, "text": "255"}
+{"id": "20210830_01_12_08_847_000_LT14Leaw0UYGtqVVDIXPEVsTh2y2_F_3264_2448", "outcome": "정답", "stage": "확정", "gt": 257, "pred": 257, "det": 1.0, "conf": 1.0, "text": "257"}
+{"id": "20210830_11_15_48_095_000_7WP3U8WHvwSudesksZEQpwF3HtI3_F_3264_2448", "outcome": "미확정", "stage": "검출게이트", "gt": 205, "pred": null, "det": 0.059, "conf": 0.0, "text": ""}
+{"id": "20210830_12_39_46_868_000_jXayAifsAYMUkwll7wo4AEZ2Gjl2_F_3096_4128", "outcome": "정답", "stage": "확정", "gt": 136, "pred": 136, "det": 0.972, "conf": 1.0, "text": "136"}
+{"id": "20210830_12_44_10_267_000_ap67H2NdiMYDfAnxSCEUQarZVG13_F_4000_3000", "outcome": "정답", "stage": "확정", "gt": 163, "pred": 163, "det": 1.0, "conf": 0.997, "text": "163"}
+{"id": "20210830_12_58_24_907_000_wVWQl3sChLhOS2A42U7bbgydQj13_F_3096_4128", "outcome": "정답", "stage": "확정", "gt": 192, "pred": 192, "det": 0.99, "conf": 1.0, "text": "192"}
+{"id": "20210830_15_05_02_399_000_DHOtkKyEdKfz1PtvlFpDVQkJMg22_F_4016_3008 (1)", "outcome": "미확정", "stage": "검출게이트", "gt": 102, "pred": null, "det": 0.058, "conf": 0.0, "text": ""}
+{"id": "20210830_17_01_03_968_000_T54lKx4A7QZiDCdTrSViCqgiLD42_F_4032_3024", "outcome": "정답", "stage": "확정", "gt": 164, "pred": 164, "det": 1.0, "conf": 0.983, "text": "164"}
+{"id": "20210830_17_05_14_898_000_T54lKx4A7QZiDCdTrSViCqgiLD42_F_4032_3024", "outcome": "오답(88)", "stage": "확신도", "gt": 82, "pred": 88, "det": 0.998, "conf": 0.614, "text": "88"}
+{"id": "20210830_17_05_54_229_000_T54lKx4A7QZiDCdTrSViCqgiLD42_F_4032_3024", "outcome": "정답", "stage": "확정", "gt": 82, "pred": 82, "det": 0.999, "conf": 0.978, "text": "82"}
+{"id": "20210830_17_23_53_916_000_5lASfZrkuFPHxK1YkcEZLvgNTAp1_F_3000_4000", "outcome": "미확정", "stage": "값검증", "gt": 97, "pred": null, "det": 0.998, "conf": 0.987, "text": "7"}
+{"id": "20210830_17_38_00_220_000_T54lKx4A7QZiDCdTrSViCqgiLD42_F_4032_3024", "outcome": "정답", "stage": "확정", "gt": 164, "pred": 164, "det": 1.0, "conf": 0.98, "text": "164"}
+{"id": "20210831_10_44_39_577_000_rWV5wv4tYxdEIoiYAsudekJcrcx1_T_4160_3120", "outcome": "오답(14)", "stage": "확신도", "gt": 124, "pred": 14, "det": 0.771, "conf": 0.761, "text": "14"}
+{"id": "20210831_11_06_41_498_000_FbEEcxrFB8T6PlGK1SiKfySYN2x2_F_3000_4000 (1)", "outcome": "미확정", "stage": "검출게이트", "gt": 163, "pred": null, "det": 0.21, "conf": 0.0, "text": ""}
+{"id": "20210831_11_09_10_349_000_FbEEcxrFB8T6PlGK1SiKfySYN2x2_F_3000_4000 (1)", "outcome": "미확정", "stage": "검출게이트", "gt": 150, "pred": null, "det": 0.0, "conf": 0.0, "text": ""}
+{"id": "20210831_12_22_43_154_000_bN1ZvL8ypDMBuWNsZ104Iv1esRG2_F_4160_3120", "outcome": "정답", "stage": "확정", "gt": 107, "pred": 107, "det": 0.329, "conf": 0.965, "text": "107"}
+{"id": "20210831_14_01_56_887_000_TLA5Quo5ujdx8G4F6QH7MeBxwRp1_F_4160_3120", "outcome": "미확정", "stage": "검출게이트", "gt": 204, "pred": null, "det": 0.001, "conf": 0.0, "text": ""}
+{"id": "20210831_14_04_04_133_000_TLA5Quo5ujdx8G4F6QH7MeBxwRp1_F_4160_3120", "outcome": "오답(496)", "stage": "확신도", "gt": 96, "pred": 496, "det": 0.993, "conf": 0.551, "text": "496"}
+{"id": "20210831_18_03_44_737_000_KHmDZV1nA9afQm6C1fZ6iGmNRl82_F_4160_3120 (1)", "outcome": "함정통과(86)", "stage": "확정", "gt": null, "pred": 86, "det": 0.997, "conf": 0.953, "text": "86"}
+{"id": "20210831_18_04_01_354_000_KHmDZV1nA9afQm6C1fZ6iGmNRl82_F_4160_3120 (1)", "outcome": "거절", "stage": "검출게이트", "gt": null, "pred": null, "det": 0.104, "conf": 0.0, "text": ""}
+{"id": "20210831_18_04_08_951_000_KHmDZV1nA9afQm6C1fZ6iGmNRl82_F_4160_3120", "outcome": "함정통과(97)", "stage": "확정", "gt": null, "pred": 97, "det": 0.947, "conf": 1.0, "text": "97"}
+{"id": "20210831_18_04_08_951_000_KHmDZV1nA9afQm6C1fZ6iGmNRl82_F_4160_3120 (1)", "outcome": "함정통과(97)", "stage": "확정", "gt": null, "pred": 97, "det": 0.947, "conf": 1.0, "text": "97"}
+{"id": "20210831_18_04_24_668_000_KHmDZV1nA9afQm6C1fZ6iGmNRl82_F_4160_3120", "outcome": "거절", "stage": "검출게이트", "gt": null, "pred": null, "det": 0.112, "conf": 0.0, "text": ""}
+{"id": "20210831_18_04_32_701_000_KHmDZV1nA9afQm6C1fZ6iGmNRl82_F_4160_3120 (1)", "outcome": "거절", "stage": "판독", "gt": null, "pred": null, "det": 0.299, "conf": 0.0, "text": ""}
+{"id": "20210831_18_05_01_809_000_KHmDZV1nA9afQm6C1fZ6iGmNRl82_F_4160_3120", "outcome": "거절", "stage": "값검증", "gt": null, "pred": null, "det": 0.999, "conf": 0.85, "text": "1410"}
+{"id": "20210831_18_05_10_265_000_KHmDZV1nA9afQm6C1fZ6iGmNRl82_F_4160_3120 (1)", "outcome": "거절", "stage": "검출게이트", "gt": null, "pred": null, "det": 0.001, "conf": 0.0, "text": ""}
+{"id": "20210831_18_05_25_676_000_KHmDZV1nA9afQm6C1fZ6iGmNRl82_F_4160_3120 (1)", "outcome": "함정통과(109)", "stage": "확신도", "gt": null, "pred": 109, "det": 0.685, "conf": 0.582, "text": "109"}
+{"id": "20210831_18_05_43_765_000_KHmDZV1nA9afQm6C1fZ6iGmNRl82_F_4160_3120 (1)", "outcome": "거절", "stage": "값검증", "gt": null, "pred": null, "det": 1.0, "conf": 0.997, "text": "000"}
+{"id": "20210831_21_36_16_457_000_d6VfI52O5edBLyTlsz7F5feBXti2_F_2448_3264", "outcome": "정답", "stage": "확정", "gt": 149, "pred": 149, "det": 1.0, "conf": 0.999, "text": "149"}
+{"id": "20210831_21_36_22_849_000_d6VfI52O5edBLyTlsz7F5feBXti2_F_2448_3264", "outcome": "정답", "stage": "확정", "gt": 172, "pred": 172, "det": 1.0, "conf": 0.998, "text": "172"}
+{"id": "20210831_21_43_06_674_000_pAW7w62lUTYbk0mhgIDjPBd6a6M2_F_2448_3264", "outcome": "미확정", "stage": "값검증", "gt": 108, "pred": null, "det": 0.998, "conf": 0.874, "text": "1108"}
+{"id": "20210901_07_25_11_483_000_TLA5Quo5ujdx8G4F6QH7MeBxwRp1_F_4160_3120", "outcome": "미확정", "stage": "값검증", "gt": 195, "pred": null, "det": 0.98, "conf": 0.56, "text": "1"}
+{"id": "20210901_08_11_24_243_000_DnvrgqwTvbMzBq759N8W8xYVvnF3_F_4320_5760 (1)", "outcome": "정답", "stage": "확정", "gt": 94, "pred": 94, "det": 0.985, "conf": 0.877, "text": "94"}
+{"id": "20210901_15_18_08_309_000_GAunHhX5vhTd6jns94rRRbm70Ak1_F_6000_8000 (1)", "outcome": "정답", "stage": "확신도", "gt": 137, "pred": 137, "det": 1.0, "conf": 0.662, "text": "137"}
+{"id": "20210902_10_07_51_430_000_7wdpMNTnwhVqpIaSuUULphFU0Uq1_F_3264_2448 (1)", "outcome": "정답", "stage": "확정", "gt": 104, "pred": 104, "det": 1.0, "conf": 0.999, "text": "104"}
+{"id": "20210902_10_07_54_955_000_cfPvBNAyiMOANxwdSiC998X707o2_F_3000_4000", "outcome": "정답", "stage": "확정", "gt": 137, "pred": 137, "det": 0.977, "conf": 1.0, "text": "137"}
+{"id": "20210902_10_13_55_476_000_Yn8EfcuddcVddkM0bORPWoOcLBj2_F_4160_3120", "outcome": "정답", "stage": "확신도", "gt": 127, "pred": 127, "det": 1.0, "conf": 0.695, "text": "127"}
+{"id": "20210902_10_14_10_639_000_cfPvBNAyiMOANxwdSiC998X707o2_F_3000_4000", "outcome": "정답", "stage": "확신도", "gt": 137, "pred": 137, "det": 0.997, "conf": 0.543, "text": "137"}
+{"id": "20210902_10_14_14_792_000_Yn8EfcuddcVddkM0bORPWoOcLBj2_F_4160_3120", "outcome": "정답", "stage": "확신도", "gt": 127, "pred": 127, "det": 0.999, "conf": 0.807, "text": "127"}
+{"id": "20210902_10_17_47_760_000_Yn8EfcuddcVddkM0bORPWoOcLBj2_F_4160_3120", "outcome": "정답", "stage": "확신도", "gt": 127, "pred": 127, "det": 1.0, "conf": 0.623, "text": "127"}
+{"id": "20210902_10_20_47_669_000_Yn8EfcuddcVddkM0bORPWoOcLBj2_F_4160_3120", "outcome": "정답", "stage": "확정", "gt": 156, "pred": 156, "det": 1.0, "conf": 1.0, "text": "156"}
+{"id": "20210902_10_21_34_330_000_Yn8EfcuddcVddkM0bORPWoOcLBj2_F_4160_3120", "outcome": "정답", "stage": "확정", "gt": 156, "pred": 156, "det": 0.999, "conf": 0.996, "text": "156"}
+{"id": "20210902_11_17_59_546_000_8svWcOR3oWa3YEU7iM91BDriYhf1_F_4160_3120 (1)", "outcome": "정답", "stage": "확정", "gt": 126, "pred": 126, "det": 0.956, "conf": 0.994, "text": "126"}
+{"id": "20210902_11_51_46_995_000_7wdpMNTnwhVqpIaSuUULphFU0Uq1_F_3264_2448", "outcome": "함정통과(74)", "stage": "확정", "gt": null, "pred": 74, "det": 1.0, "conf": 0.999, "text": "74"}
+{"id": "20210902_11_56_02_129_000_KHmDZV1nA9afQm6C1fZ6iGmNRl82_F_4160_3120 (1)", "outcome": "함정통과(62)", "stage": "확신도", "gt": null, "pred": 62, "det": 0.999, "conf": 0.779, "text": "62"}
+{"id": "20210902_11_56_10_870_000_KHmDZV1nA9afQm6C1fZ6iGmNRl82_F_4160_3120 (1)", "outcome": "거절", "stage": "판독", "gt": null, "pred": null, "det": 0.994, "conf": 0.0, "text": ""}
+{"id": "20210902_11_56_25_567_000_KHmDZV1nA9afQm6C1fZ6iGmNRl82_F_4160_3120 (1)", "outcome": "거절", "stage": "값검증", "gt": null, "pred": null, "det": 0.995, "conf": 0.99, "text": "4"}
+{"id": "20210902_11_56_52_440_000_KHmDZV1nA9afQm6C1fZ6iGmNRl82_F_4160_3120", "outcome": "거절", "stage": "판독", "gt": null, "pred": null, "det": 0.49, "conf": 0.0, "text": ""}
+{"id": "20210902_11_57_20_320_000_KHmDZV1nA9afQm6C1fZ6iGmNRl82_F_4160_3120 (1)", "outcome": "함정통과(97)", "stage": "확정", "gt": null, "pred": 97, "det": 0.998, "conf": 0.983, "text": "97"}
+{"id": "20210902_12_54_45_072_000_T54lKx4A7QZiDCdTrSViCqgiLD42_F_4032_3024", "outcome": "정답", "stage": "확정", "gt": 164, "pred": 164, "det": 1.0, "conf": 0.999, "text": "164"}
+{"id": "20210902_12_56_13_874_000_T54lKx4A7QZiDCdTrSViCqgiLD42_F_4032_3024", "outcome": "정답", "stage": "확정", "gt": 82, "pred": 82, "det": 1.0, "conf": 0.978, "text": "82"}
+{"id": "20210902_13_05_07_256_000_T54lKx4A7QZiDCdTrSViCqgiLD42_F_4032_3024", "outcome": "정답", "stage": "확신도", "gt": 173, "pred": 173, "det": 0.999, "conf": 0.73, "text": "173"}
+{"id": "20210902_13_07_09_760_000_T54lKx4A7QZiDCdTrSViCqgiLD42_F_4032_3024", "outcome": "미확정", "stage": "판독", "gt": 173, "pred": null, "det": 0.999, "conf": 0.0, "text": ""}
+{"id": "20210902_13_13_41_514_000_0yNkWam4yzbMzp7Kk796Xbbcq3s1_F_3096_4128", "outcome": "정답", "stage": "확신도", "gt": 90, "pred": 90, "det": 0.997, "conf": 0.726, "text": "90"}
+{"id": "20210902_13_14_33_576_000_0yNkWam4yzbMzp7Kk796Xbbcq3s1_F_3096_4128", "outcome": "정답", "stage": "확정", "gt": 87, "pred": 87, "det": 1.0, "conf": 0.998, "text": "87"}
+{"id": "20210902_13_15_07_569_000_T54lKx4A7QZiDCdTrSViCqgiLD42_F_4032_3024", "outcome": "오답(14)", "stage": "확신도", "gt": 164, "pred": 14, "det": 0.974, "conf": 0.387, "text": "14"}
+{"id": "20210902_13_15_49_507_000_0yNkWam4yzbMzp7Kk796Xbbcq3s1_F_3096_4128", "outcome": "정답", "stage": "확정", "gt": 95, "pred": 95, "det": 0.992, "conf": 1.0, "text": "95"}
+{"id": "20210902_13_16_35_841_000_0yNkWam4yzbMzp7Kk796Xbbcq3s1_F_3096_4128", "outcome": "정답", "stage": "확정", "gt": 101, "pred": 101, "det": 1.0, "conf": 0.999, "text": "101"}
+{"id": "20210902_13_17_41_084_000_0yNkWam4yzbMzp7Kk796Xbbcq3s1_F_3096_4128", "outcome": "정답", "stage": "확정", "gt": 104, "pred": 104, "det": 1.0, "conf": 0.998, "text": "104"}
+{"id": "20210902_13_19_56_297_000_0yNkWam4yzbMzp7Kk796Xbbcq3s1_F_3096_4128", "outcome": "정답", "stage": "확신도", "gt": 87, "pred": 87, "det": 0.994, "conf": 0.595, "text": "87"}
+{"id": "20210902_13_20_31_976_000_0yNkWam4yzbMzp7Kk796Xbbcq3s1_F_3096_4128", "outcome": "정답", "stage": "확정", "gt": 95, "pred": 95, "det": 0.998, "conf": 0.998, "text": "95"}
+{"id": "20210902_14_03_56_494_000_Dy9Jf2FREuU3V7LmB3qEv0talHH2_F_2448_3264", "outcome": "정답", "stage": "확신도", "gt": 194, "pred": 194, "det": 0.999, "conf": 0.693, "text": "194"}
+{"id": "20210902_14_03_56_494_000_Dy9Jf2FREuU3V7LmB3qEv0talHH2_F_2448_3264 (1)", "outcome": "정답", "stage": "확신도", "gt": 194, "pred": 194, "det": 0.999, "conf": 0.693, "text": "194"}
+{"id": "20210902_15_19_30_747_000_4dBgkM3IS9WGSEOANZ2MRNV51jz2_F_3000_4000", "outcome": "정답", "stage": "확정", "gt": 118, "pred": 118, "det": 0.652, "conf": 0.988, "text": "118"}
+{"id": "20210902_15_22_10_472_000_4dBgkM3IS9WGSEOANZ2MRNV51jz2_F_3000_4000", "outcome": "미확정", "stage": "검출게이트", "gt": 118, "pred": null, "det": 0.001, "conf": 0.0, "text": ""}
+{"id": "20210902_16_23_03_737_000_Yn8EfcuddcVddkM0bORPWoOcLBj2_F_4160_3120", "outcome": "정답", "stage": "확정", "gt": 127, "pred": 127, "det": 0.997, "conf": 0.982, "text": "127"}
+{"id": "20210902_16_24_01_543_000_Yn8EfcuddcVddkM0bORPWoOcLBj2_F_4160_3120", "outcome": "정답", "stage": "확정", "gt": 127, "pred": 127, "det": 1.0, "conf": 1.0, "text": "127"}
+{"id": "20210902_17_13_08_383_000_KN1QCWKVJChN0i3oNO3T4RKCiN22_F_3000_4000", "outcome": "미확정", "stage": "값검증", "gt": 202, "pred": null, "det": 1.0, "conf": 0.997, "text": "0"}
+{"id": "20210902_17_14_02_769_000_KN1QCWKVJChN0i3oNO3T4RKCiN22_F_3000_4000", "outcome": "오답(510)", "stage": "확신도", "gt": 316, "pred": 510, "det": 0.998, "conf": 0.523, "text": "510"}
+{"id": "20210902_17_34_24_977_000_8svWcOR3oWa3YEU7iM91BDriYhf1_F_4160_3120", "outcome": "거절", "stage": "검출게이트", "gt": null, "pred": null, "det": 0.124, "conf": 0.0, "text": ""}
+{"id": "20210902_18_03_39_851_000_cfPvBNAyiMOANxwdSiC998X707o2_F_3000_4000", "outcome": "정답", "stage": "확신도", "gt": 122, "pred": 122, "det": 1.0, "conf": 0.518, "text": "122"}
+{"id": "20210902_18_05_05_843_000_KHmDZV1nA9afQm6C1fZ6iGmNRl82_F_4160_3120", "outcome": "함정통과(109)", "stage": "확정", "gt": null, "pred": 109, "det": 0.973, "conf": 0.942, "text": "109"}
