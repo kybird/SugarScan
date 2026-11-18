@@ -191,28 +191,56 @@ class BandCrops(torch.utils.data.Dataset):
             self.items += dups
         self.aug = aug
         self.aug_rng = random.Random(SEED + 7)  # 재현성 — 고정 시드
+        # RAM 패딩 크롭 캐시(2026-11-18): 매 접근마다 전체 프레임(896×516
+        # PNG ≈ 462KB)을 imread 해 GPU 가 23% 밖에 안 쓰던 데이터 병목을
+        # 없앤다. 지터가 상자를 밀 수 있는 폭 + 여유 2px 을 포함해 미리
+        # 잘라 두고(전체의 약 92MB), __getitem__ 은 프레임 좌표로 계산한
+        # 뒤 캐시 좌표로 옮겨 자른다 — 좌표 계산은 구버전과 동일하다.
+        # 검출기 상자가 프레임 밖으로 나온 극소수 행(전체 프레임 폴백)만
+        # 프레임을 통째로 담는다.
+        self._pc, self._full = {}, {}
+        for f, box, _ in self.items:
+            if f in self._pc or f in self._full:
+                continue                      # aug 오버샘플 중복행은 공유
+            img = cv2.imread(str(self.root / self.split / f), cv2.IMREAD_GRAYSCALE)
+            x0, y0, x1, y1 = box
+            W, H = img.shape[1], img.shape[0]
+            bx0, by0, bx1, by1 = (int(v) for v in box)
+            if not (0 <= bx0 < bx1 <= W and 0 <= by0 < by1 <= H):
+                self._full[f] = img           # 지터 붕괴 폴백이 프레임 전체를 쓰는 행
+                continue
+            px = (x1 - x0) * self.jitter + 2.0
+            py = (y1 - y0) * self.jitter + 2.0
+            PX0 = max(0, int(x0 - px)); PY0 = max(0, int(y0 - py))
+            PX1 = min(W, int(x1 + px) + 1); PY1 = min(H, int(y1 + py) + 1)
+            self._pc[f] = (img[PY0:PY1, PX0:PX1], PX0, PY0, W, H)
 
     def __len__(self):
         return len(self.items)
 
     def __getitem__(self, i):
         fname, box, label = self.items[i]
-        img = cv2.imread(str(self.root / self.split / fname), cv2.IMREAD_GRAYSCALE)
+        if fname in self._pc:                  # RAM 캐시(2026-11-18)
+            pad, PX0, PY0, W, H = self._pc[fname]
+        else:                                  # 프레임 밖 상자 — 전체 폴백용
+            pad = self._full[fname]; PX0 = PY0 = 0
+            W, H = pad.shape[1], pad.shape[0]
         x0, y0, x1, y1 = box
         if self.jitter:
             w, h = x1 - x0, y1 - y0
             r = np.random.uniform(-self.jitter, self.jitter, 4)
             x0 += r[0] * w; x1 += r[1] * w; y0 += r[2] * h; y1 += r[3] * h
         x0 = max(0, int(x0)); y0 = max(0, int(y0))
-        x1 = min(img.shape[1], int(round(x1))); y1 = min(img.shape[0], int(round(y1)))
+        x1 = min(W, int(round(x1))); y1 = min(H, int(round(y1)))
         if x1 - x0 < 4 or y1 - y0 < 4:          # 지터가 상자를 뭉갠 경우
             x0, y0, x1, y1 = [int(v) for v in box]
-        if not (0 <= x0 < x1 <= img.shape[1] and 0 <= y0 < y1 <= img.shape[0]):
+        if not (0 <= x0 < x1 <= W and 0 <= y0 < y1 <= H):
             # 검출기 상자가 프레임 밖으로 완전히 나온 극단(음성 크롭 포함) —
             # 전체 프레임 크롭으로 떨어진다. 빈 배열을 resize 하는 즉사보다
             # 낫다(2026-11-15 스모크에서 실제로 냈다).
-            x0, y0, x1, y1 = 0, 0, img.shape[1], img.shape[0]
-        crop = cv2.resize(img[y0:y1, x0:x1], (IN_W, IN_H))
+            x0, y0, x1, y1 = 0, 0, W, H
+        crop = cv2.resize(pad[y0 - PY0:y1 - PY0, x0 - PX0:x1 - PX0],
+                          (IN_W, IN_H))
         if self.aug:
             # v10 축 2~4 — 리더 크롭 조건 변형(2026-10-03). 실사진 오독
             # 지도(사람 순회 관찰 8건)의 축: 저대비 58장(2406·41: 대비 28~53
@@ -341,8 +369,10 @@ def evaluate(model, loader, dev, dump=None, beam=0):
 
 
 def loaders(ds, bs, shuffle=True, workers=8):
-    # num_workers=8: 리더는 모델이 작아(2.3M·144×96) GPU 가 아니라 데이터
-    # 적재가 병목이었다(2026-11-17 실측: VRAM 4.2GB/16GB·싱글스레드).
+    # num_workers=8 + pin_memory(2026-11-17) — 그리고 2026-11-18 RAM 패딩
+    # 크롭 캐시(BandCrops.__init__)로 매-접근 imread 를 없앴다. 리더는
+    # 모델이 작아(2.3M·144×96) GPU 계산 자체는 ~60ms/iter 다 — 데이터
+    # 경로가 곧 에폭 시간이다.
     return torch.utils.data.DataLoader(ds, batch_size=bs, shuffle=shuffle,
                                        collate_fn=collate, num_workers=workers,
                                   persistent_workers=workers > 0,
@@ -423,7 +453,12 @@ def main():
     ds = BandCrops(args.set, args.split, args.boxes, jitter=args.jitter)
     print(f"학습 {len(ds)}장 (모집단 {args.set}, 상자 {args.boxes or '정답'}, "
           f"건너뜀 {ds.skipped})")
-    ld = loaders(ds, args.batch)
+    ld = loaders(ds, args.batch, workers=4)
+    # RAM 캐시(2026-11-18) 이후 항목당 비용이 ~0.4ms 로 떨어져 워커 수가
+    # 크게 필요 없다. 학습 4기(데이터와 GPU 를 겹치게), 평가 0기(싱글
+    # 스레드로도 2초 — 스폰 시 92MB 피클을 8번 나르던 비용이 사라진다).
+    ld_eval = loaders(ds, 64, False, workers=0)   # 루프 밖 1회 — 매 에폭 새
+                                       # 로더는 워커를 에폭마다 재생성했다
     opt = torch.optim.Adam(model.parameters(), lr=args.lr)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, args.epochs)
     best = -1.0
@@ -453,7 +488,7 @@ def main():
     for ep in range(start_ep, args.epochs + 1):
         loss = run_epoch(model, ld, crit, opt, dev)
         sched.step()
-        acc, n = evaluate(model, loaders(ds, 64, False), dev)
+        acc, n = evaluate(model, ld_eval, dev)
         print(f"  ep{ep:3d} loss {loss:.4f}  학습셋 완전일치 {acc*100:.2f}% (n={n})")
         # 에폭 간격 저장(2026-10-06 사람: "최대 데이터에서 에포크를 여러번 뽑는
         # 게 좋아보인다") — best 선정('첫 100% 에폭')이 유일한 선택이던 것을
