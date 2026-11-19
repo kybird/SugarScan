@@ -4,7 +4,7 @@
 대신 기존 env 를 읽기 전용으로 쓴다. torch+cv2+numpy 조합을 갖춘 유일한 env 가
 melotts 였다(나머지: base/moss-tts/shorts_generator/supertonic-studio 는 cv2 없음).
 **어떤 env 에도 pip/conda 설치를 하지 않는다** — 고정 환경 오염 금지
-(`doc/wiki/antipatterns/unpinned-pip-in-frozen-training-env.md`).
+(`docs/wiki/antipatterns/unpinned-pip-in-frozen-training-env.md`).
 
 ## 사양
 

@@ -9,7 +9,7 @@
 > 것이라 실행하지 말 것.** H3(쓰레기 rect)만 축소된 형태로 살아 있다.
 >
 > - 검토 결과: [`claude_consult_ocr_response.md`](claude_consult_ocr_response.md)
-> - 사건 기록: `doc/raw/2026-09-04.md` · 위키 `antipatterns/metric-path-not-under-test`
+> - 사건 기록: `docs/raw/2026-09-04.md` · 위키 `antipatterns/metric-path-not-under-test`
 > - 커밋: `b015830`
 >
 > **폐기하지 않고 남겨 둔다.** 그럴듯한 계측 버그가 어떻게 하루치 가설을

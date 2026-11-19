@@ -8,7 +8,7 @@
 # 그중 실제로 숫자칸이 잘린 것과 가로형이라 원래 꽉 차는 것은 사람이 봐야
 # 갈린다. 실제로 내가 기하로 2489 를 '오탐'이라 판정했다가 사람이 뒤집었다 —
 # 세 자리가 다 보인다는 것과 숫자칸이 온전하다는 것은 다른 말이었다.
-# (doc/wiki/patterns/declare-what-the-human-knows)
+# (docs/wiki/patterns/declare-what-the-human-knows)
 #
 # 사용:
 #   from band_exclusions import load_excluded, drop

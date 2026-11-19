@@ -6,7 +6,7 @@
 #
 # 층을 가르는 기준은 **사람이 그린 GM 화면 쿼드의 종횡비**다(gm_quads 로더 —
 # 사람 라벨 우선). 검출기 출력으로 가르면 모델 예측을 실측이라 부르는
-# 안티패턴을 다시 밟는다(doc/wiki/antipatterns/prediction-used-as-ground-truth).
+# 안티패턴을 다시 밟는다(docs/wiki/antipatterns/prediction-used-as-ground-truth).
 #
 # 입력: eval_band_detector.py gate 가 남기는
 #       _diag/<tag>/gate_results.jsonl   (기본 tag = 체크포인트 파일명 어간)
