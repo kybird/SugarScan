@@ -490,6 +490,12 @@ def main():
     ds = BandCrops(args.set, args.split, args.boxes, jitter=args.jitter)
     print(f"학습 {len(ds)}장 (모집단 {args.set}, 상자 {args.boxes or '정답'}, "
           f"건너뜀 {ds.skipped})")
+    # 체크포인트에 학습 인자를 남긴다(2026-11-19 GEN10D 감사 §5-1): rdr10d
+    # 소심화의 원인을 체크포인트로 확인 못 했다 — epoch/acc 만으로는 두 학습의
+    # 인자 동일성을 증명할 수 없다. 검출기(train_band)는 예전부터 저장함.
+    ck_args = {k: v for k, v in vars(args).items()
+               if isinstance(v, (int, float, str, bool, type(None)))}
+
     ld = loaders(ds, args.batch, workers=4)
     # RAM 캐시(2026-11-18) 이후 항목당 비용이 ~0.4ms 로 떨어져 워커 수가
     # 크게 필요 없다. 학습 4기(데이터와 GPU 를 겹치게), 평가 0기(싱글
@@ -533,16 +539,18 @@ def main():
         # 기본 켬(5): 전량점이 체인이 굽는 그대로 에폭 체크포인트를 남기게.
         if args.save_epoch_every and ep % args.save_epoch_every == 0:
             torch.save({"model": model.state_dict(), "epoch": ep, "acc": acc,
-                        "opt": opt.state_dict(), "sched": sched.state_dict()},
+                        "opt": opt.state_dict(), "sched": sched.state_dict(),
+                        "args": ck_args},
                        out / f"ep{ep}.pt")
         if acc > best:
             best = acc
             torch.save({"model": model.state_dict(), "epoch": ep, "acc": acc,
-                        "opt": opt.state_dict(), "sched": sched.state_dict()},
+                        "opt": opt.state_dict(), "sched": sched.state_dict(),
+                        "args": ck_args},
                        out / "best.pt")
     torch.save({"model": model.state_dict(), "epoch": args.epochs,
                 "acc": acc, "opt": opt.state_dict(),
-                "sched": sched.state_dict()},
+                "sched": sched.state_dict(), "args": ck_args},
                out / "last.pt")
     print(f"최고 학습셋 완전일치 {best*100:.2f}% -> {out/'best.pt'}")
     return 0
