@@ -1,10 +1,15 @@
 ---
 name: wiki-search
 description: Retrieve relevant past knowledge. Filters out deprecated practices and follows migration trails.
+skill-version: 3
 ---
 # When to use
 - BEFORE writing any code
 - At the start of every task
+
+# Layout contract
+- `docs/` (plural) is the canonical doc root — a legacy `doc/` is a fallback (auto-migrates
+  on the next llm-wiki command). When both exist, judge by `docs/`.
 
 # Input
 - current task description
@@ -12,7 +17,10 @@ description: Retrieve relevant past knowledge. Filters out deprecated practices 
 # Action
 1. **Search via CLI (Recommended)**:
    - Run: `llm-wiki search "<task keywords>"`
-   - This handles QMD semantic search with an automatic fallback to grep if QMD is unavailable.
+   - Always runs BOTH grep exact matching AND QMD semantic search (when installed) and merges
+     them — grep results are ranked by matched-keyword count with line snippets.
+   - Prefer pasting the **verbatim error string** as the query; exact strings are what grep
+     guarantees to find.
 
 2. **Follow Links**:
    - Use bidirectional links `[[link]]` and tags to navigate related knowledge.
@@ -25,3 +33,11 @@ description: Retrieve relevant past knowledge. Filters out deprecated practices 
 - Warnings: Include any anti-patterns or recently deprecated methods found.
 - Recommendations: Based ONLY on `status: active` patterns.
 - Related cases: [[case-link]]
+
+# Answer Archiving
+- If this search produced a genuinely useful **synthesized answer** (spanning several pages,
+  the kind a future session will re-derive at real cost), promote it:
+  - Write `docs/wiki/answers/<topic>.md` — frontmatter: `status: active`, `created: YYYY-MM-DD`,
+    `tags: [...]`, `aliases: [...]`, plus the answer body with `[[links]]` back to sources.
+  - Next `llm-wiki compile index` lists it in the Answers section and it becomes searchable.
+- Archive answers, not raw search dumps: a question answered in one page does not need this.

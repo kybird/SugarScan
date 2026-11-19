@@ -1,6 +1,7 @@
 ---
 name: wiki-lint
 description: Validate knowledge graph integrity, detect logical conflicts, and generate a professional health report with Mermaid visualizations.
+skill-version: 2
 ---
 # When to use
 - Before starting a major feature or refactor
@@ -25,7 +26,7 @@ description: Validate knowledge graph integrity, detect logical conflicts, and g
 - When a contradiction is found, decide which is current and mark the other `deprecated` with `superseded_by:` pointing to the winner.
 
 ## Phase 4: Professional Health Report
-Generate a summary in `doc/wiki/health_report.md` (or output to console):
+Generate a summary in `docs/wiki/health_report.md` (or output to console):
 
 ### Report Template
 ```markdown
