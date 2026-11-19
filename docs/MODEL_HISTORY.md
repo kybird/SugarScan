@@ -185,7 +185,7 @@ CTC 타깃(길이 0). 100에폭, 학습셋 완전일치 100% 수렴. RAM 패딩 
 
 ---
 
-**원문 인덱스**: 설계 정본 `docs/SPEC.md` · 재판 정본
+**원문 인덱스**: 전체 문제 정의 `docs/OVERVIEW.md` · 설계 정본 `docs/SPEC.md` · 재판 정본
 `docs/reports/dc238-judge-2026-11-16.md` · 48시간 상태
 `docs/reports/status-2026-11-19.md` · 밤샘 로그
 `docs/reports/overnight-2026-11-18.md` · 폐기 기록 `doc/raw/2026-09-17.md`
