@@ -11,10 +11,12 @@ class _FakeModel implements DeployOnnxModel {
 
   final Map<String, Float32List> outputs;
   int runCount = 0;
+  Float32List? lastInput;
 
   @override
   Future<Map<String, Float32List>> run(Float32List input) async {
     runCount++;
+    lastInput = Float32List.fromList(input);
     return outputs;
   }
 
@@ -67,11 +69,11 @@ void main() {
   }
 
   OcrFrame grayFrame({int size = 640}) => OcrFrame(
-        bytes: Uint8List(size * size)..fillRange(0, size * size, 114),
-        format: OcrImageFormat.grayscale8,
-        width: size,
-        height: size,
-      );
+    bytes: Uint8List(size * size)..fillRange(0, size * size, 114),
+    format: OcrImageFormat.grayscale8,
+    width: size,
+    height: size,
+  );
 
   test('검출 → 크롭 → 판독까지 끝내 값 후보를 낸다', () async {
     final engine = BandNetCrnnEngine(
@@ -88,7 +90,10 @@ void main() {
     final candidate = result.best!;
     expect(candidate.rawText, '127');
     expect(candidate.perCharConfidence, hasLength(3));
-    expect(candidate.confidence, candidate.perCharConfidence.reduce((a, b) => a < b ? a : b));
+    expect(
+      candidate.confidence,
+      candidate.perCharConfidence.reduce((a, b) => a < b ? a : b),
+    );
   });
 
   test('initialize 전 호출은 notInitialized', () async {
@@ -100,8 +105,114 @@ void main() {
     expect(result.failure?.kind, OcrFailureKind.notInitialized);
   });
 
-  test('모델 로드 실패(빌드에 애셋 없음)는 modelUnavailable — 앱은 수동 입력으로',
-      () async {
+  test('카메라 ROI만 원본 좌표에서 잘라 리더로 보내고 검출기는 호출하지 않는다', () async {
+    // ROI 밖 255, ROI 안 24개 서로 다른 화소: 잘못된 위치/행 스트라이드도 잡는다.
+    final bytes = Uint8List(12 * 10)..fillRange(0, 120, 255);
+    final expected = Uint8List(6 * 4);
+    for (var y = 0; y < 4; y++) {
+      for (var x = 0; x < 6; x++) {
+        final value = y * 6 + x;
+        bytes[(y + 2) * 12 + x + 2] = value;
+        expected[y * 6 + x] = value;
+      }
+    }
+    final detector = _FakeModel({}); // 호출하면 출력 형태 오류가 난다.
+    final reader = _FakeModel({'logits': readerLogits()});
+    final engine = BandNetCrnnEngine(
+      detectorLoader: () async => detector,
+      readerLoader: () async => reader,
+    );
+    await engine.initialize(const OcrEngineConfig());
+    final result = await engine.recognize(
+      OcrFrame(
+        bytes: bytes,
+        format: OcrImageFormat.grayscale8,
+        width: 12,
+        height: 10,
+        roi: const NormalizedRect(
+          left: 1 / 6,
+          top: 0.2,
+          width: 0.5,
+          height: 0.4,
+        ),
+      ),
+    );
+
+    expect(result.failure, isNull);
+    expect(result.best!.rawText, '127');
+    expect(detector.runCount, 0);
+    expect(reader.runCount, 1);
+    final crop = result.best!.crop!;
+    expect((crop.width, crop.height), (6, 4));
+    expect(crop.bytes, orderedEquals(expected));
+    expect(
+      reader.lastInput,
+      orderedEquals(
+        DeployPreprocess.readerInput(
+          DeployPreprocess.resizeBilinear(expected, 6, 4, 144, 96),
+        ),
+      ),
+    );
+  });
+
+  test('PNG 수동 정렬 ROI도 디코드한 이미지 좌표로 리더에 직행한다', () async {
+    final image = img.Image(width: 12, height: 10);
+    img.fill(image, color: img.ColorRgb8(114, 114, 114));
+    final detector = _FakeModel({});
+    final reader = _FakeModel({'logits': readerLogits()});
+    final engine = BandNetCrnnEngine(
+      detectorLoader: () async => detector,
+      readerLoader: () async => reader,
+    );
+    await engine.initialize(const OcrEngineConfig());
+    final result = await engine.recognize(
+      OcrFrame(
+        bytes: Uint8List.fromList(img.encodePng(image)),
+        format: OcrImageFormat.png,
+        width: 12,
+        height: 10,
+        roi: const NormalizedRect(left: 0, top: 0, width: 1, height: 1),
+      ),
+    );
+    expect(result.failure, isNull);
+    expect(detector.runCount, 0);
+    expect((result.best!.crop!.width, result.best!.crop!.height), (12, 10));
+  });
+
+  test('유효하지 않은 ROI는 다른 영역으로 우회하지 않고 미인식으로 끝낸다', () async {
+    final detector = _FakeModel({'obj': detObj(), 'reg': detReg()});
+    final reader = _FakeModel({'logits': readerLogits()});
+    final engine = BandNetCrnnEngine(
+      detectorLoader: () async => detector,
+      readerLoader: () async => reader,
+    );
+    await engine.initialize(const OcrEngineConfig());
+    for (final roi in [
+      const NormalizedRect(left: double.nan, top: 0, width: 1, height: 1),
+      const NormalizedRect(left: 0, top: 0, width: double.infinity, height: 1),
+      const NormalizedRect(left: -0.1, top: 0, width: 1, height: 1),
+      const NormalizedRect(left: 0.5, top: 0, width: 1, height: 1),
+      const NormalizedRect(left: 0, top: 0, width: 0, height: 1),
+      const NormalizedRect(left: 0, top: 0, width: -1, height: 1),
+      const NormalizedRect(left: 0, top: 0, width: 0.001, height: 1),
+    ]) {
+      final result = await engine.recognize(
+        OcrFrame(
+          bytes: Uint8List(640 * 640),
+          format: OcrImageFormat.grayscale8,
+          width: 640,
+          height: 640,
+          roi: roi,
+        ),
+      );
+      expect(result.failure?.kind, OcrFailureKind.noTextFound);
+      expect(result.candidates, isEmpty);
+    }
+    expect(detector.runCount, 0);
+    expect(reader.runCount, 0);
+  });
+
+  test('모델 로드 실패(빌드에 애셋 없음)는 modelUnavailable — 앱은 수동 입력으로', () async {
     final engine = BandNetCrnnEngine(
       detectorLoader: () async => null,
       readerLoader: () async => null,
@@ -117,8 +228,7 @@ void main() {
     final coldObj = Float32List(1600);
     coldObj.fillRange(0, coldObj.length, -6.0);
     final engine = BandNetCrnnEngine(
-      detectorLoader: () async =>
-          _FakeModel({'obj': coldObj, 'reg': detReg()}),
+      detectorLoader: () async => _FakeModel({'obj': coldObj, 'reg': detReg()}),
       readerLoader: () async => _FakeModel({'logits': readerLogits()}),
     );
     await engine.initialize(const OcrEngineConfig());
@@ -173,12 +283,14 @@ void main() {
     );
     await engine.initialize(const OcrEngineConfig());
 
-    final result = await engine.recognize(OcrFrame(
-      bytes: Uint8List(0),
-      format: OcrImageFormat.nv21,
-      width: 4,
-      height: 4,
-    ));
+    final result = await engine.recognize(
+      OcrFrame(
+        bytes: Uint8List(0),
+        format: OcrImageFormat.nv21,
+        width: 4,
+        height: 4,
+      ),
+    );
     expect(result.failure?.kind, OcrFailureKind.unsupportedFormat);
   });
 
@@ -192,12 +304,14 @@ void main() {
     );
     await engine.initialize(const OcrEngineConfig());
 
-    final result = await engine.recognize(OcrFrame(
-      bytes: Uint8List.fromList(img.encodePng(image)),
-      format: OcrImageFormat.png,
-      width: 64,
-      height: 64,
-    ));
+    final result = await engine.recognize(
+      OcrFrame(
+        bytes: Uint8List.fromList(img.encodePng(image)),
+        format: OcrImageFormat.png,
+        width: 64,
+        height: 64,
+      ),
+    );
 
     // 64×64 → 640 확대: scale 10, dx 0, dy 0. 레터박스 상자 (278,118,428,268)의
     // 원본 좌표는 (27.8, 11.8, 42.8, 26.8) — 면적비 0.055 로 게이트 통과.

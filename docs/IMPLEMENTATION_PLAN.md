@@ -1516,6 +1516,22 @@ flutter build windows --debug
 
 ---
 
+### 2026-11-19 — ONNX 카메라 ROI 경로 정합화
+
+사용자 요청으로 `BandNetCrnnEngine` 을 SPEC §1.1 에 맞췄다. 카메라 변환기는
+전체 회색조 프레임에 ROI 를 붙여 전달하지만 엔진이 이를 무시하고 전체 검출을
+실행하고 있었다. 이제 명시적 ROI 는 원본 좌표에서 잘라 리더로 직행하며,
+ROI 없는 사진만 기존 검출·면적 게이트를 거친다. 수동 사진 정렬도 ROI 계약을
+따른다. 비유한·범위 밖·비양수·픽셀상 너무 작은 ROI 는 미인식으로 반환한다.
+모델 준비·폴백, 값 검증, 프레임 합의, 사용자 확인 저장 규칙은 유지한다.
+
+검증 명령: `flutter test test/ocr/bandnet_crnn_engine_test.dart`,
+`flutter analyze`, `flutter test --reporter compact` — 모두 통과.
+원본 크롭 화소·리더 입력·검출기 미호출·ROI 없는 사진 검출·잘못된 ROI 를 검사했다.
+실모델 카메라 인식 성능·실기기 가이드 정렬은 이 검증에 포함하지 않는다.
+GEN10D 입력 스케일 재검증은 별도 미실행 작업이며
+`docs/reports/gen10d-input-audit-prompt.md` 에 지시서를 둔다.
+
 ## 부록 A. 이 계획에서 의도적으로 **하지 않는** 것
 
 - 인슐린 용량 계산기 (SaMD Class II 진입 → 규제 비용)

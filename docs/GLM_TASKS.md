@@ -389,6 +389,13 @@ grep -c "_VALUE_BINS\|_MEM_VARIANTS" assets_dev/train/synth_panel.py   # 0 이�
 
 ## 4. 작업 목록
 
+### G-GEN10D-INPUT-AUDIT-20261119 — 입력 크기·밴드 스케일 측정
+
+사용자 요청(2026-11-19). 새 학습 없이 GEN10B/D의 실제 입력 변환과
+밴드 화소 크기를 짝측정한다. 지시서 정본:
+[`gen10d-input-audit-prompt.md`](reports/gen10d-input-audit-prompt.md).
+원인 판단이 새 실험·설계 결정을 요구하면 C로 올린다. 아직 실행하지 않았다.
+
 ---
 
 ### G35 — GM 검출 추론 전처리를 학습과 맞춘다 (스트레치 → 레터박스)
