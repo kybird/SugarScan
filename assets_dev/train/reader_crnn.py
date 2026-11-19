@@ -487,14 +487,23 @@ def main():
               f"상자 {args.boxes or '정답'}, 건너뜀 {ds.skipped})")
         return 0
 
-    ds = BandCrops(args.set, args.split, args.boxes, jitter=args.jitter)
+    # 2026-11-19 결함 수정(사람 지시서 §2): 이 train 경로가 aug/aug_paddle 을
+    # 전달하지 않아 --paddle-aug 실험이 증강 없이 재학습됐다(당시 기각 기록은
+    # 무효 처리). measure 경로만 전달하고 있던 것이 본결함.
+    ds = BandCrops(args.set, args.split, args.boxes, jitter=args.jitter,
+                   aug=args.aug, aug_paddle=args.paddle_aug)
     print(f"학습 {len(ds)}장 (모집단 {args.set}, 상자 {args.boxes or '정답'}, "
           f"건너뜀 {ds.skipped})")
     # 체크포인트에 학습 인자를 남긴다(2026-11-19 GEN10D 감사 §5-1): rdr10d
     # 소심화의 원인을 체크포인트로 확인 못 했다 — epoch/acc 만으로는 두 학습의
     # 인자 동일성을 증명할 수 없다. 검출기(train_band)는 예전부터 저장함.
-    ck_args = {k: v for k, v in vars(args).items()
-               if isinstance(v, (int, float, str, bool, type(None)))}
+    # 명령행 인자(args)와 데이터셋에 실제 적용된 설정(ds)을 구분해 저장 —
+    # 전달 결함이 다시 생기면 두 값이 어긋나는 것으로 잡힌다.
+    ck_args = {"cli": {k: v for k, v in vars(args).items()
+                       if isinstance(v, (int, float, str, bool, type(None)))},
+               "dataset": {"jitter": ds.jitter, "aug": ds.aug,
+                           "aug_paddle": ds.aug_paddle, "n_items": len(ds),
+                           "boxes": str(args.boxes)}}
 
     ld = loaders(ds, args.batch, workers=4)
     # RAM 캐시(2026-11-18) 이후 항목당 비용이 ~0.4ms 로 떨어져 워커 수가
