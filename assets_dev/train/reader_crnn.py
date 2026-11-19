@@ -136,7 +136,7 @@ class BandCrops(torch.utils.data.Dataset):
     """
 
     def __init__(self, set_dir, split="train2017", boxes=None, limit=None,
-                 jitter=0.0, aug=False):
+                 jitter=0.0, aug=False, aug_paddle=False):
         self.root = Path(set_dir)
         self.split = split
         coco = json.loads((self.root / "annotations" /
@@ -190,6 +190,7 @@ class BandCrops(torch.utils.data.Dataset):
                     if _re.search(r"(.)", it[2])]
             self.items += dups
         self.aug = aug
+        self.aug_paddle = aug_paddle
         self.aug_rng = random.Random(SEED + 7)  # 재현성 — 고정 시드
         # RAM 패딩 크롭 캐시(2026-11-18): 매 접근마다 전체 프레임(896×516
         # PNG ≈ 462KB)을 imread 해 GPU 가 23% 밖에 안 쓰던 데이터 병목을
@@ -241,7 +242,40 @@ class BandCrops(torch.utils.data.Dataset):
             x0, y0, x1, y1 = 0, 0, W, H
         crop = cv2.resize(pad[y0 - PY0:y1 - PY0, x0 - PX0:x1 - PX0],
                           (IN_W, IN_H))
-        if self.aug:
+        if self.aug_paddle:
+            # 2026-11-19 — PaddleOCR RecAug 방식 대응(아이디어만, 자체 구현:
+            # 라이선스 방침상 코드 복사 없음). 그쪽은 blur·noise·대비·crop
+            # 을 각 40% 확률로 '리더가 받는 크롭'에 직접 입힌다. 우리 v10
+            # 증강(15%x3)은 제품 파인튜닝 스택에서 역행(89.9→86.3)해 축소한
+            # 값 — 밑바닥 합성 스택에서 재측정한다. 극성 반전은 Paddle 이
+            # 랜덤으로 주지만 우리는 렌더 층 프로파일 속성으로 이미 다룬다
+            # (여기 넣지 않는다). 연속 오버샘플도 끈다 — n 이 같아야 GEN9
+            # 리더와 짝 비교가 된다. 분기 추첨 6개로 흐름 고정.
+            g = self.aug_rng.random
+            _a, _b, _c, _d, _e, _f = (g(), g(), g(), g(), g(), g())
+            if _a < 0.40:                      # 대비 감소 0.5~0.9배
+                f = self.aug_rng.uniform(0.5, 0.9)
+                m = float(crop.mean())
+                crop = np.clip(m + (crop.astype(np.float32) - m) * f,
+                               0, 255).astype(np.uint8)
+            if _b < 0.40:                      # 가우시안 blur(k=5, 고정)
+                crop = cv2.GaussianBlur(crop, (5, 5), 1.0)
+            if _c < 0.40:                      # 소각도 회전 ±6도
+                ang = self.aug_rng.uniform(-6.0, 6.0)
+                M = cv2.getRotationMatrix2D((IN_W/2, IN_H/2), ang, 1.0)
+                crop = cv2.warpAffine(crop, M, (IN_W, IN_H),
+                                      flags=cv2.INTER_LINEAR,
+                                      borderValue=int(crop.mean()))
+            if _d < 0.40:                      # 가우시안 노이즈 σ 3~12
+                sg = self.aug_rng.uniform(3.0, 12.0)
+                crop = np.clip(crop.astype(np.float32)
+                               + np.random.normal(0.0, sg, crop.shape),
+                               0, 255).astype(np.uint8)
+            if _e < 0.40:                      # 상/하단 가장자리 crop 1~4px
+                ch = int(round(self.aug_rng.uniform(1, 4)))
+                crop = crop[ch:, :] if _f < 0.5 else crop[:-ch, :]
+                crop = cv2.resize(crop, (IN_W, IN_H))
+        elif self.aug:
             # v10 축 2~4 — 리더 크롭 조건 변형(2026-10-03). 실사진 오독
             # 지도(사람 순회 관찰 8건)의 축: 저대비 58장(2406·41: 대비 28~53
             # — 0이 7로, 1이 소실)·blur(347: 99→9 상단 흐림)·기울기(2366:
@@ -389,6 +423,9 @@ def main():
     ap.add_argument("--batch", type=int, default=32)
     ap.add_argument("--lr", type=float, default=1e-3)
     ap.add_argument("--jitter", type=float, default=0.0)
+    ap.add_argument("--paddle-aug", action="store_true",
+                    help="PaddleOCR RecAug급 크롭 증강(각 40%: 대비·blur·"
+                         "회전·노이즈·가장자리crop). 2026-11-19 재측정 실험.")
     ap.add_argument("--aug", action="store_true",
                     help="v10 크롭 변형(대비·blur·회전)+연속 오버샘플")
     ap.add_argument("--out", default=str(HERE / "reader_crnn"))
@@ -405,7 +442,7 @@ def main():
 
     if args.cmd == "measure":
         # IN_H/IN_W 의 종횡비 근거를 내는 자. 상수를 바꾸려면 이걸 먼저 돌린다.
-        ds = BandCrops(args.set, args.split, args.boxes, jitter=args.jitter, aug=args.aug)
+        ds = BandCrops(args.set, args.split, args.boxes, jitter=args.jitter, aug=args.aug, aug_paddle=args.paddle_aug)
         ar = np.array([(b[2] - b[0]) / (b[3] - b[1]) for _, b, _ in ds.items])
         lens = np.array([len(l) for _, _, l in ds.items])
         print(f"모집단 {args.set}/{args.split} · 상자 {args.boxes or '정답'} "
