@@ -1,5 +1,8 @@
 # 완료 기록
 
+- 2026-10-31 G-UNIFORM-20261031: 값당 균등 30~599 코퍼스(UNIFORM_20261031 30k) 재굽기→검출기 from-scratch 16k 스텝→리더 from-scratch 150에폭 체인 완주 — 실촬 전체 홀드아웃 e2e 93.73%(GT 2xx 157장 중 148 정답·첫자리 2→1 치환 2장). [실행·검증 기록](reports/uniform-training-20261031.md) · raw `doc/raw/2026-10-31.md`.
+- 2026-10-31 G-CACHE-20261031: 리더 결정적 입력 RAM 캐시·RNG 체크포인트·best 보존 재개 구현 — **2026-11-19 원격 독자 재구현(`55f58d9` 증강 호환 패딩 크롭 캐시, 에폭 17.7→2.8s)으로 대체 확정. 이 구현과 의존 자(benchmark_reader_cache.py·resume_uniform_cached.py)는 HEAD API 에 죽어 커밋 없이 폐기.** 15에폭 재개로 완주한 체인 기록은 윗 항목과 raw 가 정본.
+
 끝난 작업과 잡은 버그를 쌓아 두는 곳이다. [`CLAUDE_TASKS.md`](CLAUDE_TASKS.md) 와
 [`GLM_TASKS.md`](GLM_TASKS.md) 에서 항목이 사라지면 여기로 온다.
 
