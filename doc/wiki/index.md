@@ -54,6 +54,7 @@ tags: [index]
 | [[tolerant-decode-with-preservation]] | 모르는 값을 만나면 **관용하되 보존한다.** 기본값으로 치환하고 그대로 되돌려 쓰면, 관용이 곧 데이터 파괴가 된다. | 관용 디코드, unknown 보존, additive-only, fromWireName, orElse, MeasurementTag, ReadingSource, GlucoseUnit |
 | [[verify-premises-before-executing]] | 지시서를 받으면 **적힌 대로 하기 전에 전제가 사실인지 먼저 잰다.** 지시서를 쓴 | 전제 실측, 지시서 검증, 요약 먼저, 위임 안전장치 |
 | [[verify-symptom-before-hypothesis]] | 사용자가 "안 된다"고 하면 가설을 세우기 전에 **증상이 나온 자리를 직접 본다.** | 증상 먼저, 현장 조회, ls 한 번, 가설보다 조회, 코드보다 데이터 |
+| [[visual-comparison-sheet-conventions]] | 사람이 합성·모델 산출물을 눈검하는 비교 시트(아틀라스·몽타주·A/B판)는 | 사람 검수 시트 규약, 검수 시트, 몽타주 판, A/B판 관행, comparison sheet conventions |
 
 ---
 
@@ -100,6 +101,7 @@ tags: [index]
 | [[presence-rate-quoted-as-accuracy]] | 파이프라인 단계가 **출력을 냈는지**를 세는 비율과, 그 출력이 **맞았는지**를 | 검출률, 존재율, 출력이 있었나, detection rate, 커버리지를 정확도로, n_ok |
 | [[provenance-without-artifacts]] | "이 데이터는 구매 납품본이다"처럼 출처나 이용 조건에 관한 주장을 **근거 |  |
 | [[proxy-metric-moves-against-the-goal]] | 최종 지표가 둔감할 때(파인튜닝이 효과를 덮을 때) 중간 단계를 재는 대리 지표를 | 대리 지표, 프록시 지표, pre-only 평가, 합성 val, 지표가 반대로 |
+| [[render-bug-check-code-and-pixels-not-vision]] | "그림이 이상하다"는 사람 관찰에 비전 재검증으로 맞서면, 비전은 선행 프롬프트에 | 렌더 버그는 코드와 픽셀로 답한다, 이중축소 사고, 비전 자기검증 금지, draw-after-resize |
 | [[reset-clears-in-flight-lock]] | ```dart | reset 이 잠금을 푸는 것, _busy = false, FrameThrottler, frame_throttler.dart, _busy, reset(), isBusy |
 | [[rule-enforced-by-path-not-by-purpose]] | "실사진을 커밋하지 않는다"를 `gitignore` 한 줄로 지키면, 사진이 **다른 | gitignore 로만 막는다, 경로 규칙, 용도 규칙, 다른 형식으로 샌다 |
 | [[salient-failure-mistaken-for-frequent-failure]] | 검수 화면에서 제일 먼저 눈에 들어오는 실패가 제일 많은 실패는 아니다. | 눈에 띄는 실패, 버튼 오인, 실패 구성, 가장 큰 실패가 아니다 |
@@ -133,7 +135,7 @@ tags: [index]
 ## Statistics
 
 - Total concepts: 10
-- Total patterns: 26
-- Total anti-patterns: 59
+- Total patterns: 27
+- Total anti-patterns: 60
 - Total answers: 0
 - Last updated: 2026-11-19
