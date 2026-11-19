@@ -1,7 +1,7 @@
 ---
 name: work-loop
 description: Unattended kanban loop — pick a card, resolve it with objective evidence, park judgment calls and move on. Board is the only task list; converge, don't diverge.
-skill-version: 13
+skill-version: 14
 ---
 # When to use
 
@@ -123,7 +123,11 @@ pick → work → 판정 ─ done / handoff / abandon / supersede / unpick(반�
    Milestone cards are **never pickable** (they are grouping, not work — plan.md 3.8):
    if the No-pickable detail lists them, that is normal — don't `done` or `abandon` a
    milestone by hand; it auto-completes when its last member terminates (a `done` that
-   prints `◉ milestone 완료` closed it for you).
+   prints `◉ milestone 완료` closed it for you). That closure is **work finished, not a
+   verdict** — do not report a closed milestone as adopted/successful. The route/product
+   judgment often arrives days later and is attached without touching state:
+   `llm-wiki verdict <제목> --outcome adopted|rejected|superseded --why "…"` (append-only;
+   never `reopen` just to record a judgment — reopen is for fake dones only).
 
 5. **Search before work.** `llm-wiki search "<keywords>"` before starting a card. If the
    wall you are about to hit already has an abandoned card or an anti-pattern page, skip
@@ -141,11 +145,20 @@ pick → work → 판정 ─ done / handoff / abandon / supersede / unpick(반�
    commit in the primary from here. `LLM_WIKI_WORKTREE_LOCAL=1` restores per-worktree
    boards.
 
-8. **Interrupt cards go to the unaffiliated backlog.** Follow-ups, user requests, bug cards
-   discovered mid-work → `card new "<제목>" --goal "…"` with **no** `--milestone` (2026-09-21
-   규약): never glue new work onto a live milestone — that is a scope change the CLI guards
-   with `--scope-amend`. The morning ritual triages the backlog — (가) a new milestone,
-   (나) an explicit scope change, (다) `abandon`; '나중에' is not an outcome.
+8. **Interrupt cards land in 무소속.** Follow-ups, user requests, bug cards
+   discovered mid-work → `card new "<제목>" --goal "…"` — a card born without
+   `--milestone` is auto-attached to the **무소속** milestone (2026-10-15 규약,
+   plan.md 3.8): never glue new work onto a live milestone — that is a scope change
+   the CLI guards with `--scope-amend` (무소속 itself has no seal — no finish line).
+   The morning ritual triages the backlog — (가) 사후 편입: bundle same-purpose
+   cards (concluded ones too, via `--retro "<사유>"`) under a new milestone,
+   (나) an explicit scope change, (다) leave in 무소속 (legal resting state);
+   delaying a *spotted* retro-bundle candidate is the only '나중에' that is
+   forbidden.
+8a. **Search right after pick.** Before touching code, run `llm-wiki search
+   "<card Goal keywords> <files/commands you are about to touch>"` — the
+   session-start ritual is topic-level and misses task-level knowledge; episodes
+   are only memory if retrieved at the moment of need (2026-10-15 설계 §4).
 
 # Splitting (supersede) — divergence guard
 
@@ -169,3 +182,6 @@ Run at the end of the night, or in a separate morning session:
 - A milestone that closed during the night → gather its member `Result`s into a
   human-readable completion record (`DONE.md` 류). The cards already rest in
   `docs/kanban/done/` — promotion is a **summary**, not information movement (2026-09-21 규약).
+  Closure means the work finished; if the route/product judgment has since arrived
+  (사람 판정·재실험 결과), attach it with `llm-wiki verdict <제목> --outcome … --why "…"`
+  — `board report` then counts it under adopted/rejected/superseded, apart from done.
